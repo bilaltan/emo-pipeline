@@ -1,0 +1,231 @@
+[PHASE 5] - Metrics Analysis, Visualizations, and Excel S3 Export
+
+===============================================================================================
+  PHASE 5A — PERFORMANCE COMPARISON (NODE ACCURACY & LINK AUC)
+===============================================================================================
+
+  Dataset: wikics
+  _Algorithm           Node Acc   Comm Acc    Bnd Acc    Int Acc     Link AUC
+  ---------------------------------------------------------------------------
+  lpa-sage               0.3426     0.3757     0.0000     0.3757       0.7983
+  lpa-sage-caan          0.4938     0.6100     0.0000     0.6100       0.5000
+  lpa-gat                0.3188     0.3445     0.0000     0.3445       0.7531
+  lpa-gat-caan           0.4190     0.6258     0.0000     0.6258       0.5000
+  lpa-transformer        0.3641     0.3823     0.0000     0.3823       0.7713
+  lpa-transformer-caan     0.4450     0.5365     0.0000     0.5365       0.5000
+  lpa-clusterscl         0.3044     0.2995     0.0000     0.2995       0.7547
+  lpa-clusterscl-caan     0.3778     0.5071     0.0000     0.5071       0.5000
+  louvain-sage           0.2916     0.2986     0.0000     0.2986       0.8374
+  louvain-sage-caan      0.6031     0.5604     0.0000     0.5604       0.5000
+  louvain-gat            0.2792     0.2527     0.0000     0.2527       0.7742
+  louvain-gat-caan       0.5411     0.5845     0.0000     0.5845       0.5000
+  louvain-transformer     0.3222     0.3302     0.0000     0.3302       0.8054
+  louvain-transformer-caan     0.5723     0.5960     0.0000     0.5960       0.5000
+  louvain-clusterscl     0.3075     0.2958     0.0000     0.2958       0.7758
+  louvain-clusterscl-caan     0.4882     0.4396     0.0000     0.4396       0.5000
+  SAGE-BL                0.2281          —          —          —       0.6415
+  DISTDGL                0.6658          —          —          —       0.7222
+  ARMA-BL                0.2321          —          —          —       0.8899
+  ASAP-BL                0.2147          —          —          —       0.8841
+  GAT-BL                 0.2281          —          —          —       0.4157
+  TRANS-BL               0.2281          —          —          —       0.4224
+  CL-SCL-BL              0.2281          —          —          —       0.6052
+
+  [wikics] Performance by community size bucket:
+    lpa-sage:
+      large   : n=28  acc=0.3757  auc=0.8034
+    lpa-sage-caan:
+      small   : n=1  acc=0.4358  auc=0.5000
+      medium  : n=22  acc=0.6482  auc=0.5000
+      large   : n=5  acc=0.4767  auc=0.5000
+    lpa-gat:
+      large   : n=28  acc=0.3445  auc=0.7538
+    lpa-gat-caan:
+      small   : n=1  acc=0.2645  auc=0.5000
+      medium  : n=22  acc=0.6769  auc=0.5000
+      large   : n=5  acc=0.4732  auc=0.5000
+    lpa-transformer:
+      large   : n=28  acc=0.3823  auc=0.7573
+    lpa-transformer-caan:
+      small   : n=1  acc=0.2370  auc=0.5000
+      medium  : n=22  acc=0.5475  auc=0.5000
+      large   : n=5  acc=0.5478  auc=0.5000
+    lpa-clusterscl:
+      large   : n=28  acc=0.2995  auc=0.7573
+    lpa-clusterscl-caan:
+      small   : n=1  acc=0.2461  auc=0.5000
+      medium  : n=22  acc=0.5376  auc=0.5000
+      large   : n=5  acc=0.4252  auc=0.5000
+    louvain-sage:
+      large   : n=16  acc=0.2986  auc=0.8338
+    louvain-sage-caan:
+      small   : n=1  acc=0.5679  auc=0.5000
+      medium  : n=2  acc=0.4204  auc=0.5000
+      large   : n=13  acc=0.5814  auc=0.5000
+    louvain-gat:
+      large   : n=16  acc=0.2527  auc=0.7668
+    louvain-gat-caan:
+      small   : n=1  acc=0.5432  auc=0.5000
+      medium  : n=2  acc=0.7904  auc=0.5000
+      large   : n=13  acc=0.5560  auc=0.5000
+    louvain-transformer:
+      large   : n=16  acc=0.3302  auc=0.7917
+    louvain-transformer-caan:
+      small   : n=1  acc=0.6667  auc=0.5000
+      medium  : n=2  acc=0.7820  auc=0.5000
+      large   : n=13  acc=0.5620  auc=0.5000
+    louvain-clusterscl:
+      large   : n=16  acc=0.2958  auc=0.7674
+    louvain-clusterscl-caan:
+      small   : n=1  acc=0.3827  auc=0.5000
+      medium  : n=2  acc=0.3538  auc=0.5000
+      large   : n=13  acc=0.4572  auc=0.5000
+
+================================================================================
+  PHASE 5B — TIMING COMPARISON
+================================================================================
+
+  Dataset: wikics
+  Algorithm             Phase1    Phase2    Phase3   Phase3b     Total
+  --------------------------------------------------------------------
+  lpa-sage               11.2s     14.6s     32.4s     10.9s     69.1s
+  lpa-gat                11.2s     14.6s     39.9s     16.0s     81.8s
+  lpa-transformer        11.2s     14.6s     54.5s     25.2s    105.6s
+  lpa-clusterscl         11.2s     14.6s     93.4s     41.8s    161.0s
+  louvain-sage            3.8s     14.5s     15.8s      7.4s     41.5s
+  louvain-gat             3.8s     14.5s     22.4s     10.1s     50.7s
+  louvain-transformer      3.8s     14.5s     31.6s     12.2s     62.1s
+  louvain-clusterscl      3.8s     14.5s     43.5s      8.0s     69.8s
+  BASELINE (SAGE)            —         —         —      6.4s (Node: 1.4s, Link: 4.9s)
+  DISTDGL                    —         —         —     11.9s (Node: 0.7s, Link: 4.2s)
+  ARMA                       —         —         —     35.0s (Node: 18.6s, Link: 16.5s)
+  ASAP                       —         —         —     14.4s (Node: 6.1s, Link: 8.3s)
+  GAT-BL                     —         —         —     14.2s (Node: 6.0s, Link: 8.2s)
+  TRANS-BL                   —         —         —     22.9s (Node: 11.1s, Link: 11.8s)
+  CL-SCL-BL                  —         —         —     66.4s (Node: 53.5s, Link: 12.9s)
+  XLSX → s3://us-east-1-s3-gnn/gnn-bench-out/run-all_results.xlsx
+  Plot → s3://us-east-1-s3-gnn/gnn-bench-out/plots/run-all/wikics_acc_dist.png
+  Plot → s3://us-east-1-s3-gnn/gnn-bench-out/plots/run-all/wikics_boundary_internal.png
+  Plot → s3://us-east-1-s3-gnn/gnn-bench-out/plots/run-all/wikics_timing.png
+
+================================================================================
+  FINAL PIPELINE REPORT SUMMARY
+================================================================================
+╔══════════════════════════════════════════════════════════════╗
+║  EXPERIMENT: run-all                                        ║
+║  Global mapping: True                                        ║
+╠══════════════════════════════════════════════════════════════╣
+║   Dataset                        wikics                        ║
+║   Phase 0 (ingest)               21.0s                         ║
+║   Phase 1 [lpa]                  11.2s                         ║
+║   Phase 2 [lpa]                  14.6s                         ║
+║   Phase 3 [lpa-sage]             32.4s                         ║
+║   Phase 3b [lpa-sage-caan]       10.9s                         ║
+║   Phase 3 [lpa-gat]              39.9s                         ║
+║   Phase 3b [lpa-gat-caan]        16.0s                         ║
+║   Phase 3 [lpa-transformer]      54.5s                         ║
+║   Phase 3b [lpa-transformer-caan] 25.2s                        ║
+║   Phase 3 [lpa-clusterscl]       93.4s                         ║
+║   Phase 3b [lpa-clusterscl-caan] 41.8s                         ║
+║   Phase 1 [louvain]              3.8s                          ║
+║   Phase 2 [louvain]              14.5s                         ║
+║   Phase 3 [louvain-sage]         15.8s                         ║
+║   Phase 3b [louvain-sage-caan]   7.4s                          ║
+║   Phase 3 [louvain-gat]          22.4s                         ║
+║   Phase 3b [louvain-gat-caan]    10.1s                         ║
+║   Phase 3 [louvain-transformer]  31.6s                         ║
+║   Phase 3b [louvain-transformer-caan] 12.2s                    ║
+║   Phase 3 [louvain-clusterscl]   43.5s                         ║
+║   Phase 3b [louvain-clusterscl-caan] 8.0s                      ║
+║   Phase 4 (baseline)             6.4s                          ║
+║   Phase 4b (DistDGL)             11.9s                         ║
+║   Phase 4c (ARMA)                35.0s                         ║
+║   Phase 4d (ASAP)                14.4s                         ║
+║   Phase 4e (GAT)                 14.2s                         ║
+║   Phase 4f (GraphTrans)          22.9s                         ║
+║   Phase 4g (ClusterSCL)          66.4s                         ║
+╠══════════════════════════════════════════════════════════════╣
+║   [lpa-sage] global acc          0.3426                        ║
+║   [lpa-sage] boundary acc        0.0000                        ║
+║   [lpa-sage] internal acc        0.3757                        ║
+║   [lpa-sage] link AUC            0.7983                        ║
+║   [lpa-sage-caan] global acc     0.4938                        ║
+║   [lpa-sage-caan] boundary acc   0.0000                        ║
+║   [lpa-sage-caan] internal acc   0.6100                        ║
+║   [lpa-sage-caan] link AUC       0.5000                        ║
+║   [lpa-gat] global acc           0.3188                        ║
+║   [lpa-gat] boundary acc         0.0000                        ║
+║   [lpa-gat] internal acc         0.3445                        ║
+║   [lpa-gat] link AUC             0.7531                        ║
+║   [lpa-gat-caan] global acc      0.4190                        ║
+║   [lpa-gat-caan] boundary acc    0.0000                        ║
+║   [lpa-gat-caan] internal acc    0.6258                        ║
+║   [lpa-gat-caan] link AUC        0.5000                        ║
+║   [lpa-transformer] global acc   0.3641                        ║
+║   [lpa-transformer] boundary acc 0.0000                        ║
+║   [lpa-transformer] internal acc 0.3823                        ║
+║   [lpa-transformer] link AUC     0.7713                        ║
+║   [lpa-transformer-caan] global acc 0.4450                     ║
+║   [lpa-transformer-caan] boundary acc 0.0000                   ║
+║   [lpa-transformer-caan] internal acc 0.5365                   ║
+║   [lpa-transformer-caan] link AUC 0.5000                       ║
+║   [lpa-clusterscl] global acc    0.3044                        ║
+║   [lpa-clusterscl] boundary acc  0.0000                        ║
+║   [lpa-clusterscl] internal acc  0.2995                        ║
+║   [lpa-clusterscl] link AUC      0.7547                        ║
+║   [lpa-clusterscl-caan] global acc 0.3778                      ║
+║   [lpa-clusterscl-caan] boundary acc 0.0000                    ║
+║   [lpa-clusterscl-caan] internal acc 0.5071                    ║
+║   [lpa-clusterscl-caan] link AUC 0.5000                        ║
+║   [lpa] communities              538 raw → 27 valid            ║
+║   [louvain-sage] global acc      0.2916                        ║
+║   [louvain-sage] boundary acc    0.0000                        ║
+║   [louvain-sage] internal acc    0.2986                        ║
+║   [louvain-sage] link AUC        0.8374                        ║
+║   [louvain-sage-caan] global acc 0.6031                        ║
+║   [louvain-sage-caan] boundary acc 0.0000                      ║
+║   [louvain-sage-caan] internal acc 0.5604                      ║
+║   [louvain-sage-caan] link AUC   0.5000                        ║
+║   [louvain-gat] global acc       0.2792                        ║
+║   [louvain-gat] boundary acc     0.0000                        ║
+║   [louvain-gat] internal acc     0.2527                        ║
+║   [louvain-gat] link AUC         0.7742                        ║
+║   [louvain-gat-caan] global acc  0.5411                        ║
+║   [louvain-gat-caan] boundary acc 0.0000                       ║
+║   [louvain-gat-caan] internal acc 0.5845                       ║
+║   [louvain-gat-caan] link AUC    0.5000                        ║
+║   [louvain-transformer] global acc 0.3222                      ║
+║   [louvain-transformer] boundary acc 0.0000                    ║
+║   [louvain-transformer] internal acc 0.3302                    ║
+║   [louvain-transformer] link AUC 0.8054                        ║
+║   [louvain-transformer-caan] global acc 0.5723                 ║
+║   [louvain-transformer-caan] boundary acc 0.0000               ║
+║   [louvain-transformer-caan] internal acc 0.5960               ║
+║   [louvain-transformer-caan] link AUC 0.5000                   ║
+║   [louvain-clusterscl] global acc 0.3075                       ║
+║   [louvain-clusterscl] boundary acc 0.0000                     ║
+║   [louvain-clusterscl] internal acc 0.2958                     ║
+║   [louvain-clusterscl] link AUC  0.7758                        ║
+║   [louvain-clusterscl-caan] global acc 0.4882                  ║
+║   [louvain-clusterscl-caan] boundary acc 0.0000                ║
+║   [louvain-clusterscl-caan] internal acc 0.4396                ║
+║   [louvain-clusterscl-caan] link AUC 0.5000                    ║
+║   [louvain] communities          35 raw → 15 valid             ║
+║   Baseline acc                   0.2281                        ║
+║   Baseline link AUC              0.6415  (6.4s)                ║
+║   DistDGL acc                    0.6658                        ║
+║   DistDGL link AUC               0.7222  (11.9s)               ║
+║   ARMA acc                       0.2321                        ║
+║   ARMA link AUC                  0.8899  (35.0s)               ║
+║   ASAP acc                       0.2147                        ║
+║   ASAP link AUC                  0.8841  (14.4s)               ║
+║   GAT acc                        0.2281                        ║
+║   GAT link AUC                   0.4157  (14.2s)               ║
+║   GraphTrans acc                 0.2281                        ║
+║   GraphTrans link AUC            0.4224  (22.9s)               ║
+║   ClusterSCL acc                 0.2281                        ║
+║   ClusterSCL link AUC            0.6052  (66.4s)               ║
+╚══════════════════════════════════════════════════════════════╝
+
+[SUCCESS] EMR Driver execution completed in 1091.9 seconds.
+================================================================================
