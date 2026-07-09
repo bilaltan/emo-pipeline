@@ -247,7 +247,7 @@ def main():
         .config("spark.pyspark.virtualenv.enabled", "false") \
         .config("spark.executorEnv.HOME", "/tmp") \
         .config("spark.executorEnv.PYTHONUSERBASE", "/tmp/.local") \
-        .config("spark.executorEnv.PYTHONPATH", f"/tmp/.local/lib/{py_version}/site-packages") \
+        .config("spark.executorEnv.PYTHONPATH", f"/tmp/.local/lib/{py_version}/site-packages:$PYTHONPATH") \
         .config("spark.executorEnv.DGLBACKEND", "pytorch") \
         .config("spark.executorEnv.DGL_DOWNLOAD_DIR", "/tmp/.dgl") \
         .config("spark.jars.packages", "io.delta:delta-spark_2.12:3.2.0,graphframes:graphframes:0.8.3-spark3.5-s_2.12") \
