@@ -77,11 +77,11 @@ spark = SparkSession.builder \
     .config("spark.kryoserializer.buffer.max", "1024m") \
     .config("spark.pyspark.python", "python3") \
     .config("spark.pyspark.virtualenv.enabled", "false") \
-    .config("spark.executorEnv.HOME", large_tmp) \
-    .config("spark.executorEnv.PYTHONUSERBASE", f"{large_tmp}/.local") \
-    .config("spark.executorEnv.PYTHONPATH", f"{large_tmp}/.local/lib/{py_version}/site-packages") \
+    .config("spark.executorEnv.HOME", "/tmp") \
+    .config("spark.executorEnv.PYTHONUSERBASE", "/tmp/.local") \
+    .config("spark.executorEnv.PYTHONPATH", f"/tmp/.local/lib/{py_version}/site-packages") \
     .config("spark.executorEnv.DGLBACKEND", "pytorch") \
-    .config("spark.executorEnv.DGL_DOWNLOAD_DIR", f"{large_tmp}/.dgl") \
+    .config("spark.executorEnv.DGL_DOWNLOAD_DIR", "/tmp/.dgl") \
     .config("spark.jars.packages", "io.delta:delta-spark_2.12:3.2.0,graphframes:graphframes:0.8.3-spark3.5-s_2.12") \
     .config("spark.jars.ivy", f"{large_tmp}/.ivy2") \
     .config("spark.local.dir", f"{large_tmp}") \
