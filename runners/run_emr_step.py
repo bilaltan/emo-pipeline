@@ -361,7 +361,7 @@ except ModuleNotFoundError as e:
     raise e
 from pipeline.phases import (
     run_phase0, run_phase1, print_phase1_stats, run_phase2, run_phase3, run_phase3b,
-    run_phase4, run_phase4b, run_phase4c, run_phase4d, run_phase4e, run_phase4f, run_phase4g,
+    run_phase4, run_phase4b, run_phase4c, run_phase4d, run_phase4e, run_phase4f, run_phase4g, run_phase4h,
     print_accuracy_table, print_timing_table, save_plots_and_xlsx, print_summary
 )
 from pipeline.utils.paths import get_paths
@@ -381,6 +381,7 @@ phase4d_results = {}
 phase4e_results = {}
 phase4f_results = {}
 phase4g_results = {}
+phase4h_results = {}
 
 # Override settings from experiment_config
 EXPERIMENT_NAME = getattr(config, 'EXPERIMENT_NAME', 'emr_step')
@@ -592,6 +593,20 @@ if getattr(config, 'RUN_PHASE4', True):
         n_baseline_runs = getattr(config, 'N_BASELINE_RUNS', 3)
     )
 
+    # Phase 4h: GATv2 Baseline
+    print("\n[PHASE 4h] - GATv2 Full-Graph Global Baseline (PyG)")
+    run_phase4h(
+        spark, sc,
+        datasets     = DATASETS_TO_RUN,
+        dataset_cfg  = config.DATASET_CFG,
+        baseline_cfg = BASELINE_CFG,
+        get_paths_fn = get_paths_fn,
+        timing       = timing,
+        results      = phase4h_results,
+        task_type    = TASK_TYPE,
+        n_baseline_runs = getattr(config, 'N_BASELINE_RUNS', 3)
+    )
+
 # Phase 5: Metrics Aggregation & Reporting
 print("\n[PHASE 5] - Metrics Analysis, Visualizations, and Excel S3 Export")
 print_accuracy_table(
@@ -605,6 +620,7 @@ print_accuracy_table(
     phase4e_results = phase4e_results,
     phase4f_results = phase4f_results,
     phase4g_results = phase4g_results,
+    phase4h_results = phase4h_results,
     phase3b_results = phase3b_results,
     gnn_models      = config.GNN_MODELS
 )
@@ -630,6 +646,7 @@ save_plots_and_xlsx(
     phase4e_results = phase4e_results,
     phase4f_results = phase4f_results,
     phase4g_results = phase4g_results,
+    phase4h_results = phase4h_results,
     phase3b_results = phase3b_results,
     gnn_models      = config.GNN_MODELS
 )
@@ -655,6 +672,7 @@ print_summary(
     phase4e_results    = phase4e_results,
     phase4f_results    = phase4f_results,
     phase4g_results    = phase4g_results,
+    phase4h_results    = phase4h_results,
     phase3b_results    = phase3b_results,
     gnn_models         = config.GNN_MODELS
 )

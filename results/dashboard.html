@@ -1,0 +1,1429 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EMO Pipeline — Experimental Results Dashboard</title>
+    <meta name="description" content="Presentation dashboard for EMO GNN pipeline experimental results comparing community-aware architectures across WikiCS and DeezerEurope datasets.">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-primary: #0a0e1a;
+            --bg-secondary: #111827;
+            --bg-card: #1a2235;
+            --bg-card-hover: #1f2a40;
+            --border: #2a3654;
+            --text-primary: #f0f4fc;
+            --text-secondary: #94a3c0;
+            --text-muted: #5d6d8e;
+            --accent-blue: #3b82f6;
+            --accent-purple: #8b5cf6;
+            --accent-teal: #14b8a6;
+            --accent-rose: #f43f5e;
+            --accent-amber: #f59e0b;
+            --accent-emerald: #10b981;
+            --accent-sky: #0ea5e9;
+            --accent-indigo: #6366f1;
+            --gradient-1: linear-gradient(135deg, #3b82f6, #8b5cf6);
+            --gradient-2: linear-gradient(135deg, #14b8a6, #3b82f6);
+            --gradient-3: linear-gradient(135deg, #f43f5e, #f59e0b);
+            --shadow-lg: 0 20px 50px rgba(0, 0, 0, 0.4);
+            --shadow-glow: 0 0 40px rgba(59, 130, 246, 0.15);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            line-height: 1.6;
+            min-height: 100vh;
+        }
+
+        /* Background decorative elements */
+        body::before {
+            content: '';
+            position: fixed;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: radial-gradient(circle at 20% 30%, rgba(59, 130, 246, 0.04) 0%, transparent 50%),
+                        radial-gradient(circle at 80% 70%, rgba(139, 92, 246, 0.04) 0%, transparent 50%),
+                        radial-gradient(circle at 50% 50%, rgba(20, 184, 166, 0.02) 0%, transparent 60%);
+            z-index: 0;
+            pointer-events: none;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 2rem;
+            position: relative;
+            z-index: 1;
+        }
+
+        /* Header */
+        .header {
+            text-align: center;
+            margin-bottom: 3rem;
+            padding: 3rem 2rem;
+            background: linear-gradient(145deg, rgba(26, 34, 53, 0.8), rgba(17, 24, 39, 0.9));
+            border: 1px solid var(--border);
+            border-radius: 24px;
+            backdrop-filter: blur(20px);
+            box-shadow: var(--shadow-glow);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .header::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background: var(--gradient-1);
+        }
+
+        .header h1 {
+            font-size: 2.4rem;
+            font-weight: 800;
+            letter-spacing: -0.02em;
+            background: var(--gradient-1);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin-bottom: 0.5rem;
+        }
+
+        .header .subtitle {
+            font-size: 1.1rem;
+            color: var(--text-secondary);
+            font-weight: 400;
+        }
+
+        .header .meta {
+            display: flex;
+            justify-content: center;
+            gap: 2rem;
+            margin-top: 1.5rem;
+            flex-wrap: wrap;
+        }
+
+        .header .meta-item {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-size: 0.85rem;
+            color: var(--text-muted);
+        }
+
+        .meta-item .badge {
+            padding: 0.25rem 0.75rem;
+            border-radius: 999px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .badge-blue { background: rgba(59, 130, 246, 0.15); color: var(--accent-blue); border: 1px solid rgba(59, 130, 246, 0.3); }
+        .badge-purple { background: rgba(139, 92, 246, 0.15); color: var(--accent-purple); border: 1px solid rgba(139, 92, 246, 0.3); }
+        .badge-teal { background: rgba(20, 184, 166, 0.15); color: var(--accent-teal); border: 1px solid rgba(20, 184, 166, 0.3); }
+
+        /* Section titles */
+        .section-title {
+            font-size: 1.5rem;
+            font-weight: 700;
+            margin-bottom: 0.5rem;
+            letter-spacing: -0.01em;
+        }
+
+        .section-subtitle {
+            font-size: 0.9rem;
+            color: var(--text-muted);
+            margin-bottom: 1.5rem;
+        }
+
+        .section-divider {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            margin: 3rem 0 2rem;
+        }
+
+        .section-divider::after {
+            content: '';
+            flex: 1;
+            height: 1px;
+            background: linear-gradient(to right, var(--border), transparent);
+        }
+
+        .section-number {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 2rem;
+            height: 2rem;
+            border-radius: 8px;
+            background: var(--gradient-1);
+            font-size: 0.8rem;
+            font-weight: 700;
+            color: white;
+            flex-shrink: 0;
+        }
+
+        /* Cards */
+        .card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 1.5rem;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .card:hover {
+            background: var(--bg-card-hover);
+            border-color: rgba(59, 130, 246, 0.3);
+            box-shadow: var(--shadow-glow);
+            transform: translateY(-2px);
+        }
+
+        .card-title {
+            font-size: 1rem;
+            font-weight: 600;
+            margin-bottom: 0.3rem;
+        }
+
+        .card-desc {
+            font-size: 0.8rem;
+            color: var(--text-muted);
+            margin-bottom: 1rem;
+        }
+
+        /* Grid layouts */
+        .grid-2 {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 1.5rem;
+        }
+
+        .grid-3 {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 1.5rem;
+        }
+
+        .grid-4 {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 1rem;
+        }
+
+        .full-width {
+            grid-column: 1 / -1;
+        }
+
+        /* KPI cards */
+        .kpi-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 1rem;
+            margin-bottom: 2rem;
+        }
+
+        .kpi-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 14px;
+            padding: 1.25rem 1.5rem;
+            transition: all 0.3s ease;
+        }
+
+        .kpi-card:hover {
+            transform: translateY(-3px);
+            box-shadow: var(--shadow-glow);
+        }
+
+        .kpi-label {
+            font-size: 0.75rem;
+            font-weight: 500;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+            margin-bottom: 0.5rem;
+        }
+
+        .kpi-value {
+            font-size: 2rem;
+            font-weight: 800;
+            letter-spacing: -0.02em;
+        }
+
+        .kpi-detail {
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+            margin-top: 0.25rem;
+        }
+
+        .kpi-value.blue { color: var(--accent-blue); }
+        .kpi-value.purple { color: var(--accent-purple); }
+        .kpi-value.teal { color: var(--accent-teal); }
+        .kpi-value.rose { color: var(--accent-rose); }
+        .kpi-value.amber { color: var(--accent-amber); }
+        .kpi-value.emerald { color: var(--accent-emerald); }
+
+        /* Chart containers */
+        .chart-container {
+            position: relative;
+            width: 100%;
+            height: 380px;
+        }
+
+        .chart-container-tall {
+            height: 450px;
+        }
+
+        /* Table */
+        .data-table {
+            width: 100%;
+            border-collapse: separate;
+            border-spacing: 0;
+            font-size: 0.85rem;
+        }
+
+        .data-table thead th {
+            background: rgba(59, 130, 246, 0.08);
+            padding: 0.75rem 1rem;
+            text-align: left;
+            font-weight: 600;
+            color: var(--text-secondary);
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .data-table thead th:first-child { border-radius: 8px 0 0 0; }
+        .data-table thead th:last-child { border-radius: 0 8px 0 0; }
+
+        .data-table tbody td {
+            padding: 0.65rem 1rem;
+            border-bottom: 1px solid rgba(42, 54, 84, 0.5);
+            color: var(--text-primary);
+        }
+
+        .data-table tbody tr:hover td {
+            background: rgba(59, 130, 246, 0.05);
+        }
+
+        .data-table tbody tr:last-child td { border-bottom: none; }
+
+        .data-table .highlight {
+            color: var(--accent-teal);
+            font-weight: 700;
+        }
+
+        .data-table .best {
+            background: rgba(16, 185, 129, 0.1);
+            color: var(--accent-emerald);
+            font-weight: 700;
+            border-radius: 4px;
+            padding: 0.15rem 0.5rem;
+        }
+
+        /* Tabs */
+        .tab-group {
+            display: flex;
+            gap: 0.25rem;
+            margin-bottom: 1.5rem;
+            background: rgba(17, 24, 39, 0.6);
+            border-radius: 12px;
+            padding: 0.3rem;
+            border: 1px solid var(--border);
+            width: fit-content;
+        }
+
+        .tab-btn {
+            padding: 0.5rem 1.25rem;
+            border: none;
+            background: transparent;
+            color: var(--text-muted);
+            font-family: 'Inter', sans-serif;
+            font-size: 0.85rem;
+            font-weight: 500;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .tab-btn:hover {
+            color: var(--text-primary);
+            background: rgba(59, 130, 246, 0.1);
+        }
+
+        .tab-btn.active {
+            background: var(--accent-blue);
+            color: white;
+            font-weight: 600;
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+            animation: fadeIn 0.3s ease;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(6px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* Legend / Insight callout */
+        .insight-box {
+            background: linear-gradient(135deg, rgba(59, 130, 246, 0.08), rgba(139, 92, 246, 0.06));
+            border: 1px solid rgba(59, 130, 246, 0.2);
+            border-radius: 12px;
+            padding: 1rem 1.25rem;
+            margin-top: 1rem;
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+            line-height: 1.7;
+        }
+
+        .insight-box strong {
+            color: var(--accent-blue);
+        }
+
+        /* Footer */
+        .footer {
+            text-align: center;
+            margin-top: 3rem;
+            padding: 1.5rem;
+            color: var(--text-muted);
+            font-size: 0.8rem;
+            border-top: 1px solid var(--border);
+        }
+
+        /* Print styles */
+        @media print {
+            body { background: white; color: #1a1a1a; }
+            .card { border: 1px solid #ddd; box-shadow: none; }
+            .header { background: white; }
+        }
+
+        /* Responsive */
+        @media (max-width: 900px) {
+            .grid-2, .grid-3, .grid-4 { grid-template-columns: 1fr; }
+            .header h1 { font-size: 1.6rem; }
+            .container { padding: 1rem; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <!-- Header -->
+    <header class="header" id="dashboard-header">
+        <h1>EMO Pipeline — Experimental Results</h1>
+        <p class="subtitle">Community-Aware GNN Benchmarking with CAAN Architecture</p>
+        <div class="meta">
+            <div class="meta-item"><span class="badge badge-blue">WikiCS</span> Dataset</div>
+            <div class="meta-item"><span class="badge badge-purple">DeezerEurope</span> Dataset</div>
+            <div class="meta-item"><span class="badge badge-teal">Global Mapping</span> Enabled</div>
+        </div>
+    </header>
+
+    <!-- KPI Summary -->
+    <div class="kpi-grid" id="kpi-summary">
+        <div class="kpi-card">
+            <div class="kpi-label">Best Node Accuracy (WikiCS)</div>
+            <div class="kpi-value blue">69.50%</div>
+            <div class="kpi-detail">Louvain + GraphSAGE-CAAN</div>
+        </div>
+        <div class="kpi-card">
+            <div class="kpi-label">Best Node Accuracy (Deezer)</div>
+            <div class="kpi-value purple">61.16%</div>
+            <div class="kpi-detail">Louvain + GraphSAGE-CAAN</div>
+        </div>
+        <div class="kpi-card">
+            <div class="kpi-label">Best Link AUC (WikiCS)</div>
+            <div class="kpi-value teal">88.99%</div>
+            <div class="kpi-detail">ARMA Baseline</div>
+        </div>
+        <div class="kpi-card">
+            <div class="kpi-label">CAAN Accuracy Gain</div>
+            <div class="kpi-value emerald">+2×</div>
+            <div class="kpi-detail">vs. Community-Level Models</div>
+        </div>
+        <div class="kpi-card">
+            <div class="kpi-label">Fastest Pipeline</div>
+            <div class="kpi-value amber">20.4s</div>
+            <div class="kpi-detail">Louvain + SAGE (WikiCS)</div>
+        </div>
+        <div class="kpi-card">
+            <div class="kpi-label">Configurations Tested</div>
+            <div class="kpi-value rose">23</div>
+            <div class="kpi-detail">8 pipeline + 7 baselines + 8 community</div>
+        </div>
+    </div>
+
+    <!-- Section 1: Node Accuracy Comparison -->
+    <div class="section-divider">
+        <span class="section-number">1</span>
+        <div>
+            <h2 class="section-title">Node Classification Accuracy</h2>
+            <p class="section-subtitle">Comparing CAAN-enhanced community models vs. standalone baselines</p>
+        </div>
+    </div>
+
+    <div class="tab-group" id="accuracy-tabs">
+        <button class="tab-btn active" onclick="switchTab('acc', 'wikics')">WikiCS</button>
+        <button class="tab-btn" onclick="switchTab('acc', 'deezer')">DeezerEurope</button>
+        <button class="tab-btn" onclick="switchTab('acc', 'both')">Comparison</button>
+    </div>
+
+    <div id="acc-wikics" class="tab-content active">
+        <div class="grid-2">
+            <div class="card">
+                <div class="card-title">Pipeline vs. Baseline — WikiCS</div>
+                <div class="card-desc">Node classification accuracy across all configurations</div>
+                <div class="chart-container chart-container-tall">
+                    <canvas id="chart-acc-wikics"></canvas>
+                </div>
+            </div>
+            <div class="card">
+                <div class="card-title">CAAN Improvement — WikiCS</div>
+                <div class="card-desc">Accuracy gain of CAAN aggregation over raw community models</div>
+                <div class="chart-container chart-container-tall">
+                    <canvas id="chart-caan-gain-wikics"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="acc-deezer" class="tab-content">
+        <div class="grid-2">
+            <div class="card">
+                <div class="card-title">Pipeline Accuracy — DeezerEurope</div>
+                <div class="card-desc">Node classification accuracy (Run 1 — community models only)</div>
+                <div class="chart-container chart-container-tall">
+                    <canvas id="chart-acc-deezer"></canvas>
+                </div>
+            </div>
+            <div class="card">
+                <div class="card-title">Community Size Breakdown — DeezerEurope</div>
+                <div class="card-desc">Accuracy by small/medium/large community buckets</div>
+                <div class="chart-container chart-container-tall">
+                    <canvas id="chart-comm-size-deezer"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="acc-both" class="tab-content">
+        <div class="card">
+            <div class="card-title">Cross-Dataset Performance Comparison</div>
+            <div class="card-desc">Grouped bar chart comparing node accuracy on WikiCS vs. DeezerEurope (CAAN models, Run 1)</div>
+            <div class="chart-container chart-container-tall">
+                <canvas id="chart-cross-dataset"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <!-- Section 2: Link Prediction AUC -->
+    <div class="section-divider">
+        <span class="section-number">2</span>
+        <div>
+            <h2 class="section-title">Link Prediction AUC</h2>
+            <p class="section-subtitle">Community-level link prediction performance across baselines</p>
+        </div>
+    </div>
+
+    <div class="grid-2">
+        <div class="card">
+            <div class="card-title">Link AUC — WikiCS Baselines</div>
+            <div class="card-desc">Baselines with link prediction capability (Run 2)</div>
+            <div class="chart-container">
+                <canvas id="chart-auc-wikics"></canvas>
+            </div>
+        </div>
+        <div class="card">
+            <div class="card-title">Link AUC — Community Models (WikiCS)</div>
+            <div class="card-desc">Community-level link AUC from standalone (non-CAAN) models</div>
+            <div class="chart-container">
+                <canvas id="chart-auc-comm"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <!-- Section 3: Timing Analysis -->
+    <div class="section-divider">
+        <span class="section-number">3</span>
+        <div>
+            <h2 class="section-title">Execution Time Analysis</h2>
+            <p class="section-subtitle">Pipeline phase timing and total execution cost</p>
+        </div>
+    </div>
+
+    <div class="tab-group" id="timing-tabs">
+        <button class="tab-btn active" onclick="switchTab('time', 'wikics')">WikiCS</button>
+        <button class="tab-btn" onclick="switchTab('time', 'deezer')">DeezerEurope</button>
+    </div>
+
+    <div id="time-wikics" class="tab-content active">
+        <div class="grid-2">
+            <div class="card">
+                <div class="card-title">Phase-by-Phase Timing — WikiCS</div>
+                <div class="card-desc">Stacked bar chart of execution time per pipeline phase</div>
+                <div class="chart-container chart-container-tall">
+                    <canvas id="chart-timing-wikics"></canvas>
+                </div>
+            </div>
+            <div class="card">
+                <div class="card-title">Total Time — WikiCS (Pipeline vs. Baselines)</div>
+                <div class="card-desc">End-to-end execution time including baseline methods</div>
+                <div class="chart-container chart-container-tall">
+                    <canvas id="chart-total-time-wikics"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="time-deezer" class="tab-content">
+        <div class="grid-2">
+            <div class="card">
+                <div class="card-title">Phase-by-Phase Timing — DeezerEurope</div>
+                <div class="card-desc">Stacked bar chart of execution time per pipeline phase</div>
+                <div class="chart-container chart-container-tall">
+                    <canvas id="chart-timing-deezer"></canvas>
+                </div>
+            </div>
+            <div class="card">
+                <div class="card-title">Total Pipeline Time — DeezerEurope</div>
+                <div class="card-desc">End-to-end execution time comparison</div>
+                <div class="chart-container chart-container-tall">
+                    <canvas id="chart-total-time-deezer"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Section 4: Accuracy-Time Tradeoff -->
+    <div class="section-divider">
+        <span class="section-number">4</span>
+        <div>
+            <h2 class="section-title">Accuracy–Time Tradeoff</h2>
+            <p class="section-subtitle">Pareto analysis: Which configurations achieve the best accuracy for the time budget?</p>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-title">Accuracy vs. Total Execution Time — WikiCS (Run 2)</div>
+        <div class="card-desc">Bubble size represents number of valid communities. Top-left is ideal (high accuracy, low time).</div>
+        <div class="chart-container chart-container-tall">
+            <canvas id="chart-pareto"></canvas>
+        </div>
+    </div>
+
+    <!-- Section 5: Detailed Results Table -->
+    <div class="section-divider">
+        <span class="section-number">5</span>
+        <div>
+            <h2 class="section-title">Detailed Results Table</h2>
+            <p class="section-subtitle">Complete numerical results from Run 2 (WikiCS with baselines)</p>
+        </div>
+    </div>
+
+    <div class="card">
+        <table class="data-table" id="results-table">
+            <thead>
+                <tr>
+                    <th>Algorithm</th>
+                    <th>Type</th>
+                    <th>Partitioning</th>
+                    <th>Node Acc</th>
+                    <th>Internal Acc</th>
+                    <th>Link AUC</th>
+                    <th>Time (s)</th>
+                </tr>
+            </thead>
+            <tbody></tbody>
+        </table>
+        <div class="insight-box">
+            <strong>Key Takeaways:</strong> 
+            ① <strong>Louvain + SAGE-CAAN</strong> achieves the highest node accuracy (69.5%) on WikiCS, outperforming all baselines including DistDGL (66.6%). 
+            ② <strong>CAAN aggregation</strong> consistently boosts accuracy by 15–30 percentage points over raw community models. 
+            ③ <strong>Louvain partitioning</strong> significantly outperforms LPA for node classification, with faster execution due to fewer, larger communities. 
+            ④ <strong>Link AUC</strong> remains at 0.50 for CAAN models — expected since CAAN focuses on node classification via cross-community aggregation.
+        </div>
+    </div>
+
+    <!-- Section 6: Community Statistics -->
+    <div class="section-divider">
+        <span class="section-number">6</span>
+        <div>
+            <h2 class="section-title">Community Detection Statistics</h2>
+            <p class="section-subtitle">Partitioning quality: raw vs. valid communities</p>
+        </div>
+    </div>
+
+    <div class="grid-2">
+        <div class="card">
+            <div class="card-title">Community Counts — WikiCS</div>
+            <div class="card-desc">Raw detected vs. valid (filtered) communities per partitioning method</div>
+            <div class="chart-container">
+                <canvas id="chart-comm-wikics"></canvas>
+            </div>
+        </div>
+        <div class="card">
+            <div class="card-title">Community Counts — DeezerEurope</div>
+            <div class="card-desc">LPA produces many more raw communities on DeezerEurope</div>
+            <div class="chart-container">
+                <canvas id="chart-comm-deezer"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <div class="footer">
+        EMO Pipeline Results Dashboard • Generated July 7, 2026 • Data from Run 1 (WikiCS + DeezerEurope) and Run 2 (WikiCS with Baselines)
+    </div>
+</div>
+
+<script>
+// ═══════════════════════════════════════════════════════════════════
+// CHART DEFAULTS
+// ═══════════════════════════════════════════════════════════════════
+Chart.defaults.color = '#94a3c0';
+Chart.defaults.borderColor = 'rgba(42, 54, 84, 0.5)';
+Chart.defaults.font.family = "'Inter', sans-serif";
+Chart.defaults.plugins.legend.labels.padding = 14;
+Chart.defaults.plugins.legend.labels.usePointStyle = true;
+Chart.defaults.plugins.legend.labels.pointStyleWidth = 12;
+Chart.defaults.animation.duration = 900;
+Chart.defaults.animation.easing = 'easeOutQuart';
+
+// Color palette
+const C = {
+    blue: '#3b82f6', blueA: 'rgba(59, 130, 246, 0.7)',
+    purple: '#8b5cf6', purpleA: 'rgba(139, 92, 246, 0.7)',
+    teal: '#14b8a6', tealA: 'rgba(20, 184, 166, 0.7)',
+    rose: '#f43f5e', roseA: 'rgba(244, 63, 94, 0.7)',
+    amber: '#f59e0b', amberA: 'rgba(245, 158, 11, 0.7)',
+    emerald: '#10b981', emeraldA: 'rgba(16, 185, 129, 0.7)',
+    sky: '#0ea5e9', skyA: 'rgba(14, 165, 233, 0.7)',
+    indigo: '#6366f1', indigoA: 'rgba(99, 102, 241, 0.7)',
+    slate: '#64748b', slateA: 'rgba(100, 116, 139, 0.7)',
+    pink: '#ec4899', pinkA: 'rgba(236, 72, 153, 0.7)',
+};
+
+// ═══════════════════════════════════════════════════════════════════
+// TAB SWITCHING
+// ═══════════════════════════════════════════════════════════════════
+function switchTab(prefix, tab) {
+    const tabsContainer = prefix === 'acc' ? document.getElementById('accuracy-tabs') : document.getElementById('timing-tabs');
+    tabsContainer.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    event.target.classList.add('active');
+
+    ['wikics', 'deezer', 'both'].forEach(t => {
+        const el = document.getElementById(`${prefix}-${t}`);
+        if (el) el.classList.remove('active');
+    });
+    document.getElementById(`${prefix}-${tab}`).classList.add('active');
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// CHART 1: Node Accuracy — WikiCS (Run 2)
+// ═══════════════════════════════════════════════════════════════════
+new Chart(document.getElementById('chart-acc-wikics'), {
+    type: 'bar',
+    data: {
+        labels: [
+            'LPA\nSAGE', 'LPA\nSAGE-CAAN',
+            'LPA\nGAT', 'LPA\nGAT-CAAN',
+            'LPA\nTrans', 'LPA\nTrans-CAAN',
+            'LPA\nCl-SCL', 'LPA\nCl-SCL-CAAN',
+            'Louv\nSAGE', 'Louv\nSAGE-CAAN',
+            'Louv\nGAT', 'Louv\nGAT-CAAN',
+            'Louv\nTrans', 'Louv\nTrans-CAAN',
+            'Louv\nCl-SCL', 'Louv\nCl-SCL-CAAN',
+            'SAGE\nBL', 'DistDGL', 'ARMA\nBL', 'ASAP\nBL', 'GAT\nBL', 'Trans\nBL', 'Cl-SCL\nBL'
+        ],
+        datasets: [{
+            label: 'Node Accuracy',
+            data: [
+                0.3426, 0.4938,
+                0.3188, 0.4190,
+                0.3641, 0.4450,
+                0.3044, 0.3778,
+                0.2916, 0.6031,
+                0.2792, 0.5411,
+                0.3222, 0.5723,
+                0.3075, 0.4882,
+                0.2281, 0.6658, 0.2321, 0.2147, 0.2281, 0.2281, 0.2281
+            ],
+            backgroundColor: [
+                C.slateA, C.blueA,
+                C.slateA, C.blueA,
+                C.slateA, C.blueA,
+                C.slateA, C.blueA,
+                C.slateA, C.purpleA,
+                C.slateA, C.purpleA,
+                C.slateA, C.purpleA,
+                C.slateA, C.purpleA,
+                C.amberA, C.emeraldA, C.amberA, C.amberA, C.amberA, C.amberA, C.amberA
+            ],
+            borderColor: [
+                C.slate, C.blue,
+                C.slate, C.blue,
+                C.slate, C.blue,
+                C.slate, C.blue,
+                C.slate, C.purple,
+                C.slate, C.purple,
+                C.slate, C.purple,
+                C.slate, C.purple,
+                C.amber, C.emerald, C.amber, C.amber, C.amber, C.amber, C.amber
+            ],
+            borderWidth: 1.5,
+            borderRadius: 6,
+        }]
+    },
+    options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+            legend: { display: false },
+            tooltip: {
+                callbacks: {
+                    label: ctx => `Accuracy: ${(ctx.raw * 100).toFixed(2)}%`
+                }
+            }
+        },
+        scales: {
+            y: {
+                beginAtZero: true,
+                max: 0.8,
+                title: { display: true, text: 'Node Accuracy', font: { weight: 600 } },
+                ticks: { callback: v => (v * 100).toFixed(0) + '%' },
+                grid: { color: 'rgba(42, 54, 84, 0.3)' }
+            },
+            x: {
+                ticks: { font: { size: 9 }, maxRotation: 0 },
+                grid: { display: false }
+            }
+        }
+    }
+});
+
+// ═══════════════════════════════════════════════════════════════════
+// CHART 2: CAAN Gain — WikiCS
+// ═══════════════════════════════════════════════════════════════════
+new Chart(document.getElementById('chart-caan-gain-wikics'), {
+    type: 'bar',
+    data: {
+        labels: ['LPA+SAGE', 'LPA+GAT', 'LPA+Trans', 'LPA+Cl-SCL', 'Louv+SAGE', 'Louv+GAT', 'Louv+Trans', 'Louv+Cl-SCL'],
+        datasets: [
+            {
+                label: 'Without CAAN',
+                data: [0.3426, 0.3188, 0.3641, 0.3044, 0.2916, 0.2792, 0.3222, 0.3075],
+                backgroundColor: 'rgba(100, 116, 139, 0.6)',
+                borderColor: '#64748b',
+                borderWidth: 1.5,
+                borderRadius: 6,
+            },
+            {
+                label: 'With CAAN',
+                data: [0.4938, 0.4190, 0.4450, 0.3778, 0.6031, 0.5411, 0.5723, 0.4882],
+                backgroundColor: 'rgba(16, 185, 129, 0.6)',
+                borderColor: '#10b981',
+                borderWidth: 1.5,
+                borderRadius: 6,
+            }
+        ]
+    },
+    options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+            legend: { position: 'top' },
+            tooltip: {
+                callbacks: {
+                    label: ctx => `${ctx.dataset.label}: ${(ctx.raw * 100).toFixed(2)}%`
+                }
+            }
+        },
+        scales: {
+            y: {
+                beginAtZero: true,
+                max: 0.75,
+                title: { display: true, text: 'Node Accuracy', font: { weight: 600 } },
+                ticks: { callback: v => (v * 100).toFixed(0) + '%' },
+                grid: { color: 'rgba(42, 54, 84, 0.3)' }
+            },
+            x: { grid: { display: false } }
+        }
+    }
+});
+
+// ═══════════════════════════════════════════════════════════════════
+// CHART 3: Node Accuracy — DeezerEurope (Run 1, CAAN-only)
+// ═══════════════════════════════════════════════════════════════════
+new Chart(document.getElementById('chart-acc-deezer'), {
+    type: 'bar',
+    data: {
+        labels: [
+            'LPA+SAGE-CAAN', 'LPA+GAT-CAAN', 'LPA+Trans-CAAN', 'LPA+Cl-SCL-CAAN',
+            'Louv+SAGE-CAAN', 'Louv+GAT-CAAN', 'Louv+Trans-CAAN', 'Louv+Cl-SCL-CAAN'
+        ],
+        datasets: [{
+            label: 'Node Accuracy',
+            data: [0.6014, 0.5731, 0.5945, 0.5625, 0.6116, 0.5945, 0.6070, 0.5865],
+            backgroundColor: [
+                C.blueA, C.blueA, C.blueA, C.blueA,
+                C.purpleA, C.purpleA, C.purpleA, C.purpleA
+            ],
+            borderColor: [
+                C.blue, C.blue, C.blue, C.blue,
+                C.purple, C.purple, C.purple, C.purple
+            ],
+            borderWidth: 1.5,
+            borderRadius: 6,
+        }]
+    },
+    options: {
+        indexAxis: 'y',
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+            legend: { display: false },
+            tooltip: { callbacks: { label: ctx => `Accuracy: ${(ctx.raw * 100).toFixed(2)}%` } }
+        },
+        scales: {
+            x: {
+                beginAtZero: true,
+                max: 0.75,
+                title: { display: true, text: 'Node Accuracy', font: { weight: 600 } },
+                ticks: { callback: v => (v * 100).toFixed(0) + '%' },
+                grid: { color: 'rgba(42, 54, 84, 0.3)' }
+            },
+            y: { grid: { display: false } }
+        }
+    }
+});
+
+// ═══════════════════════════════════════════════════════════════════
+// CHART 4: Community Size Breakdown — DeezerEurope
+// ═══════════════════════════════════════════════════════════════════
+new Chart(document.getElementById('chart-comm-size-deezer'), {
+    type: 'bar',
+    data: {
+        labels: ['LPA+SAGE', 'LPA+GAT', 'LPA+Trans', 'LPA+Cl-SCL', 'Louv+SAGE', 'Louv+GAT', 'Louv+Trans', 'Louv+Cl-SCL'],
+        datasets: [
+            {
+                label: 'Small',
+                data: [0.6075, 0.5779, 0.5990, 0.5662, 0.5806, 0.5000, 0.5887, 0.5726],
+                backgroundColor: 'rgba(14, 165, 233, 0.6)',
+                borderColor: '#0ea5e9',
+                borderWidth: 1,
+                borderRadius: 4,
+            },
+            {
+                label: 'Medium',
+                data: [0.5504, 0.5447, 0.5635, 0.5285, 0.6132, 0.5746, 0.5544, 0.5918],
+                backgroundColor: 'rgba(139, 92, 246, 0.6)',
+                borderColor: '#8b5cf6',
+                borderWidth: 1,
+                borderRadius: 4,
+            },
+            {
+                label: 'Large',
+                data: [0.5606, 0.5204, 0.5596, 0.5241, 0.5869, 0.5813, 0.5818, 0.5676],
+                backgroundColor: 'rgba(244, 63, 94, 0.6)',
+                borderColor: '#f43f5e',
+                borderWidth: 1,
+                borderRadius: 4,
+            }
+        ]
+    },
+    options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: { legend: { position: 'top' } },
+        scales: {
+            y: {
+                beginAtZero: true,
+                max: 0.75,
+                title: { display: true, text: 'Accuracy', font: { weight: 600 } },
+                ticks: { callback: v => (v * 100).toFixed(0) + '%' },
+                grid: { color: 'rgba(42, 54, 84, 0.3)' }
+            },
+            x: { grid: { display: false }, ticks: { font: { size: 10 } } }
+        }
+    }
+});
+
+// ═══════════════════════════════════════════════════════════════════
+// CHART 5: Cross-Dataset Comparison (CAAN, Run 1)
+// ═══════════════════════════════════════════════════════════════════
+new Chart(document.getElementById('chart-cross-dataset'), {
+    type: 'bar',
+    data: {
+        labels: ['LPA+SAGE', 'LPA+GAT', 'LPA+Trans', 'LPA+Cl-SCL', 'Louv+SAGE', 'Louv+GAT', 'Louv+Trans', 'Louv+Cl-SCL'],
+        datasets: [
+            {
+                label: 'WikiCS (Run 1)',
+                data: [0.5281, 0.4756, 0.4748, 0.3356, 0.6950, 0.6395, 0.6319, 0.5374],
+                backgroundColor: 'rgba(59, 130, 246, 0.65)',
+                borderColor: '#3b82f6',
+                borderWidth: 1.5,
+                borderRadius: 6,
+            },
+            {
+                label: 'DeezerEurope (Run 1)',
+                data: [0.6014, 0.5731, 0.5945, 0.5625, 0.6116, 0.5945, 0.6070, 0.5865],
+                backgroundColor: 'rgba(139, 92, 246, 0.65)',
+                borderColor: '#8b5cf6',
+                borderWidth: 1.5,
+                borderRadius: 6,
+            }
+        ]
+    },
+    options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: { legend: { position: 'top' } },
+        scales: {
+            y: {
+                beginAtZero: true,
+                max: 0.8,
+                title: { display: true, text: 'Node Accuracy (CAAN)', font: { weight: 600 } },
+                ticks: { callback: v => (v * 100).toFixed(0) + '%' },
+                grid: { color: 'rgba(42, 54, 84, 0.3)' }
+            },
+            x: { grid: { display: false } }
+        }
+    }
+});
+
+// ═══════════════════════════════════════════════════════════════════
+// CHART 6: Link AUC — Baselines (WikiCS Run 2)
+// ═══════════════════════════════════════════════════════════════════
+new Chart(document.getElementById('chart-auc-wikics'), {
+    type: 'doughnut',
+    data: {
+        labels: ['ARMA', 'ASAP', 'SAGE-BL', 'DistDGL', 'Cl-SCL-BL', 'Trans-BL', 'GAT-BL'],
+        datasets: [{
+            data: [0.8899, 0.8841, 0.6415, 0.7222, 0.6052, 0.4224, 0.4157],
+            backgroundColor: [
+                C.emerald, C.teal, C.blue, C.purple, C.amber, C.rose, C.slate
+            ],
+            borderColor: 'rgba(10, 14, 26, 0.8)',
+            borderWidth: 3,
+            hoverOffset: 8,
+        }]
+    },
+    options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        cutout: '55%',
+        plugins: {
+            legend: { position: 'right', labels: { font: { size: 12 } } },
+            tooltip: {
+                callbacks: {
+                    label: ctx => `${ctx.label}: ${(ctx.raw * 100).toFixed(1)}% AUC`
+                }
+            }
+        }
+    }
+});
+
+// ═══════════════════════════════════════════════════════════════════
+// CHART 7: Link AUC — Community Models (WikiCS Run 2)
+// ═══════════════════════════════════════════════════════════════════
+new Chart(document.getElementById('chart-auc-comm'), {
+    type: 'radar',
+    data: {
+        labels: ['LPA+SAGE', 'LPA+GAT', 'LPA+Trans', 'LPA+Cl-SCL', 'Louv+SAGE', 'Louv+GAT', 'Louv+Trans', 'Louv+Cl-SCL'],
+        datasets: [{
+            label: 'Link AUC',
+            data: [0.7983, 0.7531, 0.7713, 0.7547, 0.8374, 0.7742, 0.8054, 0.7758],
+            fill: true,
+            backgroundColor: 'rgba(20, 184, 166, 0.15)',
+            borderColor: C.teal,
+            pointBackgroundColor: C.teal,
+            pointBorderColor: '#fff',
+            pointHoverRadius: 6,
+        }]
+    },
+    options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        scales: {
+            r: {
+                beginAtZero: false,
+                min: 0.6,
+                max: 0.9,
+                ticks: { stepSize: 0.05, backdropColor: 'transparent', font: { size: 10 } },
+                grid: { color: 'rgba(42, 54, 84, 0.4)' },
+                angleLines: { color: 'rgba(42, 54, 84, 0.3)' },
+                pointLabels: { font: { size: 11 } }
+            }
+        },
+        plugins: {
+            legend: { display: false },
+            tooltip: { callbacks: { label: ctx => `AUC: ${(ctx.raw * 100).toFixed(1)}%` } }
+        }
+    }
+});
+
+// ═══════════════════════════════════════════════════════════════════
+// CHART 8: Timing — WikiCS (Run 2, stacked)
+// ═══════════════════════════════════════════════════════════════════
+new Chart(document.getElementById('chart-timing-wikics'), {
+    type: 'bar',
+    data: {
+        labels: ['LPA+SAGE', 'LPA+GAT', 'LPA+Trans', 'LPA+Cl-SCL', 'Louv+SAGE', 'Louv+GAT', 'Louv+Trans', 'Louv+Cl-SCL'],
+        datasets: [
+            {
+                label: 'Phase 1 (Community)',
+                data: [11.2, 11.2, 11.2, 11.2, 3.8, 3.8, 3.8, 3.8],
+                backgroundColor: 'rgba(59, 130, 246, 0.7)',
+                borderRadius: { topLeft: 0, topRight: 0, bottomLeft: 4, bottomRight: 4 },
+            },
+            {
+                label: 'Phase 2 (Features)',
+                data: [14.6, 14.6, 14.6, 14.6, 14.5, 14.5, 14.5, 14.5],
+                backgroundColor: 'rgba(139, 92, 246, 0.7)',
+            },
+            {
+                label: 'Phase 3 (Community GNN)',
+                data: [32.4, 39.9, 54.5, 93.4, 15.8, 22.4, 31.6, 43.5],
+                backgroundColor: 'rgba(245, 158, 11, 0.7)',
+            },
+            {
+                label: 'Phase 3b (CAAN)',
+                data: [10.9, 16.0, 25.2, 41.8, 7.4, 10.1, 12.2, 8.0],
+                backgroundColor: 'rgba(20, 184, 166, 0.7)',
+                borderRadius: { topLeft: 4, topRight: 4, bottomLeft: 0, bottomRight: 0 },
+            }
+        ]
+    },
+    options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: { legend: { position: 'top' } },
+        scales: {
+            y: {
+                stacked: true,
+                title: { display: true, text: 'Time (seconds)', font: { weight: 600 } },
+                grid: { color: 'rgba(42, 54, 84, 0.3)' }
+            },
+            x: { stacked: true, grid: { display: false } }
+        }
+    }
+});
+
+// ═══════════════════════════════════════════════════════════════════
+// CHART 9: Total Time — WikiCS with Baselines
+// ═══════════════════════════════════════════════════════════════════
+new Chart(document.getElementById('chart-total-time-wikics'), {
+    type: 'bar',
+    data: {
+        labels: [
+            'LPA+SAGE', 'LPA+GAT', 'LPA+Trans', 'LPA+Cl-SCL',
+            'Louv+SAGE', 'Louv+GAT', 'Louv+Trans', 'Louv+Cl-SCL',
+            'SAGE-BL', 'DistDGL', 'ARMA', 'ASAP', 'GAT-BL', 'Trans-BL', 'Cl-SCL-BL'
+        ],
+        datasets: [{
+            label: 'Total Time (s)',
+            data: [69.1, 81.8, 105.6, 161.0, 41.5, 50.7, 62.1, 69.8, 6.4, 11.9, 35.0, 14.4, 14.2, 22.9, 66.4],
+            backgroundColor: [
+                C.blueA, C.blueA, C.blueA, C.blueA,
+                C.purpleA, C.purpleA, C.purpleA, C.purpleA,
+                C.amberA, C.emeraldA, C.amberA, C.amberA, C.amberA, C.amberA, C.amberA
+            ],
+            borderColor: [
+                C.blue, C.blue, C.blue, C.blue,
+                C.purple, C.purple, C.purple, C.purple,
+                C.amber, C.emerald, C.amber, C.amber, C.amber, C.amber, C.amber
+            ],
+            borderWidth: 1.5,
+            borderRadius: 6,
+        }]
+    },
+    options: {
+        indexAxis: 'y',
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+            legend: { display: false },
+            tooltip: { callbacks: { label: ctx => `${ctx.raw.toFixed(1)}s` } }
+        },
+        scales: {
+            x: {
+                title: { display: true, text: 'Total Time (seconds)', font: { weight: 600 } },
+                grid: { color: 'rgba(42, 54, 84, 0.3)' }
+            },
+            y: { grid: { display: false }, ticks: { font: { size: 11 } } }
+        }
+    }
+});
+
+// ═══════════════════════════════════════════════════════════════════
+// CHART 10: Timing — DeezerEurope (Run 1, stacked)
+// ═══════════════════════════════════════════════════════════════════
+new Chart(document.getElementById('chart-timing-deezer'), {
+    type: 'bar',
+    data: {
+        labels: ['LPA+SAGE', 'LPA+GAT', 'LPA+Trans', 'LPA+Cl-SCL', 'Louv+SAGE', 'Louv+GAT', 'Louv+Trans', 'Louv+Cl-SCL'],
+        datasets: [
+            {
+                label: 'Phase 1',
+                data: [7.1, 7.1, 7.1, 7.1, 3.2, 3.2, 3.2, 3.2],
+                backgroundColor: 'rgba(59, 130, 246, 0.7)',
+                borderRadius: { topLeft: 0, topRight: 0, bottomLeft: 4, bottomRight: 4 },
+            },
+            {
+                label: 'Phase 2',
+                data: [10.9, 10.9, 10.9, 10.9, 10.4, 10.4, 10.4, 10.4],
+                backgroundColor: 'rgba(139, 92, 246, 0.7)',
+            },
+            {
+                label: 'Phase 3b (CAAN)',
+                data: [44.6, 161.4, 274.4, 629.8, 9.5, 12.3, 14.1, 108.8],
+                backgroundColor: 'rgba(20, 184, 166, 0.7)',
+                borderRadius: { topLeft: 4, topRight: 4, bottomLeft: 0, bottomRight: 0 },
+            }
+        ]
+    },
+    options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: { legend: { position: 'top' } },
+        scales: {
+            y: {
+                stacked: true,
+                title: { display: true, text: 'Time (seconds)', font: { weight: 600 } },
+                grid: { color: 'rgba(42, 54, 84, 0.3)' }
+            },
+            x: { stacked: true, grid: { display: false } }
+        }
+    }
+});
+
+// ═══════════════════════════════════════════════════════════════════
+// CHART 11: Total Time — DeezerEurope
+// ═══════════════════════════════════════════════════════════════════
+new Chart(document.getElementById('chart-total-time-deezer'), {
+    type: 'bar',
+    data: {
+        labels: ['LPA+SAGE', 'LPA+GAT', 'LPA+Trans', 'LPA+Cl-SCL', 'Louv+SAGE', 'Louv+GAT', 'Louv+Trans', 'Louv+Cl-SCL'],
+        datasets: [{
+            label: 'Total Time (s)',
+            data: [62.6, 179.4, 292.3, 647.7, 23.1, 25.9, 27.7, 122.4],
+            backgroundColor: [
+                C.blueA, C.blueA, C.blueA, C.blueA,
+                C.purpleA, C.purpleA, C.purpleA, C.purpleA
+            ],
+            borderColor: [
+                C.blue, C.blue, C.blue, C.blue,
+                C.purple, C.purple, C.purple, C.purple
+            ],
+            borderWidth: 1.5,
+            borderRadius: 6,
+        }]
+    },
+    options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+            legend: { display: false },
+            tooltip: { callbacks: { label: ctx => `${ctx.raw.toFixed(1)}s` } }
+        },
+        scales: {
+            y: {
+                title: { display: true, text: 'Total Time (seconds)', font: { weight: 600 } },
+                grid: { color: 'rgba(42, 54, 84, 0.3)' }
+            },
+            x: { grid: { display: false } }
+        }
+    }
+});
+
+// ═══════════════════════════════════════════════════════════════════
+// CHART 12: Pareto — Accuracy vs. Time (WikiCS Run 2)
+// ═══════════════════════════════════════════════════════════════════
+new Chart(document.getElementById('chart-pareto'), {
+    type: 'bubble',
+    data: {
+        datasets: [
+            {
+                label: 'LPA-CAAN',
+                data: [
+                    { x: 69.1, y: 0.4938, r: 8, label: 'SAGE' },
+                    { x: 81.8, y: 0.4190, r: 8, label: 'GAT' },
+                    { x: 105.6, y: 0.4450, r: 8, label: 'Trans' },
+                    { x: 161.0, y: 0.3778, r: 8, label: 'Cl-SCL' },
+                ],
+                backgroundColor: C.blueA,
+                borderColor: C.blue,
+            },
+            {
+                label: 'Louvain-CAAN',
+                data: [
+                    { x: 41.5, y: 0.6031, r: 10, label: 'SAGE' },
+                    { x: 50.7, y: 0.5411, r: 10, label: 'GAT' },
+                    { x: 62.1, y: 0.5723, r: 10, label: 'Trans' },
+                    { x: 69.8, y: 0.4882, r: 10, label: 'Cl-SCL' },
+                ],
+                backgroundColor: C.purpleA,
+                borderColor: C.purple,
+            },
+            {
+                label: 'Baselines',
+                data: [
+                    { x: 6.4, y: 0.2281, r: 6, label: 'SAGE-BL' },
+                    { x: 11.9, y: 0.6658, r: 12, label: 'DistDGL' },
+                    { x: 35.0, y: 0.2321, r: 6, label: 'ARMA' },
+                    { x: 14.4, y: 0.2147, r: 6, label: 'ASAP' },
+                    { x: 14.2, y: 0.2281, r: 6, label: 'GAT-BL' },
+                    { x: 22.9, y: 0.2281, r: 6, label: 'Trans-BL' },
+                    { x: 66.4, y: 0.2281, r: 6, label: 'Cl-SCL-BL' },
+                ],
+                backgroundColor: C.amberA,
+                borderColor: C.amber,
+            }
+        ]
+    },
+    options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+            legend: { position: 'top' },
+            tooltip: {
+                callbacks: {
+                    label: ctx => {
+                        const d = ctx.raw;
+                        return `${d.label || ctx.dataset.label}: Acc=${(d.y * 100).toFixed(1)}%, Time=${d.x.toFixed(1)}s`;
+                    }
+                }
+            }
+        },
+        scales: {
+            x: {
+                title: { display: true, text: 'Total Execution Time (seconds)', font: { weight: 600 } },
+                grid: { color: 'rgba(42, 54, 84, 0.3)' }
+            },
+            y: {
+                title: { display: true, text: 'Node Accuracy', font: { weight: 600 } },
+                ticks: { callback: v => (v * 100).toFixed(0) + '%' },
+                grid: { color: 'rgba(42, 54, 84, 0.3)' },
+                min: 0.1,
+                max: 0.75,
+            }
+        }
+    }
+});
+
+// ═══════════════════════════════════════════════════════════════════
+// CHART 13 & 14: Community Counts
+// ═══════════════════════════════════════════════════════════════════
+function makeCommChart(canvasId, labels, raw, valid) {
+    new Chart(document.getElementById(canvasId), {
+        type: 'bar',
+        data: {
+            labels: labels,
+            datasets: [
+                {
+                    label: 'Raw Communities',
+                    data: raw,
+                    backgroundColor: 'rgba(244, 63, 94, 0.5)',
+                    borderColor: '#f43f5e',
+                    borderWidth: 1.5,
+                    borderRadius: 6,
+                },
+                {
+                    label: 'Valid Communities',
+                    data: valid,
+                    backgroundColor: 'rgba(16, 185, 129, 0.65)',
+                    borderColor: '#10b981',
+                    borderWidth: 1.5,
+                    borderRadius: 6,
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: { legend: { position: 'top' } },
+            scales: {
+                y: {
+                    type: 'logarithmic',
+                    title: { display: true, text: 'Count (log scale)', font: { weight: 600 } },
+                    grid: { color: 'rgba(42, 54, 84, 0.3)' }
+                },
+                x: { grid: { display: false } }
+            }
+        }
+    });
+}
+
+makeCommChart('chart-comm-wikics', ['LPA', 'Louvain'], [538, 35], [27, 16]);
+makeCommChart('chart-comm-deezer', ['LPA', 'Louvain'], [4236, 74], [22, 36]);
+
+// ═══════════════════════════════════════════════════════════════════
+// RESULTS TABLE
+// ═══════════════════════════════════════════════════════════════════
+const tableData = [
+    ['LPA + SAGE', 'Community', 'LPA', '34.26%', '37.57%', '79.83%', '69.1'],
+    ['LPA + SAGE-CAAN', 'CAAN', 'LPA', '49.38%', '61.00%', '50.00%', '69.1'],
+    ['LPA + GAT', 'Community', 'LPA', '31.88%', '34.45%', '75.31%', '81.8'],
+    ['LPA + GAT-CAAN', 'CAAN', 'LPA', '41.90%', '62.58%', '50.00%', '81.8'],
+    ['LPA + Transformer', 'Community', 'LPA', '36.41%', '38.23%', '77.13%', '105.6'],
+    ['LPA + Trans-CAAN', 'CAAN', 'LPA', '44.50%', '53.65%', '50.00%', '105.6'],
+    ['LPA + ClusterSCL', 'Community', 'LPA', '30.44%', '29.95%', '75.47%', '161.0'],
+    ['LPA + Cl-SCL-CAAN', 'CAAN', 'LPA', '37.78%', '50.71%', '50.00%', '161.0'],
+    ['Louvain + SAGE', 'Community', 'Louvain', '29.16%', '29.86%', '83.74%', '41.5'],
+    ['Louvain + SAGE-CAAN', 'CAAN', 'Louvain', '60.31%', '56.04%', '50.00%', '41.5'],
+    ['Louvain + GAT', 'Community', 'Louvain', '27.92%', '25.27%', '77.42%', '50.7'],
+    ['Louvain + GAT-CAAN', 'CAAN', 'Louvain', '54.11%', '58.45%', '50.00%', '50.7'],
+    ['Louvain + Transformer', 'Community', 'Louvain', '32.22%', '33.02%', '80.54%', '62.1'],
+    ['Louvain + Trans-CAAN', 'CAAN', 'Louvain', '57.23%', '59.60%', '50.00%', '62.1'],
+    ['Louvain + ClusterSCL', 'Community', 'Louvain', '30.75%', '29.58%', '77.58%', '69.8'],
+    ['Louvain + Cl-SCL-CAAN', 'CAAN', 'Louvain', '48.82%', '43.96%', '50.00%', '69.8'],
+    ['SAGE Baseline', 'Baseline', '—', '22.81%', '—', '64.15%', '6.4'],
+    ['DistDGL', 'Baseline', '—', '<span class="best">66.58%</span>', '—', '72.22%', '11.9'],
+    ['ARMA', 'Baseline', '—', '23.21%', '—', '<span class="best">88.99%</span>', '35.0'],
+    ['ASAP', 'Baseline', '—', '21.47%', '—', '88.41%', '14.4'],
+    ['GAT-BL', 'Baseline', '—', '22.81%', '—', '41.57%', '14.2'],
+    ['GraphTrans-BL', 'Baseline', '—', '22.81%', '—', '42.24%', '22.9'],
+    ['ClusterSCL-BL', 'Baseline', '—', '22.81%', '—', '60.52%', '66.4'],
+];
+
+const tbody = document.querySelector('#results-table tbody');
+tableData.forEach(row => {
+    const tr = document.createElement('tr');
+    row.forEach(cell => {
+        const td = document.createElement('td');
+        td.innerHTML = cell;
+        tr.appendChild(td);
+    });
+    tbody.appendChild(tr);
+});
+</script>
+
+</body>
+</html>

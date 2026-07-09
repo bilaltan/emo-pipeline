@@ -231,6 +231,7 @@ def main():
         run_phase4e,
         run_phase4f,
         run_phase4g,
+        run_phase4h,
         print_accuracy_table,
         print_timing_table,
         save_plots_and_xlsx,
@@ -280,6 +281,7 @@ def main():
     phase4e_results = {}
     phase4f_results = {}
     phase4g_results = {}
+    phase4h_results = {}
 
     print(f"\n  Run Profile: {EXPERIMENT_NAME}")
     print(f"  └─ Datasets: {DATASETS_TO_RUN}")
@@ -558,6 +560,30 @@ def main():
                 for dataset in datasets_for_4g:
                     save_baseline_checkpoint(dataset, '4g', phase4g_results, timing, None, EXPERIMENT_NAME, local_data_dir)
 
+        # 8. GATv2 Baseline
+        if 'gatv2' in config.GNN_MODELS:
+            datasets_for_4h = []
+            for dataset in DATASETS_TO_RUN:
+                if not FORCE_RERUN and load_baseline_checkpoint(dataset, '4h', phase4h_results, timing, None, EXPERIMENT_NAME, local_data_dir):
+                    pass
+                else:
+                    datasets_for_4h.append(dataset)
+            if datasets_for_4h:
+                print("\n[PHASE 4h] - GATv2 Full-Graph Global Baseline (PyG)")
+                run_phase4h(
+                    spark, sc,
+                    datasets     = datasets_for_4h,
+                    dataset_cfg  = config.DATASET_CFG,
+                    baseline_cfg = BASELINE_CFG,
+                    get_paths_fn = get_paths_fn,
+                    timing       = timing,
+                    results      = phase4h_results,
+                    task_type    = TASK_TYPE,
+                    n_baseline_runs = getattr(config, 'N_BASELINE_RUNS', 3)
+                )
+                for dataset in datasets_for_4h:
+                    save_baseline_checkpoint(dataset, '4h', phase4h_results, timing, None, EXPERIMENT_NAME, local_data_dir)
+
     # Phase 5: Metrics Aggregation & Reporting
     print("\n[PHASE 5] - Metrics Analysis & Local Excel Export")
     print_accuracy_table(
@@ -571,6 +597,7 @@ def main():
         phase4e_results = phase4e_results,
         phase4f_results = phase4f_results,
         phase4g_results = phase4g_results,
+        phase4h_results = phase4h_results,
         phase3b_results = phase3b_results,
         gnn_models      = config.GNN_MODELS
     )
@@ -596,6 +623,7 @@ def main():
         phase4e_results = phase4e_results,
         phase4f_results = phase4f_results,
         phase4g_results = phase4g_results,
+        phase4h_results = phase4h_results,
         phase3b_results = phase3b_results,
         local_data_dir  = local_data_dir,
         gnn_models      = config.GNN_MODELS
@@ -622,6 +650,7 @@ def main():
         phase4e_results    = phase4e_results,
         phase4f_results    = phase4f_results,
         phase4g_results    = phase4g_results,
+        phase4h_results    = phase4h_results,
         phase3b_results    = phase3b_results,
         gnn_models         = config.GNN_MODELS
     )

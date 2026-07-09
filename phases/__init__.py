@@ -11,6 +11,7 @@ from .phase4_baselines import (
     run_phase4e,
     run_phase4f,
     run_phase4g,
+    run_phase4h,
 )
 from .phase5_reporting import (
     print_accuracy_table,

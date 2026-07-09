@@ -1780,3 +1780,221 @@ def run_phase4g(spark, sc, datasets, dataset_cfg, baseline_cfg, get_paths_fn,
         print(f"  ✓ [{dataset}] ClusterSCL Baseline  acc={mean_acc:.4f}±{std_acc:.4f}  "
               f"auc={mean_auc:.4f}±{std_auc:.4f}  "
               f"time={mean_node_time + mean_link_time:.1f}s")
+
+
+def run_phase4h(spark, sc, datasets, dataset_cfg, baseline_cfg, get_paths_fn,
+                timing, results, **kwargs):
+    """
+    Train a GATv2 GNN baseline model on the full graph per dataset.
+    Uses PyTorch Geometric library with GATv2Conv (Brody et al., ICLR 2022).
+    GATv2 fixes the static attention limitation of the original GAT by applying
+    the nonlinearity after concatenation, enabling truly dynamic attention.
+    """
+    _patch_torch_load()
+    from torch_geometric.nn import GATv2Conv
+    from torch_geometric.utils import coalesce, add_remaining_self_loops, negative_sampling
+    import torch_geometric.transforms as T
+    from torch_geometric.data import Data
+
+    for dataset in datasets:
+        p   = get_paths_fn(dataset)
+        cfg = dataset_cfg[dataset]
+        IN_FEATS    = cfg['in_feats']
+        NUM_CLASSES = cfg['num_classes']
+        EPOCHS      = baseline_cfg['epochs']
+
+        print(f"\n{'='*60}\n  PHASE 4h — GATv2 Baseline: {dataset}\n{'='*60}")
+        print(f"  epochs={EPOCHS}")
+
+        t0       = time.time()
+        nodes_df = spark.read.format('delta').load(p['nodes'])
+        edges_df = spark.read.format('delta').load(p['edges'])
+        masks_df = spark.read.format('delta').load(p['masks'])
+
+        nodes_pd = nodes_df.orderBy('id').toPandas()
+        edges_pd = edges_df.toPandas()
+        masks_pd = masks_df.toPandas()
+        print(f"  Loaded in {time.time()-t0:.1f}s")
+
+        feats_np  = np.stack(nodes_pd['features'].values).astype(np.float32)
+        feats_norms = np.linalg.norm(feats_np, axis=1, keepdims=True)
+        feats_np = feats_np / np.where(feats_norms > 0, feats_norms, 1.0)
+        labels_np = nodes_pd['label'].values.astype(np.int64)
+        src_np    = edges_pd['src'].values.astype(np.int64)
+        dst_np    = edges_pd['dst'].values.astype(np.int64)
+        n_nodes   = len(nodes_pd)
+        IN_FEATS  = 1
+        feats_np  = np.ones((n_nodes, 1), dtype=np.float32)
+
+        id2split    = dict(zip(masks_pd['id'].astype(int), masks_pd['split']))
+        train_mask  = np.array([id2split.get(i,'') == 'train' for i in range(n_nodes)])
+        val_mask    = np.array([id2split.get(i,'') == 'valid' for i in range(n_nodes)])
+        test_mask   = np.array([id2split.get(i,'') == 'test'  for i in range(n_nodes)])
+
+        full_src = torch.tensor(src_np, dtype=torch.long)
+        full_dst = torch.tensor(dst_np, dtype=torch.long)
+
+        HIDDEN = baseline_cfg.get('hidden_dim', 256)
+        dropout_val = baseline_cfg.get('dropout', 0.5)
+
+        class GATv2(nn.Module):
+            def __init__(self, input_dim, hidden_channels):
+                super().__init__()
+                self.conv1 = GATv2Conv(input_dim, hidden_channels, dropout=dropout_val)
+                self.conv2 = GATv2Conv(hidden_channels, hidden_channels, dropout=dropout_val)
+            def forward(self, x, edge_index):
+                x = F.relu(self.conv1(x, edge_index))
+                x = self.conv2(x, edge_index)
+                return x
+            def encode(self, x, edge_index):
+                return self.forward(x, edge_index)
+            def decode(self, z, edge_label_index):
+                return (z[edge_label_index[0]] * z[edge_label_index[1]]).sum(dim=-1)
+
+        task_type = kwargs.get('task_type', 'node_classification')
+        run_node = (task_type in ('node_classification', 'both'))
+        run_link = (task_type in ('link_prediction', 'both'))
+
+        N_RUNS = kwargs.get('n_baseline_runs', 3)
+        all_accs = []
+        all_aucs = []
+        all_node_times = []
+        all_link_times = []
+
+        for run_idx in range(N_RUNS):
+            print(f"\n  ── GATv2 Run {run_idx+1}/{N_RUNS} ──")
+            acc = 0.0
+            correct = 0
+            total_t = 0
+            node_train_time = 0.0
+            baseline_link_auc = 0.5
+            link_train_time = 0.0
+
+            # ── Node Classification ──
+            if run_node:
+                t_node_start = time.time()
+                model = GATv2(IN_FEATS, HIDDEN)
+                opt = torch.optim.Adam(model.parameters(), lr=0.001, weight_decay=5e-4)
+                crit = nn.CrossEntropyLoss()
+
+                edge_index = torch.stack([full_src, full_dst], dim=0)
+                edge_index = coalesce(edge_index, num_nodes=n_nodes)
+
+                feat_t = torch.tensor(feats_np, dtype=torch.float32)
+                label_t = torch.tensor(labels_np, dtype=torch.long)
+
+                model.train()
+                for epoch in range(EPOCHS):
+                    opt.zero_grad()
+                    out = model(feat_t, edge_index)
+                    loss = crit(out, label_t)
+                    loss.backward()
+                    opt.step()
+
+                node_train_time = time.time() - t_node_start
+
+                model.eval()
+                with torch.no_grad():
+                    embed = model(feat_t, edge_index)
+                    embed_np_run = embed.cpu().numpy()
+                acc, correct, total_t, preds = run_downstream_classification(
+                    embed_np_run, labels_np, train_mask, val_mask, test_mask, NUM_CLASSES, num_epochs=EPOCHS
+                )
+
+            # ── Link Prediction ──
+            if run_link and len(full_src) >= 5:
+                t_link_start = time.time()
+
+                edge_index = torch.stack([full_src, full_dst], dim=0)
+                feat_t = torch.tensor(feats_np, dtype=torch.float32)
+                graph_pyg = Data(x=feat_t, edge_index=edge_index)
+
+                split = T.RandomLinkSplit(
+                    num_val=0.16, num_test=0.20,
+                    is_undirected=True,
+                    add_negative_train_samples=False,
+                    neg_sampling_ratio=1.0,
+                )
+
+                try:
+                    train_data, val_data, test_data = split(graph_pyg)
+                except ValueError:
+                    train_data = None
+
+                if train_data is not None:
+                    link_model = GATv2(IN_FEATS, HIDDEN)
+                    link_opt = torch.optim.Adam(link_model.parameters(), lr=0.001)
+                    criterion = torch.nn.BCEWithLogitsLoss()
+
+                    for epoch in range(1, EPOCHS + 1):
+                        link_model.train()
+                        link_opt.zero_grad()
+                        z = link_model.encode(train_data.x, train_data.edge_index)
+
+                        neg_edge_index = negative_sampling(
+                            edge_index=train_data.edge_index, num_nodes=train_data.num_nodes,
+                            num_neg_samples=train_data.edge_label_index.size(1), method='sparse')
+
+                        edge_label_index = torch.cat(
+                            [train_data.edge_label_index, neg_edge_index], dim=-1)
+                        edge_label = torch.cat([
+                            train_data.edge_label,
+                            train_data.edge_label.new_zeros(neg_edge_index.size(1))
+                        ], dim=0)
+
+                        out = link_model.decode(z, edge_label_index).view(-1)
+                        loss = criterion(out, edge_label)
+                        loss.backward()
+                        link_opt.step()
+
+                    with torch.no_grad():
+                        link_model.eval()
+                        z = link_model.encode(feat_t, train_data.edge_index)
+                        pos_scores = link_model.decode(z, test_data.edge_label_index).view(-1)
+                        y_true = test_data.edge_label.cpu().numpy()
+                        y_scores = pos_scores.cpu().numpy()
+                        from sklearn.metrics import roc_auc_score
+                        try:
+                            baseline_link_auc = float(roc_auc_score(y_true, y_scores))
+                        except ValueError:
+                            baseline_link_auc = 0.5
+                else:
+                    baseline_link_auc = 0.5
+                link_train_time = time.time() - t_link_start
+
+            all_accs.append(acc)
+            all_aucs.append(baseline_link_auc)
+            all_node_times.append(node_train_time)
+            all_link_times.append(link_train_time)
+            print(f"    Run {run_idx+1} — acc={acc:.4f}  auc={baseline_link_auc:.4f}")
+
+        mean_acc = np.mean(all_accs)
+        std_acc = np.std(all_accs)
+        mean_auc = np.mean(all_aucs)
+        std_auc = np.std(all_aucs)
+        mean_node_time = np.mean(all_node_times)
+        mean_link_time = np.mean(all_link_times)
+
+        peak_mem = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss * 1024.0
+
+        timing[('phase4h_node', dataset)] = mean_node_time
+        timing[('phase4h_link', dataset)] = mean_link_time
+        timing[('phase4h', dataset)]      = mean_node_time + mean_link_time
+
+        results[dataset] = {
+            'test_acc':          mean_acc,
+            'test_acc_std':      std_acc,
+            'link_auc':          mean_auc,
+            'link_auc_std':      std_auc,
+            'node_train_time_s': mean_node_time,
+            'link_train_time_s': mean_link_time,
+            'train_time_s':      mean_node_time + mean_link_time,
+            'peak_mem_gb':       peak_mem / 1e9,
+            'n_test':            total_t,
+            'n_correct':         correct,
+            'all_accs':          all_accs,
+            'all_aucs':          all_aucs,
+        }
+        print(f"  ✓ [{dataset}] GATv2 Baseline  acc={mean_acc:.4f}±{std_acc:.4f}  "
+              f"auc={mean_auc:.4f}±{std_auc:.4f}  "
+              f"time={mean_node_time + mean_link_time:.1f}s")

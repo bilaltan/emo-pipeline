@@ -4,14 +4,14 @@ import pandas as pd
 
 def print_accuracy_table(datasets, algorithms, phase3_results, phase4_results, phase4b_results=None,
                          phase4c_results=None, phase4d_results=None, phase4e_results=None,
-                         phase4f_results=None, phase4g_results=None, phase3b_results=None, gnn_models=None):
+                         phase4f_results=None, phase4g_results=None, phase4h_results=None, phase3b_results=None, gnn_models=None):
     """Per-algorithm performance comparison including node acc and link AUC."""
     print("\n" + "="*95)
     print("  PHASE 5A — PERFORMANCE COMPARISON (NODE ACCURACY & LINK AUC)")
     print("="*95)
     
     if gnn_models is None:
-        gnn_models = ['sage', 'gat', 'transformer', 'clusterscl']
+        gnn_models = ['sage', 'gat', 'gatv2', 'transformer', 'clusterscl']
     
     for dataset in datasets:
         print(f"\n  Dataset: {dataset}")
@@ -78,6 +78,10 @@ def print_accuracy_table(datasets, algorithms, phase3_results, phase4_results, p
             b4g = phase4g_results.get(dataset)
             if b4g:
                 print(f"  {'CL-SCL-BL':<18} {b4g.get('test_acc', float('nan')):>10.4f} {'—':>10} {'—':>10} {'—':>10} {b4g.get('link_auc', float('nan')):>12.4f}")
+        if phase4h_results:
+            b4h = phase4h_results.get(dataset)
+            if b4h:
+                print(f"  {'GATv2-BL':<18} {b4h.get('test_acc', float('nan')):>10.4f} {'—':>10} {'—':>10} {'—':>10} {b4h.get('link_auc', float('nan')):>12.4f}")
 
         # Size-bucket breakdown per algorithm-model
         print(f"\n  [{dataset}] Performance by community size bucket:")
@@ -175,11 +179,17 @@ def print_timing_table(datasets, algorithms, timing, gnn_models=None):
             t4g_link = timing.get(('phase4g_link', dataset), 0)
             print(f"  {'CL-SCL-BL':<18} {'—':>9} {'—':>9} {'—':>9} {t4g:>8.1f}s (Node: {t4g_node:.1f}s, Link: {t4g_link:.1f}s)")
 
+        t4h = timing.get(('phase4h', dataset), None)
+        if t4h is not None:
+            t4h_node = timing.get(('phase4h_node', dataset), 0)
+            t4h_link = timing.get(('phase4h_link', dataset), 0)
+            print(f"  {'GATv2-BL':<18} {'—':>9} {'—':>9} {'—':>9} {t4h:>8.1f}s (Node: {t4h_node:.1f}s, Link: {t4h_link:.1f}s)")
+
 
 def save_plots_and_xlsx(datasets, algorithms, phase3_results, phase4_results,
                         timing, experiment_name, s3_bucket=None, phase4b_results=None,
                         phase4c_results=None, phase4d_results=None, phase4e_results=None,
-                        phase4f_results=None, phase4g_results=None, phase3b_results=None,
+                        phase4f_results=None, phase4g_results=None, phase4h_results=None, phase3b_results=None,
                         local_data_dir=None, gnn_models=None):
     """Generate plots and save unified XLSX to S3 or local disk."""
     import tempfile
@@ -303,6 +313,8 @@ def save_plots_and_xlsx(datasets, algorithms, phase3_results, phase4_results,
                         bl = (phase4f_results or {}).get(dataset)
                     elif m_type == 'clusterscl':
                         bl = (phase4g_results or {}).get(dataset)
+                    elif m_type == 'gatv2':
+                        bl = (phase4h_results or {}).get(dataset)
                     
                     b_acc = bl.get('test_acc') if bl else None
                     bl_auc = bl.get('link_auc') if bl else None
@@ -330,7 +342,7 @@ def save_plots_and_xlsx(datasets, algorithms, phase3_results, phase4_results,
                             'phase1_s':          timing.get(('phase1', dataset, alg)),
                             'phase2_s':          timing.get(('phase2', dataset, alg)),
                             'phase3_s':          timing.get(('phase3', dataset, alg, m_type), timing.get(('phase3', dataset, alg))),
-                            'baseline_s':        timing.get(('phase4' if m_type == 'sage' else ('phase4e' if m_type == 'gat' else ('phase4f' if m_type == 'transformer' else 'phase4g')), dataset)),
+                            'baseline_s':        timing.get(('phase4' if m_type == 'sage' else ('phase4e' if m_type == 'gat' else ('phase4h' if m_type == 'gatv2' else ('phase4f' if m_type == 'transformer' else 'phase4g'))), dataset)),
                         })
                     
                     if phase3b_results is not None:
@@ -358,7 +370,7 @@ def save_plots_and_xlsx(datasets, algorithms, phase3_results, phase4_results,
                                 'phase1_s':          timing.get(('phase1', dataset, alg)),
                                 'phase2_s':          timing.get(('phase2', dataset, alg)),
                                 'phase3_s':          timing.get(('phase3b', dataset, alg, m_type)),
-                                'baseline_s':        timing.get(('phase4' if m_type == 'sage' else ('phase4e' if m_type == 'gat' else ('phase4f' if m_type == 'transformer' else 'phase4g')), dataset)),
+                                'baseline_s':        timing.get(('phase4' if m_type == 'sage' else ('phase4e' if m_type == 'gat' else ('phase4h' if m_type == 'gatv2' else ('phase4f' if m_type == 'transformer' else 'phase4g'))), dataset)),
                             })
         pd.DataFrame(summary_rows).to_excel(xw, index=False, sheet_name='summary')
 
@@ -415,6 +427,11 @@ def save_plots_and_xlsx(datasets, algorithms, phase3_results, phase4_results,
             if b4g_rows:
                 pd.DataFrame(b4g_rows).to_excel(xw, index=False, sheet_name='phase4g_clusterscl')
 
+        if phase4h_results:
+            b4h_rows = [{'dataset': ds, **v} for ds, v in phase4h_results.items()]
+            if b4h_rows:
+                pd.DataFrame(b4h_rows).to_excel(xw, index=False, sheet_name='phase4h_gatv2')
+
     # Save to S3 or local directory
     if local_data_dir is not None:
         target_xlsx = os.path.join(local_data_dir, 'gnn-bench-out', f'{experiment_name}_results.xlsx')
@@ -448,7 +465,7 @@ def print_summary(experiment_name, datasets, algorithms, use_global_mapping,
                   min_size, phase1_results, phase2_results, phase3_results,
                   phase4_results, timing, phase4b_results=None,
                   phase4c_results=None, phase4d_results=None, phase4e_results=None,
-                  phase4f_results=None, phase4g_results=None, phase3b_results=None, gnn_models=None):
+                  phase4f_results=None, phase4g_results=None, phase4h_results=None, phase3b_results=None, gnn_models=None):
     """Print the final experiment summary box."""
     W = 62
     def row(label, val, width=W):
@@ -456,7 +473,7 @@ def print_summary(experiment_name, datasets, algorithms, use_global_mapping,
         return f"║ {line:<{width}} ║"
 
     if gnn_models is None:
-        gnn_models = ['sage', 'gat', 'transformer', 'clusterscl']
+        gnn_models = ['sage', 'gat', 'gatv2', 'transformer', 'clusterscl']
 
     print("╔" + "═"*W + "╗")
     print(f"║  EXPERIMENT: {experiment_name:<{W-15}}║")
@@ -497,6 +514,8 @@ def print_summary(experiment_name, datasets, algorithms, use_global_mapping,
         if t4f: print(row("Phase 4f (GraphTrans)", f"{t4f:.1f}s"))
         t4g = timing.get(('phase4g', dataset))
         if t4g: print(row("Phase 4g (ClusterSCL)", f"{t4g:.1f}s"))
+        t4h = timing.get(('phase4h', dataset))
+        if t4h: print(row("Phase 4h (GATv2)", f"{t4h:.1f}s"))
         
         bl  = phase4_results.get(dataset)
         print("╠" + "═"*W + "╣")
@@ -576,9 +595,12 @@ def print_summary(experiment_name, datasets, algorithms, use_global_mapping,
         if phase4g_results:
             bl4g = phase4g_results.get(dataset)
             if bl4g:
-                bl4g_acc = bl4g.get('test_acc', 0.0)
-                bl4g_auc = bl4g.get('link_auc', 0.0)
-                print(row("ClusterSCL acc", f"{bl4g_acc:.4f}"))
-                print(row("ClusterSCL link AUC", f"{bl4g_auc:.4f}  ({bl4g['train_time_s']:.1f}s)"))
+                print(row("ClusterSCL acc", f"{bl4g['test_acc']:.4f}"))
+                print(row("ClusterSCL link AUC", f"{bl4g['link_auc']:.4f}  ({bl4g['train_time_s']:.1f}s)"))
+        if phase4h_results:
+            bl4h = phase4h_results.get(dataset)
+            if bl4h:
+                print(row("GATv2 acc", f"{bl4h['test_acc']:.4f}"))
+                print(row("GATv2 link AUC", f"{bl4h['link_auc']:.4f}  ({bl4h['train_time_s']:.1f}s)"))
 
     print("╚" + "═"*W + "╝")

@@ -12,8 +12,8 @@ EXPERIMENT_NAME   = 'run-all'          # labels ALL S3 outputs; change per exper
 DATASETS_TO_RUN = ['ogbn-arxiv']
 
 # ── GNN Models to Run ─────────────────────────────────────────────────────────
-# Supported choices: 'sage', 'gat', 'transformer', 'clusterscl'
-GNN_MODELS = ['sage', 'gat', 'transformer']
+# Supported choices: 'sage', 'gat', 'gatv2', 'transformer', 'clusterscl'
+GNN_MODELS = ['sage', 'gatv2']
 
 # ── Phase 0: Delta Lake Ingestion ─────────────────────────────────────────────
 # True  = re-download OGB dataset and overwrite Delta tables.
@@ -24,7 +24,7 @@ FORCE_REINGEST    = False   # Set to True to force overwrite even if tables alre
 FORCE_RERUN       = False   # Set to True to ignore all S3 checkpoints and rerun the pipeline
 USE_OGB_SPLITS    = True    # True = OGB official splits | False = stratified 60/20/20
 RANDOM_SEED       = 42
-N_BASELINE_RUNS   = 3          # number of runs per baseline for mean ± std
+N_BASELINE_RUNS   = 5          # number of runs per baseline for mean ± std
 
 # ── Phase 1: Community Detection ──────────────────────────────────────────────
 # All listed algorithms run independently. Results are NEVER mixed.
@@ -32,7 +32,7 @@ N_BASELINE_RUNS   = 3          # number of runs per baseline for mean ± std
 #   'louvain' = driver/igraph   (moderate quality, pulls graph to driver RAM)
 #   'igraph_lpa' = driver/igraph   (LPA using igraph)
 ALGORITHMS_TO_RUN  = ['lpa']
-LPA_MAX_ITER       = 3
+LPA_MAX_ITER       = 5
 RESOLUTION         = 1.0              # louvain / leiden resolution parameter
 MIN_COMMUNITY_SIZE = 100              # communities smaller than this are excluded
 
@@ -45,8 +45,8 @@ MIN_COMMUNITY_SIZE = 100              # communities smaller than this are exclud
 USE_GLOBAL_MAPPING = True
 
 GCN_HIDDEN_DIM    = 256
-GCN_NUM_EPOCHS    = 10
-GCN_LR            = 0.001
+GCN_NUM_EPOCHS    = 50
+GCN_LR            = 0.01
 GCN_DROPOUT       = 0.5
 
 # ── New Advanced Features ──────────────────────────────────────────────────────
@@ -63,8 +63,8 @@ TASK_TYPE = 'both'
 # ── Phase 4: Full-Graph Baseline ──────────────────────────────────────────────
 # Runs ONCE per dataset (not per algorithm). Uses SAME masks as Phase 3.
 BASELINE_EPOCHS   = GCN_NUM_EPOCHS
-BASELINE_BATCH    = 128
-BASELINE_FANOUT   = [10, 10]
+BASELINE_BATCH    = 1024
+BASELINE_FANOUT   = [15, 10]
 BASELINE_LR       = GCN_LR
 
 # ── Infrastructure ─────────────────────────────────────────────────────────────
@@ -164,10 +164,12 @@ phase4d_results = {}  # dataset         → {test_acc, train_time_s, peak_mem_gb
 phase4e_results = {}  # dataset         → {test_acc, train_time_s, peak_mem_gb}
 phase4f_results = {}  # dataset         → {test_acc, train_time_s, peak_mem_gb}
 phase4g_results = {}  # dataset         → {test_acc, train_time_s, peak_mem_gb}
+phase4h_results = {}  # dataset         → {test_acc, train_time_s, peak_mem_gb}
 
 # Timing registry — every wall-clock duration stored here
 # Keys: ('phase0', dataset)  |  ('phase1', dataset, alg)  |  ('phase2', dataset, alg)
 #       ('phase3', dataset, alg)  |  ('phase4', dataset)  |  ('phase4b', dataset)
 #       ('phase4c', dataset)      |  ('phase4d', dataset) |  ('phase4e', dataset)
 #       ('phase4f', dataset)      |  ('phase4g', dataset)
+#       ('phase4h', dataset)
 timing = {}
