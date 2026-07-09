@@ -315,32 +315,40 @@ def main():
             }
             import_name = import_map.get(pkg, pkg)
 
+            # Some packages are only imported on the driver node (plotting, excel report generation)
+            # Installing them on executors is unnecessary and can cause lock conflicts or path pollution
+            driver_only_packages = {'xlsxwriter', 'openpyxl', 'matplotlib', 'seaborn'}
+            is_driver_only = pkg in driver_only_packages
+
             # Check driver
             driver_ok = False
             try:
                 importlib.import_module(import_name)
                 driver_ok = True
-            except ImportError:
+            except Exception:
                 pass
 
             # Check executors
             executors_ok = False
-            try:
-                num_executors = int(spark.conf.get("spark.executor.instances", "4"))
-                def check_executor(iterator):
-                    import importlib
-                    try:
-                        importlib.import_module(import_name)
-                        return ["OK"]
-                    except ImportError:
-                        return ["Missing"]
-                results = sc.parallelize(range(num_executors * 4), num_executors * 4) \
-                            .mapPartitions(check_executor) \
-                            .collect()
-                if len(results) > 0 and all(r == "OK" for r in results):
-                    executors_ok = True
-            except Exception:
-                pass
+            if is_driver_only:
+                executors_ok = True
+            else:
+                try:
+                    num_executors = int(spark.conf.get("spark.executor.instances", "4"))
+                    def check_executor(iterator):
+                        import importlib
+                        try:
+                            importlib.import_module(import_name)
+                            return ["OK"]
+                        except Exception:
+                            return ["Missing"]
+                    results = sc.parallelize(range(num_executors * 4), num_executors * 4) \
+                                .mapPartitions(check_executor) \
+                                .collect()
+                    if len(results) > 0 and all(r == "OK" for r in results):
+                        executors_ok = True
+                except Exception:
+                    pass
 
             if driver_ok and executors_ok:
                 print(f"  ✓ {pkg:<15} - Already installed on driver and executors (skipping)")
@@ -388,10 +396,12 @@ def main():
                                 break
                             except FileExistsError:
                                 # Lock is held by another task, check if already installed
+                                # Catch all exceptions: if concurrent pip write is half-done,
+                                # it may raise AttributeError / KeyError. We sleep and retry.
                                 try:
                                     importlib.import_module(import_name)
                                     return ["Success"]
-                                except ImportError:
+                                except Exception:
                                     time.sleep(1)
                         else:
                             return [f"Failed: Timeout waiting for lock for {pkg}"]
@@ -401,7 +411,7 @@ def main():
                             try:
                                 importlib.import_module(import_name)
                                 return ["Success"]
-                            except ImportError:
+                            except Exception:
                                 pass
 
                             try:

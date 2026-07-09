@@ -237,36 +237,45 @@ def safe_install(pkg):
     import importlib
     import_map = {
         'scikit-learn': 'sklearn',
-        'torch-geometric': 'torch_geometric'
+        'torch-geometric': 'torch_geometric',
+        'dgl==1.1.3': 'dgl'
     }
     import_name = import_map.get(pkg, pkg)
+
+    # Some packages are only imported on the driver node (plotting, excel report generation)
+    # Installing them on executors is unnecessary and can cause lock conflicts or path pollution
+    driver_only_packages = {'xlsxwriter', 'openpyxl', 'matplotlib', 'seaborn'}
+    is_driver_only = pkg in driver_only_packages
 
     # Check driver
     driver_ok = False
     try:
         importlib.import_module(import_name)
         driver_ok = True
-    except ImportError:
+    except Exception:
         pass
 
     # Check executors
     executors_ok = False
-    try:
-        num_executors = 4
-        def check_executor(iterator):
-            import importlib
-            try:
-                importlib.import_module(import_name)
-                return ["OK"]
-            except ImportError:
-                return ["Missing"]
-        results = sc.parallelize(range(num_executors * 4), num_executors * 4) \
-                    .mapPartitions(check_executor) \
-                    .collect()
-        if len(results) > 0 and all(r == "OK" for r in results):
-            executors_ok = True
-    except Exception:
-        pass
+    if is_driver_only:
+        executors_ok = True
+    else:
+        try:
+            num_executors = int(spark.conf.get("spark.executor.instances", "4"))
+            def check_executor(iterator):
+                import importlib
+                try:
+                    importlib.import_module(import_name)
+                    return ["OK"]
+                except Exception:
+                    return ["Missing"]
+            results = sc.parallelize(range(num_executors * 4), num_executors * 4) \
+                        .mapPartitions(check_executor) \
+                        .collect()
+            if len(results) > 0 and all(r == "OK" for r in results):
+                executors_ok = True
+        except Exception:
+            pass
 
     if driver_ok and executors_ok:
         print(f"  ✓ {pkg:<15} - Already installed on driver and executors (skipping)")
@@ -275,10 +284,12 @@ def safe_install(pkg):
     # 1. Install on Driver Node
     if not driver_ok:
         try:
-            subprocess.run([
-                sys.executable, '-m', 'pip', 'install',
-                '--user', '--quiet', '--no-cache-dir', pkg
-            ], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=True)
+            cmd = [sys.executable, '-m', 'pip', 'install', '--user', '--quiet', '--no-cache-dir']
+            if pkg.startswith('dgl'):
+                cmd += [pkg, '-f', 'https://data.dgl.ai/wheels/repo.html']
+            else:
+                cmd += [pkg]
+            subprocess.run(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=True)
             print(f"  ✓ {pkg:<15} - Package synced successfully on cluster driver node")
         except Exception as e:
             print(f"  ⚠ {pkg:<15} - Driver sync encountered a warning (may already exist): {e}")
@@ -288,31 +299,81 @@ def safe_install(pkg):
     # 2. Parallel Install on YARN executors
     if not executors_ok:
         try:
-            num_executors = 4
+            num_executors = int(spark.conf.get("spark.executor.instances", "4"))
             def run_executor_install(iterator):
                 import subprocess
                 import sys
-                try:
-                    # Try installing globally using sudo /usr/bin/pip3
-                    subprocess.run([
-                        'sudo', '/usr/bin/pip3', 'install',
-                        '--quiet', '--no-cache-dir', pkg
-                    ], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=True)
-                    return ["Success"]
-                except Exception as e:
-                    # Fallback to --user
+                import os
+                import time
+                import importlib
+
+                import_map = {
+                    'scikit-learn': 'sklearn',
+                    'torch-geometric': 'torch_geometric',
+                    'dgl==1.1.3': 'dgl'
+                }
+                import_name = import_map.get(pkg, pkg)
+
+                # File/Directory lock to serialize installs on the same node
+                lock_dir = f"/tmp/.local_{pkg}_lock"
+                for _ in range(300):
                     try:
-                        subprocess.run([
-                            sys.executable, '-m', 'pip', 'install',
-                            '--user', '--quiet', '--no-cache-dir', pkg
-                        ], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=True)
+                        os.makedirs(lock_dir, exist_ok=False)
+                        # We acquired the lock!
+                        break
+                    except FileExistsError:
+                        # Lock is held by another task, check if already installed
+                        # Catch all exceptions: if concurrent pip write is half-done,
+                        # it may raise AttributeError / KeyError. We sleep and retry.
+                        try:
+                            importlib.import_module(import_name)
+                            return ["Success"]
+                        except Exception:
+                            time.sleep(1)
+                else:
+                    return [f"Failed: Timeout waiting for lock for {pkg}"]
+
+                try:
+                    # Verify if already installed before launching pip
+                    try:
+                        importlib.import_module(import_name)
                         return ["Success"]
-                    except Exception as e2:
-                        return [f"Failed: {e2}"]
+                    except Exception:
+                        pass
+
+                    try:
+                        # Try installing globally using sudo /usr/bin/pip3
+                        cmd = ['sudo', '/usr/bin/pip3', 'install', '--quiet', '--no-cache-dir']
+                        if pkg.startswith('dgl'):
+                            cmd += [pkg, '-f', 'https://data.dgl.ai/wheels/repo.html']
+                        else:
+                            cmd += [pkg]
+                        subprocess.run(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=True)
+                        return ["Success"]
+                    except Exception as e:
+                        # Fallback to --user
+                        try:
+                            cmd = [sys.executable, '-m', 'pip', 'install', '--user', '--quiet', '--no-cache-dir']
+                            if pkg.startswith('dgl'):
+                                cmd += [pkg, '-f', 'https://data.dgl.ai/wheels/repo.html']
+                            else:
+                                cmd += [pkg]
+                            subprocess.run(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=True)
+                            return ["Success"]
+                        except Exception as e2:
+                            return [f"Failed: {e2}"]
+                finally:
+                    try:
+                        os.rmdir(lock_dir)
+                    except Exception:
+                        pass
             # Run parallelized mapPartitions to trigger installation on all executors
             results = sc.parallelize(range(num_executors * 4), num_executors * 4) \
                         .mapPartitions(run_executor_install) \
                         .collect()
+            failures = [r for r in results if r != "Success"]
+            if failures:
+                raise RuntimeError(f"Sync failed on some executors: {failures}")
             print(f"  ✓ {pkg:<15} - PyPI package successfully synced on YARN cluster executors ({len(results)} tasks)")
         except Exception as e:
             print(f"  ⚠ {pkg:<15} - YARN executor sync failed: {e}")
