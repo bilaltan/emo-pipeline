@@ -1044,7 +1044,8 @@ def run_phase4e(spark, sc, datasets, dataset_cfg, baseline_cfg, get_paths_fn,
         full_src = torch.tensor(src_np, dtype=torch.long)
         full_dst = torch.tensor(dst_np, dtype=torch.long)
         
-        HIDDEN = baseline_cfg.get('hidden_dim', 256)
+        # Set hidden dimension to 64 for GAT CPU training to execute in reasonable time
+        HIDDEN = 64
         dropout_val = baseline_cfg.get('dropout', 0.5)
         
         class GAT(nn.Module):
@@ -1834,7 +1835,8 @@ def run_phase4h(spark, sc, datasets, dataset_cfg, baseline_cfg, get_paths_fn,
         full_src = torch.tensor(src_np, dtype=torch.long)
         full_dst = torch.tensor(dst_np, dtype=torch.long)
 
-        HIDDEN = baseline_cfg.get('hidden_dim', 256)
+        # Set hidden dimension to 64 for GATv2 CPU training to execute in reasonable time
+        HIDDEN = 64
         dropout_val = baseline_cfg.get('dropout', 0.5)
 
         class GATv2(nn.Module):

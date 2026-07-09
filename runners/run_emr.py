@@ -642,8 +642,9 @@ def main():
         'dropout':    drop_out,
     }
     
+    baseline_epochs = args.num_epochs if args.num_epochs is not None else getattr(config, 'BASELINE_EPOCHS', n_epochs)
     BASELINE_CFG = {
-        'epochs':     n_epochs,
+        'epochs':     baseline_epochs,
         'batch':      getattr(config, 'BASELINE_BATCH', 1024),
         'fanout':     [10, 10],
         'lr':         learning_rate,
