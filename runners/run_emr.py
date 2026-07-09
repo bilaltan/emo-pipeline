@@ -477,7 +477,7 @@ def main():
     if args.local:
         print("  ► LOADING PIPELINE AND CONFIG FROM LOCAL PATHS...")
         # Clean up previous run leftovers in /tmp to avoid package/namespace conflicts
-        for path in ['/tmp/pipeline', '/tmp/pipeline.zip', '/tmp/experiment_config.py']:
+        for path in ['/tmp/pipeline', '/tmp/pipeline.zip', '/tmp/pipeline_stage', '/tmp/experiment_config.py']:
             if os.path.exists(path):
                 try:
                     if os.path.isdir(path):
@@ -491,13 +491,22 @@ def main():
         cfg_path = os.path.join(script_dir, "experiment_config.py")
         shutil.copyfile(cfg_path, "/tmp/experiment_config.py")
         
-        # Package local pipeline folder into a zip
-        parent_dir = os.path.dirname(script_dir)
-        base_dir = os.path.basename(script_dir)
-        shutil.make_archive("/tmp/pipeline", "zip", parent_dir, base_dir)
+        # Build staging directory /tmp/pipeline_stage/pipeline to match import namespace 'pipeline'
+        os.makedirs('/tmp/pipeline_stage/pipeline', exist_ok=True)
+        for item in os.listdir(script_dir):
+            s = os.path.join(script_dir, item)
+            d = os.path.join('/tmp/pipeline_stage/pipeline', item)
+            if os.path.isdir(s):
+                if item not in ['.git', '__pycache__', 'results']:
+                    shutil.copytree(s, d)
+            else:
+                shutil.copyfile(s, d)
+
+        # Package local pipeline folder into a zip containing 'pipeline/' at root
+        shutil.make_archive("/tmp/pipeline", "zip", "/tmp/pipeline_stage", "pipeline")
         
         # Copy to /tmp/pipeline so driver can import it directly
-        shutil.copytree(script_dir, '/tmp/pipeline')
+        shutil.copytree('/tmp/pipeline_stage/pipeline', '/tmp/pipeline')
         print("    ✓ Packed local pipeline folder to /tmp/pipeline.zip and copied to /tmp/pipeline")
     else:
         print(f"  ► DOWNLOADING SCRIPTS FROM S3: s3://{args.s3_bucket}/{args.s3_prefix} ...")
