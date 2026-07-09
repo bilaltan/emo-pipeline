@@ -230,15 +230,15 @@ def main():
     spark = SparkSession.builder \
         .appName(f"GRL-{args.experiment_name}") \
         .config("spark.master", "yarn") \
-        .config("spark.driver.memory", "45g") \
+        .config("spark.driver.memory", "30g") \
         .config("spark.driver.maxResultSize", "24g") \
-        .config("spark.driver.cores", "8") \
+        .config("spark.driver.cores", "4") \
         .config("spark.driver.memoryOverhead", "8g") \
         .config("spark.dynamicAllocation.enabled", "false") \
         .config("spark.executor.instances", "4") \
-        .config("spark.executor.memory", "200g") \
-        .config("spark.executor.memoryOverhead", "32g") \
-        .config("spark.executor.cores", "28") \
+        .config("spark.executor.memory", "28g") \
+        .config("spark.executor.memoryOverhead", "12g") \
+        .config("spark.executor.cores", "2") \
         .config("spark.sql.shuffle.partitions", "336") \
         .config("spark.default.parallelism", "336") \
         .config("spark.serializer", "org.apache.spark.serializer.KryoSerializer") \
