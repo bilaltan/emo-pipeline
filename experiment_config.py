@@ -9,7 +9,7 @@ EXPERIMENT_NAME   = 'run-all'          # labels ALL S3 outputs; change per exper
 
 # ── Datasets ───────────────────────────────────────────────────────────────────
 # To add ogbn-arxiv: set RUN_PHASE0=True first to ingest it.
-DATASETS_TO_RUN = ['ogbn-arxiv']
+DATASETS_TO_RUN = ['ogbn-arxiv', 'ogbn-products']
 
 # ── GNN Models to Run ─────────────────────────────────────────────────────────
 # Supported choices: 'sage', 'gat', 'gatv2', 'transformer', 'clusterscl'
@@ -20,8 +20,8 @@ GNN_MODELS = ['sage', 'gatv2']
 #         REQUIRED when using a dataset for the first time.
 # False = skip (Delta tables already exist).
 RUN_PHASE0        = True
-FORCE_REINGEST    = False   # Set to True to force overwrite even if tables already exist
-FORCE_RERUN       = False   # Set to True to ignore all S3 checkpoints and rerun the pipeline
+FORCE_REINGEST    = True   # Set to True to force overwrite even if tables already exist
+FORCE_RERUN       = True   # Set to True to ignore all S3 checkpoints and rerun the pipeline
 USE_OGB_SPLITS    = True    # True = OGB official splits | False = stratified 60/20/20
 RANDOM_SEED       = 42
 N_BASELINE_RUNS   = 3          # number of runs per baseline for mean ± std
