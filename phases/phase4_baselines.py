@@ -1926,21 +1926,22 @@ def run_phase4h(spark, sc, datasets, dataset_cfg, baseline_cfg, get_paths_fn,
                     link_opt = torch.optim.Adam(link_model.parameters(), lr=0.001)
                     criterion = torch.nn.BCEWithLogitsLoss()
 
+                    # Perform negative sampling once outside the epoch loop to speed up CPU training significantly
+                    neg_edge_index = negative_sampling(
+                        edge_index=train_data.edge_index, num_nodes=train_data.num_nodes,
+                        num_neg_samples=train_data.edge_label_index.size(1), method='sparse')
+
+                    edge_label_index = torch.cat(
+                        [train_data.edge_label_index, neg_edge_index], dim=-1)
+                    edge_label = torch.cat([
+                        train_data.edge_label,
+                        train_data.edge_label.new_zeros(neg_edge_index.size(1))
+                    ], dim=0)
+
                     for epoch in range(1, EPOCHS + 1):
                         link_model.train()
                         link_opt.zero_grad()
                         z = link_model.encode(train_data.x, train_data.edge_index)
-
-                        neg_edge_index = negative_sampling(
-                            edge_index=train_data.edge_index, num_nodes=train_data.num_nodes,
-                            num_neg_samples=train_data.edge_label_index.size(1), method='sparse')
-
-                        edge_label_index = torch.cat(
-                            [train_data.edge_label_index, neg_edge_index], dim=-1)
-                        edge_label = torch.cat([
-                            train_data.edge_label,
-                            train_data.edge_label.new_zeros(neg_edge_index.size(1))
-                        ], dim=0)
 
                         out = link_model.decode(z, edge_label_index).view(-1)
                         loss = criterion(out, edge_label)

@@ -24,7 +24,7 @@ FORCE_REINGEST    = False   # Set to True to force overwrite even if tables alre
 FORCE_RERUN       = False   # Set to True to ignore all S3 checkpoints and rerun the pipeline
 USE_OGB_SPLITS    = True    # True = OGB official splits | False = stratified 60/20/20
 RANDOM_SEED       = 42
-N_BASELINE_RUNS   = 5          # number of runs per baseline for mean ± std
+N_BASELINE_RUNS   = 3          # number of runs per baseline for mean ± std
 
 # ── Phase 1: Community Detection ──────────────────────────────────────────────
 # All listed algorithms run independently. Results are NEVER mixed.
@@ -62,7 +62,7 @@ TASK_TYPE = 'both'
 
 # ── Phase 4: Full-Graph Baseline ──────────────────────────────────────────────
 # Runs ONCE per dataset (not per algorithm). Uses SAME masks as Phase 3.
-BASELINE_EPOCHS   = GCN_NUM_EPOCHS
+BASELINE_EPOCHS   = 15          # reduced from 50 epochs to speed up CPU full-graph training
 BASELINE_BATCH    = 1024
 BASELINE_FANOUT   = [15, 10]
 BASELINE_LR       = GCN_LR
