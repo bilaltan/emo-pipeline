@@ -375,7 +375,7 @@ def main():
         )
 
     # Phase 3b: CaaN Global Graph GNN Training
-    if args.run_phase3b:
+    if args.run_phase3b and getattr(config, 'RUN_PHASE3B', True):
         run_phase3b(
             spark, sc,
             datasets           = DATASETS_TO_RUN,

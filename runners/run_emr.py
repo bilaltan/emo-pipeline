@@ -760,7 +760,7 @@ def main():
         )
 
     # Phase 3b: Parallel GNN Training with CaaN Global Graph
-    if ALGORITHMS_TO_RUN and args.run_phase3b:
+    if ALGORITHMS_TO_RUN and args.run_phase3b and getattr(config, 'RUN_PHASE3B', True):
         print("\n[PHASE 3b] - Parallel GNN Training with CaaN Global Graph")
         run_phase3b(
             spark, sc,
