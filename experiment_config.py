@@ -9,7 +9,7 @@ EXPERIMENT_NAME   = 'run-all'          # labels ALL S3 outputs; change per exper
 
 # ── Datasets ───────────────────────────────────────────────────────────────────
 # To add ogbn-arxiv: set RUN_PHASE0=True first to ingest it.
-DATASETS_TO_RUN = ['ogbn-arxiv', 'ogbn-products']
+DATASETS_TO_RUN = ['ogbn-products']
 
 # ── GNN Models to Run ─────────────────────────────────────────────────────────
 # Supported choices: 'sage', 'gat', 'gatv2', 'transformer', 'clusterscl'
@@ -66,6 +66,9 @@ BASELINE_EPOCHS   = 15          # reduced from 50 epochs to speed up CPU full-gr
 BASELINE_BATCH    = 1024
 BASELINE_FANOUT   = [15, 10]
 BASELINE_LR       = GCN_LR
+RUN_PHASE4B       = False       # DistDGL Baseline Simulation
+RUN_PHASE4C       = False       # ARMA Baseline
+RUN_PHASE4D       = False       # ASAP Baseline
 
 # ── Infrastructure ─────────────────────────────────────────────────────────────
 S3_BUCKET         = 'us-east-1-s3-gnn'

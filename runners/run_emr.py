@@ -806,71 +806,74 @@ def main():
                     save_baseline_checkpoint(dataset, '4', phase4_results, timing, args.s3_bucket, EXPERIMENT_NAME)
 
         # 2. DistDGL Baseline
-        datasets_for_4b = []
-        for dataset in DATASETS_TO_RUN:
-            if not FORCE_RERUN and load_baseline_checkpoint(dataset, '4b', phase4b_results, timing, args.s3_bucket, EXPERIMENT_NAME):
-                pass
-            else:
-                datasets_for_4b.append(dataset)
-        if datasets_for_4b:
-            run_phase4b(
-                spark, sc,
-                datasets     = datasets_for_4b,
-                dataset_cfg  = config.DATASET_CFG,
-                baseline_cfg = BASELINE_CFG,
-                get_paths_fn = get_paths_fn,
-                timing       = timing,
-                results      = phase4b_results,
-                task_type    = TASK_TYPE,
-            )
-            for dataset in datasets_for_4b:
-                save_baseline_checkpoint(dataset, '4b', phase4b_results, timing, args.s3_bucket, EXPERIMENT_NAME)
+        if getattr(config, 'RUN_PHASE4B', True):
+            datasets_for_4b = []
+            for dataset in DATASETS_TO_RUN:
+                if not FORCE_RERUN and load_baseline_checkpoint(dataset, '4b', phase4b_results, timing, args.s3_bucket, EXPERIMENT_NAME):
+                    pass
+                else:
+                    datasets_for_4b.append(dataset)
+            if datasets_for_4b:
+                run_phase4b(
+                    spark, sc,
+                    datasets     = datasets_for_4b,
+                    dataset_cfg  = config.DATASET_CFG,
+                    baseline_cfg = BASELINE_CFG,
+                    get_paths_fn = get_paths_fn,
+                    timing       = timing,
+                    results      = phase4b_results,
+                    task_type    = TASK_TYPE,
+                )
+                for dataset in datasets_for_4b:
+                    save_baseline_checkpoint(dataset, '4b', phase4b_results, timing, args.s3_bucket, EXPERIMENT_NAME)
 
         # 3. ARMA Baseline
-        datasets_for_4c = []
-        for dataset in DATASETS_TO_RUN:
-            if not FORCE_RERUN and load_baseline_checkpoint(dataset, '4c', phase4c_results, timing, args.s3_bucket, EXPERIMENT_NAME):
-                pass
-            else:
-                datasets_for_4c.append(dataset)
-        if datasets_for_4c:
-            print("\n[PHASE 4c] - ARMA Full-Graph Global Baseline (PyG)")
-            run_phase4c(
-                spark, sc,
-                datasets     = datasets_for_4c,
-                dataset_cfg  = config.DATASET_CFG,
-                baseline_cfg = BASELINE_CFG,
-                get_paths_fn = get_paths_fn,
-                timing       = timing,
-                results      = phase4c_results,
-                task_type    = TASK_TYPE,
-                n_baseline_runs = getattr(config, 'N_BASELINE_RUNS', 3)
-            )
-            for dataset in datasets_for_4c:
-                save_baseline_checkpoint(dataset, '4c', phase4c_results, timing, args.s3_bucket, EXPERIMENT_NAME)
+        if getattr(config, 'RUN_PHASE4C', True):
+            datasets_for_4c = []
+            for dataset in DATASETS_TO_RUN:
+                if not FORCE_RERUN and load_baseline_checkpoint(dataset, '4c', phase4c_results, timing, args.s3_bucket, EXPERIMENT_NAME):
+                    pass
+                else:
+                    datasets_for_4c.append(dataset)
+            if datasets_for_4c:
+                print("\n[PHASE 4c] - ARMA Full-Graph Global Baseline (PyG)")
+                run_phase4c(
+                    spark, sc,
+                    datasets     = datasets_for_4c,
+                    dataset_cfg  = config.DATASET_CFG,
+                    baseline_cfg = BASELINE_CFG,
+                    get_paths_fn = get_paths_fn,
+                    timing       = timing,
+                    results      = phase4c_results,
+                    task_type    = TASK_TYPE,
+                    n_baseline_runs = getattr(config, 'N_BASELINE_RUNS', 3)
+                )
+                for dataset in datasets_for_4c:
+                    save_baseline_checkpoint(dataset, '4c', phase4c_results, timing, args.s3_bucket, EXPERIMENT_NAME)
 
         # 4. ASAP Baseline
-        datasets_for_4d = []
-        for dataset in DATASETS_TO_RUN:
-            if not FORCE_RERUN and load_baseline_checkpoint(dataset, '4d', phase4d_results, timing, args.s3_bucket, EXPERIMENT_NAME):
-                pass
-            else:
-                datasets_for_4d.append(dataset)
-        if datasets_for_4d:
-            print("\n[PHASE 4d] - ASAP Full-Graph Global Baseline (PyG)")
-            run_phase4d(
-                spark, sc,
-                datasets     = datasets_for_4d,
-                dataset_cfg  = config.DATASET_CFG,
-                baseline_cfg = BASELINE_CFG,
-                get_paths_fn = get_paths_fn,
-                timing       = timing,
-                results      = phase4d_results,
-                task_type    = TASK_TYPE,
-                n_baseline_runs = getattr(config, 'N_BASELINE_RUNS', 3)
-            )
-            for dataset in datasets_for_4d:
-                save_baseline_checkpoint(dataset, '4d', phase4d_results, timing, args.s3_bucket, EXPERIMENT_NAME)
+        if getattr(config, 'RUN_PHASE4D', True):
+            datasets_for_4d = []
+            for dataset in DATASETS_TO_RUN:
+                if not FORCE_RERUN and load_baseline_checkpoint(dataset, '4d', phase4d_results, timing, args.s3_bucket, EXPERIMENT_NAME):
+                    pass
+                else:
+                    datasets_for_4d.append(dataset)
+            if datasets_for_4d:
+                print("\n[PHASE 4d] - ASAP Full-Graph Global Baseline (PyG)")
+                run_phase4d(
+                    spark, sc,
+                    datasets     = datasets_for_4d,
+                    dataset_cfg  = config.DATASET_CFG,
+                    baseline_cfg = BASELINE_CFG,
+                    get_paths_fn = get_paths_fn,
+                    timing       = timing,
+                    results      = phase4d_results,
+                    task_type    = TASK_TYPE,
+                    n_baseline_runs = getattr(config, 'N_BASELINE_RUNS', 3)
+                )
+                for dataset in datasets_for_4d:
+                    save_baseline_checkpoint(dataset, '4d', phase4d_results, timing, args.s3_bucket, EXPERIMENT_NAME)
 
         # 5. GAT Baseline
         if 'gat' in config.GNN_MODELS:
