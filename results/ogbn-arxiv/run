@@ -1,0 +1,94 @@
+  [ogbn-arxiv] Performance by community size bucket:
+    lpa-sage:
+      large   : n=220  acc=0.6427  auc=0.7877
+    lpa-gatv2:
+      large   : n=220  acc=0.6411  auc=0.7829
+    louvain-sage:
+      medium  : n=1  acc=0.0000  auc=0.8225
+      large   : n=37  acc=0.5741  auc=0.7534
+    louvain-gatv2:
+      medium  : n=1  acc=0.0000  auc=0.7572
+      large   : n=37  acc=0.5756  auc=0.7542
+    leiden-sage:
+      medium  : n=4  acc=0.5262  auc=0.7412
+      large   : n=31  acc=0.5928  auc=0.7430
+    leiden-gatv2:
+      medium  : n=4  acc=0.6226  auc=0.7837
+      large   : n=31  acc=0.5900  auc=0.7597
+
+================================================================================
+  PHASE 5B — TIMING COMPARISON
+================================================================================
+
+  Dataset: ogbn-arxiv
+  Algorithm             Phase1    Phase2    Phase3   Phase3b     Total
+  --------------------------------------------------------------------
+  lpa-sage                0.0s     25.8s    797.4s      0.0s    823.2s
+  lpa-gatv2               0.0s     25.8s    774.5s      0.0s    800.3s
+  louvain-sage            0.0s     25.1s    375.4s      0.0s    400.5s
+  louvain-gatv2           0.0s     25.1s    367.0s      0.0s    392.1s
+  leiden-sage             0.0s     25.0s    457.5s      0.0s    482.5s
+  leiden-gatv2            0.0s     25.0s    445.9s      0.0s    470.9s
+  BASELINE (SAGE)            —         —         —     92.0s (Node: 27.0s, Link: 65.1s)
+  GATv2-BL                   —         —         —     94.5s (Node: 49.9s, Link: 44.7s)
+  XLSX → s3://us-east-1-s3-gnn/gnn-bench-out/ogbn-arxiv_results.xlsx
+  Plot → s3://us-east-1-s3-gnn/gnn-bench-out/plots/ogbn-arxiv/ogbn-arxiv_acc_dist.png
+  Plot → s3://us-east-1-s3-gnn/gnn-bench-out/plots/ogbn-arxiv/ogbn-arxiv_boundary_internal.png
+  Plot → s3://us-east-1-s3-gnn/gnn-bench-out/plots/ogbn-arxiv/ogbn-arxiv_timing.png
+
+================================================================================
+  FINAL PIPELINE REPORT SUMMARY
+================================================================================
+╔══════════════════════════════════════════════════════════════╗
+║  EXPERIMENT: ogbn-arxiv                                     ║
+║  Global mapping: True                                        ║
+╠══════════════════════════════════════════════════════════════╣
+║   Dataset                        ogbn-arxiv                    ║
+║   Phase 0 (ingest)               238.0s                        ║
+║   Phase 2 [lpa]                  25.8s                         ║
+║   Phase 3 [lpa-sage]             797.4s                        ║
+║   Phase 3 [lpa-gatv2]            774.5s                        ║
+║   Phase 2 [louvain]              25.1s                         ║
+║   Phase 3 [louvain-sage]         375.4s                        ║
+║   Phase 3 [louvain-gatv2]        367.0s                        ║
+║   Phase 2 [leiden]               25.0s                         ║
+║   Phase 3 [leiden-sage]          457.5s                        ║
+║   Phase 3 [leiden-gatv2]         445.9s                        ║
+║   Phase 4 (baseline)             92.0s                         ║
+║   Phase 4h (GATv2)               94.5s                         ║
+╠══════════════════════════════════════════════════════════════╣
+║   [lpa-sage] global acc          0.6166                        ║
+║   [lpa-sage] boundary acc        0.0000                        ║
+║   [lpa-sage] internal acc        0.6427                        ║
+║   [lpa-sage] link AUC            0.7726                        ║
+║   [lpa-gatv2] global acc         0.6127                        ║
+║   [lpa-gatv2] boundary acc       0.0000                        ║
+║   [lpa-gatv2] internal acc       0.6411                        ║
+║   [lpa-gatv2] link AUC           0.7661                        ║
+║   [lpa] communities              10,376 raw → 219 valid        ║
+║   [louvain-sage] global acc      0.6109                        ║
+║   [louvain-sage] boundary acc    0.0000                        ║
+║   [louvain-sage] internal acc    0.5590                        ║
+║   [louvain-sage] link AUC        0.7741                        ║
+║   [louvain-gatv2] global acc     0.6088                        ║
+║   [louvain-gatv2] boundary acc   0.0000                        ║
+║   [louvain-gatv2] internal acc   0.5605                        ║
+║   [louvain-gatv2] link AUC       0.7821                        ║
+║   [louvain] communities          148 raw → 37 valid            ║
+║   [leiden-sage] global acc       0.6119                        ║
+║   [leiden-sage] boundary acc     0.0000                        ║
+║   [leiden-sage] internal acc     0.5852                        ║
+║   [leiden-sage] link AUC         0.7756                        ║
+║   [leiden-gatv2] global acc      0.6112                        ║
+║   [leiden-gatv2] boundary acc    0.0000                        ║
+║   [leiden-gatv2] internal acc    0.5937                        ║
+║   [leiden-gatv2] link AUC        0.7888                        ║
+║   [leiden] communities           133 raw → 34 valid            ║
+║   Baseline acc                   0.5496                        ║
+║   Baseline link AUC              0.6464  (92.0s)               ║
+║   GATv2 acc                      0.5432                        ║
+║   GATv2 link AUC                 0.8444  (94.5s)               ║
+╚══════════════════════════════════════════════════════════════╝
+
+[SUCCESS] EMR Driver execution completed in 4452.6 seconds.
+================================================================================
