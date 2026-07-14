@@ -1,0 +1,70 @@
+============================================================
+  PHASE 1 — Community Detection: ogbn-products
+============================================================
+  Graph loaded: 2,449,029 nodes | 123,718,024 edges  [28.0s]                    
+
+  ── [LPA] ──────────────────────────────
+    Iter 1/5: 586,198 comms  [42.5s]                                            
+    Iter 2/5: 203,019 comms  [25.9s]                                            
+    Iter 3/5: 127,972 comms  [20.0s]                                            
+    Iter 4/5: 103,165 comms  [19.4s]                                            
+    Iter 5/5: 92,420 comms  [26.7s]                                             
+26/07/10 05:34:48 WARN CacheManager: Asked to cache already cached data.
+  ✓ [lpa] 92,420 communities | NMI=0.3898 | 143.2s                              
+
+======================================================================
+  PHASE 1 SUMMARY
+======================================================================
+
+  Dataset: ogbn-products
+  Algorithm        #Comms      NMI    Runtime
+  ------------ ---------- -------- ----------
+  lpa              92,420   0.3898     143.2s
+
+  [lpa] Community assignment details:
+    Vertices assigned: 2,449,029 / 2,449,029 (100.0% coverage)                  
+    Total communities: 92,420 | Valid (≥100): 4,376
+    Size stats: min=1  max=25,844  avg=26.5  median=1
+    Size buckets: 1-9:73,451 | 10-99:14,593 | 100-999:4,043 | 1K-9999:328 | 10K+:5
+    Top-10 largest: c2445133=25,844, c2433801=17,325, c2448715=15,353, c2432617=10,375, c2448604=10,093, c2448465=9,902, c2448918=9,075, c2448835=8,656, c2448013=7,851, c2448701=6,903
+
+============================================================
+  PHASE 2 — Partitioning: ogbn-products
+============================================================
+
+  ── [LPA]  tag=run-all_ogbn-products_lpa ──
+  Raw=92,420  Valid(≥100)=4,376  min=100  max=25,844  avg=419.5                 
+  Edges kept: 123,718,024 (100.0%)  Boundary nodes: 0  Internal: 2,449,029      0]]
+  Shuffle overhead (groupBy community_id): 16.1s                                
+  ✓ [lpa] Phase 2 done in 143.6s                                                0]
+
+============================================================
+  PHASE 3 — GNN Training: ogbn-products / lpa / sage
+  tag=run-all_ogbn-products_lpa
+============================================================
+  Training DF: 15,514,853 rows | 4,377 communities                              
+  ✓ Mean comm acc = 0.6922                                                      
+  ✓ Weighted comm acc = 0.6757
+  ✓ Mean comm link AUC = 0.9555
+  ✓ Weighted comm link AUC = 0.9331
+  ✓ Wall time: 14793.8s
+    - Avg Load time: 0.02s | Max: 10.23s
+    - Avg Node Train: 3.86s | Max: 2313.24s
+    - Avg Link Train: 18.49s | Max: 2465.67s
+    ✓ Saved S3 checkpoint: s3://us-east-1-s3-gnn/gnn-bench-checkpoint/phase3/run-all/ogbn-products_lpa_sage.parquet
+
+============================================================
+  PHASE 3 — GNN Training: ogbn-products / lpa / gatv2
+  tag=run-all_ogbn-products_lpa
+============================================================
+  Training DF: 15,514,853 rows | 4,377 communities                              
+[Stage 3187:===================================================>(314 + 1) / 315]
+  ✓ Mean comm acc = 0.6924                                                      
+  ✓ Weighted comm acc = 0.6755
+  ✓ Mean comm link AUC = 0.9554
+  ✓ Weighted comm link AUC = 0.9257
+  ✓ Wall time: 14333.5s
+    - Avg Load time: 0.02s | Max: 10.21s
+    - Avg Node Train: 3.72s | Max: 2142.91s
+    - Avg Link Train: 18.07s | Max: 2266.75s
+    ✓ Saved S3 checkpoint: s3://us-east-1-s3-gnn/gnn-bench-checkpoint/phase3/run-all/ogbn-products_lpa_gatv2.parquet

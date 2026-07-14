@@ -5,7 +5,7 @@
 #      python upload_to_s3.py
 # ══════════════════════════════════════════════════════════════════════════════
 
-EXPERIMENT_NAME   = 'run-all'          # labels ALL S3 outputs; change per experiment run
+EXPERIMENT_NAME   = 'ogbn-products'          # labels ALL S3 outputs; change per experiment run
 
 # ── Datasets ───────────────────────────────────────────────────────────────────
 # To add ogbn-arxiv: set RUN_PHASE0=True first to ingest it.
@@ -19,9 +19,9 @@ GNN_MODELS = ['sage', 'gatv2']
 # True  = re-download OGB dataset and overwrite Delta tables.
 #         REQUIRED when using a dataset for the first time.
 # False = skip (Delta tables already exist).
-RUN_PHASE0        = True
-FORCE_REINGEST    = True   # Set to True to force overwrite even if tables already exist
-FORCE_RERUN       = True   # Set to True to ignore all S3 checkpoints and rerun the pipeline
+RUN_PHASE0        = False
+FORCE_REINGEST    = False   # Set to True to force overwrite even if tables already exist
+FORCE_RERUN       = False   # Set to True to ignore all S3 checkpoints and rerun the pipeline
 USE_OGB_SPLITS    = True    # True = OGB official splits | False = stratified 60/20/20
 RANDOM_SEED       = 42
 N_BASELINE_RUNS   = 3          # number of runs per baseline for mean ± std
@@ -31,7 +31,7 @@ N_BASELINE_RUNS   = 3          # number of runs per baseline for mean ± std
 #   'lpa'     = distributed Spark (fast, lower community quality)
 #   'louvain' = driver/igraph   (moderate quality, pulls graph to driver RAM)
 #   'igraph_lpa' = driver/igraph   (LPA using igraph)
-ALGORITHMS_TO_RUN  = ['lpa']
+ALGORITHMS_TO_RUN  = ['lpa', 'louvain', 'leiden']
 LPA_MAX_ITER       = 5
 RESOLUTION         = 1.0              # louvain / leiden resolution parameter
 MIN_COMMUNITY_SIZE = 100              # communities smaller than this are excluded
