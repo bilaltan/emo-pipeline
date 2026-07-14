@@ -242,6 +242,7 @@ def main():
     if not dataset_name:
         dataset_name = 'ogbn-arxiv'
     
+    # 1. Query active YARN worker nodes
     nodes_count = 2
     try:
         import subprocess
@@ -253,21 +254,60 @@ def main():
     except Exception:
         pass
 
-    driver_mem = "30g"
-    driver_cores = "4"
-    driver_overhead = "8g"
+    # 2. Dynamic graph scale detection from S3
+    bucket_name = getattr(args, 's3_bucket', 'us-east-1-s3-gnn')
     
-    if dataset_name in ('wikics', 'ogbn-arxiv'):
+    def get_dataset_s3_size_mb(bucket, prefix):
+        import boto3
+        s3 = boto3.client('s3')
+        try:
+            paginator = s3.get_paginator('list_objects_v2')
+            pages = paginator.paginate(Bucket=bucket, Prefix=prefix)
+            total_size = 0
+            for page in pages:
+                if 'Contents' in page:
+                    for obj in page['Contents']:
+                        if obj['Key'].endswith('.parquet'):
+                            total_size += obj['Size']
+            return total_size / (1024 * 1024)
+        except Exception:
+            return 0.0
+
+    edges_prefix = f"delta-data/{dataset_name}/edges/"
+    edges_size_mb = get_dataset_s3_size_mb(bucket_name, edges_prefix)
+    
+    # Fallback lookup if dataset is not yet ingested (running Phase 0)
+    if edges_size_mb == 0.0:
+        if dataset_name in ('wikics', 'ogbn-arxiv'):
+            edges_size_mb = 5.0
+        elif dataset_name in ('ogbn-products', 'reddit'):
+            edges_size_mb = 250.0
+        elif dataset_name == 'ogbn-papers100M':
+            edges_size_mb = 6000.0
+        else:
+            edges_size_mb = 100.0
+
+    # 3. Categorize scale dynamically based on storage footprint
+    if edges_size_mb <= 20.0:
+        scale_label = "Small/Medium"
         executor_instances = max(4, nodes_count * 7)
         executor_mem = "8g"
         executor_overhead = "4g"
         executor_cores = "2"
-    elif dataset_name in ('ogbn-products', 'reddit'):
+        driver_mem = "30g"
+        driver_cores = "4"
+        driver_overhead = "8g"
+    elif edges_size_mb <= 1000.0:
+        scale_label = "Large"
         executor_instances = max(4, nodes_count * 7)
         executor_mem = "8g"
         executor_overhead = "4g"
         executor_cores = "2"
+        driver_mem = "30g"
+        driver_cores = "4"
+        driver_overhead = "8g"
     else:
+        scale_label = "Massive (1B+ Scale)"
         executor_instances = max(2, nodes_count * 4)
         executor_mem = "16g"
         executor_overhead = "8g"
@@ -276,7 +316,8 @@ def main():
         driver_cores = "8"
         driver_overhead = "12g"
 
-    print(f"\n  [Spark Auto-Scaler] Dataset detected: {dataset_name} | Active YARN Workers: {nodes_count}")
+    print(f"\n  [Spark Auto-Scaler] Dataset: {dataset_name} | Physical Size: {edges_size_mb:.2f} MB | Scale: {scale_label}")
+    print(f"  [Spark Auto-Scaler] Active YARN Workers: {nodes_count}")
     print(f"  → Allocating {executor_instances} executors with {executor_cores} cores and {executor_mem} (+{executor_overhead} overhead) memory.")
     print(f"  → Driver memory: {driver_mem} (+{driver_overhead} overhead)\n")
 
