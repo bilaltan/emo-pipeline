@@ -1,0 +1,456 @@
+
+========================================
+SUMMARY FOR FILE: run-all_results-7.xlsx
+========================================
+Sheet names: ['summary', 'ogbn-arx_lpa_sage', 'caan_ogbn-_lpa_sage', 'ogbn-arx_lpa_gatv2', 'caan_ogbn-_lpa_gatv2', 'phase4_baseline', 'phase4b_distdgl', 'phase4c_arma', 'phase4d_asap', 'phase4h_gatv2']
+
+--- Sheet: summary (Shape: (4, 20)) ---
+Columns: ['experiment', 'dataset', 'algorithm', 'model_type', 'n_communities', 'global_test_acc', 'mean_comm_acc', 'mean_boundary_acc', 'mean_internal_acc', 'weighted_comm_acc', 'baseline_acc', 'acc_gap', 'mean_comm_link_acc', 'weighted_comm_link_auc', 'baseline_link_auc', 'auc_gap', 'phase1_s', 'phase2_s', 'phase3_s', 'baseline_s']
+  experiment     dataset algorithm  model_type  n_communities  global_test_acc  mean_comm_acc  mean_boundary_acc  mean_internal_acc  weighted_comm_acc  baseline_acc   acc_gap  mean_comm_link_acc  weighted_comm_link_auc  baseline_link_auc   auc_gap   phase1_s   phase2_s     phase3_s  baseline_s
+0    run-all  ogbn-arxiv       lpa        sage            220         0.612621       0.643474                  0           0.643474           0.612621      0.159202 -0.453419            0.789860                0.778604           0.544744 -0.233861  39.449015  30.813739   801.072955   85.064796
+1    run-all  ogbn-arxiv       lpa   sage-caan            220         0.621155       0.649304                  0           0.649304           0.621155      0.159202 -0.461953                 NaN                0.500000           0.544744  0.044744  39.449015  30.813739  3951.898799   85.064796
+2    run-all  ogbn-arxiv       lpa       gatv2            220         0.612500       0.642756                  0           0.642756           0.612500      0.159202 -0.453299            0.788047                0.778964           0.375432 -0.403532  39.449015  30.813739   810.266808   94.103498
+3    run-all  ogbn-arxiv       lpa  gatv2-caan            220         0.615147       0.647363                  0           0.647363           0.615147      0.159202 -0.455946                 NaN                0.500000           0.375432 -0.124568  39.449015  30.813739  3938.267478   94.103498
+
+--- Sheet: ogbn-arx_lpa_sage (Shape: (220, 17)) ---
+Columns: ['community_id', 'n_nodes', 'n_edges', 'n_train', 'n_val', 'n_test', 'n_boundary', 'n_internal', 'comm_test_acc', 'boundary_acc', 'internal_acc', 'comm_link_auc', 'size_bucket', 'load_time_s', 'node_train_time_s', 'link_train_time_s', 'peak_mem_mb']
+Community-level sheet summary:
+  Total rows (communities): 220
+  Mean nodes per community: 2443.08
+  Mean community test accuracy: 0.6435
+  Mean community link AUC: 0.7899
+  Top 5 rows:
+   community_id  n_nodes  n_edges  n_train  n_val  n_test  n_boundary  n_internal  comm_test_acc  boundary_acc  internal_acc  comm_link_auc size_bucket  load_time_s  node_train_time_s  link_train_time_s  peak_mem_mb
+0        169013     3684    11849     1560    886    1238           0        3684       0.630048             0      0.630048       0.848004       large     0.017070           4.260378           8.904166  1143.812096
+1        169272     2350     5499     1530    317     503           0        2350       0.685885             0      0.685885       0.757372       large     0.012859           3.651611           6.015464   985.944064
+2        152359      541     1751      298    116     127           0         541       0.755906             0      0.755906       0.827931       large     0.007943           1.918117           2.225817   859.840512
+3        155046      287      478      210     35      42           0         287       0.523810             0      0.523810       0.695960       large     0.005403           0.495030           0.828583   861.888512
+4        167790      289      820      186     50      53           0         289       0.433962             0      0.433962       0.820048       large     0.005666           0.510535           0.980156   862.449664
+
+--- Sheet: caan_ogbn-_lpa_sage (Shape: (220, 17)) ---
+Columns: ['community_id', 'n_nodes', 'n_edges', 'n_train', 'n_val', 'n_test', 'n_boundary', 'n_internal', 'comm_test_acc', 'boundary_acc', 'internal_acc', 'comm_link_auc', 'size_bucket', 'load_time_s', 'node_train_time_s', 'link_train_time_s', 'peak_mem_mb']
+Community-level sheet summary:
+  Total rows (communities): 220
+  Mean nodes per community: 769.74
+  Mean community test accuracy: 0.6493
+  Mean community link AUC: 0.5000
+  Top 5 rows:
+   community_id  n_nodes  n_edges  n_train  n_val  n_test  n_boundary  n_internal  comm_test_acc  boundary_acc  internal_acc  comm_link_auc size_bucket  load_time_s  node_train_time_s  link_train_time_s  peak_mem_mb
+0            -1    77159   527502    52055  10222   14882           0       77159       0.530574      0.530574      0.530574            0.5       small     0.000000          38.117058                  0     0.000000
+1        152359      135   528403       61     43      31           0         135       0.774194      0.000000      0.774194            0.5      medium     1.503586         107.482543                  0  1839.493120
+2        155046      103   527696       71     15      17           0         103       0.470588      0.000000      0.470588            0.5      medium     1.122676         106.607652                  0  1871.380480
+3        167790      123   528034       84     19      20           0         123       0.650000      0.000000      0.650000            0.5      medium     1.080789         107.080037                  0  1881.853952
+4        168379      114   528499      104      7       3           0         114       1.000000      0.000000      1.000000            0.5      medium     1.103848         111.448273                  0  1881.853952
+
+--- Sheet: ogbn-arx_lpa_gatv2 (Shape: (220, 17)) ---
+Columns: ['community_id', 'n_nodes', 'n_edges', 'n_train', 'n_val', 'n_test', 'n_boundary', 'n_internal', 'comm_test_acc', 'boundary_acc', 'internal_acc', 'comm_link_auc', 'size_bucket', 'load_time_s', 'node_train_time_s', 'link_train_time_s', 'peak_mem_mb']
+Community-level sheet summary:
+  Total rows (communities): 220
+  Mean nodes per community: 2443.08
+  Mean community test accuracy: 0.6428
+  Mean community link AUC: 0.7880
+  Top 5 rows:
+   community_id  n_nodes  n_edges  n_train  n_val  n_test  n_boundary  n_internal  comm_test_acc  boundary_acc  internal_acc  comm_link_auc size_bucket  load_time_s  node_train_time_s  link_train_time_s  peak_mem_mb
+0        169013     3684    11849     1560    886    1238           0        3684       0.638126             0      0.638126       0.914826       large     0.019014           4.998009          10.841473  1166.401536
+1        169272     2350     5499     1530    317     503           0        2350       0.687873             0      0.687873       0.771107       large     0.013501           3.636425           5.981482   974.057472
+2        152359      541     1751      298    116     127           0         541       0.755906             0      0.755906       0.797182       large     0.006915           1.581620           1.789884   859.484160
+3        155046      287      478      210     35      42           0         287       0.547619             0      0.547619       0.751770       large     0.004699           0.374002           0.609321   861.364224
+4        167790      289      820      186     50      53           0         289       0.415094             0      0.415094       0.759369       large     0.004648           0.366222           0.717503   861.880320
+
+--- Sheet: caan_ogbn-_lpa_gatv2 (Shape: (220, 17)) ---
+Columns: ['community_id', 'n_nodes', 'n_edges', 'n_train', 'n_val', 'n_test', 'n_boundary', 'n_internal', 'comm_test_acc', 'boundary_acc', 'internal_acc', 'comm_link_auc', 'size_bucket', 'load_time_s', 'node_train_time_s', 'link_train_time_s', 'peak_mem_mb']
+Community-level sheet summary:
+  Total rows (communities): 220
+  Mean nodes per community: 769.74
+  Mean community test accuracy: 0.6474
+  Mean community link AUC: 0.5000
+  Top 5 rows:
+   community_id  n_nodes  n_edges  n_train  n_val  n_test  n_boundary  n_internal  comm_test_acc  boundary_acc  internal_acc  comm_link_auc size_bucket  load_time_s  node_train_time_s  link_train_time_s  peak_mem_mb
+0            -1    77159   527502    52055  10222   14882           0       77159       0.516328      0.516328      0.516328            0.5       small     0.000000          37.606146                  0     0.000000
+1        152359      135   528403       61     43      31           0         135       0.774194      0.000000      0.774194            0.5      medium     1.683536         127.226336                  0  1860.599808
+2        155046      103   527696       71     15      17           0         103       0.529412      0.000000      0.529412            0.5      medium     1.309021         127.025334                  0  1866.960896
+3        167790      123   528034       84     19      20           0         123       0.650000      0.000000      0.650000            0.5      medium     1.289385         127.505850                  0  1954.304000
+4        168379      114   528499      104      7       3           0         114       1.000000      0.000000      1.000000            0.5      medium     1.299662         127.912716                  0  1954.304000
+
+--- Sheet: phase4_baseline (Shape: (1, 13)) ---
+Columns: ['dataset', 'test_acc', 'test_acc_std', 'link_auc', 'link_auc_std', 'node_train_time_s', 'link_train_time_s', 'train_time_s', 'peak_mem_gb', 'n_test', 'n_correct', 'all_accs', 'all_aucs']
+      dataset  test_acc  test_acc_std  link_auc  link_auc_std  node_train_time_s  link_train_time_s  train_time_s  peak_mem_gb  n_test  n_correct                                                         all_accs                                                      all_aucs
+0  ogbn-arxiv  0.159202             0  0.544744      0.012549          22.283356           62.78144     85.064796     8.690409   33869       5392  [0.15920162980896985, 0.15920162980896985, 0.15920162980896985]  [0.5592806561948558, 0.5286584286896611, 0.5462920795939525]
+
+--- Sheet: phase4b_distdgl (Shape: (1, 9)) ---
+Columns: ['dataset', 'test_acc', 'link_auc', 'node_train_time_s', 'link_train_time_s', 'train_time_s', 'peak_mem_gb', 'n_test', 'n_correct']
+      dataset  test_acc  link_auc  node_train_time_s  link_train_time_s  train_time_s  peak_mem_gb  n_test  n_correct
+0  ogbn-arxiv  0.658457  0.666031          60.588498          33.045449    100.634714     8.690409   48603      32003
+
+--- Sheet: phase4c_arma (Shape: (1, 13)) ---
+Columns: ['dataset', 'test_acc', 'test_acc_std', 'link_auc', 'link_auc_std', 'node_train_time_s', 'link_train_time_s', 'train_time_s', 'peak_mem_gb', 'n_test', 'n_correct', 'all_accs', 'all_aucs']
+      dataset  test_acc  test_acc_std  link_auc  link_auc_std  node_train_time_s  link_train_time_s  train_time_s  peak_mem_gb  n_test  n_correct                                                     all_accs                                                      all_aucs
+0  ogbn-arxiv  0.229108      0.000615  0.806996       0.00682          165.75221         166.166656    331.918867     9.573896   33869       7785  [0.2283504089285187, 0.22911807257374, 0.22985621069414508]  [0.8109091158405916, 0.7974055025888488, 0.8126730485642512]
+
+--- Sheet: phase4d_asap (Shape: (1, 13)) ---
+Columns: ['dataset', 'test_acc', 'test_acc_std', 'link_auc', 'link_auc_std', 'node_train_time_s', 'link_train_time_s', 'train_time_s', 'peak_mem_gb', 'n_test', 'n_correct', 'all_accs', 'all_aucs']
+      dataset  test_acc  test_acc_std  link_auc  link_auc_std  node_train_time_s  link_train_time_s  train_time_s  peak_mem_gb  n_test  n_correct                                                         all_accs                                                      all_aucs
+0  ogbn-arxiv  0.159202             0  0.811608      0.000304          73.276799          94.401995    167.678794    11.030852   33869       5392  [0.15920162980896985, 0.15920162980896985, 0.15920162980896985]  [0.8117385167030206, 0.8111876218201443, 0.8118977363764236]
+
+--- Sheet: phase4h_gatv2 (Shape: (1, 13)) ---
+Columns: ['dataset', 'test_acc', 'test_acc_std', 'link_auc', 'link_auc_std', 'node_train_time_s', 'link_train_time_s', 'train_time_s', 'peak_mem_gb', 'n_test', 'n_correct', 'all_accs', 'all_aucs']
+      dataset  test_acc  test_acc_std  link_auc  link_auc_std  node_train_time_s  link_train_time_s  train_time_s  peak_mem_gb  n_test  n_correct                                                         all_accs                                                       all_aucs
+0  ogbn-arxiv  0.159202             0  0.375432      0.003166           49.72033          44.383169     94.103498    11.030852   33869       5392  [0.15920162980896985, 0.15920162980896985, 0.15920162980896985]  [0.37859250199874794, 0.3711049514104369, 0.3765971190156278]
+
+
+========================================
+SUMMARY FOR FILE: run-all_results-6.xlsx
+========================================
+Sheet names: ['summary', 'wikics_lpa_sage', 'caan_wikic_lpa_sage', 'wikics_lpa_gat', 'caan_wikic_lpa_gat', 'wikics_lpa_transformer', 'caan_wikic_lpa_transformer', 'wikics_louvain_sage', 'caan_wikic_louvain_sage', 'wikics_louvain_gat', 'caan_wikic_louvain_gat', 'wikics_louvain_transformer', 'caan_wikic_louvain_transformer', 'phase4_baseline', 'phase4b_distdgl', 'phase4c_arma', 'phase4d_asap', 'phase4e_gat', 'phase4f_trans', 'phase4g_clusterscl']
+
+--- Sheet: summary (Shape: (12, 20)) ---
+Columns: ['experiment', 'dataset', 'algorithm', 'model_type', 'n_communities', 'global_test_acc', 'mean_comm_acc', 'mean_boundary_acc', 'mean_internal_acc', 'weighted_comm_acc', 'baseline_acc', 'acc_gap', 'mean_comm_link_acc', 'weighted_comm_link_auc', 'baseline_link_auc', 'auc_gap', 'phase1_s', 'phase2_s', 'phase3_s', 'baseline_s']
+   experiment dataset algorithm        model_type  n_communities  global_test_acc  mean_comm_acc  mean_boundary_acc  mean_internal_acc  weighted_comm_acc  baseline_acc   acc_gap  mean_comm_link_acc  weighted_comm_link_auc  baseline_link_auc   auc_gap  phase1_s  phase2_s   phase3_s  baseline_s
+0     run-all  wikics       lpa              sage             28         0.325213       0.365734                  0           0.365734           0.325213      0.228108 -0.097105            0.803726                0.794761           0.404568 -0.390192         0         0  31.877375    6.700588
+1     run-all  wikics       lpa         sage-caan             28         0.523003       0.603109                  0           0.603109           0.523003      0.228108 -0.294896                 NaN                0.500000           0.404568 -0.095432         0         0   6.296632    6.700588
+2     run-all  wikics       lpa               gat             28         0.304940       0.337194                  0           0.337194           0.304940      0.228108 -0.076832            0.749277                0.753588           0.447316 -0.306272         0         0  39.862880   14.949177
+3     run-all  wikics       lpa          gat-caan             28         0.483325       0.632680                  0           0.632680           0.483325      0.228108 -0.255217                 NaN                0.500000           0.447316 -0.052684         0         0  15.716355   14.949177
+4     run-all  wikics       lpa       transformer             28         0.330085       0.392796                  0           0.392796           0.330085      0.228108 -0.101977            0.753109                0.772119           0.384593 -0.387526         0         0  52.857203   23.490890
+5     run-all  wikics       lpa  transformer-caan             28         0.450487       0.576508                  0           0.576508           0.450487      0.228108 -0.222380                 NaN                0.500000           0.384593 -0.115407         0         0  27.093786   23.490890
+6     run-all  wikics   louvain              sage             16         0.321103       0.324407                  0           0.324407           0.321103      0.228108 -0.092995            0.834326                0.835215           0.404568 -0.430646         0         0  15.220156    6.700588
+7     run-all  wikics   louvain         sage-caan             16         0.577398       0.585941                  0           0.585941           0.577398      0.228108 -0.349290                 NaN                0.500000           0.404568 -0.095432         0         0   3.702176    6.700588
+8     run-all  wikics   louvain               gat             16         0.283556       0.239103                  0           0.239103           0.283556      0.228108 -0.055448            0.767662                0.777078           0.447316 -0.329762         0         0  22.694471   14.949177
+9     run-all  wikics   louvain          gat-caan             16         0.675952       0.631752                  0           0.631752           0.675952      0.228108 -0.447844                 NaN                0.500000           0.447316 -0.052684         0         0   4.133673   14.949177
+10    run-all  wikics   louvain       transformer             16         0.313503       0.319733                  0           0.319733           0.313503      0.228108 -0.085396            0.789018                0.804992           0.384593 -0.420399         0         0  29.505010   23.490890
+11    run-all  wikics   louvain  transformer-caan             16         0.703103       0.660396                  0           0.660396           0.703103      0.228108 -0.474995                 NaN                0.500000           0.384593 -0.115407         0         0   6.369458   23.490890
+
+--- Sheet: wikics_lpa_sage (Shape: (28, 17)) ---
+Columns: ['community_id', 'n_nodes', 'n_edges', 'n_train', 'n_val', 'n_test', 'n_boundary', 'n_internal', 'comm_test_acc', 'boundary_acc', 'internal_acc', 'comm_link_auc', 'size_bucket', 'load_time_s', 'node_train_time_s', 'link_train_time_s', 'peak_mem_mb']
+Community-level sheet summary:
+  Total rows (communities): 28
+  Mean nodes per community: 1986.93
+  Mean community test accuracy: 0.3657
+  Mean community link AUC: 0.8037
+  Top 5 rows:
+   community_id  n_nodes  n_edges  n_train  n_val  n_test  n_boundary  n_internal  comm_test_acc  boundary_acc  internal_acc  comm_link_auc size_bucket  load_time_s  node_train_time_s  link_train_time_s  peak_mem_mb
+0         11268     8068    92271      394   1195    4042           0        8068       0.257546             0      0.257546       0.728558       large     0.052196           3.177312          19.679197  2008.367104
+1         11302     1714     3853       74    251     864           0        1714       0.380787             0      0.380787       0.764947       large     0.008537           0.396351           0.784544  2008.367104
+2         11257      784     4641       42    117     389           0         784       0.118252             0      0.118252       0.868554       large     0.009393           1.327508           1.330196   900.804608
+3         11131     1167     8478       63    153     598           0        1167       0.471572             0      0.471572       0.775483       large     0.011490           1.416929           1.857931  1029.398528
+4         11278     1277     4590       57    199     667           0        1277       0.095952             0      0.095952       0.705595       large     0.009998           1.444638           1.405484   927.248384
+
+--- Sheet: caan_wikic_lpa_sage (Shape: (28, 17)) ---
+Columns: ['community_id', 'n_nodes', 'n_edges', 'n_train', 'n_val', 'n_test', 'n_boundary', 'n_internal', 'comm_test_acc', 'boundary_acc', 'internal_acc', 'comm_link_auc', 'size_bucket', 'load_time_s', 'node_train_time_s', 'link_train_time_s', 'peak_mem_mb']
+Community-level sheet summary:
+  Total rows (communities): 28
+  Mean nodes per community: 292.71
+  Mean community test accuracy: 0.6031
+  Mean community link AUC: 0.5000
+  Top 5 rows:
+   community_id  n_nodes  n_edges  n_train  n_val  n_test  n_boundary  n_internal  comm_test_acc  boundary_acc  internal_acc  comm_link_auc size_bucket  load_time_s  node_train_time_s  link_train_time_s  peak_mem_mb
+0            -1     2010    27966      139    453    1418           0        2010       0.452750       0.45275      0.452750            0.5       small     0.000000           0.207184                  0     0.000000
+1         11268     1627    60647      114    342    1171           0        1627       0.361230       0.00000      0.361230            0.5       large     0.181811           0.940426                  0  2636.320768
+2         11302       91    28434       13     18      60           0          91       0.250000       0.00000      0.250000            0.5      medium     0.060674           0.549885                  0  2636.320768
+3         11131       97    30781        7     20      70           0          97       0.828571       0.00000      0.828571            0.5      medium     0.104176           0.556927                  0  2330.574848
+4         11257       83    29664        8     14      61           0          83       0.245902       0.00000      0.245902            0.5      medium     0.061967           0.563665                  0  2330.574848
+
+--- Sheet: wikics_lpa_gat (Shape: (28, 17)) ---
+Columns: ['community_id', 'n_nodes', 'n_edges', 'n_train', 'n_val', 'n_test', 'n_boundary', 'n_internal', 'comm_test_acc', 'boundary_acc', 'internal_acc', 'comm_link_auc', 'size_bucket', 'load_time_s', 'node_train_time_s', 'link_train_time_s', 'peak_mem_mb']
+Community-level sheet summary:
+  Total rows (communities): 28
+  Mean nodes per community: 1986.93
+  Mean community test accuracy: 0.3372
+  Mean community link AUC: 0.7493
+  Top 5 rows:
+   community_id  n_nodes  n_edges  n_train  n_val  n_test  n_boundary  n_internal  comm_test_acc  boundary_acc  internal_acc  comm_link_auc size_bucket  load_time_s  node_train_time_s  link_train_time_s  peak_mem_mb
+0         11268     8068    92271      394   1195    4042           0        8068       0.253835             0      0.253835       0.662738       large     0.045695           9.823350          25.445043  2255.892480
+1         11302     1714     3853       74    251     864           0        1714       0.343750             0      0.343750       0.743960       large     0.008911           0.485648           0.835773  2255.892480
+2         11257      784     4641       42    117     389           0         784       0.205656             0      0.205656       0.834052       large     0.007552           0.435981           0.861134  2008.367104
+3         11131     1167     8478       63    153     598           0        1167       0.137124             0      0.137124       0.639269       large     0.009660           0.651035           1.464737  1162.657792
+4         11278     1277     4590       57    199     667           0        1277       0.233883             0      0.233883       0.688524       large     0.011593           0.540999           0.961239  1049.047040
+
+--- Sheet: caan_wikic_lpa_gat (Shape: (28, 17)) ---
+Columns: ['community_id', 'n_nodes', 'n_edges', 'n_train', 'n_val', 'n_test', 'n_boundary', 'n_internal', 'comm_test_acc', 'boundary_acc', 'internal_acc', 'comm_link_auc', 'size_bucket', 'load_time_s', 'node_train_time_s', 'link_train_time_s', 'peak_mem_mb']
+Community-level sheet summary:
+  Total rows (communities): 28
+  Mean nodes per community: 292.71
+  Mean community test accuracy: 0.6327
+  Mean community link AUC: 0.5000
+  Top 5 rows:
+   community_id  n_nodes  n_edges  n_train  n_val  n_test  n_boundary  n_internal  comm_test_acc  boundary_acc  internal_acc  comm_link_auc size_bucket  load_time_s  node_train_time_s  link_train_time_s  peak_mem_mb
+0            -1     2010    27966      139    453    1418           0        2010       0.300423      0.300423      0.300423            0.5       small     0.000000           0.523827                  0     0.000000
+1         11268     1627    60647      114    342    1171           0        1627       0.361230      0.000000      0.361230            0.5       large     0.182983           5.891509                  0  1674.612736
+2         11302       91    28434       13     18      60           0          91       0.666667      0.000000      0.666667            0.5      medium     0.059258           1.529831                  0  1674.612736
+3         11131       97    30781        7     20      70           0          97       0.828571      0.000000      0.828571            0.5      medium     0.084328           1.672864                  0  1706.278912
+4         11257       83    29664        8     14      61           0          83       0.360656      0.000000      0.360656            0.5      medium     0.070539           1.735584                  0  1706.278912
+
+--- Sheet: wikics_lpa_transformer (Shape: (28, 17)) ---
+Columns: ['community_id', 'n_nodes', 'n_edges', 'n_train', 'n_val', 'n_test', 'n_boundary', 'n_internal', 'comm_test_acc', 'boundary_acc', 'internal_acc', 'comm_link_auc', 'size_bucket', 'load_time_s', 'node_train_time_s', 'link_train_time_s', 'peak_mem_mb']
+Community-level sheet summary:
+  Total rows (communities): 28
+  Mean nodes per community: 1986.93
+  Mean community test accuracy: 0.3928
+  Mean community link AUC: 0.7531
+  Top 5 rows:
+   community_id  n_nodes  n_edges  n_train  n_val  n_test  n_boundary  n_internal  comm_test_acc  boundary_acc  internal_acc  comm_link_auc size_bucket  load_time_s  node_train_time_s  link_train_time_s  peak_mem_mb
+0         11268     8068    92271      394   1195    4042           0        8068       0.254824             0      0.254824       0.705073       large     0.050496          15.855240          31.787977  2636.320768
+1         11302     1714     3853       74    251     864           0        1714       0.144676             0      0.144676       0.647071       large     0.008886           0.824816           1.200654  2636.320768
+2         11257      784     4641       42    117     389           0         784       0.118252             0      0.118252       0.823952       large     0.009240           0.682100           1.139507  1571.577856
+3         11131     1167     8478       63    153     598           0        1167       0.471572             0      0.471572       0.734054       large     0.009695           1.053520           1.872729  1243.062272
+4         11278     1277     4590       57    199     667           0        1277       0.245877             0      0.245877       0.722058       large     0.008962           0.864037           1.280136  1337.438208
+
+--- Sheet: caan_wikic_lpa_transformer (Shape: (28, 17)) ---
+Columns: ['community_id', 'n_nodes', 'n_edges', 'n_train', 'n_val', 'n_test', 'n_boundary', 'n_internal', 'comm_test_acc', 'boundary_acc', 'internal_acc', 'comm_link_auc', 'size_bucket', 'load_time_s', 'node_train_time_s', 'link_train_time_s', 'peak_mem_mb']
+Community-level sheet summary:
+  Total rows (communities): 28
+  Mean nodes per community: 292.71
+  Mean community test accuracy: 0.5765
+  Mean community link AUC: 0.5000
+  Top 5 rows:
+   community_id  n_nodes  n_edges  n_train  n_val  n_test  n_boundary  n_internal  comm_test_acc  boundary_acc  internal_acc  comm_link_auc size_bucket  load_time_s  node_train_time_s  link_train_time_s  peak_mem_mb
+0            -1     2010    27966      139    453    1418           0        2010       0.338505      0.338505      0.338505            0.5       small     0.000000           0.585734                  0     0.000000
+1         11268     1627    60647      114    342    1171           0        1627       0.184458      0.000000      0.184458            0.5       large     0.183792          10.858318                  0  1764.995072
+2         11302       91    28434       13     18      60           0          91       0.100000      0.000000      0.100000            0.5      medium     0.060007           2.849776                  0  1764.995072
+3         11131       97    30781        7     20      70           0          97       0.828571      0.000000      0.828571            0.5      medium     0.065708           3.284680                  0  1840.062464
+4         11257       83    29664        8     14      61           0          83       0.147541      0.000000      0.147541            0.5      medium     0.062088           2.866813                  0  1840.062464
+
+--- Sheet: wikics_louvain_sage (Shape: (16, 17)) ---
+Columns: ['community_id', 'n_nodes', 'n_edges', 'n_train', 'n_val', 'n_test', 'n_boundary', 'n_internal', 'comm_test_acc', 'boundary_acc', 'internal_acc', 'comm_link_auc', 'size_bucket', 'load_time_s', 'node_train_time_s', 'link_train_time_s', 'peak_mem_mb']
+Community-level sheet summary:
+  Total rows (communities): 16
+  Mean nodes per community: 2768.75
+  Mean community test accuracy: 0.3244
+  Mean community link AUC: 0.8343
+  Top 5 rows:
+   community_id  n_nodes  n_edges  n_train  n_val  n_test  n_boundary  n_internal  comm_test_acc  boundary_acc  internal_acc  comm_link_auc size_bucket  load_time_s  node_train_time_s  link_train_time_s  peak_mem_mb
+0            30     2418    38771      125    359    1198           0        2418       0.358097             0      0.358097       0.851939       large     0.019512           0.628074           5.036919  1690.005504
+1            26     2700    37792      128    376    1369           0        2700       0.408327             0      0.408327       0.857561       large     0.020828           0.681807           4.707329  1764.995072
+2            29     2127    23167       87    311    1072           0        2127       0.391791             0      0.391791       0.909696       large     0.015562           0.545426           3.130602  1573.965824
+3            25     5018    55556      243    733    2521           0        5018       0.270131             0      0.270131       0.763667       large     0.029325           1.289696          11.611824  1602.555904
+4            22     2017    14191       97    313    1009           0        2017       0.232904             0      0.232904       0.821823       large     0.013463           0.510449           2.049746  1337.438208
+
+--- Sheet: caan_wikic_louvain_sage (Shape: (16, 17)) ---
+Columns: ['community_id', 'n_nodes', 'n_edges', 'n_train', 'n_val', 'n_test', 'n_boundary', 'n_internal', 'comm_test_acc', 'boundary_acc', 'internal_acc', 'comm_link_auc', 'size_bucket', 'load_time_s', 'node_train_time_s', 'link_train_time_s', 'peak_mem_mb']
+Community-level sheet summary:
+  Total rows (communities): 16
+  Mean nodes per community: 497.06
+  Mean community test accuracy: 0.5859
+  Mean community link AUC: 0.5000
+  Top 5 rows:
+   community_id  n_nodes  n_edges  n_train  n_val  n_test  n_boundary  n_internal  comm_test_acc  boundary_acc  internal_acc  comm_link_auc size_bucket  load_time_s  node_train_time_s  link_train_time_s  peak_mem_mb
+0            -1      107     2322        9     17      81           0         107       0.530864      0.530864      0.530864            0.5       small     0.000000           0.066200                  0     0.000000
+1            26      351    16303       20     61     270           0         351       0.685185      0.000000      0.685185            0.5       large     0.048763           0.177202                  0  1901.264896
+2            29      214    11344       14     50     150           0         214       0.766667      0.000000      0.766667            0.5       large     0.033808           0.140108                  0  1901.264896
+3            30      304    18089       29     66     209           0         304       0.377990      0.000000      0.377990            0.5       large     0.047871           0.155163                  0  1901.264896
+4            22      391     7798       26     93     272           0         391       0.720588      0.000000      0.720588            0.5       large     0.039508           0.175546                  0  1952.641024
+
+--- Sheet: wikics_louvain_gat (Shape: (16, 17)) ---
+Columns: ['community_id', 'n_nodes', 'n_edges', 'n_train', 'n_val', 'n_test', 'n_boundary', 'n_internal', 'comm_test_acc', 'boundary_acc', 'internal_acc', 'comm_link_auc', 'size_bucket', 'load_time_s', 'node_train_time_s', 'link_train_time_s', 'peak_mem_mb']
+Community-level sheet summary:
+  Total rows (communities): 16
+  Mean nodes per community: 2768.75
+  Mean community test accuracy: 0.2391
+  Mean community link AUC: 0.7677
+  Top 5 rows:
+   community_id  n_nodes  n_edges  n_train  n_val  n_test  n_boundary  n_internal  comm_test_acc  boundary_acc  internal_acc  comm_link_auc size_bucket  load_time_s  node_train_time_s  link_train_time_s  peak_mem_mb
+0            30     2418    38771      125    359    1198           0        2418       0.378965             0      0.378965       0.799629       large     0.020674           3.572493           6.156659  2110.316544
+1            26     2700    37792      128    376    1369           0        2700       0.120526             0      0.120526       0.715780       large     0.027045           1.878232           5.763982  2636.320768
+2            29     2127    23167       87    311    1072           0        2127       0.401119             0      0.401119       0.871076       large     0.014909           1.530182           3.714827  2008.367104
+3            25     5018    55556      243    733    2521           0        5018       0.268148             0      0.268148       0.731369       large     0.030148           5.308107          14.278353  1674.612736
+4            22     2017    14191       97    313    1009           0        2017       0.155600             0      0.155600       0.790756       large     0.012897           1.158142           2.385523  1260.724224
+
+--- Sheet: caan_wikic_louvain_gat (Shape: (16, 17)) ---
+Columns: ['community_id', 'n_nodes', 'n_edges', 'n_train', 'n_val', 'n_test', 'n_boundary', 'n_internal', 'comm_test_acc', 'boundary_acc', 'internal_acc', 'comm_link_auc', 'size_bucket', 'load_time_s', 'node_train_time_s', 'link_train_time_s', 'peak_mem_mb']
+Community-level sheet summary:
+  Total rows (communities): 16
+  Mean nodes per community: 497.06
+  Mean community test accuracy: 0.6318
+  Mean community link AUC: 0.5000
+  Top 5 rows:
+   community_id  n_nodes  n_edges  n_train  n_val  n_test  n_boundary  n_internal  comm_test_acc  boundary_acc  internal_acc  comm_link_auc size_bucket  load_time_s  node_train_time_s  link_train_time_s  peak_mem_mb
+0            -1      107     2322        9     17      81           0         107       0.382716      0.382716      0.382716            0.5       small     0.000000           0.075422                  0     0.000000
+1            26      351    16303       20     61     270           0         351       0.688889      0.000000      0.688889            0.5       large     0.048339           0.688316                  0  2636.320768
+2            29      214    11344       14     50     150           0         214       0.766667      0.000000      0.766667            0.5       large     0.034862           0.490625                  0  2636.320768
+3            30      304    18089       29     66     209           0         304       0.555024      0.000000      0.555024            0.5       large     0.048006           0.656328                  0  2636.320768
+4            22      391     7798       26     93     272           0         391       0.003676      0.000000      0.003676            0.5       large     0.028100           0.424559                  0  1764.995072
+
+--- Sheet: wikics_louvain_transformer (Shape: (16, 17)) ---
+Columns: ['community_id', 'n_nodes', 'n_edges', 'n_train', 'n_val', 'n_test', 'n_boundary', 'n_internal', 'comm_test_acc', 'boundary_acc', 'internal_acc', 'comm_link_auc', 'size_bucket', 'load_time_s', 'node_train_time_s', 'link_train_time_s', 'peak_mem_mb']
+Community-level sheet summary:
+  Total rows (communities): 16
+  Mean nodes per community: 2768.75
+  Mean community test accuracy: 0.3197
+  Mean community link AUC: 0.7890
+  Top 5 rows:
+   community_id  n_nodes  n_edges  n_train  n_val  n_test  n_boundary  n_internal  comm_test_acc  boundary_acc  internal_acc  comm_link_auc size_bucket  load_time_s  node_train_time_s  link_train_time_s  peak_mem_mb
+0            30     2418    38771      125    359    1198           0        2418       0.362270             0      0.362270       0.844493       large     0.029091           6.729334           7.286109  2254.741504
+1            26     2700    37792      128    376    1369           0        2700       0.409058             0      0.409058       0.820532       large     0.020784           5.745757           7.164025  2272.751616
+2            29     2127    23167       87    311    1072           0        2127       0.390858             0      0.390858       0.882658       large     0.015369           2.634116           4.705873  1864.065024
+3            25     5018    55556      243    733    2521           0        5018       0.268148             0      0.268148       0.736262       large     0.029905           8.667667          18.886649  1952.641024
+4            22     2017    14191       97    313    1009           0        2017       0.234886             0      0.234886       0.756050       large     0.012758           1.771634           3.093834  1606.025216
+
+--- Sheet: caan_wikic_louvain_transformer (Shape: (16, 17)) ---
+Columns: ['community_id', 'n_nodes', 'n_edges', 'n_train', 'n_val', 'n_test', 'n_boundary', 'n_internal', 'comm_test_acc', 'boundary_acc', 'internal_acc', 'comm_link_auc', 'size_bucket', 'load_time_s', 'node_train_time_s', 'link_train_time_s', 'peak_mem_mb']
+Community-level sheet summary:
+  Total rows (communities): 16
+  Mean nodes per community: 497.06
+  Mean community test accuracy: 0.6604
+  Mean community link AUC: 0.5000
+  Top 5 rows:
+   community_id  n_nodes  n_edges  n_train  n_val  n_test  n_boundary  n_internal  comm_test_acc  boundary_acc  internal_acc  comm_link_auc size_bucket  load_time_s  node_train_time_s  link_train_time_s  peak_mem_mb
+0            -1      107     2322        9     17      81           0         107       0.320988      0.320988      0.320988            0.5       small     0.000000           0.112122                  0     0.000000
+1            26      351    16303       20     61     270           0         351       0.688889      0.000000      0.688889            0.5       large     0.048176           1.444711                  0  1706.278912
+2            29      214    11344       14     50     150           0         214       0.746667      0.000000      0.746667            0.5       large     0.034566           0.935630                  0  1706.278912
+3            30      304    18089       29     66     209           0         304       0.435407      0.000000      0.435407            0.5       large     0.047567           1.442780                  0  1706.278912
+4            22      391     7798       26     93     272           0         391       0.724265      0.000000      0.724265            0.5       large     0.049859           0.776940                  0  2120.912896
+
+--- Sheet: phase4_baseline (Shape: (1, 13)) ---
+Columns: ['dataset', 'test_acc', 'test_acc_std', 'link_auc', 'link_auc_std', 'node_train_time_s', 'link_train_time_s', 'train_time_s', 'peak_mem_gb', 'n_test', 'n_correct', 'all_accs', 'all_aucs']
+  dataset  test_acc  test_acc_std  link_auc  link_auc_std  node_train_time_s  link_train_time_s  train_time_s  peak_mem_gb  n_test  n_correct                                                         all_accs                                                        all_aucs
+0  wikics  0.228108  2.775558e-17  0.404568      0.039314           1.485753           5.214835      6.700588     2.588566    2341        534  [0.22810764630499786, 0.22810764630499786, 0.22810764630499786]  [0.39532186006992615, 0.36171283632465473, 0.4566705026271767]
+
+--- Sheet: phase4b_distdgl (Shape: (1, 9)) ---
+Columns: ['dataset', 'test_acc', 'link_auc', 'node_train_time_s', 'link_train_time_s', 'train_time_s', 'peak_mem_gb', 'n_test', 'n_correct']
+  dataset  test_acc  link_auc  node_train_time_s  link_train_time_s  train_time_s  peak_mem_gb  n_test  n_correct
+0  wikics  0.662904  0.722241           0.653156           4.470419       12.1246     2.588566    5847       3876
+
+--- Sheet: phase4c_arma (Shape: (1, 13)) ---
+Columns: ['dataset', 'test_acc', 'test_acc_std', 'link_auc', 'link_auc_std', 'node_train_time_s', 'link_train_time_s', 'train_time_s', 'peak_mem_gb', 'n_test', 'n_correct', 'all_accs', 'all_aucs']
+  dataset  test_acc  test_acc_std  link_auc  link_auc_std  node_train_time_s  link_train_time_s  train_time_s  peak_mem_gb  n_test  n_correct                                                         all_accs                                                      all_aucs
+0  wikics  0.232095      0.002925  0.889858      0.000691          18.761931          16.952569       35.7145     2.973282    2341        539  [0.23622383596753524, 0.22981631781290046, 0.23024348568987613]  [0.8906287007866902, 0.8889515374426462, 0.8899931534639492]
+
+--- Sheet: phase4d_asap (Shape: (1, 13)) ---
+Columns: ['dataset', 'test_acc', 'test_acc_std', 'link_auc', 'link_auc_std', 'node_train_time_s', 'link_train_time_s', 'train_time_s', 'peak_mem_gb', 'n_test', 'n_correct', 'all_accs', 'all_aucs']
+  dataset  test_acc  test_acc_std  link_auc  link_auc_std  node_train_time_s  link_train_time_s  train_time_s  peak_mem_gb  n_test  n_correct                                                         all_accs                                                      all_aucs
+0  wikics  0.214723      0.018929  0.884016      0.001134           6.250293           8.408878     14.659171     3.117605    2341        534  [0.18795386586928664, 0.22810764630499786, 0.22810764630499786]  [0.8825159116079389, 0.8842748776121174, 0.8852561650556242]
+
+--- Sheet: phase4e_gat (Shape: (1, 13)) ---
+Columns: ['dataset', 'test_acc', 'test_acc_std', 'link_auc', 'link_auc_std', 'node_train_time_s', 'link_train_time_s', 'train_time_s', 'peak_mem_gb', 'n_test', 'n_correct', 'all_accs', 'all_aucs']
+  dataset  test_acc  test_acc_std  link_auc  link_auc_std  node_train_time_s  link_train_time_s  train_time_s  peak_mem_gb  n_test  n_correct                                                         all_accs                                                         all_aucs
+0  wikics  0.228108  2.775558e-17  0.447316      0.036503           6.277774           8.671403     14.949177     3.820171    2341        534  [0.22810764630499786, 0.22810764630499786, 0.22810764630499786]  [0.46339559629510424, 0.39679425255618356, 0.48175895766786225]
+
+--- Sheet: phase4f_trans (Shape: (1, 13)) ---
+Columns: ['dataset', 'test_acc', 'test_acc_std', 'link_auc', 'link_auc_std', 'node_train_time_s', 'link_train_time_s', 'train_time_s', 'peak_mem_gb', 'n_test', 'n_correct', 'all_accs', 'all_aucs']
+  dataset  test_acc  test_acc_std  link_auc  link_auc_std  node_train_time_s  link_train_time_s  train_time_s  peak_mem_gb  n_test  n_correct                                                         all_accs                                                        all_aucs
+0  wikics  0.228108  2.775558e-17  0.384593      0.020326            11.2572           12.23369      23.49089     5.597327    2341        534  [0.22810764630499786, 0.22810764630499786, 0.22810764630499786]  [0.36282279319954497, 0.41173441555214596, 0.3792219282878862]
+
+--- Sheet: phase4g_clusterscl (Shape: (1, 13)) ---
+Columns: ['dataset', 'test_acc', 'test_acc_std', 'link_auc', 'link_auc_std', 'node_train_time_s', 'link_train_time_s', 'train_time_s', 'peak_mem_gb', 'n_test', 'n_correct', 'all_accs', 'all_aucs']
+  dataset  test_acc  test_acc_std  link_auc  link_auc_std  node_train_time_s  link_train_time_s  train_time_s  peak_mem_gb  n_test  n_correct                                                         all_accs                                                      all_aucs
+0  wikics  0.228108  2.775558e-17  0.669726      0.107491          53.740138          13.039111     66.779249     5.976056    2341        534  [0.22810764630499786, 0.22810764630499786, 0.22810764630499786]  [0.5187481977421597, 0.7605753125957332, 0.7298530605898541]
+
+
+========================================
+SUMMARY FOR FILE: baseline_run_results.xlsx
+========================================
+Sheet names: ['summary', 'phase4_baseline', 'phase4b_distdgl', 'phase4c_arma', 'phase4d_asap', 'phase4e_gat', 'phase4f_trans', 'phase4g_clusterscl']
+
+--- Sheet: summary (Shape: (0, 0)) ---
+Empty Sheet
+--- Sheet: phase4_baseline (Shape: (1, 9)) ---
+Columns: ['dataset', 'test_acc', 'link_auc', 'node_train_time_s', 'link_train_time_s', 'train_time_s', 'peak_mem_gb', 'n_test', 'n_correct']
+      dataset  test_acc  link_auc  node_train_time_s  link_train_time_s  train_time_s  peak_mem_gb  n_test  n_correct
+0  ogbn-arxiv  0.058618  0.510309          13.515805          31.793238     45.309043     8.442282   48603       2849
+
+--- Sheet: phase4b_distdgl (Shape: (1, 9)) ---
+Columns: ['dataset', 'test_acc', 'link_auc', 'node_train_time_s', 'link_train_time_s', 'train_time_s', 'peak_mem_gb', 'n_test', 'n_correct']
+      dataset  test_acc  link_auc  node_train_time_s  link_train_time_s  train_time_s  peak_mem_gb  n_test  n_correct
+0  ogbn-arxiv  0.642615  0.735149          34.392729          17.396984     58.790745     8.442282   48603      31233
+
+--- Sheet: phase4c_arma (Shape: (1, 9)) ---
+Columns: ['dataset', 'test_acc', 'link_auc', 'node_train_time_s', 'link_train_time_s', 'train_time_s', 'peak_mem_gb', 'n_test', 'n_correct']
+      dataset  test_acc  link_auc  node_train_time_s  link_train_time_s  train_time_s  peak_mem_gb  n_test  n_correct
+0  ogbn-arxiv  0.058618  0.827637         118.353731         111.573911    229.927642     9.425072   48603       2849
+
+--- Sheet: phase4d_asap (Shape: (1, 9)) ---
+Columns: ['dataset', 'test_acc', 'link_auc', 'node_train_time_s', 'link_train_time_s', 'train_time_s', 'peak_mem_gb', 'n_test', 'n_correct']
+      dataset  test_acc  link_auc  node_train_time_s  link_train_time_s  train_time_s  peak_mem_gb  n_test  n_correct
+0  ogbn-arxiv  0.179413  0.810938          36.504367          49.300557     85.804924    10.480247   48603       8720
+
+--- Sheet: phase4e_gat (Shape: (1, 9)) ---
+Columns: ['dataset', 'test_acc', 'link_auc', 'node_train_time_s', 'link_train_time_s', 'train_time_s', 'peak_mem_gb', 'n_test', 'n_correct']
+      dataset  test_acc  link_auc  node_train_time_s  link_train_time_s  train_time_s  peak_mem_gb  n_test  n_correct
+0  ogbn-arxiv  0.058618  0.683664          55.014185           23.74764     78.761826    16.396939   48603       2849
+
+--- Sheet: phase4f_trans (Shape: (1, 9)) ---
+Columns: ['dataset', 'test_acc', 'link_auc', 'node_train_time_s', 'link_train_time_s', 'train_time_s', 'peak_mem_gb', 'n_test', 'n_correct']
+      dataset  test_acc  link_auc  node_train_time_s  link_train_time_s  train_time_s  peak_mem_gb  n_test  n_correct
+0  ogbn-arxiv  0.058618  0.669676          84.975784          28.743442    113.719226    26.327953   48603       2849
+
+--- Sheet: phase4g_clusterscl (Shape: (1, 9)) ---
+Columns: ['dataset', 'test_acc', 'link_auc', 'node_train_time_s', 'link_train_time_s', 'train_time_s', 'peak_mem_gb', 'n_test', 'n_correct']
+      dataset  test_acc  link_auc  node_train_time_s  link_train_time_s  train_time_s  peak_mem_gb  n_test  n_correct
+0  ogbn-arxiv  0.058618  0.683664         329.669065          23.794817    353.463882    26.327953   48603       2849
+
+
+========================================
+SUMMARY FOR FILE: test_checkpoint_results.xlsx
+========================================
+Sheet names: ['summary', 'wikics_lpa_sage', 'caan_wikic_lpa_sage', 'phase4_baseline', 'phase4b_distdgl', 'phase4c_arma', 'phase4d_asap', 'phase4e_gat', 'phase4f_trans', 'phase4g_clusterscl']
+
+--- Sheet: summary (Shape: (2, 20)) ---
+Columns: ['experiment', 'dataset', 'algorithm', 'model_type', 'n_communities', 'global_test_acc', 'mean_comm_acc', 'mean_boundary_acc', 'mean_internal_acc', 'weighted_comm_acc', 'baseline_acc', 'acc_gap', 'mean_comm_link_acc', 'weighted_comm_link_auc', 'baseline_link_auc', 'auc_gap', 'phase1_s', 'phase2_s', 'phase3_s', 'baseline_s']
+        experiment dataset algorithm model_type  n_communities  global_test_acc  mean_comm_acc  mean_boundary_acc  mean_internal_acc  weighted_comm_acc  baseline_acc   acc_gap  mean_comm_link_acc  weighted_comm_link_auc  baseline_link_auc   auc_gap  phase1_s  phase2_s  phase3_s  baseline_s
+0  test_checkpoint  wikics       lpa       sage             28         0.308817       0.335040                  0           0.335040           0.308817      0.228108 -0.080709            0.810089                0.799978           0.572612 -0.227366         0         0         0    6.621985
+1  test_checkpoint  wikics       lpa  sage-caan             28         0.496494       0.570884                  0           0.570884           0.496494      0.228108 -0.268386                 NaN                0.500000           0.572612  0.072612         0         0         0    6.621985
+
+--- Sheet: wikics_lpa_sage (Shape: (28, 17)) ---
+Columns: ['community_id', 'n_nodes', 'n_edges', 'n_train', 'n_val', 'n_test', 'n_boundary', 'n_internal', 'comm_test_acc', 'boundary_acc', 'internal_acc', 'comm_link_auc', 'size_bucket', 'load_time_s', 'node_train_time_s', 'link_train_time_s', 'peak_mem_mb']
+Community-level sheet summary:
+  Total rows (communities): 28
+  Mean nodes per community: 1986.93
+  Mean community test accuracy: 0.3350
+  Mean community link AUC: 0.8101
+  Top 5 rows:
+   community_id  n_nodes  n_edges  n_train  n_val  n_test  n_boundary  n_internal  comm_test_acc  boundary_acc  internal_acc  comm_link_auc size_bucket  load_time_s  node_train_time_s  link_train_time_s  peak_mem_mb
+0         11268     8068    92271      394   1195    4042           0        8068       0.236022             0      0.236022       0.735283       large     0.053800           3.191432          19.121375  1970.851840
+1         11302     1714     3853       74    251     864           0        1714       0.387731             0      0.387731       0.770222       large     0.008854           0.398528           0.791782  1970.851840
+2         11257      784     4641       42    117     389           0         784       0.136247             0      0.136247       0.872499       large     0.009227           1.333333           1.310418   899.137536
+3         11131     1167     8478       63    153     598           0        1167       0.471572             0      0.471572       0.771778       large     0.011527           1.417220           1.819914  1019.461632
+4         11278     1277     4590       57    199     667           0        1277       0.220390             0      0.220390       0.710854       large     0.010302           1.433589           1.433648   937.164800
+
+--- Sheet: caan_wikic_lpa_sage (Shape: (28, 17)) ---
+Columns: ['community_id', 'n_nodes', 'n_edges', 'n_train', 'n_val', 'n_test', 'n_boundary', 'n_internal', 'comm_test_acc', 'boundary_acc', 'internal_acc', 'comm_link_auc', 'size_bucket', 'load_time_s', 'node_train_time_s', 'link_train_time_s', 'peak_mem_mb']
+Community-level sheet summary:
+  Total rows (communities): 28
+  Mean nodes per community: 292.71
+  Mean community test accuracy: 0.5709
+  Mean community link AUC: 0.5000
+  Top 5 rows:
+   community_id  n_nodes  n_edges  n_train  n_val  n_test  n_boundary  n_internal  comm_test_acc  boundary_acc  internal_acc  comm_link_auc size_bucket  load_time_s  node_train_time_s  link_train_time_s  peak_mem_mb
+0            -1     2010    27966      139    453    1418           0        2010       0.392102      0.392102      0.392102            0.5       small     0.000000           0.242182                  0     0.000000
+1         11268     1627    60647      114    342    1171           0        1627       0.361230      0.000000      0.361230            0.5       large     0.182961           0.937100                  0  1519.415296
+2         11302       91    28434       13     18      60           0          91       0.283333      0.000000      0.283333            0.5      medium     0.059434           0.551466                  0  1519.415296
+3         11131       97    30781        7     20      70           0          97       0.728571      0.000000      0.728571            0.5      medium     0.085011           0.554389                  0   960.815104
+4         11257       83    29664        8     14      61           0          83       0.229508      0.000000      0.229508            0.5      medium     0.061094           0.553511                  0   960.815104
+
+--- Sheet: phase4_baseline (Shape: (1, 13)) ---
+Columns: ['dataset', 'test_acc', 'test_acc_std', 'link_auc', 'link_auc_std', 'node_train_time_s', 'link_train_time_s', 'train_time_s', 'peak_mem_gb', 'n_test', 'n_correct', 'all_accs', 'all_aucs']
+  dataset  test_acc  test_acc_std  link_auc  link_auc_std  node_train_time_s  link_train_time_s  train_time_s  peak_mem_gb  n_test  n_correct                                                         all_accs                                                      all_aucs
+0  wikics  0.228108  2.775558e-17  0.572612      0.067295           1.520852           5.101133      6.621985     2.541879    2341        534  [0.22810764630499786, 0.22810764630499786, 0.22810764630499786]  [0.6623124035676423, 0.5553010327243986, 0.5002233818187841]
+
+--- Sheet: phase4b_distdgl (Shape: (1, 9)) ---
+Columns: ['dataset', 'test_acc', 'link_auc', 'node_train_time_s', 'link_train_time_s', 'train_time_s', 'peak_mem_gb', 'n_test', 'n_correct']
+  dataset  test_acc  link_auc  node_train_time_s  link_train_time_s  train_time_s  peak_mem_gb  n_test  n_correct
+0  wikics  0.660168  0.722242           0.765947           4.486804     12.253777     2.556989    5847       3860
+
+--- Sheet: phase4c_arma (Shape: (1, 13)) ---
+Columns: ['dataset', 'test_acc', 'test_acc_std', 'link_auc', 'link_auc_std', 'node_train_time_s', 'link_train_time_s', 'train_time_s', 'peak_mem_gb', 'n_test', 'n_correct', 'all_accs', 'all_aucs']
+  dataset  test_acc  test_acc_std  link_auc  link_auc_std  node_train_time_s  link_train_time_s  train_time_s  peak_mem_gb  n_test  n_correct                                                         all_accs                                                      all_aucs
+0  wikics  0.232095      0.002925  0.889436      0.001774          18.714472           16.57505     35.289522     2.938552    2341        539  [0.23622383596753524, 0.22981631781290046, 0.23024348568987613]  [0.8895675186238688, 0.8872007044563903, 0.8915396028277647]
+
+--- Sheet: phase4d_asap (Shape: (1, 13)) ---
+Columns: ['dataset', 'test_acc', 'test_acc_std', 'link_auc', 'link_auc_std', 'node_train_time_s', 'link_train_time_s', 'train_time_s', 'peak_mem_gb', 'n_test', 'n_correct', 'all_accs', 'all_aucs']
+  dataset  test_acc  test_acc_std  link_auc  link_auc_std  node_train_time_s  link_train_time_s  train_time_s  peak_mem_gb  n_test  n_correct                                                         all_accs                                                     all_aucs
+0  wikics  0.214723      0.018929  0.885272      0.001245           6.024539           8.392451      14.41699     3.203641    2341        534  [0.18795386586928664, 0.22810764630499786, 0.22810764630499786]  [0.8866250081211857, 0.885570470809339, 0.8836196694903296]
+
+--- Sheet: phase4e_gat (Shape: (1, 13)) ---
+Columns: ['dataset', 'test_acc', 'test_acc_std', 'link_auc', 'link_auc_std', 'node_train_time_s', 'link_train_time_s', 'train_time_s', 'peak_mem_gb', 'n_test', 'n_correct', 'all_accs', 'all_aucs']
+  dataset  test_acc  test_acc_std  link_auc  link_auc_std  node_train_time_s  link_train_time_s  train_time_s  peak_mem_gb  n_test  n_correct                                                         all_accs                                                      all_aucs
+0  wikics  0.228108  2.775558e-17  0.479841      0.070747           6.126502           8.581948      14.70845     3.966185    2341        534  [0.22810764630499786, 0.22810764630499786, 0.22810764630499786]  [0.5213278469435084, 0.3802508795620626, 0.5379444985797066]
+
+--- Sheet: phase4f_trans (Shape: (1, 13)) ---
+Columns: ['dataset', 'test_acc', 'test_acc_std', 'link_auc', 'link_auc_std', 'node_train_time_s', 'link_train_time_s', 'train_time_s', 'peak_mem_gb', 'n_test', 'n_correct', 'all_accs', 'all_aucs']
+  dataset  test_acc  test_acc_std  link_auc  link_auc_std  node_train_time_s  link_train_time_s  train_time_s  peak_mem_gb  n_test  n_correct                                                         all_accs                                                      all_aucs
+0  wikics  0.228108  2.775558e-17  0.385567      0.041864          11.220719          12.274727     23.495446     5.694329    2341        534  [0.22810764630499786, 0.22810764630499786, 0.22810764630499786]  [0.36037626314018606, 0.351763099203672, 0.4445624299749416]
+
+--- Sheet: phase4g_clusterscl (Shape: (1, 13)) ---
+Columns: ['dataset', 'test_acc', 'test_acc_std', 'link_auc', 'link_auc_std', 'node_train_time_s', 'link_train_time_s', 'train_time_s', 'peak_mem_gb', 'n_test', 'n_correct', 'all_accs', 'all_aucs']
+  dataset  test_acc  test_acc_std  link_auc  link_auc_std  node_train_time_s  link_train_time_s  train_time_s  peak_mem_gb  n_test  n_correct                                                         all_accs                                                      all_aucs
+0  wikics  0.228108  2.775558e-17  0.640942      0.092517          53.116199          12.982242     66.098441     6.000521    2341        534  [0.22810764630499786, 0.22810764630499786, 0.22810764630499786]  [0.5178570853096679, 0.7409130049441347, 0.6640568417924178]
+

@@ -1,0 +1,278 @@
+=== ML-GRL PAPER ===
+
+--- Page 7 ---
+56:6 Bo-Young Lim, Jeong-Ha Park, Kisung Lee, & Hyuk-Yoon Kwon
+Yan et al. [54] applied centrality measures (i.e., closeness centrality, betweenness centrality, degree
+centrality, and PageRank) to analyze a coauthorship network. Among them, the degree centrality
+is the most efficient measure for identifying critical nodes in the graph [37]. Therefore, we define
+the clustering coefficient and the degree-based centrality as structural features. Additionally, we
+define density as a structural feature that indicates whether a graph is sparse or dense. Table 4.4.1
+demonstrates the efficiency, and Tables 2 show the effectiveness of extracting the adopted features.
+Finally, we define 13 distinct graph-based features as follows.
+• Statistical features: # of vertices, # of edges, node feature dimension, the degree of nodes
+(mean, max, min, std)
+• Structural features : density, degree-based centrality (mean, max, min, std), clustering
+coefficient
+3.1.3 Training prediction models. Using the sampled graphs and their graph-based features, we
+train prediction models to estimate GRL accuracy for a downstream task after community-based
+partitioning. We also train a model to predict the accuracy when we do not apply graph partitioning
+(i.e., no-partitioning strategy). In this study, we select five representative community detection
+algorithms (Louvain [2], Label propagation [33], Fast greedy [6], Infomap [38], and Leiden [48])
+considering both their effectiveness and computational costs while excluding inefficient algorithms
+(e.g., Spinglass [35] and Edge betweenness [11]) based on the investigations of various community
+detection algorithms [8, 9, 56].
+Our method aims to predict GRL accuracy of a specific downstream task when partitioning the
+graph using community detection algorithms. Specifically, for each sampled graph, we partition the
+graph using the five community detection algorithms and obtain embeddings on the partitioned
+subgraphs using a base GRL model. We then apply the embeddings learned from GRL to specific
+downstream tasks, such as link prediction and node classification, and then measure the accuracy
+of learned representations for each downstream task. We employ ML-based regression models as
+prediction models because they offer greater efficiency and flexibility while providing a moderate
+level of learning accuracy. Then, we use the model with the best prediction performance for each
+case.
+The offline phase involves 1) sampling graphs, 2) measuring the representation accuracy, including
+running the GRL model for each sampled graph with various community detection algorithms,
+and 3) building the prediction model for each community detection algorithm. The extensive
+considerations for diverse community detection algorithms require a massive amount of time, but
+notably, these do not affect online running time. We show the details of the required times for the
+offline and online phases in Section 4.4.1 and Section 4.4.2, respectively.
+3.2 Online Phase
+Fig. 2b shows the online phase of ML-GRL. This phase has three main steps: 1) community-based
+partitioning, 2) global graph construction, and 3) GRL.
+3.2.1 Community-based partitioning. Fig. 3 shows the concept of community-based partitioning
+with an example. We first extract graph-based features from a given graph𝐺𝑖𝑛𝑝𝑢𝑡 . Then, we feed
+these values to our prediction models𝑃𝑆 pre-trained in the offline phase and predict the accuracy of
+the target downstream task by each community detection algorithm. Next, we select the algorithm
+with the highest expected GRL accuracy and partition the input graph into subgraphs using the
+chosen algorithm. As an intuitive example, the input graph is divided into five communities based
+on the selected algorithm in the figure. Then, ML-GRL recursively applies this process on each
+subgraph in parallel until ML-GRL predicts that no partitioning will yield the highest accuracy or
+Proc. ACM Manag. Data, Vol. 3, No. 1 (SIGMOD), Article 56. Publication date: February 2025.
+================================================================================
+
+--- Page 15 ---
+56:14 Bo-Young Lim, Jeong-Ha Park, Kisung Lee, & Hyuk-Yoon Kwon
+4.3.3 Link prediction performance. We evaluate the performance on two downstream tasks using
+the learned GRL: 1) link prediction and 2) node classification. Link prediction is for predicting if
+an edge exists between two nodes. Here, a positive edge is defined when an edge between two
+nodes exists, and a negative edge is defined when there is no edge between two nodes. For this,
+we sample positive and negative edges with the same ratio. Table 3 shows the link prediction
+results using three base GRL models: 1) GraphSAGE, 2) ARMA, and 3) ASAP. Because ML-GRL
+adapts to any GRL and its performance depends on the base GRL, we compared ML-GRL with each
+base GRL for fairness. Notably, the results demonstrate that ML-GRL significantly improves the
+representation accuracy (AUC) of existing original GRL models across various datasets: WikiCS by
+3.68∼ 19.20%, Coauthor-Physics by 6.29∼ 13.40%, Coauthor-CS by 4.71∼ 19.85%, DeezerEurope by
+4.28∼ 13.34%, and Foursquare by 12.00∼ 47.59%. On another note, regarding the running time, the
+result shows that the ML-GRL is more efficient than the existing models, reducing the runtime of
+the original GRL models by 9.63∼ 62.71%, showing the efficiency of ML-GRL due to the effective
+parallel processing of subgraphs.
+Table 3. Performance comparison on link prediction.
+DatasetBase modelOriginalML-GRLImprovements (%)AUCTime (s)AUCTime (s)AUCTime (s)
+WikiCS
+GraphSAGE0.6517±0.003842±1 0.7768±0.001629±1 +19.20+30.95
+ARMA0.8634±0.014265±3 0.9102±0.000834±2 +5.42+47.69
+ASAP0.8773±0.000764±8 0.9096±0.001233±1 +3.68+48.44
+Coauthor-Physics
+GraphSAGE0.6134±0.0129306±2 0.6549±0.0033256±4 +6.77+16.34
+ARMA0.7574±0.0296581±1 0.8589±0.0013376±20 +13.40+35.28
+ASAP0.7489±0.0050654±19 0.7960±0.0004512±17 +6.29+21.71
+Coauthor-CS
+GraphSAGE0.6172±0.0051132±1 0.6935±0.0012107±5 +12.36+18.94
+ARMA0.7442±0.0058136±4 0.8919±0.0016108±20 +19.85+20.59
+ASAP0.7578±0.0050135±5 0.7935±0.0054112±14 +4.71+9.63
+DeezerEurope
+GraphSAGE0.5136±0.005959±0 0.5821±0.003322±1 +13.34+62.71
+ARMA0.6575±0.007895±3 0.7369±0.002568±2 +12.08+28.42
+ASAP0.7920±0.0057133±6 0.8259±0.001369±1 +4.28+48.12
+Foursquare
+GraphSAGE0.6497±0.0147141±12 0.9589±0.001495±6 +47.59+32.62
+ARMA0.8100±0.0135312±10 0.9673±0.0009245±13 +19.42+21.47
+ASAP0.8392±0.0029291±4 0.9399±0.0027221±23 +12.00+24.05
+4.3.4 Node classification performance. Node classification is for classifying each node into one or
+multiple classes. Table 4 shows the node classification results using three original GRL models: 1)
+GAT, 2) Graph Transformer, and 3) ClusterSCL. Here, we exclude the Foursquare dataset as it does
+not provide node labels. The overall tendencies are similar to the link prediction results. That is,
+regarding the classification accuracy, ML-GRL significantly improves the representation accuracy of
+the original GRL models by 1.75∼ 40.90% across the datasets. Regarding the running time, ML-GRL
+substantially reduces the running time of the original GRL model by 7.14∼ 82.14%. For ClusterSCL,
+the performance improvements are limited relatively due to the already high performance of the
+original model. Nevertheless, in all cases, ML-GRL shows consistent and meaningful improvements
+in both accuracy and efficiency.
+Proc. ACM Manag. Data, Vol. 3, No. 1 (SIGMOD), Article 56. Publication date: February 2025.
+================================================================================
+
+--- Page 16 ---
+Multi-Level Graph Representation Learning Through Predictive Community-based Partitioning 56:15
+Table 4. Performance comparison on node classification.
+DatasetBase modelOriginalML-GRLImprovements (%)AccTime (s)AccTime (s)AccTime (s)
+WikiCS
+GAT 0.6351±0.007856±0 0.8129±0.009510±1 +28.00+82.14
+GraphTransformer0.5354±0.028345±0 0.7544±0.007716±2 +40.90+64.44
+ClusterSCL0.8103±0.000951±2 0.8374±0.001121±1 +3.34+58.82
+Coauthor-Physics
+GAT 0.7954±0.0087118±8 0.9411±0.003898±12 +18.32+16.95
+GraphTransformer0.9083±0.0041508±6 0.9457±0.0029383±8 +4.12+24.61
+ClusterSCL0.9436±0.0005922±13 0.9644±0.0006391±17 +2.20+57.59
+Coauthor-CS
+GAT 0.6161±0.008284±4 0.8609±0.005778±0 +39.73+7.14
+GraphTransformer0.7338±0.0054225±12 0.9040±0.0018186±17 +23.19+17.33
+ClusterSCL0.9438±0.0008336±11 0.9603±0.0005111±3 +1.75+66.96
+DeezerEurope
+GAT 0.5498±0.001740±4 0.6152±0.002735±1 +11.90+12.50
+GraphTransformer0.6022±0.004166±2 0.6861±0.005558±1 +13.93+12.12
+ClusterSCL0.5725±0.0007181±1 0.5933±0.001149±1 +3.63+72.93
+4.3.5 Effects on multi-level partitioning of ML-GRL. To assess the impact of multi-level partitioning
+in ML-GRL, we conduct experiments by setting the restriction on the level or the partitioning
+algorithm. The evaluated variations are 1) two-level GRL partitioning with a community detection
+algorithm selected in level 1 (simply, Fixed-2L), 2) three-level GRL fixing with a community detection
+algorithm selected in level 1 (simply, Fixed-3L), and 3) three-level GRL while choosing community
+detection algorithms according to our prediction models (simply, Dynamic-3L). Here, the selected
+community detection algorithms vary according to the used dataset and the GRL model for each
+method. We compare our final ML-GRL (i.e., without level restriction) with these variations.
+Tables 5 and 6 show the link prediction and node classification results, respectively. When
+comparing the three variations, Fixed-2L clearly improves the accuracy of the original models
+shown in Tables 3 and 4. Fixed-3L further enhances Fixed-2L, showing the effects of a deeper
+partitioning level. Dynamic-3L improves Fixed-3L, indicating the effectiveness of our predictive
+partitioning. Finally, ML-GRL consistently improves the performance of all the variations, including
+Dynamic-3L, showing the effectiveness of the adaptive extension of community-based partitioning
+to deeper levels.
+Table 5. The effects of multi-level partitioning on link prediction.
+DatasetMetric GraphSAGE ARMA ASAPFixed-2LFixed-3LDynamic-3LML-GRLFixed-2LFixed-3LDynamic-3LML-GRLFixed-2LFixed-3LDynamic-3LML-GRL
+WikiCSPart. level2 3 3 4±1 2 3 3 4±0 2 3 3 6±2AUC0.7215±0.00180.7524±0.00350.7387±0.02360.7768±0.00160.8733±0.00160.8822±0.00170.8902±0.00180.9102±0.00080.8800±0.00110.8905±0.00210.9062±0.00140.9096±0.0012
+Coauthor-Physics
+Part. level2 3 3 4±1 2 3 3 8±1 2 3 3 7±1AUC0.6301±0.00030.6321±0.00230.6397±0.00190.6549±0.00330.7598±0.00140.8062±0.00210.8282±0.00120.8589±0.00130.7599±0.00080.7603±0.00070.7621±0.00210.7960±0.0004
+Coauthor-CS
+Part. level2 3 3 7±1 2 3 3 6±0 2 3 3 6±1AUC0.6681±0.00070.6686±0.00410.6761±0.00210.6935±0.00120.8288±0.00140.8201±0.00090.8306±0.00010.8919±0.00160.7819±0.00110.7861±0.00320.7856±0.00410.7935±0.0054
+DeezerEuropePart. level2 3 3 4±0 2 3 3 6±1 2 3 3 5±1AUC0.5555±0.00360.5524±0.00020.5541±0.00030.5821±0.00330.7129±0.00040.7078±0.00460.7133±0.00220.7369±0.00250.8125±0.00240.8089±0.00250.8117±0.00130.8259±0.0013
+FoursquarePart. level2 3 3 5±0 2 3 3 6±1 2 3 3 5±1AUC0.9229±0.00080.9247±0.00050.9402±0.00110.9589±0.00140.9247±0.00030.9384±0.00070.9402±0.00030.9673±0.00090.8908±0.00080.9249±0.00420.9276±0.00650.9399±0.0027
+4.3.6 Qualitative assessment. In this section, we conduct a qualitative assessment of ML-GRL. To
+highlight the value of the assessment, we choose cases with marginal accuracy improvements
+Proc. ACM Manag. Data, Vol. 3, No. 1 (SIGMOD), Article 56. Publication date: February 2025.
+================================================================================
+=== SaaN PAPER ===
+
+--- Page 10 ---
+9214 IEEE TRANSACTIONS ON KNOWLEDGE AND DATA ENGINEERING, VOL. 36, NO. 12, DECEMBER 2024
+TABLE V
+EXPERIMENTAL PARAMETERS
+strategies: 1) non-deterministic partitioning and 2) determin-
+istic partitioning. The non-deterministic partitioning methods
+involve ﬁve community detection algorithms: 1) label prop-
+agation (LP) [20], 2) multilevel modularity (MM) [21],3 )
+eigenvector-based (EG) [22], 4) random walk-based (RW) [23],
+and 5) infomap algorithms (IM) [24]. The deterministic parti-
+tioning methods involve representative partitioning algorithms
+for edge-cut and vertex-cut, namely, Metis [25] and Libra [26],
+respectively. We choose the label propagation algorithm as the
+default method for non-deterministic partitioning.
+B. Performance on Link Prediction
+Link prediction aims to predict the presence or absence of
+an edge between two nodes. With the node embeddings learned
+through GRL, we build a logistic regression model for random
+walk-based models or attach a fully connected layer to the last
+layer of GNN-based GRL models to predict the probability
+of edge existence for a given node pair (i.e., adopting diverse
+prediction models). For the learning phase, we create a training
+set by randomly eliminating 10% of the edges from the graph.
+Subsequently, the GRL models are trained using the remaining
+graph. The test set comprises the 10% removed edges as positive
+samples, along with an equal number of unconnected node pairs
+serving as negative samples.
+Table VI summarizes link prediction results for eight base
+GRL models on the Foursquare, CiteSeer, and WikiCS datasets.
+The results demonstrate that our model not only can be equipped
+with diverse GRL models but also improves the representation
+accuracy while signiﬁcantly reducing the learning time for each
+evaluated base GRL model. Speciﬁcally, our model enhances
+accuracy by a range of 1.35% to 12.47% and reduces learning
+time by 31.79% to 48.1% across various base models and
+datasets. Notably, the accuracy improvement achieved by our
+model with AnECI is comparatively modest compared to other
+base models. We assert that this is due to the fact that AnECI’s
+embeddings already effectively retain community information
+acquired through GRL. Nevertheless, we note that, while our
+model shows a modest improvement in accuracy, it signiﬁcantly
+reduces the learning time by 38.2%.
+Fig. 6 shows the learning curves, in terms of the AUC value
+and loss, of our model and compares them with those of the base
+model. Due to space constraints, we only display the result of
+GraphSAGE on the Foursquare dataset. The results demonstrate
+Fig. 6. Learning curve for link prediction.
+Fig. 7. Learning curve for node classiﬁcation.
+that our model converges to the higher AUC value (and smaller
+loss) at a faster pace than the base model.
+C. Performance on Node Classiﬁcation
+Node classiﬁcation aims to assign each node to one or multiple
+classes. The acquired node embeddings are fed into a logistic
+regression model for random walk-based models or a fully
+connected layer for GNN-based models for multi-label classiﬁ-
+cation. During the learning process, 70% of nodes are randomly
+chosen as the training set, while the remaining nodes constitute
+the testing set. Table VII summarizes node classiﬁcation results
+for eight base GRL models on the Flickr, PubMed, CiteSeer, and
+Coauthor-CS datasets. Similar to the results of link prediction,
+they consistently demonstrate that our model improves accu-
+racy and signiﬁcantly reduces learning time compared to base
+models.
+Fig. 7 shows the learning curves of our model and compares
+them with those of the base model. Due to space constraints, we
+only display the result of GA T on the PubMed dataset. Similar to
+the results in Fig. 6, they demonstrate that our model converges
+to a higher accuracy (and smaller loss) at a faster pace than the
+base model.
+Fig. 8 illustrates the performance across various datasets when
+using GraphSAGE as the base model. Consistent with previous
+results, our model demonstrates an accuracy enhancement rang-
+ing from 7.89% to 10.42%, along with a reduction in learning
+time by 25.71% to 38.35% when compared to the original
+GraphSAGE model.
+D. Ablation Studies
+To assess the impact of the SaaN graph at each level within
+our model, we perform ablation studies by eliminating SaaN
+Authorized licensed use limited to: Louisiana State University. Downloaded on June 19,2026 at 02:01:38 UTC from IEEE Xplore.  Restrictions apply. 
+================================================================================
+
+--- Page 11 ---
+PARK et al.: SAAN 2L-GRL: TWO-LEVEL GRAPH REPRESENTA TION LEARNING EMPOWERED WITH SUBGRAPH-AS-A-NODE 9215
+TABLE VI
+PERFORMANCE COMPARISON ON LINK PREDICTION ACROSS BASE MODELS AND DA TASETS
+TABLE VII
+PERFORMANCE COMPARISON ON NODE CLASSIFICA TIONACROSS BASE MODELS AND DA TASETS
+Fig. 8. Performance comparison for node classiﬁcation on diverse datasets.
+nodes separately at each level. When removing SaaN in local
+GRL, we refer to conducting local GRL on each subgraph solely
+using its original nodes, excluding super-nodes. When removing
+SaaN in global GRL, we indicate running global GRL on the
+original input graph. Additionally, we compare these results with
+the primitive methods (i.e., Accurate 2L-GRL and Efﬁcient 2L-
+GRL).
+Table VIII summarizes the accuracy and learning time results
+of our ablation studies. It demonstrates that our ﬁnal model, as
+well as models without SaaN in each level, exhibit signiﬁcantly
+improved accuracy compared to the baseline model. The results
+reveal the effectiveness of using SaaN for improving GRL
+accuracy, even with one-level adoption. The results also show
+that our ﬁnal model has better accuracy than the models with
+one-level adoption. In particular, our ﬁnal model is comparable
+to or even better than Accurate 2L-GRL in terms of accuracy,
+which maximizes the impact of the subgraph information with-
+out losing node-level information. In terms of learning time, our
+ﬁnal model requires more computational costs than Efﬁcient
+TABLE VIII
+ABLA TIONPERFORMANCE ANAL YSIS
+2L-GRL, which shows even lower accuracy than the base mod-
+els, but it signiﬁcantly reduces the learning time of Accurate
+2L-GRL. As expected, our ﬁnal model signiﬁcantly reduces the
+learning times of the same model without SaaN in global GRL,
+which has to run GRL on the original input graph. Despite the
+slightly increased learning time compared to the same model
+without SaaN in local GRL, which is incurred by utilizing more
+nodes (i.e., SaaN super-nodes) in addition to the original nodes
+in each subgraph for local GRL, our model shows meaningful
+and consistent accuracy improvement.
+E. Scalability
+To evaluate the scalability of our model, we measure its
+performance compared to the two base models, GraphSAGE
+and GCN, by varying the number of CPU cores and dataset
+Authorized licensed use limited to: Louisiana State University. Downloaded on June 19,2026 at 02:01:38 UTC from IEEE Xplore.  Restrictions apply. 
+================================================================================

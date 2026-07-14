@@ -213,6 +213,9 @@ def main():
 
     # 3. IMPORT CORE CONFIG AND PIPELINE MODULES
     # Ensure current directory is on PYTHONPATH
+    workspace_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    if workspace_root not in sys.path:
+        sys.path.insert(0, workspace_root)
     if script_dir not in sys.path:
         sys.path.insert(0, script_dir)
         

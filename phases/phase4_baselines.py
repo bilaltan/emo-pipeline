@@ -51,8 +51,7 @@ def run_phase4(spark, sc, datasets, dataset_cfg, baseline_cfg, get_paths_fn,
         src_np    = edges_pd['src'].values.astype(np.int64)
         dst_np    = edges_pd['dst'].values.astype(np.int64)
         n_nodes   = len(nodes_pd)
-        IN_FEATS  = 1
-        feats_np  = np.ones((n_nodes, 1), dtype=np.float32)
+        IN_FEATS  = feats_np.shape[1]
 
         id2split    = dict(zip(masks_pd['id'].astype(int), masks_pd['split']))
         train_mask  = np.array([id2split.get(i,'') == 'train' for i in range(n_nodes)])
@@ -578,8 +577,7 @@ def run_phase4c(spark, sc, datasets, dataset_cfg, baseline_cfg, get_paths_fn,
         src_np    = edges_pd['src'].values.astype(np.int64)
         dst_np    = edges_pd['dst'].values.astype(np.int64)
         n_nodes   = len(nodes_pd)
-        IN_FEATS  = 1
-        feats_np  = np.ones((n_nodes, 1), dtype=np.float32)
+        IN_FEATS  = feats_np.shape[1]
         
         id2split    = dict(zip(masks_pd['id'].astype(int), masks_pd['split']))
         train_mask  = np.array([id2split.get(i,'') == 'train' for i in range(n_nodes)])
@@ -806,8 +804,7 @@ def run_phase4d(spark, sc, datasets, dataset_cfg, baseline_cfg, get_paths_fn,
         src_np    = edges_pd['src'].values.astype(np.int64)
         dst_np    = edges_pd['dst'].values.astype(np.int64)
         n_nodes   = len(nodes_pd)
-        IN_FEATS  = 1
-        feats_np  = np.ones((n_nodes, 1), dtype=np.float32)
+        IN_FEATS  = feats_np.shape[1]
         
         id2split    = dict(zip(masks_pd['id'].astype(int), masks_pd['split']))
         train_mask  = np.array([id2split.get(i,'') == 'train' for i in range(n_nodes)])
@@ -1033,8 +1030,7 @@ def run_phase4e(spark, sc, datasets, dataset_cfg, baseline_cfg, get_paths_fn,
         src_np    = edges_pd['src'].values.astype(np.int64)
         dst_np    = edges_pd['dst'].values.astype(np.int64)
         n_nodes   = len(nodes_pd)
-        IN_FEATS  = 1
-        feats_np  = np.ones((n_nodes, 1), dtype=np.float32)
+        IN_FEATS  = feats_np.shape[1]
         
         id2split    = dict(zip(masks_pd['id'].astype(int), masks_pd['split']))
         train_mask  = np.array([id2split.get(i,'') == 'train' for i in range(n_nodes)])
@@ -1250,8 +1246,7 @@ def run_phase4f(spark, sc, datasets, dataset_cfg, baseline_cfg, get_paths_fn,
         src_np    = edges_pd['src'].values.astype(np.int64)
         dst_np    = edges_pd['dst'].values.astype(np.int64)
         n_nodes   = len(nodes_pd)
-        IN_FEATS  = 1
-        feats_np  = np.ones((n_nodes, 1), dtype=np.float32)
+        IN_FEATS  = feats_np.shape[1]
         
         id2split    = dict(zip(masks_pd['id'].astype(int), masks_pd['split']))
         train_mask  = np.array([id2split.get(i,'') == 'train' for i in range(n_nodes)])
@@ -1466,8 +1461,7 @@ def run_phase4g(spark, sc, datasets, dataset_cfg, baseline_cfg, get_paths_fn,
         src_np    = edges_pd['src'].values.astype(np.int64)
         dst_np    = edges_pd['dst'].values.astype(np.int64)
         n_nodes   = len(nodes_pd)
-        IN_FEATS  = 1
-        feats_np  = np.ones((n_nodes, 1), dtype=np.float32)
+        IN_FEATS  = feats_np.shape[1]
         
         id2split    = dict(zip(masks_pd['id'].astype(int), masks_pd['split']))
         train_mask  = np.array([id2split.get(i,'') == 'train' for i in range(n_nodes)])
@@ -1824,8 +1818,7 @@ def run_phase4h(spark, sc, datasets, dataset_cfg, baseline_cfg, get_paths_fn,
         src_np    = edges_pd['src'].values.astype(np.int64)
         dst_np    = edges_pd['dst'].values.astype(np.int64)
         n_nodes   = len(nodes_pd)
-        IN_FEATS  = 1
-        feats_np  = np.ones((n_nodes, 1), dtype=np.float32)
+        IN_FEATS  = feats_np.shape[1]
 
         id2split    = dict(zip(masks_pd['id'].astype(int), masks_pd['split']))
         train_mask  = np.array([id2split.get(i,'') == 'train' for i in range(n_nodes)])
