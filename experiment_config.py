@@ -31,7 +31,7 @@ N_BASELINE_RUNS   = 3          # number of runs per baseline for mean ± std
 #   'lpa'     = distributed Spark (fast, lower community quality)
 #   'louvain' = driver/igraph   (moderate quality, pulls graph to driver RAM)
 #   'igraph_lpa' = driver/igraph   (LPA using igraph)
-ALGORITHMS_TO_RUN  = ['lpa', 'louvain', 'leiden']
+ALGORITHMS_TO_RUN  = ['lpa', 'louvain']
 LPA_MAX_ITER       = 5
 RESOLUTION         = 1.0              # louvain / leiden resolution parameter
 MIN_COMMUNITY_SIZE = 100              # communities smaller than this are excluded
@@ -45,7 +45,7 @@ MIN_COMMUNITY_SIZE = 100              # communities smaller than this are exclud
 USE_GLOBAL_MAPPING = True
 
 GCN_HIDDEN_DIM    = 256
-GCN_NUM_EPOCHS    = 50
+GCN_NUM_EPOCHS    = 10
 GCN_LR            = 0.01
 GCN_DROPOUT       = 0.5
 RUN_PHASE3B       = False             # Phase 3b: CaaN Global Graph GNN Training

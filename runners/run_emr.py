@@ -235,9 +235,9 @@ def main():
         .config("spark.driver.cores", "4") \
         .config("spark.driver.memoryOverhead", "8g") \
         .config("spark.dynamicAllocation.enabled", "false") \
-        .config("spark.executor.instances", "4") \
-        .config("spark.executor.memory", "28g") \
-        .config("spark.executor.memoryOverhead", "12g") \
+        .config("spark.executor.instances", "12") \
+        .config("spark.executor.memory", "8g") \
+        .config("spark.executor.memoryOverhead", "4g") \
         .config("spark.executor.cores", "2") \
         .config("spark.sql.shuffle.partitions", "336") \
         .config("spark.default.parallelism", "336") \
