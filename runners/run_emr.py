@@ -222,23 +222,76 @@ def main():
                         break
         from pyspark.sql import SparkSession
 
-    # ── 2. INITIALIZE SPARK SESSION WITH PRE-CONFIGURED SETTINGS ───────────────
-    print("\n" + "="*80)
-    print("  INITIALIZING SPARK SESSION (AWS YARN CONFIGURATION)")
-    print("="*80)
+    # ── Spark Auto-Scaler: Determine optimal resources based on dataset and cluster size ──
+    dataset_name = None
+    if getattr(args, 'datasets', None):
+        dataset_name = args.datasets.split(',')[0].strip()
+    else:
+        try:
+            script_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+            cfg_path = os.path.join(script_dir, "experiment_config.py")
+            if os.path.exists(cfg_path):
+                import re
+                with open(cfg_path, 'r') as f:
+                    content = f.read()
+                m = re.search(r'DATASETS_TO_RUN\s*=\s*\[[\'"]([^\'"]+)[\'"]', content)
+                if m:
+                    dataset_name = m.group(1)
+        except Exception:
+            pass
+    if not dataset_name:
+        dataset_name = 'ogbn-arxiv'
     
+    nodes_count = 2
+    try:
+        import subprocess
+        import re
+        out = subprocess.check_output(['yarn', 'node', '-list'], stderr=subprocess.DEVNULL).decode('utf-8')
+        nodes_count = len(re.findall(r'RUNNING', out))
+        if nodes_count == 0:
+            nodes_count = 2
+    except Exception:
+        pass
+
+    driver_mem = "30g"
+    driver_cores = "4"
+    driver_overhead = "8g"
+    
+    if dataset_name in ('wikics', 'ogbn-arxiv'):
+        executor_instances = max(4, nodes_count * 7)
+        executor_mem = "8g"
+        executor_overhead = "4g"
+        executor_cores = "2"
+    elif dataset_name in ('ogbn-products', 'reddit'):
+        executor_instances = max(4, nodes_count * 7)
+        executor_mem = "8g"
+        executor_overhead = "4g"
+        executor_cores = "2"
+    else:
+        executor_instances = max(2, nodes_count * 4)
+        executor_mem = "16g"
+        executor_overhead = "8g"
+        executor_cores = "4"
+        driver_mem = "40g"
+        driver_cores = "8"
+        driver_overhead = "12g"
+
+    print(f"\n  [Spark Auto-Scaler] Dataset detected: {dataset_name} | Active YARN Workers: {nodes_count}")
+    print(f"  → Allocating {executor_instances} executors with {executor_cores} cores and {executor_mem} (+{executor_overhead} overhead) memory.")
+    print(f"  → Driver memory: {driver_mem} (+{driver_overhead} overhead)\n")
+
     spark = SparkSession.builder \
         .appName(f"GRL-{args.experiment_name}") \
         .config("spark.master", "yarn") \
-        .config("spark.driver.memory", "30g") \
+        .config("spark.driver.memory", driver_mem) \
         .config("spark.driver.maxResultSize", "24g") \
-        .config("spark.driver.cores", "4") \
-        .config("spark.driver.memoryOverhead", "8g") \
+        .config("spark.driver.cores", driver_cores) \
+        .config("spark.driver.memoryOverhead", driver_overhead) \
         .config("spark.dynamicAllocation.enabled", "false") \
-        .config("spark.executor.instances", "12") \
-        .config("spark.executor.memory", "8g") \
-        .config("spark.executor.memoryOverhead", "4g") \
-        .config("spark.executor.cores", "2") \
+        .config("spark.executor.instances", str(executor_instances)) \
+        .config("spark.executor.memory", executor_mem) \
+        .config("spark.executor.memoryOverhead", executor_overhead) \
+        .config("spark.executor.cores", executor_cores) \
         .config("spark.sql.shuffle.partitions", "336") \
         .config("spark.default.parallelism", "336") \
         .config("spark.serializer", "org.apache.spark.serializer.KryoSerializer") \
