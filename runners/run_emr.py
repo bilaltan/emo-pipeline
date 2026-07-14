@@ -497,7 +497,7 @@ def main():
             s = os.path.join(script_dir, item)
             d = os.path.join('/tmp/pipeline_stage/pipeline', item)
             if os.path.isdir(s):
-                if item not in ['.git', '__pycache__', 'results']:
+                if item not in ['.git', '__pycache__', 'results', 'pipeline']:
                     shutil.copytree(s, d)
             else:
                 shutil.copyfile(s, d)
