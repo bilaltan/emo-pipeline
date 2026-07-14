@@ -19,8 +19,8 @@ GNN_MODELS = ['sage', 'gatv2']
 # True  = re-download OGB dataset and overwrite Delta tables.
 #         REQUIRED when using a dataset for the first time.
 # False = skip (Delta tables already exist).
-RUN_PHASE0        = True
-FORCE_REINGEST    = True   # Set to True to force overwrite even if tables already exist
+RUN_PHASE0        = False
+FORCE_REINGEST    = False   # Set to True to force overwrite even if tables already exist
 FORCE_RERUN       = False   # Set to True to ignore all S3 checkpoints and rerun the pipeline
 USE_OGB_SPLITS    = True    # True = OGB official splits | False = stratified 60/20/20
 RANDOM_SEED       = 42
