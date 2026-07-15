@@ -1,0 +1,75 @@
+===============================================================================================
+  PHASE 5A — PERFORMANCE COMPARISON (NODE ACCURACY & LINK AUC)
+===============================================================================================
+
+  Dataset: ogbn-products
+  _Algorithm           Node Acc   Comm Acc    Bnd Acc    Int Acc     Link AUC
+  ---------------------------------------------------------------------------
+  lpa-sage               0.6293     0.6467     0.0000     0.6467       0.8395
+  lpa-gatv2              0.6292     0.6481     0.0000     0.6481       0.8408
+  louvain-sage           0.5449     0.5827     0.0000     0.5827       0.8141
+  louvain-gatv2          0.5451     0.5758     0.0000     0.5758       0.8145
+  DISTDGL                0.7070          —          —          —       0.8398
+
+  [ogbn-products] Performance by community size bucket:
+    lpa-sage:
+      medium  : n=19  acc=0.5512  auc=0.8021
+      large   : n=4,358  acc=0.6471  auc=0.8762
+    lpa-gatv2:
+      medium  : n=19  acc=0.5782  auc=0.7886
+      large   : n=4,358  acc=0.6484  auc=0.8768
+    louvain-sage:
+      medium  : n=2  acc=0.5076  auc=0.7980
+      large   : n=79  acc=0.5846  auc=0.8392
+    louvain-gatv2:
+      medium  : n=2  acc=0.5109  auc=0.7575
+      large   : n=79  acc=0.5774  auc=0.8370
+
+================================================================================
+  PHASE 5B — TIMING COMPARISON
+================================================================================
+
+  Dataset: ogbn-products
+  Algorithm             Phase1    Phase2    Phase3   Phase3b     Total
+  --------------------------------------------------------------------
+  BASELINE (SAGE)            —         —         —      0.0s (Node: 0.0s, Link: 0.0s)
+  DISTDGL                    —         —         —    593.3s (Node: 223.1s, Link: 363.2s)
+  XLSX → s3://us-east-1-s3-gnn/gnn-bench-out/ogbn-products_results.xlsx
+  Plot → s3://us-east-1-s3-gnn/gnn-bench-out/plots/ogbn-products/ogbn-products_acc_dist.png
+  Plot → s3://us-east-1-s3-gnn/gnn-bench-out/plots/ogbn-products/ogbn-products_boundary_internal.png
+
+================================================================================
+  FINAL PIPELINE REPORT SUMMARY
+================================================================================
+╔══════════════════════════════════════════════════════════════╗
+║  EXPERIMENT: ogbn-products                                  ║
+║  Global mapping: True                                        ║
+╠══════════════════════════════════════════════════════════════╣
+║   Dataset                        ogbn-products                 ║
+║   Phase 0 (ingest)               SKIPPED                       ║
+║   Phase 4b (DistDGL)             593.3s                        ║
+╠══════════════════════════════════════════════════════════════╣
+║   [lpa-sage] global acc          0.6293                        ║
+║   [lpa-sage] boundary acc        0.0000                        ║
+║   [lpa-sage] internal acc        0.6467                        ║
+║   [lpa-sage] link AUC            0.8395                        ║
+║   [lpa-gatv2] global acc         0.6292                        ║
+║   [lpa-gatv2] boundary acc       0.0000                        ║
+║   [lpa-gatv2] internal acc       0.6481                        ║
+║   [lpa-gatv2] link AUC           0.8408                        ║
+║   [lpa] communities              92,420 raw → 4,376 valid      ║
+║   [louvain-sage] global acc      0.5449                        ║
+║   [louvain-sage] boundary acc    0.0000                        ║
+║   [louvain-sage] internal acc    0.5827                        ║
+║   [louvain-sage] link AUC        0.8141                        ║
+║   [louvain-gatv2] global acc     0.5451                        ║
+║   [louvain-gatv2] boundary acc   0.0000                        ║
+║   [louvain-gatv2] internal acc   0.5758                        ║
+║   [louvain-gatv2] link AUC       0.8145                        ║
+║   [louvain] communities          4,431 raw → 80 valid          ║
+║   DistDGL acc                    0.7070                        ║
+║   DistDGL link AUC               0.8398  (593.3s)              ║
+╚══════════════════════════════════════════════════════════════╝
+
+[SUCCESS] EMR Driver execution completed in 772.0 seconds.
+================================================================================
