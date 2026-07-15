@@ -345,7 +345,9 @@ def _train_minor_global_caan(dataset, gcn_cfg, dataset_cfg, caan_components, mod
         'peak_mem_mb': 0.0,
     }])
 
-def make_caan_udf(super_nodes_dict_bc, minor_nodes_dict_bc, caan_edges_bc, node_to_comm_bc, major_comms_bc):
+def make_caan_udf(super_nodes_dict_bc, minor_node_to_idx_bc, minor_feats_arr_bc,
+                  minor_labels_arr_bc, minor_splits_arr_bc, minor_ids_arr_bc,
+                  caan_adj_bc, node_to_comm_bc, major_comms_bc):
     def _train_gnn_community_caan(pdf):
         import os, time, subprocess, sys, resource
         import numpy as np
@@ -396,8 +398,12 @@ def make_caan_udf(super_nodes_dict_bc, minor_nodes_dict_bc, caan_edges_bc, node_
         model_type = str(pdf['_model_type'].iloc[0]) if '_model_type' in pdf.columns else 'sage'
         
         super_nodes_dict = super_nodes_dict_bc.value
-        minor_nodes_dict = minor_nodes_dict_bc.value
-        caan_edges = caan_edges_bc.value
+        minor_node_to_idx = minor_node_to_idx_bc.value
+        minor_feats_arr = minor_feats_arr_bc.value
+        minor_labels_arr = minor_labels_arr_bc.value
+        minor_splits_arr = minor_splits_arr_bc.value
+        minor_ids_arr = minor_ids_arr_bc.value
+        caan_adj = caan_adj_bc.value
         node_to_comm = node_to_comm_bc.value
         major_comms = major_comms_bc.value
         
@@ -415,26 +421,49 @@ def make_caan_udf(super_nodes_dict_bc, minor_nodes_dict_bc, caan_edges_bc, node_
                 super_feats.append(feat)
                 super_ids.append(-1000 - cid)
                 
-        minor_feats = []
-        minor_ids = []
-        minor_labels = []
-        minor_splits = []
-        for nid, info in minor_nodes_dict.items():
-            minor_feats.append(info['features'])
-            minor_ids.append(nid)
-            minor_labels.append(info['label'])
-            minor_splits.append(info['split'])
-            
         feat_dim = local_feats.shape[1]
         if len(super_feats) > 0:
             super_feats = np.stack(super_feats).astype(np.float32)
         else:
             super_feats = np.empty((0, feat_dim), dtype=np.float32)
             
-        if len(minor_feats) > 0:
-            minor_feats = np.stack(minor_feats).astype(np.float32)
+        # 1. Map neighbors first to identify connected minor nodes
+        exploded = pdf[['id', 'neighbors']].explode('neighbors').dropna()
+        connected_minor_ids = set()
+        
+        if len(exploded) > 0:
+            exploded['neighbors'] = exploded['neighbors'].astype(np.int64)
+            
+            def map_dst(w):
+                w_comm = node_to_comm.get(w, -1)
+                if w_comm == comm_id:
+                    return w
+                elif w_comm in major_comms:
+                    return -1000 - w_comm
+                else:
+                    return w
+                    
+            exploded['dst_mapped'] = exploded['neighbors'].map(map_dst)
+            
+            local_ids_set = set(local_ids)
+            for w in exploded['dst_mapped'].unique():
+                w_int = int(w)
+                if w_int >= 0 and w_int not in local_ids_set:
+                    if w_int in minor_node_to_idx:
+                        connected_minor_ids.add(w_int)
+                        
+        # 2. Slice minor node arrays using indexed positions (O(1) vector slice)
+        minor_ids = list(connected_minor_ids)
+        minor_indices = [minor_node_to_idx[nid] for nid in minor_ids]
+        
+        if len(minor_indices) > 0:
+            minor_feats = minor_feats_arr[minor_indices]
+            minor_labels_arr_sliced = minor_labels_arr[minor_indices]
+            minor_splits = [minor_splits_arr[i] for i in minor_indices]
         else:
             minor_feats = np.empty((0, feat_dim), dtype=np.float32)
+            minor_labels_arr_sliced = np.empty((0,), dtype=np.int64)
+            minor_splits = []
             
         feat_arr = np.concatenate([local_feats, super_feats, minor_feats], axis=0)
         
@@ -442,8 +471,7 @@ def make_caan_udf(super_nodes_dict_bc, minor_nodes_dict_bc, caan_edges_bc, node_
         feat_arr = feat_arr / np.where(feat_norms > 0, feat_norms, 1.0)
         
         super_labels = np.full(len(super_ids), -1, dtype=np.int64)
-        minor_labels_arr = np.array(minor_labels, dtype=np.int64) if len(minor_labels) > 0 else np.array([], dtype=np.int64)
-        label_arr = np.concatenate([local_labels, super_labels, minor_labels_arr], axis=0)
+        label_arr = np.concatenate([local_labels, super_labels, minor_labels_arr_sliced], axis=0)
         
         super_splits = ['none'] * len(super_ids)
         split_arr = local_splits + super_splits + minor_splits
@@ -467,20 +495,7 @@ def make_caan_udf(super_nodes_dict_bc, minor_nodes_dict_bc, caan_edges_bc, node_
         src_l = []
         dst_l = []
         
-        exploded = pdf[['id', 'neighbors']].explode('neighbors').dropna()
         if len(exploded) > 0:
-            exploded['neighbors'] = exploded['neighbors'].astype(np.int64)
-            
-            def map_dst(w):
-                w_comm = node_to_comm.get(w, -1)
-                if w_comm == comm_id:
-                    return w
-                elif w_comm in major_comms:
-                    return -1000 - w_comm
-                else:
-                    return w
-                    
-            exploded['dst_mapped'] = exploded['neighbors'].map(map_dst)
             exploded['src_idx'] = exploded['id'].map(node_map)
             exploded['dst_idx'] = exploded['dst_mapped'].map(node_map)
             
@@ -490,13 +505,18 @@ def make_caan_udf(super_nodes_dict_bc, minor_nodes_dict_bc, caan_edges_bc, node_
                 dst_l.extend(valid['dst_idx'].values.astype(np.int64))
                 
         exclude_id = -1000 - comm_id
-        for u, v in caan_edges:
-            if u != exclude_id and v != exclude_id:
-                u_idx = node_map.get(u)
-                v_idx = node_map.get(v)
-                if u_idx is not None and v_idx is not None:
-                    src_l.append(u_idx)
-                    dst_l.append(v_idx)
+        valid_nodes_set = set(super_ids).union(set(minor_ids))
+        
+        # O(V_subgraph + E_subgraph) edge mapping using adjacency lookup
+        for u in valid_nodes_set:
+            u_neighbors = caan_adj.get(u, [])
+            for v in u_neighbors:
+                if v in valid_nodes_set and v != exclude_id:
+                    u_idx = node_map.get(u)
+                    v_idx = node_map.get(v)
+                    if u_idx is not None and v_idx is not None:
+                        src_l.append(u_idx)
+                        dst_l.append(v_idx)
                     
         src_l = np.array(src_l, dtype=np.int64)
         dst_l = np.array(dst_l, dtype=np.int64)
@@ -968,10 +988,34 @@ def run_phase3b(spark, sc, datasets, algorithms, use_global_mapping,
             node_to_comm_pd = comms_df.toPandas()
             node_to_comm = dict(zip(node_to_comm_pd['id'].astype(int), node_to_comm_pd['community_id'].astype(int)))
             
-            # Broadcast caan components
+            # Broadcast caan components - Driver-side pre-stacking for optimization
+            minor_ids = list(minor_nodes_dict.keys())
+            minor_node_to_idx = {int(nid): idx for idx, nid in enumerate(minor_ids)}
+            
+            feat_dim = cfg['in_feats']
+            if len(minor_ids) > 0:
+                minor_feats_arr = np.stack([minor_nodes_dict[nid]['features'] for nid in minor_ids]).astype(np.float32)
+                minor_labels_arr = np.array([minor_nodes_dict[nid]['label'] for nid in minor_ids], dtype=np.int64)
+                minor_splits_arr = np.array([minor_nodes_dict[nid]['split'] for nid in minor_ids], dtype=object)
+                minor_ids_arr = np.array(minor_ids, dtype=np.int64)
+            else:
+                minor_feats_arr = np.empty((0, feat_dim), dtype=np.float32)
+                minor_labels_arr = np.empty((0,), dtype=np.int64)
+                minor_splits_arr = np.empty((0,), dtype=object)
+                minor_ids_arr = np.empty((0,), dtype=np.int64)
+                
+            from collections import defaultdict
+            caan_adj = defaultdict(list)
+            for u, v in caan_edges:
+                caan_adj[int(u)].append(int(v))
+                
             super_nodes_dict_bc = sc.broadcast(super_nodes_dict)
-            minor_nodes_dict_bc = sc.broadcast(minor_nodes_dict)
-            caan_edges_bc = sc.broadcast(caan_edges)
+            minor_node_to_idx_bc = sc.broadcast(minor_node_to_idx)
+            minor_feats_arr_bc = sc.broadcast(minor_feats_arr)
+            minor_labels_arr_bc = sc.broadcast(minor_labels_arr)
+            minor_splits_arr_bc = sc.broadcast(minor_splits_arr)
+            minor_ids_arr_bc = sc.broadcast(minor_ids_arr)
+            caan_adj_bc = sc.broadcast(dict(caan_adj))
             node_to_comm_bc = sc.broadcast(node_to_comm)
             major_comms_bc = sc.broadcast(major_comms)
             
@@ -1079,11 +1123,15 @@ def run_phase3b(spark, sc, datasets, algorithms, use_global_mapping,
                     .withColumn('_model_type',  F.lit(str(model_type))))
                 
                 caan_udf = make_caan_udf(
-                    super_nodes_dict_bc,
-                    minor_nodes_dict_bc,
-                    caan_edges_bc,
-                    node_to_comm_bc,
-                    major_comms_bc
+                    super_nodes_dict_bc=super_nodes_dict_bc,
+                    minor_node_to_idx_bc=minor_node_to_idx_bc,
+                    minor_feats_arr_bc=minor_feats_arr_bc,
+                    minor_labels_arr_bc=minor_labels_arr_bc,
+                    minor_splits_arr_bc=minor_splits_arr_bc,
+                    minor_ids_arr_bc=minor_ids_arr_bc,
+                    caan_adj_bc=caan_adj_bc,
+                    node_to_comm_bc=node_to_comm_bc,
+                    major_comms_bc=major_comms_bc
                 )
                 
                 sc.setJobDescription(f'phase3b_{dataset}_{alg}_{model_type}')
