@@ -63,11 +63,12 @@ TASK_TYPE = 'both'
 
 # ── Phase 4: Full-Graph Baseline ──────────────────────────────────────────────
 # Runs ONCE per dataset (not per algorithm). Uses SAME masks as Phase 3.
+RUN_PHASE4        = False       # Set to False to skip OOM-prone driver-bound baselines
 BASELINE_EPOCHS   = 15          # reduced from 50 epochs to speed up CPU full-graph training
 BASELINE_BATCH    = 1024
 BASELINE_FANOUT   = [15, 10]
 BASELINE_LR       = GCN_LR
-RUN_PHASE4B       = False       # DistDGL Baseline Simulation
+RUN_PHASE4B       = True       # DistDGL Baseline Simulation
 RUN_PHASE4C       = False       # ARMA Baseline
 RUN_PHASE4D       = False       # ASAP Baseline
 

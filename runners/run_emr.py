@@ -877,7 +877,7 @@ def main():
     # Phase 4: Full-Graph Baseline
     if getattr(args, 'run_phase4', True):
         # 1. GraphSAGE Baseline
-        if 'sage' in config.GNN_MODELS:
+        if getattr(config, 'RUN_PHASE4', True) and 'sage' in config.GNN_MODELS:
             datasets_for_4 = []
             for dataset in DATASETS_TO_RUN:
                 if not FORCE_RERUN and load_baseline_checkpoint(dataset, '4', phase4_results, timing, args.s3_bucket, EXPERIMENT_NAME):
@@ -970,7 +970,7 @@ def main():
                     save_baseline_checkpoint(dataset, '4d', phase4d_results, timing, args.s3_bucket, EXPERIMENT_NAME)
 
         # 5. GAT Baseline
-        if 'gat' in config.GNN_MODELS:
+        if getattr(config, 'RUN_PHASE4', True) and 'gat' in config.GNN_MODELS:
             datasets_for_4e = []
             for dataset in DATASETS_TO_RUN:
                 if not FORCE_RERUN and load_baseline_checkpoint(dataset, '4e', phase4e_results, timing, args.s3_bucket, EXPERIMENT_NAME):
@@ -994,7 +994,7 @@ def main():
                     save_baseline_checkpoint(dataset, '4e', phase4e_results, timing, args.s3_bucket, EXPERIMENT_NAME)
 
         # 6. Graph Transformer Baseline
-        if 'transformer' in config.GNN_MODELS:
+        if getattr(config, 'RUN_PHASE4', True) and 'transformer' in config.GNN_MODELS:
             datasets_for_4f = []
             for dataset in DATASETS_TO_RUN:
                 if not FORCE_RERUN and load_baseline_checkpoint(dataset, '4f', phase4f_results, timing, args.s3_bucket, EXPERIMENT_NAME):
@@ -1018,7 +1018,7 @@ def main():
                     save_baseline_checkpoint(dataset, '4f', phase4f_results, timing, args.s3_bucket, EXPERIMENT_NAME)
 
         # 7. ClusterSCL Baseline
-        if 'clusterscl' in config.GNN_MODELS:
+        if getattr(config, 'RUN_PHASE4', True) and 'clusterscl' in config.GNN_MODELS:
             datasets_for_4g = []
             for dataset in DATASETS_TO_RUN:
                 if not FORCE_RERUN and load_baseline_checkpoint(dataset, '4g', phase4g_results, timing, args.s3_bucket, EXPERIMENT_NAME):
@@ -1042,7 +1042,7 @@ def main():
                     save_baseline_checkpoint(dataset, '4g', phase4g_results, timing, args.s3_bucket, EXPERIMENT_NAME)
 
         # 8. GATv2 Baseline
-        if 'gatv2' in config.GNN_MODELS:
+        if getattr(config, 'RUN_PHASE4', True) and 'gatv2' in config.GNN_MODELS:
             datasets_for_4h = []
             for dataset in DATASETS_TO_RUN:
                 if not FORCE_RERUN and load_baseline_checkpoint(dataset, '4h', phase4h_results, timing, args.s3_bucket, EXPERIMENT_NAME):
