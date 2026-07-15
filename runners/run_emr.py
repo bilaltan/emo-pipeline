@@ -820,49 +820,51 @@ def main():
     FORCE_RERUN = getattr(config, 'FORCE_RERUN', False)
 
     # Phase 1: Partition assignment / Community detection
-    run_phase1(
-        spark, sc,
-        datasets     = DATASETS_TO_RUN,
-        algorithms   = ALGORITHMS_TO_RUN,
-        lpa_max_iter = config.LPA_MAX_ITER,
-        resolution   = getattr(config, 'RESOLUTION', 1.0),
-        random_seed  = config.RANDOM_SEED,
-        min_size     = MIN_COMMUNITY_SIZE,
-        dataset_cfg  = config.DATASET_CFG,
-        get_paths_fn = get_paths_fn,
-        timing       = timing,
-        results      = phase1_results,
-        metis_k      = getattr(config, 'METIS_K', 100),
-        force_rerun  = FORCE_RERUN
-    )
+    if getattr(config, 'RUN_PHASE1', True):
+        run_phase1(
+            spark, sc,
+            datasets     = DATASETS_TO_RUN,
+            algorithms   = ALGORITHMS_TO_RUN,
+            lpa_max_iter = config.LPA_MAX_ITER,
+            resolution   = getattr(config, 'RESOLUTION', 1.0),
+            random_seed  = config.RANDOM_SEED,
+            min_size     = MIN_COMMUNITY_SIZE,
+            dataset_cfg  = config.DATASET_CFG,
+            get_paths_fn = get_paths_fn,
+            timing       = timing,
+            results      = phase1_results,
+            metis_k      = getattr(config, 'METIS_K', 100),
+            force_rerun  = FORCE_RERUN
+        )
 
-    # Phase 1 Stats
-    print_phase1_stats(
-        spark,
-        datasets     = DATASETS_TO_RUN,
-        algorithms   = ALGORITHMS_TO_RUN,
-        min_size     = MIN_COMMUNITY_SIZE,
-        get_paths_fn = get_paths_fn,
-        results      = phase1_results
-    )
+        # Phase 1 Stats
+        print_phase1_stats(
+            spark,
+            datasets     = DATASETS_TO_RUN,
+            algorithms   = ALGORITHMS_TO_RUN,
+            min_size     = MIN_COMMUNITY_SIZE,
+            get_paths_fn = get_paths_fn,
+            results      = phase1_results
+        )
 
     # Phase 2: Subgraph generation
-    run_phase2(
-        spark, sc,
-        datasets            = DATASETS_TO_RUN,
-        algorithms          = ALGORITHMS_TO_RUN,
-        use_global_mapping  = USE_GLOBAL_MAPPING,
-        min_size            = MIN_COMMUNITY_SIZE,
-        get_paths_fn        = get_paths_fn,
-        timing              = timing,
-        results             = phase2_results,
-        tiny_comm_handling  = TINY_COMM_HANDLING,
-        expand_boundary_nodes = EXPAND_BOUNDARY_NODES,
-        force_rerun         = FORCE_RERUN
-    )
+    if getattr(config, 'RUN_PHASE2', True):
+        run_phase2(
+            spark, sc,
+            datasets            = DATASETS_TO_RUN,
+            algorithms          = ALGORITHMS_TO_RUN,
+            use_global_mapping  = USE_GLOBAL_MAPPING,
+            min_size            = MIN_COMMUNITY_SIZE,
+            get_paths_fn        = get_paths_fn,
+            timing              = timing,
+            results             = phase2_results,
+            tiny_comm_handling  = TINY_COMM_HANDLING,
+            expand_boundary_nodes = EXPAND_BOUNDARY_NODES,
+            force_rerun         = FORCE_RERUN
+        )
 
     # Phase 3: Parallel GNN UDF Training
-    if getattr(args, 'run_phase3', True):
+    if getattr(args, 'run_phase3', True) and getattr(config, 'RUN_PHASE3', True):
         run_phase3(
             spark, sc,
             datasets           = DATASETS_TO_RUN,
@@ -997,7 +999,7 @@ def main():
                     save_baseline_checkpoint(dataset, '4d', phase4d_results, timing, args.s3_bucket, EXPERIMENT_NAME)
 
         # 5. GAT Baseline
-        if getattr(config, 'RUN_PHASE4', True) and 'gat' in config.GNN_MODELS:
+        if getattr(config, 'RUN_PHASE4E', True) and getattr(config, 'RUN_PHASE4', True) and 'gat' in config.GNN_MODELS:
             datasets_for_4e = []
             for dataset in DATASETS_TO_RUN:
                 if not FORCE_RERUN and load_baseline_checkpoint(dataset, '4e', phase4e_results, timing, args.s3_bucket, EXPERIMENT_NAME):
@@ -1021,7 +1023,7 @@ def main():
                     save_baseline_checkpoint(dataset, '4e', phase4e_results, timing, args.s3_bucket, EXPERIMENT_NAME)
 
         # 6. Graph Transformer Baseline
-        if getattr(config, 'RUN_PHASE4', True) and 'transformer' in config.GNN_MODELS:
+        if getattr(config, 'RUN_PHASE4F', True) and getattr(config, 'RUN_PHASE4', True) and 'transformer' in config.GNN_MODELS:
             datasets_for_4f = []
             for dataset in DATASETS_TO_RUN:
                 if not FORCE_RERUN and load_baseline_checkpoint(dataset, '4f', phase4f_results, timing, args.s3_bucket, EXPERIMENT_NAME):
@@ -1045,7 +1047,7 @@ def main():
                     save_baseline_checkpoint(dataset, '4f', phase4f_results, timing, args.s3_bucket, EXPERIMENT_NAME)
 
         # 7. ClusterSCL Baseline
-        if getattr(config, 'RUN_PHASE4', True) and 'clusterscl' in config.GNN_MODELS:
+        if getattr(config, 'RUN_PHASE4G', True) and getattr(config, 'RUN_PHASE4', True) and 'clusterscl' in config.GNN_MODELS:
             datasets_for_4g = []
             for dataset in DATASETS_TO_RUN:
                 if not FORCE_RERUN and load_baseline_checkpoint(dataset, '4g', phase4g_results, timing, args.s3_bucket, EXPERIMENT_NAME):
@@ -1069,7 +1071,7 @@ def main():
                     save_baseline_checkpoint(dataset, '4g', phase4g_results, timing, args.s3_bucket, EXPERIMENT_NAME)
 
         # 8. GATv2 Baseline
-        if getattr(config, 'RUN_PHASE4', True) and 'gatv2' in config.GNN_MODELS:
+        if getattr(config, 'RUN_PHASE4H', True) and getattr(config, 'RUN_PHASE4', True) and 'gatv2' in config.GNN_MODELS:
             datasets_for_4h = []
             for dataset in DATASETS_TO_RUN:
                 if not FORCE_RERUN and load_baseline_checkpoint(dataset, '4h', phase4h_results, timing, args.s3_bucket, EXPERIMENT_NAME):
