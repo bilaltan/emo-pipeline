@@ -287,34 +287,61 @@ def main():
         else:
             edges_size_mb = 100.0
 
-    # 3. Categorize scale dynamically based on storage footprint
+    # 3. Dynamic Host machine hardware detection
+    def get_system_total_memory_gb():
+        try:
+            with open('/proc/meminfo', 'r') as f:
+                for line in f:
+                    if 'MemTotal' in line:
+                        mem_kb = int(line.split()[1])
+                        return mem_kb / (1024 * 1024)
+        except Exception:
+            pass
+        try:
+            import subprocess
+            out = subprocess.check_output(['sysctl', '-n', 'hw.memsize']).decode('utf-8').strip()
+            return int(out) / (1024**3)
+        except Exception:
+            pass
+        return 64.0  # fallback
+
+    import multiprocessing
+    host_cores = multiprocessing.cpu_count()
+    host_mem_gb = get_system_total_memory_gb()
+
+    # Allocate 75% of host RAM to the Spark driver container (80% heap, 20% overhead)
+    allocated_driver_total_gb = int(host_mem_gb * 0.75)
+    driver_mem_val = int(allocated_driver_total_gb * 0.8)
+    driver_overhead_val = allocated_driver_total_gb - driver_mem_val
+    
+    driver_mem = f"{driver_mem_val}g"
+    driver_overhead = f"{driver_overhead_val}g"
+    driver_cores = str(max(4, host_cores - 2))
+
+    # 4. Categorize scale dynamically based on storage footprint
     if edges_size_mb <= 20.0:
         scale_label = "Small/Medium"
         executor_instances = max(4, nodes_count * 7)
         executor_mem = "8g"
         executor_overhead = "4g"
         executor_cores = "2"
-        driver_mem = "30g"
-        driver_cores = "4"
-        driver_overhead = "8g"
     elif edges_size_mb <= 1000.0:
         scale_label = "Large"
         executor_instances = max(4, nodes_count * 7)
         executor_mem = "8g"
         executor_overhead = "4g"
         executor_cores = "2"
-        driver_mem = "30g"
-        driver_cores = "4"
-        driver_overhead = "8g"
     else:
         scale_label = "Massive (1B+ Scale)"
         executor_instances = max(2, nodes_count * 4)
         executor_mem = "16g"
         executor_overhead = "8g"
         executor_cores = "4"
-        driver_mem = "40g"
-        driver_cores = "8"
-        driver_overhead = "12g"
+        # For massive graphs, ensure driver gets at least 40g
+        if driver_mem_val < 40:
+            driver_mem = "40g"
+            driver_overhead = "12g"
+            driver_cores = "8"
 
     print(f"\n  [Spark Auto-Scaler] Dataset: {dataset_name} | Physical Size: {edges_size_mb:.2f} MB | Scale: {scale_label}")
     print(f"  [Spark Auto-Scaler] Active YARN Workers: {nodes_count}")
