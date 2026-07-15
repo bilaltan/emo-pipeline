@@ -5,7 +5,7 @@
 #      python upload_to_s3.py
 # ══════════════════════════════════════════════════════════════════════════════
 
-EXPERIMENT_NAME   = 'ogbn-arxiv-caan'          # labels ALL S3 outputs; change per experiment run
+EXPERIMENT_NAME   = 'ogbn-arxiv'          # labels ALL S3 outputs; change per experiment run
 
 # ── Datasets ───────────────────────────────────────────────────────────────────
 # To add ogbn-arxiv: set RUN_PHASE0=True first to ingest it.
