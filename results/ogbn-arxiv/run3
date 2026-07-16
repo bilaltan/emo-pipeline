@@ -1,0 +1,42 @@
+===============================================================================================
+  PHASE 5A — PERFORMANCE COMPARISON (NODE ACCURACY & LINK AUC)
+===============================================================================================
+
+  Dataset: ogbn-arxiv
+  _Algorithm           Node Acc   Comm Acc    Bnd Acc    Int Acc     Link AUC
+  ---------------------------------------------------------------------------
+  DISTDGL                0.6584          —          —          —       0.6660
+
+  [ogbn-arxiv] Performance by community size bucket:
+
+================================================================================
+  PHASE 5B — TIMING COMPARISON
+================================================================================
+
+  Dataset: ogbn-arxiv
+  Algorithm             Phase1    Phase2    Phase3   Phase3b     Total
+  --------------------------------------------------------------------
+  BASELINE (SAGE)            —         —         —      0.0s (Node: 0.0s, Link: 0.0s)
+  DISTDGL                    —         —         —    102.4s (Node: 61.9s, Link: 33.4s)
+  XLSX → s3://us-east-1-s3-gnn/gnn-bench-out/ogbn-arxiv_results.xlsx
+  Plot → s3://us-east-1-s3-gnn/gnn-bench-out/plots/ogbn-arxiv/ogbn-arxiv_acc_dist.png
+
+================================================================================
+  FINAL PIPELINE REPORT SUMMARY
+================================================================================
+╔══════════════════════════════════════════════════════════════╗
+║  EXPERIMENT: ogbn-arxiv                                     ║
+║  Global mapping: True                                        ║
+╠══════════════════════════════════════════════════════════════╣
+║   Dataset                        ogbn-arxiv                    ║
+║   Phase 0 (ingest)               SKIPPED                       ║
+║   Phase 4b (DistDGL)             102.4s                        ║
+╠══════════════════════════════════════════════════════════════╣
+║   [lpa] communities              ? raw → ? valid               ║
+║   [louvain] communities          ? raw → ? valid               ║
+║   DistDGL acc                    0.6584                        ║
+║   DistDGL link AUC               0.6660  (102.4s)              ║
+╚══════════════════════════════════════════════════════════════╝
+
+[SUCCESS] EMR Driver execution completed in 137.4 seconds.
+================================================================================
