@@ -19,9 +19,9 @@ GNN_MODELS = ['sage', 'gatv2']
 # True  = re-download OGB dataset and overwrite Delta tables.
 #         REQUIRED when using a dataset for the first time.
 # False = skip (Delta tables already exist).
-RUN_PHASE0        = True
-FORCE_REINGEST    = True   # Set to True to force overwrite even if tables already exist
-FORCE_RERUN       = True   # Set to True to ignore all S3 checkpoints and rerun the pipeline
+RUN_PHASE0        = False
+FORCE_REINGEST    = False   # Set to True to force overwrite even if tables already exist
+FORCE_RERUN       = False   # Set to True to ignore all S3 checkpoints and rerun the pipeline
 USE_OGB_SPLITS    = True    # True = OGB official splits | False = stratified 60/20/20
 RANDOM_SEED       = 42
 N_BASELINE_RUNS   = 1          # number of runs per baseline for mean ± std
@@ -31,7 +31,7 @@ N_BASELINE_RUNS   = 1          # number of runs per baseline for mean ± std
 #   'lpa'     = distributed Spark (fast, lower community quality)
 #   'louvain' = driver/igraph   (moderate quality, pulls graph to driver RAM)
 #   'igraph_lpa' = driver/igraph   (LPA using igraph)
-RUN_PHASE1         = True             # Set to False to skip community detection phase
+RUN_PHASE1         = False             # Set to False to skip community detection phase
 ALGORITHMS_TO_RUN  = ['lpa', 'louvain']
 LPA_MAX_ITER       = 5
 RESOLUTION         = 1.0              # louvain / leiden resolution parameter
@@ -43,7 +43,7 @@ MIN_COMMUNITY_SIZE = 100              # communities smaller than this are exclud
 #   Required for valid global accuracy comparison (Pipelines.txt §5).
 # USE_GLOBAL_MAPPING = False (ablation only):
 #   Per-community 70/15/15 random split inside UDF → NOT globally comparable.
-RUN_PHASE2         = True             # Set to False to skip subgraph generation phase
+RUN_PHASE2         = False             # Set to False to skip subgraph generation phase
 RUN_PHASE3         = True             # Set to False to skip parallel GNN UDF training phase
 USE_GLOBAL_MAPPING = True
 
