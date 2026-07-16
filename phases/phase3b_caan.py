@@ -1180,7 +1180,6 @@ def run_phase3b(spark, sc, datasets, algorithms, use_global_mapping,
                 try:
                     import torch
                     import torch.nn as nn
-                    import numpy as np
                     import dgl
                     
                     print("  [Driver Warmstart] Extracting largest community for driver-side pre-training...")

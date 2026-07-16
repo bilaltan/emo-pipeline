@@ -1,6 +1,7 @@
 import os
 import time
 import pandas as pd
+import numpy as np
 from pipeline.utils.common import _patch_torch_load
 
 def _make_result_schema():
@@ -810,7 +811,6 @@ def run_phase3(spark, sc, datasets, algorithms, use_global_mapping,
                 try:
                     import torch
                     import torch.nn as nn
-                    import numpy as np
                     import dgl
                     
                     print("  [Driver Warmstart] Extracting largest community for driver-side pre-training...")
