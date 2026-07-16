@@ -1010,6 +1010,8 @@ def run_phase3b(spark, sc, datasets, algorithms, use_global_mapping,
             major_nodes_df = nodes_w_comm.filter(F.col('community_id').isin(list(major_comms)))
             
             def compute_means_udf(pdf):
+                import numpy as np
+                import pandas as pd
                 cid = pdf['community_id'].iloc[0]
                 feats = np.stack(pdf['features'].values)
                 mean_feat = feats.mean(axis=0).tolist()
