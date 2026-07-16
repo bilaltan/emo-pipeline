@@ -10,6 +10,20 @@ import time
 import argparse
 import subprocess
 import shutil
+import sys
+
+class TeeStream(object):
+    def __init__(self, file_handle, original_stream):
+        self.file = file_handle
+        self.stream = original_stream
+    def write(self, data):
+        self.file.write(data)
+        self.file.flush()
+        self.stream.write(data)
+        self.stream.flush()
+    def flush(self):
+        self.file.flush()
+        self.stream.flush()
 
 # ── OVERWRITE DIRECTORIES TO USE LARGE VOLUMES (PREVENT ROOT DISK OOM) ───
 candidates = [
@@ -206,6 +220,14 @@ def main():
                         help="Skip dynamic package verification/installation on YARN executors")
 
     args = parser.parse_args()
+
+    # Capture stdout/stderr logs locally before uploading to S3
+    log_file_path = "/tmp/run_pipeline.log"
+    log_file = open(log_file_path, "w")
+    original_stdout = sys.stdout
+    original_stderr = sys.stderr
+    sys.stdout = TeeStream(log_file, original_stdout)
+    sys.stderr = TeeStream(log_file, original_stderr)
 
     # Import/Inject PySpark paths if running on YARN
     try:
@@ -1167,6 +1189,44 @@ def main():
     t_elapsed = time.time() - t_pipeline_start
     print(f"\n[SUCCESS] EMR Driver execution completed in {t_elapsed:.1f} seconds.")
     print("="*80 + "\n")
+
+    # Restore streams and close log file
+    sys.stdout = original_stdout
+    sys.stderr = original_stderr
+    log_file.close()
+
+    # Consolidated output upload to S3 (logs/ and excels/)
+    try:
+        import secrets
+        import boto3
+        run_id = secrets.token_hex(8)
+        consolidated_folder = f"{EXPERIMENT_NAME}-{run_id}"
+        s3_bucket = args.s3_bucket if args.s3_bucket else "us-east-1-s3-gnn"
+        
+        s3_client = boto3.client('s3')
+        
+        # 1. Upload the log file
+        s3_log_key = f"gnn-bench-out/spark-results/{consolidated_folder}/logs/run_pipeline.log"
+        print(f"Uploading execution log to: s3://{s3_bucket}/{s3_log_key}")
+        s3_client.upload_file(log_file_path, s3_bucket, s3_log_key)
+        
+        # 2. Copy Excel results directly on S3
+        s3_source_key = f"gnn-bench-out/{EXPERIMENT_NAME}_results.xlsx"
+        s3_dest_key = f"gnn-bench-out/spark-results/{consolidated_folder}/excels/{EXPERIMENT_NAME}_results.xlsx"
+        
+        try:
+            s3_client.head_object(Bucket=s3_bucket, Key=s3_source_key)
+            print(f"Copying S3 Excel results to: s3://{s3_bucket}/{s3_dest_key}")
+            s3_client.copy_object(
+                Bucket=s3_bucket,
+                CopySource={'Bucket': s3_bucket, 'Key': s3_source_key},
+                Key=s3_dest_key
+            )
+        except Exception as copy_err:
+            print(f"Warning: Could not copy Excel results on S3: {copy_err}")
+            
+    except Exception as upload_err:
+        print(f"Warning: Error uploading logs or excels to consolidated S3 folder: {upload_err}")
 
 if __name__ == "__main__":
     main()

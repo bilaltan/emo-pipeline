@@ -1,0 +1,51 @@
+================================================================================
+  PHASE 5B — TIMING COMPARISON
+================================================================================
+
+  Dataset: ogbn-arxiv
+  Algorithm             Phase1    Phase2    Phase3   Phase3b     Total
+  --------------------------------------------------------------------
+  lpa-sage                0.0s      0.0s      0.0s     34.0s     34.0s
+  lpa-gatv2               0.0s      0.0s      0.0s     25.3s     25.3s
+  louvain-sage            0.0s      0.0s      0.0s     12.0s     12.0s
+  louvain-gatv2           0.0s      0.0s      0.0s     12.4s     12.4s
+  BASELINE (SAGE)            —         —         —      0.0s (Node: 0.0s, Link: 0.0s)
+  XLSX → s3://us-east-1-s3-gnn/gnn-bench-out/ogbn-arxiv_results.xlsx
+  Plot → s3://us-east-1-s3-gnn/gnn-bench-out/plots/ogbn-arxiv/ogbn-arxiv_acc_dist.png
+
+================================================================================
+  FINAL PIPELINE REPORT SUMMARY
+================================================================================
+╔══════════════════════════════════════════════════════════════╗
+║  EXPERIMENT: ogbn-arxiv                                     ║
+║  Global mapping: True                                        ║
+╠══════════════════════════════════════════════════════════════╣
+║   Dataset                        ogbn-arxiv                    ║
+║   Phase 0 (ingest)               SKIPPED                       ║
+║   Phase 3b [lpa-sage-caan]       34.0s                         ║
+║   Phase 3b [lpa-gatv2-caan]      25.3s                         ║
+║   Phase 3b [louvain-sage-caan]   12.0s                         ║
+║   Phase 3b [louvain-gatv2-caan]  12.4s                         ║
+╠══════════════════════════════════════════════════════════════╣
+║   [lpa-sage-caan] global acc     0.3824                        ║
+║   [lpa-sage-caan] boundary acc   0.0000                        ║
+║   [lpa-sage-caan] internal acc   0.5358                        ║
+║   [lpa-sage-caan] link AUC       0.5000                        ║
+║   [lpa-gatv2-caan] global acc    0.3994                        ║
+║   [lpa-gatv2-caan] boundary acc  0.0000                        ║
+║   [lpa-gatv2-caan] internal acc  0.5350                        ║
+║   [lpa-gatv2-caan] link AUC      0.5000                        ║
+║   [lpa] communities              ? raw → ? valid               ║
+║   [louvain-sage-caan] global acc 0.4817                        ║
+║   [louvain-sage-caan] boundary acc 0.0000                      ║
+║   [louvain-sage-caan] internal acc 0.4378                      ║
+║   [louvain-sage-caan] link AUC   0.5000                        ║
+║   [louvain-gatv2-caan] global acc 0.5228                       ║
+║   [louvain-gatv2-caan] boundary acc 0.0000                     ║
+║   [louvain-gatv2-caan] internal acc 0.4643                     ║
+║   [louvain-gatv2-caan] link AUC  0.5000                        ║
+║   [louvain] communities          ? raw → ? valid               ║
+╚══════════════════════════════════════════════════════════════╝
+
+[SUCCESS] EMR Driver execution completed in 171.6 seconds.
+================================================================================

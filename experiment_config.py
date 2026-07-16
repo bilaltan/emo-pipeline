@@ -51,7 +51,7 @@ GCN_HIDDEN_DIM    = 256
 GCN_NUM_EPOCHS    = 10
 GCN_LR            = 0.01
 GCN_DROPOUT       = 0.5
-RUN_PHASE3B       = True              # Phase 3b: CaaN Global Graph GNN Training
+RUN_PHASE3B       = False              # Phase 3b: CaaN Global Graph GNN Training
 
 # ── New Advanced Features ──────────────────────────────────────────────────────
 # Tiny community handling: 'drop' (ignore them), 'misc' (group them all into community_id = -1)
@@ -71,7 +71,7 @@ BASELINE_EPOCHS   = 15          # reduced from 50 epochs to speed up CPU full-gr
 BASELINE_BATCH    = 1024
 BASELINE_FANOUT   = [15, 10]
 BASELINE_LR       = GCN_LR
-RUN_PHASE4B       = False       # DistDGL Baseline Simulation
+RUN_PHASE4B       = True       # DistDGL Baseline Simulation
 RUN_PHASE4C       = False       # ARMA Baseline
 RUN_PHASE4D       = False       # ASAP Baseline
 RUN_PHASE4E       = False       # GAT Baseline
