@@ -411,6 +411,8 @@ def main():
         .config("spark.driver.maxResultSize", "24g") \
         .config("spark.driver.cores", driver_cores) \
         .config("spark.driver.memoryOverhead", driver_overhead) \
+        .config("spark.network.timeout", "800s") \
+        .config("spark.executor.heartbeatInterval", "120s") \
         .config("spark.dynamicAllocation.enabled", "false") \
         .config("spark.executor.instances", str(executor_instances)) \
         .config("spark.executor.memory", executor_mem) \
