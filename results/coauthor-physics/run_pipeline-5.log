@@ -1,0 +1,458 @@
+
+  [Spark Auto-Scaler] Dataset: coauthor-physics | Physical Size: 1.55 MB | Scale: Small/Medium
+  [Spark Auto-Scaler] Active YARN Workers: 2
+  → Allocating 14 executors with 2 cores and 8g (+4g overhead) memory.
+  → Driver memory: 74g (+19g overhead)
+
+  ✓ SparkSession successfully configured and initialized as 'spark'.
+
+================================================================================
+  VERIFYING AND INSTALLING PYTHON ENVIRONMENT PACKAGES
+================================================================================
+  ✓ numpy           - Already installed on driver and executors (skipping)
+  ✓ ogb             - Already installed on driver and executors (skipping)
+  ✓ igraph          - Already installed on driver and executors (skipping)
+  ✓ leidenalg       - Already installed on driver and executors (skipping)
+  ✓ scikit-learn    - Already installed on driver and executors (skipping)
+  ✓ torch           - Already installed on driver and executors (skipping)
+  ✓ boto3           - Already installed on driver and executors (skipping)
+  ✓ xlsxwriter      - Already installed on driver and executors (skipping)
+  ✓ openpyxl        - Already installed on driver and executors (skipping)
+  ✓ matplotlib      - Already installed on driver and executors (skipping)
+  ✓ seaborn         - Already installed on driver and executors (skipping)
+  ✓ torch-geometric - Already installed on driver and executors (skipping)
+  ✓ pyarrow         - Already installed on driver and executors (skipping)
+  ✓ dgl==1.1.3      - Already installed on driver and executors (skipping)
+
+  ✓ ALL PIPELINE DEPENDENCIES VERIFIED AND READY.
+
+================================================================================
+  BOOTSTRAPPING EXPERIMENT CODE AND STAGE UTILITIES
+================================================================================
+  ► LOADING PIPELINE AND CONFIG FROM LOCAL PATHS...
+    ✓ Packed local pipeline folder to /tmp/pipeline.zip and copied to /tmp/pipeline
+  ✓ Registered pipeline.zip package on Spark Context
+
+  Run Profile: coauthor-physics
+  └─ Datasets: ['coauthor-physics']
+  └─ Algorithms: ['lpa', 'louvain']
+  └─ GNN Architecture: GCN (epochs=10, lr=0.001, hidden=256)
+  └─ Global Mapping: True | Boundary Expansion: True
+  └─ Ingestion Phase (Phase 0): True
+
+============================================================
+  PHASE 0 — Ingesting: coauthor-physics
+============================================================
+Downloading /mnt1/tmp/.dgl/coauthor_physics.zip from https://data.dgl.ai/dataset/coauthor_physics.zip...
+Extracting file to /mnt1/tmp/.dgl/coauthor_physics_310c1038
+  Saving original (directed) graph: 34,493 nodes | 495,924 edges ...
+  Feature dimension: 8415 | Ingesting in chunks of 118 nodes...
+  Original nodes written → s3://us-east-1-s3-gnn/delta-data/coauthor-physics/original_nodes/
+  Original edges written → s3://us-east-1-s3-gnn/delta-data/coauthor-physics/original_edges/
+  Nodes: 34,493 | Edges (both dirs): 495,924
+  Nodes written.
+  Edges written.
+  Masks written.
+  Compacting Delta tables (running OPTIMIZE & VACUUM) for coauthor-physics...
+    ✓ Compacted & Cleaned: s3://us-east-1-s3-gnn/delta-data/coauthor-physics/original_nodes/ (59.1s)
+    ✓ Compacted & Cleaned: s3://us-east-1-s3-gnn/delta-data/coauthor-physics/original_edges/ (7.0s)
+    ✓ Compacted & Cleaned: s3://us-east-1-s3-gnn/delta-data/coauthor-physics/nodes/ (56.7s)
+    ✓ Compacted & Cleaned: s3://us-east-1-s3-gnn/delta-data/coauthor-physics/edges/ (6.2s)
+    ✓ Compacted & Cleaned: s3://us-east-1-s3-gnn/delta-data/coauthor-physics/masks/ (6.1s)
+  ✓ coauthor-physics ingested in 912.9s
+
+============================================================
+  PHASE 1 — Community Detection: coauthor-physics
+============================================================
+  Graph loaded: 34,493 nodes | 495,924 edges  [2.0s]
+
+  ── [LPA] ──────────────────────────────
+    Iter 1/5: 9,756 comms  [3.9s]
+    Iter 2/5: 4,708 comms  [1.9s]
+    Iter 3/5: 3,175 comms  [2.0s]
+    Iter 4/5: 2,496 comms  [4.0s]
+    Iter 5/5: 2,043 comms  [13.0s]
+  ✓ [lpa] 2,043 communities | NMI=0.2686 | 30.0s
+
+  ── [LOUVAIN] ──────────────────────────────
+  Collecting edges to driver ...
+  Mapping node IDs using vectorized binary search ...
+  Building igraph (34,493 nodes) ...
+  Running louvain (resolution=1.0) ...
+  ✓ [louvain] 21 communities | NMI=0.4655 | 4.7s
+
+======================================================================
+  PHASE 1 SUMMARY
+======================================================================
+
+  Dataset: coauthor-physics
+  Algorithm        #Comms      NMI    Runtime
+  ------------ ---------- -------- ----------
+  lpa               2,043   0.2686      30.0s
+  louvain              21   0.4655       4.7s
+
+  [lpa] Community assignment details:
+    Vertices assigned: 34,493 / 34,493 (100.0% coverage)
+    Total communities: 2,043 | Valid (≥100): 46
+    Size stats: min=1  max=874  avg=16.9  median=7
+    Size buckets: 1-9:1,268 | 10-99:729 | 100-999:46
+    Top-10 largest: c33955=874, c33984=796, c34077=657, c34078=651, c33912=415, c33368=346, c33850=322, c33641=311, c25490=308, c34125=294
+
+  [louvain] Community assignment details:
+    Vertices assigned: 34,493 / 34,493 (100.0% coverage)
+    Total communities: 21 | Valid (≥100): 17
+    Size stats: min=6  max=4,306  avg=1642.5  median=1,699
+    Size buckets: 1-9:2 | 10-99:2 | 100-999:5 | 1K-9999:12
+    Top-10 largest: c19=4,306, c1=4,199, c10=3,246, c3=3,206, c4=3,180, c13=3,091, c0=2,434, c11=1,968, c7=1,963, c8=1,719
+
+============================================================
+  PHASE 2 — Partitioning: coauthor-physics
+============================================================
+
+  ── [LPA]  tag=coauthor-physics_coauthor-physics_lpa ──
+  Raw=2,043  Valid(≥100)=46  min=101  max=874  avg=223.5
+  Edges kept: 495,924 (100.0%)  Boundary nodes: 0  Internal: 34,493
+  Shuffle overhead (groupBy community_id): 2.1s
+  ✓ [lpa] Phase 2 done in 23.1s
+
+  ── [LOUVAIN]  tag=coauthor-physics_coauthor-physics_louvain ──
+  Raw=21  Valid(≥100)=17  min=131  max=4,306  avg=2023.4
+  Edges kept: 495,924 (100.0%)  Boundary nodes: 0  Internal: 34,493
+  Shuffle overhead (groupBy community_id): 2.1s
+  ✓ [louvain] Phase 2 done in 20.3s
+
+============================================================
+  PHASE 3 — GNN Training: coauthor-physics / lpa / sage
+  tag=coauthor-physics_coauthor-physics_lpa
+============================================================
+  [Driver Warmstart] Extracting largest community for driver-side pre-training...
+  ✓ Driver-side base model trained successfully on Comm -1 (32,968 nodes).
+  Training DF: 94,697 rows | 47 communities binned into 47 executor tasks
+  ✓ Mean comm acc = 0.8884
+  ✓ Weighted comm acc = 0.9272
+  ✓ Mean comm link AUC = 0.5000
+  ✓ Weighted comm link AUC = 0.5000
+  ✓ Wall time: 146.7s
+    - Avg Load time: 0.02s | Max: 0.18s
+    - Avg Node Train: 9.36s | Max: 95.81s
+    - Avg Link Train: 0.00s | Max: 0.00s
+    ✓ Saved S3 checkpoint: s3://us-east-1-s3-gnn/gnn-bench-checkpoint/phase3/coauthor-physics/coauthor-physics_lpa_sage.parquet
+
+============================================================
+  PHASE 3 — GNN Training: coauthor-physics / lpa / gatv2
+  tag=coauthor-physics_coauthor-physics_lpa
+============================================================
+  [Driver Warmstart] Extracting largest community for driver-side pre-training...
+  ✓ Driver-side base model trained successfully on Comm -1 (32,968 nodes).
+  Training DF: 94,697 rows | 47 communities binned into 47 executor tasks
+  ✓ Mean comm acc = 0.8471
+  ✓ Weighted comm acc = 0.9142
+  ✓ Mean comm link AUC = 0.5000
+  ✓ Weighted comm link AUC = 0.5000
+  ✓ Wall time: 141.5s
+    - Avg Load time: 0.02s | Max: 0.18s
+    - Avg Node Train: 9.17s | Max: 96.03s
+    - Avg Link Train: 0.00s | Max: 0.00s
+    ✓ Saved S3 checkpoint: s3://us-east-1-s3-gnn/gnn-bench-checkpoint/phase3/coauthor-physics/coauthor-physics_lpa_gatv2.parquet
+
+============================================================
+  PHASE 3 — GNN Training: coauthor-physics / louvain / sage
+  tag=coauthor-physics_coauthor-physics_louvain
+============================================================
+  [Driver Warmstart] Extracting largest community for driver-side pre-training...
+  ✓ Driver-side base model trained successfully on Comm 19 (11,306 nodes).
+  Training DF: 83,317 rows | 18 communities binned into 18 executor tasks
+  ✓ Mean comm acc = 0.8733
+  ✓ Weighted comm acc = 0.8971
+  ✓ Mean comm link AUC = 0.5000
+  ✓ Weighted comm link AUC = 0.5000
+  ✓ Wall time: 65.1s
+    - Avg Load time: 0.03s | Max: 0.07s
+    - Avg Node Train: 15.83s | Max: 39.46s
+    - Avg Link Train: 0.00s | Max: 0.00s
+    ✓ Saved S3 checkpoint: s3://us-east-1-s3-gnn/gnn-bench-checkpoint/phase3/coauthor-physics/coauthor-physics_louvain_sage.parquet
+
+============================================================
+  PHASE 3 — GNN Training: coauthor-physics / louvain / gatv2
+  tag=coauthor-physics_coauthor-physics_louvain
+============================================================
+  [Driver Warmstart] Extracting largest community for driver-side pre-training...
+  ✓ Driver-side base model trained successfully on Comm 19 (11,306 nodes).
+  Training DF: 83,317 rows | 18 communities binned into 18 executor tasks
+  ✓ Mean comm acc = 0.8588
+  ✓ Weighted comm acc = 0.8782
+  ✓ Mean comm link AUC = 0.5000
+  ✓ Weighted comm link AUC = 0.5000
+  ✓ Wall time: 58.0s
+    - Avg Load time: 0.03s | Max: 0.06s
+    - Avg Node Train: 14.88s | Max: 38.44s
+    - Avg Link Train: 0.00s | Max: 0.00s
+    ✓ Saved S3 checkpoint: s3://us-east-1-s3-gnn/gnn-bench-checkpoint/phase3/coauthor-physics/coauthor-physics_louvain_gatv2.parquet
+
+[PHASE 3b] - Parallel GNN Training with CaaN Global Graph
+  Dataset: coauthor-physics | Algorithm: lpa
+    - Major communities (>= 100): 46
+    - Minor communities (< 100): 1997
+
+============================================================
+  PHASE 3b — GNN Training (CaaN): coauthor-physics / lpa / sage
+  tag=coauthor-physics_coauthor-physics_lpa
+============================================================
+  [Driver Warmstart] Extracting largest community for driver-side pre-training...
+  ✓ Driver-side base model trained successfully on Comm 33955 (874 nodes).
+  ✓ Mean CaaN comm acc = 0.8414
+  ✓ Weighted CaaN comm acc = 0.6857
+  ✓ Wall time: 47.0s
+    ✓ Saved S3 checkpoint: s3://us-east-1-s3-gnn/gnn-bench-checkpoint/phase3b/coauthor-physics/coauthor-physics_lpa_sage.parquet
+
+============================================================
+  PHASE 3b — GNN Training (CaaN): coauthor-physics / lpa / gatv2
+  tag=coauthor-physics_coauthor-physics_lpa
+============================================================
+  [Driver Warmstart] Extracting largest community for driver-side pre-training...
+  ✓ Driver-side base model trained successfully on Comm 33955 (874 nodes).
+  ✓ Mean CaaN comm acc = 0.8351
+  ✓ Weighted CaaN comm acc = 0.6761
+  ✓ Wall time: 38.1s
+    ✓ Saved S3 checkpoint: s3://us-east-1-s3-gnn/gnn-bench-checkpoint/phase3b/coauthor-physics/coauthor-physics_lpa_gatv2.parquet
+  Dataset: coauthor-physics | Algorithm: louvain
+    - Major communities (>= 100): 17
+    - Minor communities (< 100): 4
+
+============================================================
+  PHASE 3b — GNN Training (CaaN): coauthor-physics / louvain / sage
+  tag=coauthor-physics_coauthor-physics_louvain
+============================================================
+  [Driver Warmstart] Extracting largest community for driver-side pre-training...
+  ✓ Driver-side base model trained successfully on Comm 19 (4,306 nodes).
+  ✓ Mean CaaN comm acc = 0.8720
+  ✓ Weighted CaaN comm acc = 0.8943
+  ✓ Wall time: 42.4s
+    ✓ Saved S3 checkpoint: s3://us-east-1-s3-gnn/gnn-bench-checkpoint/phase3b/coauthor-physics/coauthor-physics_louvain_sage.parquet
+
+============================================================
+  PHASE 3b — GNN Training (CaaN): coauthor-physics / louvain / gatv2
+  tag=coauthor-physics_coauthor-physics_louvain
+============================================================
+  [Driver Warmstart] Extracting largest community for driver-side pre-training...
+  ✓ Driver-side base model trained successfully on Comm 19 (4,306 nodes).
+  ✓ Mean CaaN comm acc = 0.8727
+  ✓ Weighted CaaN comm acc = 0.8930
+  ✓ Wall time: 40.8s
+    ✓ Saved S3 checkpoint: s3://us-east-1-s3-gnn/gnn-bench-checkpoint/phase3b/coauthor-physics/coauthor-physics_louvain_gatv2.parquet
+
+============================================================
+  PHASE 4 — GraphSAGE Baseline: coauthor-physics
+============================================================
+  epochs=10
+  Loaded in 9.9s
+
+  ── GraphSAGE Run 1/1 ──
+    Run 1 — acc=0.9548  auc=0.5000
+  ✓ [coauthor-physics] GraphSAGE Baseline  acc=0.9548±0.0000  auc=0.5000±0.0000  time=41.1s
+    ✓ Saved baseline 4 checkpoint to S3.
+
+============================================================
+  PHASE 4b — DistDGL Baseline: coauthor-physics
+============================================================
+  epochs=10  batch=1024  fanout=[10, 10]
+  Loaded in 9.5s
+  Graph: 34,493 nodes | 530,417 edges
+  Running DistDGL METIS graph partitioning...
+  [Info] METIS partition simulated due to local runner constraints: DistDGL METIS partitioning subprocess exited with code 2. Error: /usr/bin/python3: can't open file '/tmp/pipeline/phases/distdgl_partition_runner.py': [Errno 2] No such file or directory
+
+  Bootstrapping distributed DistGraph environment...
+  ✓ Distributed environment setup in 5.00s
+/mnt1/tmp/.local/lib/python3.9/site-packages/dgl/dataloading/dataloader.py:1149: DGLWarning: Dataloader CPU affinity opt is not enabled, consider switching it on (see enable_cpu_affinity() or CPU best practices for DGL [https://docs.dgl.ai/tutorials/cpu/cpu_best_practises.html])
+  dgl_warning(
+  Node Baseline Epoch  10/10  loss=0.0811
+  ✓ [coauthor-physics] DistDGL Baseline node_acc=0.9678  link_auc=0.5000  time=101.8s (part=2.0s, boot=5.0s, node=94.8s, link=0.0s)  mem=29.73GB
+    ✓ Saved baseline 4b checkpoint to S3.
+
+[PHASE 4c] - ARMA Full-Graph Global Baseline (PyG)
+
+============================================================
+  PHASE 4c — ARMA Baseline: coauthor-physics
+============================================================
+  epochs=10
+  Loaded in 9.4s
+
+  ── ARMA Run 1/1 ──
+    Run 1 — acc=0.9551  auc=0.5000
+  ✓ [coauthor-physics] ARMA Baseline  acc=0.9551±0.0000  auc=0.5000±0.0000  time=88.2s
+    ✓ Saved baseline 4c checkpoint to S3.
+
+[PHASE 4d] - ASAP Full-Graph Global Baseline (PyG)
+
+============================================================
+  PHASE 4d — ASAP Baseline: coauthor-physics
+============================================================
+  epochs=10
+  Loaded in 11.0s
+
+  ── ASAP Run 1/1 ──
+    Run 1 — acc=0.9646  auc=0.5000
+  ✓ [coauthor-physics] ASAP Baseline  acc=0.9646±0.0000  auc=0.5000±0.0000  time=23.4s
+    ✓ Saved baseline 4d checkpoint to S3.
+
+[PHASE 4h] - GATv2 Full-Graph Global Baseline (PyG)
+
+============================================================
+  PHASE 4h — GATv2 Baseline: coauthor-physics
+============================================================
+  epochs=10
+  Loaded in 10.0s
+
+  ── GATv2 Run 1/1 ──
+    Run 1 — acc=0.9330  auc=0.5000
+  ✓ [coauthor-physics] GATv2 Baseline  acc=0.9330±0.0000  auc=0.5000±0.0000  time=9.4s
+    ✓ Saved baseline 4h checkpoint to S3.
+
+[PHASE 5] - Metrics Analysis, Visualizations, and Excel S3 Export
+
+===============================================================================================
+  PHASE 5A — PERFORMANCE COMPARISON (NODE ACCURACY & LINK AUC)
+===============================================================================================
+
+  Dataset: coauthor-physics
+  _Algorithm           Node Acc   Comm Acc    Bnd Acc    Int Acc     Link AUC
+  ---------------------------------------------------------------------------
+  lpa-sage               0.9272     0.8884     0.0000     0.8884       0.5000
+  lpa-sage-caan          0.6857     0.8414     0.0000     0.8414       0.5000
+  lpa-gatv2              0.9142     0.8471     0.0000     0.8471       0.5000
+  lpa-gatv2-caan         0.6761     0.8351     0.0000     0.8351       0.5000
+  louvain-sage           0.8971     0.8733     0.0000     0.8733       0.5000
+  louvain-sage-caan      0.8943     0.8720     0.0000     0.8720       0.5000
+  louvain-gatv2          0.8782     0.8588     0.0000     0.8588       0.5000
+  louvain-gatv2-caan     0.8930     0.8727     0.0000     0.8727       0.5000
+  SAGE-BL                0.9548          —          —          —       0.5000
+  DISTDGL                0.9678          —          —          —       0.5000
+  ARMA-BL                0.9551          —          —          —       0.5000
+  ASAP-BL                0.9646          —          —          —       0.5000
+  GATv2-BL               0.9330          —          —          —       0.5000
+
+  [coauthor-physics] Performance by community size bucket:
+    lpa-sage:
+      large   : n=47  acc=0.8884  auc=0.5000
+    lpa-sage-caan:
+      small   : n=1  acc=0.6003  auc=0.5000
+      medium  : n=32  acc=0.8223  auc=0.5000
+      large   : n=14  acc=0.9025  auc=0.5000
+    lpa-gatv2:
+      large   : n=47  acc=0.8471  auc=0.5000
+    lpa-gatv2-caan:
+      small   : n=1  acc=0.5908  auc=0.5000
+      medium  : n=32  acc=0.8187  auc=0.5000
+      large   : n=14  acc=0.8899  auc=0.5000
+    louvain-sage:
+      medium  : n=1  acc=0.7143  auc=0.5000
+      large   : n=17  acc=0.8827  auc=0.5000
+    louvain-sage-caan:
+      small   : n=1  acc=0.8333  auc=0.5000
+      medium  : n=2  acc=0.8750  auc=0.5000
+      large   : n=15  acc=0.8742  auc=0.5000
+    louvain-gatv2:
+      medium  : n=1  acc=0.7619  auc=0.5000
+      large   : n=17  acc=0.8645  auc=0.5000
+    louvain-gatv2-caan:
+      small   : n=1  acc=0.8333  auc=0.5000
+      medium  : n=2  acc=0.8565  auc=0.5000
+      large   : n=15  acc=0.8774  auc=0.5000
+
+================================================================================
+  PHASE 5B — TIMING COMPARISON
+================================================================================
+
+  Dataset: coauthor-physics
+  Algorithm             Phase1    Phase2    Phase3   Phase3b     Total
+  --------------------------------------------------------------------
+  lpa-sage               30.0s     23.1s    146.7s     47.0s    246.9s
+  lpa-gatv2              30.0s     23.1s    141.5s     38.1s    232.8s
+  louvain-sage            4.7s     20.3s     65.1s     42.4s    132.5s
+  louvain-gatv2           4.7s     20.3s     58.0s     40.8s    123.8s
+  BASELINE (SAGE)            —         —         —     41.1s (Node: 41.1s, Link: 0.0s)
+  DISTDGL                    —         —         —    101.8s (Node: 94.8s, Link: 0.0s)
+  ARMA                       —         —         —     88.2s (Node: 88.2s, Link: 0.0s)
+  ASAP                       —         —         —     23.4s (Node: 23.4s, Link: 0.0s)
+  GATv2-BL                   —         —         —      9.4s (Node: 9.4s, Link: 0.0s)
+  XLSX → s3://us-east-1-s3-gnn/gnn-bench-out/coauthor-physics_results.xlsx
+  Plot → s3://us-east-1-s3-gnn/gnn-bench-out/plots/coauthor-physics/coauthor-physics_acc_dist.png
+  Plot → s3://us-east-1-s3-gnn/gnn-bench-out/plots/coauthor-physics/coauthor-physics_boundary_internal.png
+  Plot → s3://us-east-1-s3-gnn/gnn-bench-out/plots/coauthor-physics/coauthor-physics_timing.png
+
+================================================================================
+  FINAL PIPELINE REPORT SUMMARY
+================================================================================
+╔══════════════════════════════════════════════════════════════╗
+║  EXPERIMENT: coauthor-physics                               ║
+║  Global mapping: True                                        ║
+╠══════════════════════════════════════════════════════════════╣
+║   Dataset                        coauthor-physics              ║
+║   Phase 0 (ingest)               912.9s                        ║
+║   Phase 1 [lpa]                  30.0s                         ║
+║   Phase 2 [lpa]                  23.1s                         ║
+║   Phase 3 [lpa-sage]             146.7s                        ║
+║   Phase 3b [lpa-sage-caan]       47.0s                         ║
+║   Phase 3 [lpa-gatv2]            141.5s                        ║
+║   Phase 3b [lpa-gatv2-caan]      38.1s                         ║
+║   Phase 1 [louvain]              4.7s                          ║
+║   Phase 2 [louvain]              20.3s                         ║
+║   Phase 3 [louvain-sage]         65.1s                         ║
+║   Phase 3b [louvain-sage-caan]   42.4s                         ║
+║   Phase 3 [louvain-gatv2]        58.0s                         ║
+║   Phase 3b [louvain-gatv2-caan]  40.8s                         ║
+║   Phase 4 (baseline)             41.1s                         ║
+║   Phase 4b (DistDGL)             101.8s                        ║
+║   Phase 4c (ARMA)                88.2s                         ║
+║   Phase 4d (ASAP)                23.4s                         ║
+║   Phase 4h (GATv2)               9.4s                          ║
+╠══════════════════════════════════════════════════════════════╣
+║   [lpa-sage] global acc          0.9272                        ║
+║   [lpa-sage] boundary acc        0.0000                        ║
+║   [lpa-sage] internal acc        0.8884                        ║
+║   [lpa-sage] link AUC            0.5000                        ║
+║   [lpa-sage-caan] global acc     0.6857                        ║
+║   [lpa-sage-caan] boundary acc   0.0000                        ║
+║   [lpa-sage-caan] internal acc   0.8414                        ║
+║   [lpa-sage-caan] link AUC       0.5000                        ║
+║   [lpa-gatv2] global acc         0.9142                        ║
+║   [lpa-gatv2] boundary acc       0.0000                        ║
+║   [lpa-gatv2] internal acc       0.8471                        ║
+║   [lpa-gatv2] link AUC           0.5000                        ║
+║   [lpa-gatv2-caan] global acc    0.6761                        ║
+║   [lpa-gatv2-caan] boundary acc  0.0000                        ║
+║   [lpa-gatv2-caan] internal acc  0.8351                        ║
+║   [lpa-gatv2-caan] link AUC      0.5000                        ║
+║   [lpa] communities              2,043 raw → 46 valid          ║
+║   [louvain-sage] global acc      0.8971                        ║
+║   [louvain-sage] boundary acc    0.0000                        ║
+║   [louvain-sage] internal acc    0.8733                        ║
+║   [louvain-sage] link AUC        0.5000                        ║
+║   [louvain-sage-caan] global acc 0.8943                        ║
+║   [louvain-sage-caan] boundary acc 0.0000                      ║
+║   [louvain-sage-caan] internal acc 0.8720                      ║
+║   [louvain-sage-caan] link AUC   0.5000                        ║
+║   [louvain-gatv2] global acc     0.8782                        ║
+║   [louvain-gatv2] boundary acc   0.0000                        ║
+║   [louvain-gatv2] internal acc   0.8588                        ║
+║   [louvain-gatv2] link AUC       0.5000                        ║
+║   [louvain-gatv2-caan] global acc 0.8930                       ║
+║   [louvain-gatv2-caan] boundary acc 0.0000                     ║
+║   [louvain-gatv2-caan] internal acc 0.8727                     ║
+║   [louvain-gatv2-caan] link AUC  0.5000                        ║
+║   [louvain] communities          21 raw → 17 valid             ║
+║   Baseline acc                   0.9548                        ║
+║   Baseline link AUC              0.5000  (41.1s)               ║
+║   DistDGL acc                    0.9678                        ║
+║   DistDGL link AUC               0.5000  (101.8s)              ║
+║   ARMA acc                       0.9551                        ║
+║   ARMA link AUC                  0.5000  (88.2s)               ║
+║   ASAP acc                       0.9646                        ║
+║   ASAP link AUC                  0.5000  (23.4s)               ║
+║   GATv2 acc                      0.9330                        ║
+║   GATv2 link AUC                 0.5000  (9.4s)                ║
+╚══════════════════════════════════════════════════════════════╝
+
+[SUCCESS] EMR Driver execution completed in 1997.6 seconds.
+================================================================================
+

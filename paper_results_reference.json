@@ -1,0 +1,231 @@
+{
+  "node_classification": [
+    {
+      "paper": "CaaN",
+      "dataset": "flickr",
+      "model": "GraphSAGE",
+      "baseline_acc": 0.6412,
+      "baseline_time_s": 3027.0,
+      "emo_acc": 0.6465,
+      "emo_time_s": 730.3
+    },
+    {
+      "paper": "CaaN",
+      "dataset": "flickr",
+      "model": "GAT",
+      "baseline_acc": 0.7828,
+      "baseline_time_s": 904.1,
+      "emo_acc": 0.7957,
+      "emo_time_s": 747.1
+    },
+    {
+      "paper": "CaaN",
+      "dataset": "pubmed",
+      "model": "GraphSAGE",
+      "baseline_acc": 0.7786,
+      "baseline_time_s": 871.3,
+      "emo_acc": 0.7796,
+      "emo_time_s": 402.2
+    },
+    {
+      "paper": "CaaN",
+      "dataset": "pubmed",
+      "model": "GAT",
+      "baseline_acc": 0.7790,
+      "baseline_time_s": 880.5,
+      "emo_acc": 0.7854,
+      "emo_time_s": 400.8
+    },
+    {
+      "paper": "ML-GRL",
+      "dataset": "wikics",
+      "model": "GAT",
+      "baseline_acc": 0.6351,
+      "baseline_time_s": 56.0,
+      "emo_acc": 0.8129,
+      "emo_time_s": 10.0
+    },
+    {
+      "paper": "ML-GRL",
+      "dataset": "wikics",
+      "model": "GraphTransformer",
+      "baseline_acc": 0.5354,
+      "baseline_time_s": 45.0,
+      "emo_acc": 0.7544,
+      "emo_time_s": 16.0
+    },
+    {
+      "paper": "ML-GRL",
+      "dataset": "wikics",
+      "model": "ClusterSCL",
+      "baseline_acc": 0.8103,
+      "baseline_time_s": 51.0,
+      "emo_acc": 0.8374,
+      "emo_time_s": 21.0
+    },
+    {
+      "paper": "ML-GRL",
+      "dataset": "coauthor-physics",
+      "model": "GAT",
+      "baseline_acc": 0.7954,
+      "baseline_time_s": 118.0,
+      "emo_acc": 0.9411,
+      "emo_time_s": 98.0
+    },
+    {
+      "paper": "ML-GRL",
+      "dataset": "coauthor-physics",
+      "model": "GraphTransformer",
+      "baseline_acc": 0.9083,
+      "baseline_time_s": 508.0,
+      "emo_acc": 0.9457,
+      "emo_time_s": 383.0
+    },
+    {
+      "paper": "ML-GRL",
+      "dataset": "coauthor-physics",
+      "model": "ClusterSCL",
+      "baseline_acc": 0.9436,
+      "baseline_time_s": 922.0,
+      "emo_acc": 0.9644,
+      "emo_time_s": 391.0
+    },
+    {
+      "paper": "ML-GRL",
+      "dataset": "coauthor-cs",
+      "model": "GAT",
+      "baseline_acc": 0.6161,
+      "baseline_time_s": 84.0,
+      "emo_acc": 0.8609,
+      "emo_time_s": 78.0
+    },
+    {
+      "paper": "ML-GRL",
+      "dataset": "coauthor-cs",
+      "model": "GraphTransformer",
+      "baseline_acc": 0.7338,
+      "baseline_time_s": 225.0,
+      "emo_acc": 0.9040,
+      "emo_time_s": 186.0
+    },
+    {
+      "paper": "ML-GRL",
+      "dataset": "coauthor-cs",
+      "model": "ClusterSCL",
+      "baseline_acc": 0.9438,
+      "baseline_time_s": 336.0,
+      "emo_acc": 0.9603,
+      "emo_time_s": 111.0
+    },
+    {
+      "paper": "ML-GRL",
+      "dataset": "deezereurope",
+      "model": "GAT",
+      "baseline_acc": 0.5498,
+      "baseline_time_s": 40.0,
+      "emo_acc": 0.6152,
+      "emo_time_s": 35.0
+    },
+    {
+      "paper": "ML-GRL",
+      "dataset": "deezereurope",
+      "model": "GraphTransformer",
+      "baseline_acc": 0.6022,
+      "baseline_time_s": 66.0,
+      "emo_acc": 0.6861,
+      "emo_time_s": 58.0
+    },
+    {
+      "paper": "ML-GRL",
+      "dataset": "deezereurope",
+      "model": "ClusterSCL",
+      "baseline_acc": 0.5725,
+      "baseline_time_s": 181.0,
+      "emo_acc": 0.5933,
+      "emo_time_s": 49.0
+    }
+  ],
+  "link_prediction": [
+    {
+      "paper": "CaaN",
+      "dataset": "foursquare",
+      "model": "GraphSAGE",
+      "baseline_auc": 0.8478,
+      "baseline_time_s": 6270.0,
+      "emo_auc": 0.8611,
+      "emo_time_s": 3270.0
+    },
+    {
+      "paper": "CaaN",
+      "dataset": "foursquare",
+      "model": "GCN",
+      "baseline_auc": 0.8353,
+      "baseline_time_s": 7041.0,
+      "emo_auc": 0.8491,
+      "emo_time_s": 3569.0
+    },
+    {
+      "paper": "CaaN",
+      "dataset": "foursquare",
+      "model": "GAT",
+      "baseline_auc": 0.9080,
+      "baseline_time_s": 667.0,
+      "emo_auc": 0.9250,
+      "emo_time_s": 508.0
+    },
+    {
+      "paper": "ML-GRL",
+      "dataset": "wikics",
+      "model": "GraphSAGE",
+      "baseline_auc": 0.6517,
+      "baseline_time_s": 42.0,
+      "emo_auc": 0.7768,
+      "emo_time_s": 29.0
+    },
+    {
+      "paper": "ML-GRL",
+      "dataset": "wikics",
+      "model": "ARMA",
+      "baseline_auc": 0.8634,
+      "baseline_time_s": 265.0,
+      "emo_auc": 0.9102,
+      "emo_time_s": 34.0
+    },
+    {
+      "paper": "ML-GRL",
+      "dataset": "wikics",
+      "model": "ASAP",
+      "baseline_auc": 0.8773,
+      "baseline_time_s": 64.0,
+      "emo_auc": 0.9096,
+      "emo_time_s": 33.0
+    },
+    {
+      "paper": "ML-GRL",
+      "dataset": "coauthor-physics",
+      "model": "GraphSAGE",
+      "baseline_auc": 0.6134,
+      "baseline_time_s": 306.0,
+      "emo_auc": 0.6549,
+      "emo_time_s": 256.0
+    },
+    {
+      "paper": "ML-GRL",
+      "dataset": "coauthor-physics",
+      "model": "ARMA",
+      "baseline_auc": 0.7574,
+      "baseline_time_s": 581.0,
+      "emo_auc": 0.8589,
+      "emo_time_s": 376.0
+    },
+    {
+      "paper": "ML-GRL",
+      "dataset": "coauthor-physics",
+      "model": "ASAP",
+      "baseline_auc": 0.7489,
+      "baseline_time_s": 654.0,
+      "emo_auc": 0.7960,
+      "emo_time_s": 512.0
+    }
+  ]
+}

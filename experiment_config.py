@@ -19,9 +19,9 @@ GNN_MODELS = ['sage', 'gatv2']
 # True  = re-download OGB dataset and overwrite Delta tables.
 #         REQUIRED when using a dataset for the first time.
 # False = skip (Delta tables already exist).
-RUN_PHASE0        = True
-FORCE_REINGEST    = True   # Set to True to force overwrite even if tables already exist
-FORCE_RERUN       = True   # Set to True to ignore all S3 checkpoints and rerun the pipeline
+RUN_PHASE0        = False
+FORCE_REINGEST    = False   # Set to True to force overwrite even if tables already exist
+FORCE_RERUN       = False   # Set to True to ignore all S3 checkpoints and rerun the pipeline
 USE_OGB_SPLITS    = True    # True = OGB official splits | False = stratified 60/20/20
 RANDOM_SEED       = 42
 N_BASELINE_RUNS   = 1          # number of runs per baseline for mean ± std
@@ -62,7 +62,7 @@ TINY_COMM_HANDLING  = 'misc'
 EXPAND_BOUNDARY_NODES = True
 
 # Task Type: 'node_classification' or 'link_prediction'
-TASK_TYPE = 'node_classification'
+TASK_TYPE = 'both'
 
 # ── Phase 4: Full-Graph Baseline ──────────────────────────────────────────────
 # Runs ONCE per dataset (not per algorithm). Uses SAME masks as Phase 3.

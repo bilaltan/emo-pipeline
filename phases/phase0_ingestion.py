@@ -230,6 +230,9 @@ def run_phase0(spark, sc, datasets, run_phase0_flag, use_ogb_splits,
         dst_f  = np.concatenate([canon[:, 1], canon[:, 0]])
         print(f"  Nodes: {n_nodes:,} | Edges (both dirs): {len(src_f):,}")
 
+        from pipeline.utils.graph_validator import validate_graph_properties
+        validate_graph_properties(n_nodes, src_f, dst_f)
+
         # Write processed nodes
         es = StructType([StructField('src', LongType(), False),
                          StructField('dst', LongType(), False)])
