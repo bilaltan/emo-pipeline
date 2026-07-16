@@ -398,9 +398,9 @@ def make_caan_udf(super_nodes_dict_bc, minor_node_to_idx_bc, minor_feats_arr_bc,
         task_type = str(pdf['_task_type'].iloc[0]) if '_task_type' in pdf.columns else 'node_classification'
         model_type = str(pdf['_model_type'].iloc[0]) if '_model_type' in pdf.columns else 'sage'
         
-        # Warm-start logic: override epochs
+        # Warm-start logic: override epochs (keep high epoch count for local adaptation)
         if base_weights_bc is not None and model_type == 'sage':
-            num_epochs = max(1, num_epochs // 3)
+            num_epochs = max(5, num_epochs)
         
         super_nodes_dict = super_nodes_dict_bc.value
         minor_node_to_idx = minor_node_to_idx_bc.value
@@ -773,7 +773,7 @@ def make_caan_udf(super_nodes_dict_bc, minor_node_to_idx_bc, minor_feats_arr_bc,
                             local_emb, _, _ = model.get_embeddings_and_logits(feat_t, pyg_edge_index)
                             local_emb_slice = local_emb[:n_local]
                             loss_reg = F.mse_loss(local_emb_slice[valid_emb_mask], global_emb_t[valid_emb_mask])
-                            loss_ce = loss_ce + 0.1 * loss_reg
+                            loss_ce = loss_ce + 0.01 * loss_reg
                         except Exception:
                             pass
 
@@ -806,7 +806,7 @@ def make_caan_udf(super_nodes_dict_bc, minor_node_to_idx_bc, minor_feats_arr_bc,
                             local_emb = model.enc(feat_t, pyg_edge_index)
                             local_emb_slice = local_emb[:n_local]
                             loss_reg = F.mse_loss(local_emb_slice[valid_emb_mask], global_emb_t[valid_emb_mask])
-                            loss = loss + 0.1 * loss_reg
+                            loss = loss + 0.01 * loss_reg
                         except Exception:
                             pass
 
@@ -822,7 +822,7 @@ def make_caan_udf(super_nodes_dict_bc, minor_node_to_idx_bc, minor_feats_arr_bc,
                             local_emb = model.encode(g, feat_t)
                             local_emb_slice = local_emb[:n_local]
                             loss_reg = F.mse_loss(local_emb_slice[valid_emb_mask], global_emb_t[valid_emb_mask])
-                            loss = loss + 0.1 * loss_reg
+                            loss = loss + 0.01 * loss_reg
                         except Exception:
                             pass
 
@@ -1274,8 +1274,9 @@ def run_phase3b(spark, sc, datasets, algorithms, use_global_mapping,
                 comms_node_counts = training_df_base.groupBy('community_id').count().toPandas()
                 comms_node_counts = comms_node_counts.sort_values(by='count', ascending=False).reset_index(drop=True)
                 
-                bin_size = 50
-                num_bins = int(np.ceil(len(comms_node_counts) / float(bin_size)))
+                num_comms = len(comms_node_counts)
+                bin_size = 1 if num_comms <= 200 else 50
+                num_bins = int(np.ceil(num_comms / float(bin_size)))
                 if num_bins < 1:
                     num_bins = 1
                 comms_node_counts['bin_id'] = [i % num_bins for i in range(len(comms_node_counts))]

@@ -19,8 +19,8 @@ GNN_MODELS = ['sage', 'gatv2']
 # True  = re-download OGB dataset and overwrite Delta tables.
 #         REQUIRED when using a dataset for the first time.
 # False = skip (Delta tables already exist).
-RUN_PHASE0        = True
-FORCE_REINGEST    = True   # Set to True to force overwrite even if tables already exist
+RUN_PHASE0        = False
+FORCE_REINGEST    = False   # Set to True to force overwrite even if tables already exist
 FORCE_RERUN       = True   # Set to True to ignore all S3 checkpoints and rerun the pipeline
 USE_OGB_SPLITS    = True    # True = OGB official splits | False = stratified 60/20/20
 RANDOM_SEED       = 42
@@ -62,22 +62,22 @@ TINY_COMM_HANDLING  = 'misc'
 EXPAND_BOUNDARY_NODES = True
 
 # Task Type: 'node_classification' or 'link_prediction'
-TASK_TYPE = 'both'
+TASK_TYPE = 'node_classification'
 
 # ── Phase 4: Full-Graph Baseline ──────────────────────────────────────────────
 # Runs ONCE per dataset (not per algorithm). Uses SAME masks as Phase 3.
-RUN_PHASE4        = True       # Set to False to skip OOM-prone driver-bound baselines
+RUN_PHASE4        = False       # Set to False to skip OOM-prone driver-bound baselines
 BASELINE_EPOCHS   = 10          # reduced from 50 epochs to speed up CPU full-graph training
 BASELINE_BATCH    = 1024
 BASELINE_FANOUT   = [15, 10]
 BASELINE_LR       = GCN_LR
-RUN_PHASE4B       = True       # DistDGL Baseline Simulation
-RUN_PHASE4C       = True       # ARMA Baseline
-RUN_PHASE4D       = True       # ASAP Baseline
-RUN_PHASE4E       = True       # GAT Baseline
-RUN_PHASE4F       = True       # Graph Transformer Baseline
-RUN_PHASE4G       = True       # ClusterSCL Baseline
-RUN_PHASE4H       = True       # GATv2 Baseline
+RUN_PHASE4B       = False       # DistDGL Baseline Simulation
+RUN_PHASE4C       = False       # ARMA Baseline
+RUN_PHASE4D       = False       # ASAP Baseline
+RUN_PHASE4E       = False       # GAT Baseline
+RUN_PHASE4F       = False       # Graph Transformer Baseline
+RUN_PHASE4G       = False       # ClusterSCL Baseline
+RUN_PHASE4H       = False       # GATv2 Baseline
 
 # ── Infrastructure ─────────────────────────────────────────────────────────────
 S3_BUCKET         = 'us-east-1-s3-gnn'
