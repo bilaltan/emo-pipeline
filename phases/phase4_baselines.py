@@ -69,12 +69,22 @@ def run_phase4(spark, sc, datasets, dataset_cfg, baseline_cfg, get_paths_fn,
                 super().__init__()
                 self.conv1 = SAGEConv(input_dim, hidden_channels)
                 self.conv2 = SAGEConv(hidden_channels, hidden_channels)
+                self.dropout = nn.Dropout(dropout_val)
             def encode(self, x, edge_index):
                 x = self.conv1(x, edge_index).relu()
+                x = self.dropout(x)
                 x = self.conv2(x, edge_index)
                 return x
-            def decode(self, z, edge_label_index):
-                return (z[edge_label_index[0]] * z[edge_label_index[1]]).sum(dim=-1)
+
+        class LinkPredictor(nn.Module):
+            def __init__(self, h):
+                super().__init__()
+                self.fc1 = nn.Linear(h, h)
+                self.fc2 = nn.Linear(h, 1)
+            def forward(self, h_src, h_dst):
+                x = h_src * h_dst
+                x = torch.relu(self.fc1(x))
+                return self.fc2(x).squeeze(-1)
 
         class GraphSAGENodeClassifier(nn.Module):
             def __init__(self, in_f, h, nc):
@@ -158,37 +168,52 @@ def run_phase4(spark, sc, datasets, dataset_cfg, baseline_cfg, get_paths_fn,
                     train_data, val_data, test_data = None, None, None
 
                 if train_data is not None:
-                    model = GraphSAGE(IN_FEATS, HIDDEN)
-                    optimizer = torch.optim.Adam(model.parameters(), lr=0.005)
+                    encoder = GraphSAGE(IN_FEATS, HIDDEN)
+                    predictor = LinkPredictor(HIDDEN)
+                    optimizer = torch.optim.Adam(
+                        list(encoder.parameters()) + list(predictor.parameters()),
+                        lr=baseline_cfg.get('lr', 1e-3), weight_decay=5e-4
+                    )
                     criterion = torch.nn.BCEWithLogitsLoss()
 
                     for epoch in range(1, EPOCHS + 1):
-                        model.train()
+                        encoder.train()
+                        predictor.train()
                         optimizer.zero_grad()
-                        z = model.encode(train_data.x, train_data.edge_index)
-
+                        
+                        z = encoder.encode(train_data.x, train_data.edge_index)
+                        
                         neg_edge_index = negative_sampling(
                             edge_index=train_data.edge_index, num_nodes=train_data.num_nodes,
                             num_neg_samples=train_data.edge_label_index.size(1), method='sparse')
 
-                        edge_label_index = torch.cat(
-                            [train_data.edge_label_index, neg_edge_index],
-                            dim=-1,
-                        )
-                        edge_label = torch.cat([
-                            train_data.edge_label,
-                            train_data.edge_label.new_zeros(neg_edge_index.size(1))
-                        ], dim=0)
-
-                        out = model.decode(z, edge_label_index).view(-1)
-                        loss = criterion(out, edge_label)
+                        pos_src = train_data.edge_label_index[0]
+                        pos_dst = train_data.edge_label_index[1]
+                        neg_src = neg_edge_index[0]
+                        neg_dst = neg_edge_index[1]
+                        
+                        pos_scores = predictor(z[pos_src], z[pos_dst])
+                        neg_scores = predictor(z[neg_src], z[neg_dst])
+                        
+                        scores = torch.cat([pos_scores, neg_scores])
+                        labels = torch.cat([
+                            torch.ones_like(pos_scores),
+                            torch.zeros_like(neg_scores)
+                        ])
+                        
+                        loss = criterion(scores, labels)
                         loss.backward()
                         optimizer.step()
 
                     with torch.no_grad():
-                        model.eval()
-                        z = model.encode(feat_t, train_data.edge_index)
-                        pos_scores = model.decode(z, test_data.edge_label_index).view(-1)
+                        encoder.eval()
+                        predictor.eval()
+                        z = encoder.encode(feat_t, train_data.edge_index)
+                        
+                        test_src = test_data.edge_label_index[0]
+                        test_dst = test_data.edge_label_index[1]
+                        pos_scores = predictor(z[test_src], z[test_dst]).view(-1)
+                        
                         y_true = test_data.edge_label.cpu().numpy()
                         y_scores = pos_scores.cpu().numpy()
 
@@ -354,18 +379,16 @@ def run_phase4b(spark, sc, datasets, dataset_cfg, baseline_cfg, get_paths_fn,
         class DistSAGE(nn.Module):
             def __init__(self, in_f, h, nc):
                 super().__init__()
-                self.layers = nn.ModuleList()
-                self.layers.append(dglnn.SAGEConv(in_f, h, 'mean'))
-                self.layers.append(dglnn.SAGEConv(h,    nc, 'mean'))
+                self.conv1 = dglnn.SAGEConv(in_f, h, 'mean')
+                self.conv2 = dglnn.SAGEConv(h,    h, 'mean')
+                self.fc = nn.Linear(h, nc)
                 self.dropout = nn.Dropout(dropout_val)
             def forward(self, blocks, x):
                 h = x
-                for i, (layer, block) in enumerate(zip(self.layers, blocks)):
-                    h = layer(block, h)
-                    if i < len(self.layers) - 1:
-                        h = torch.relu(h)
-                        h = self.dropout(h)
-                return h
+                h = self.conv1(blocks[0], h).relu()
+                h = self.dropout(h)
+                h = self.conv2(blocks[1], h)
+                return self.fc(h)
 
         task_type = kwargs.get('task_type', 'node_classification')
         run_node = (task_type in ('node_classification', 'both'))

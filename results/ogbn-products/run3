@@ -1,0 +1,1876 @@
+Last login: Thu Jul 16 14:10:07 on ttys009
+bilaltan@Bilals-MacBook-Air ~ % cd Downloads 
+bilaltan@Bilals-MacBook-Air Downloads % ssh -i asd2.pem hadoop@ec2-3-238-252-44.compute-1.amazonaws.com 
+The authenticity of host 'ec2-3-238-252-44.compute-1.amazonaws.com (3.238.252.44)' can't be established.
+ED25519 key fingerprint is: SHA256:9DuDWvjexRtxXFsasIzT8IFzcercRvXhDDHtEVyap6M
+This key is not known by any other names.
+Are you sure you want to continue connecting (yes/no/[fingerprint])? yes
+Warning: Permanently added 'ec2-3-238-252-44.compute-1.amazonaws.com' (ED25519) to the list of known hosts.
+   ,     #_
+   ~\_  ####_        Amazon Linux 2023
+  ~~  \_#####\
+  ~~     \###|
+  ~~       \#/ ___   https://aws.amazon.com/linux/amazon-linux-2023
+   ~~       V~' '->
+    ~~~         /
+      ~~._.   _/
+         _/ _/
+       _/m/'
+                                                                    
+EEEEEEEEEEEEEEEEEEEE MMMMMMMM           MMMMMMMM RRRRRRRRRRRRRRR    
+E::::::::::::::::::E M:::::::M         M:::::::M R::::::::::::::R   
+EE:::::EEEEEEEEE:::E M::::::::M       M::::::::M R:::::RRRRRR:::::R 
+  E::::E       EEEEE M:::::::::M     M:::::::::M RR::::R      R::::R
+  E::::E             M::::::M:::M   M:::M::::::M   R:::R      R::::R
+  E:::::EEEEEEEEEE   M:::::M M:::M M:::M M:::::M   R:::RRRRRR:::::R 
+  E::::::::::::::E   M:::::M  M:::M:::M  M:::::M   R:::::::::::RR   
+  E:::::EEEEEEEEEE   M:::::M   M:::::M   M:::::M   R:::RRRRRR::::R  
+  E::::E             M:::::M    M:::M    M:::::M   R:::R      R::::R
+  E::::E       EEEEE M:::::M     MMM     M:::::M   R:::R      R::::R
+EE:::::EEEEEEEE::::E M:::::M             M:::::M   R:::R      R::::R
+E::::::::::::::::::E M:::::M             M:::::M RR::::R      R::::R
+EEEEEEEEEEEEEEEEEEEE MMMMMMM             MMMMMMM RRRRRRR      RRRRRR
+                                                                    
+[hadoop@ip-172-31-71-49 ~]$ sudo yum install git
+Last metadata expiration check: 0:04:28 ago on Thu Jul 16 19:26:55 2026.
+Dependencies resolved.
+=============================================================================================
+ Package                Architecture Version                         Repository         Size
+=============================================================================================
+Installing:
+ git                    x86_64       2.50.1-1.amzn2023.0.1           amazonlinux        53 k
+Installing dependencies:
+ git-core               x86_64       2.50.1-1.amzn2023.0.1           amazonlinux       4.9 M
+ git-core-doc           noarch       2.50.1-1.amzn2023.0.1           amazonlinux       2.8 M
+ perl-Error             noarch       1:0.17030-2.amzn2023.0.1        amazonlinux        42 k
+ perl-Git               noarch       2.50.1-1.amzn2023.0.1           amazonlinux        41 k
+ perl-TermReadKey       x86_64       2.38-9.amzn2023.0.3             amazonlinux        36 k
+ perl-lib               x86_64       0.65-477.amzn2023.0.9           amazonlinux        15 k
+
+Transaction Summary
+=============================================================================================
+Install  7 Packages
+
+Total download size: 7.9 M
+Installed size: 41 M
+Is this ok [y/N]: y
+Downloading Packages:
+(1/7): git-2.50.1-1.amzn2023.0.1.x86_64.rpm                  1.3 MB/s |  53 kB     00:00    
+(2/7): git-core-doc-2.50.1-1.amzn2023.0.1.noarch.rpm          39 MB/s | 2.8 MB     00:00    
+(3/7): perl-Error-0.17030-2.amzn2023.0.1.noarch.rpm          1.1 MB/s |  42 kB     00:00    
+(4/7): git-core-2.50.1-1.amzn2023.0.1.x86_64.rpm              49 MB/s | 4.9 MB     00:00    
+(5/7): perl-Git-2.50.1-1.amzn2023.0.1.noarch.rpm             1.3 MB/s |  41 kB     00:00    
+(6/7): perl-TermReadKey-2.38-9.amzn2023.0.3.x86_64.rpm       1.2 MB/s |  36 kB     00:00    
+(7/7): perl-lib-0.65-477.amzn2023.0.9.x86_64.rpm             556 kB/s |  15 kB     00:00    
+---------------------------------------------------------------------------------------------
+Total                                                         47 MB/s | 7.9 MB     00:00     
+Running transaction check
+Transaction check succeeded.
+Running transaction test
+Transaction test succeeded.
+Running transaction
+  Preparing        :                                                                     1/1 
+  Installing       : git-core-2.50.1-1.amzn2023.0.1.x86_64                               1/7 
+  Installing       : git-core-doc-2.50.1-1.amzn2023.0.1.noarch                           2/7 
+  Installing       : perl-lib-0.65-477.amzn2023.0.9.x86_64                               3/7 
+  Installing       : perl-TermReadKey-2.38-9.amzn2023.0.3.x86_64                         4/7 
+  Installing       : perl-Error-1:0.17030-2.amzn2023.0.1.noarch                          5/7 
+  Installing       : perl-Git-2.50.1-1.amzn2023.0.1.noarch                               6/7 
+  Installing       : git-2.50.1-1.amzn2023.0.1.x86_64                                    7/7 
+  Running scriptlet: git-2.50.1-1.amzn2023.0.1.x86_64                                    7/7 
+  Verifying        : git-2.50.1-1.amzn2023.0.1.x86_64                                    1/7 
+  Verifying        : git-core-2.50.1-1.amzn2023.0.1.x86_64                               2/7 
+  Verifying        : git-core-doc-2.50.1-1.amzn2023.0.1.noarch                           3/7 
+  Verifying        : perl-Error-1:0.17030-2.amzn2023.0.1.noarch                          4/7 
+  Verifying        : perl-Git-2.50.1-1.amzn2023.0.1.noarch                               5/7 
+  Verifying        : perl-TermReadKey-2.38-9.amzn2023.0.3.x86_64                         6/7 
+  Verifying        : perl-lib-0.65-477.amzn2023.0.9.x86_64                               7/7 
+=============================================================================================
+WARNING:
+  A newer release of "Amazon Linux" is available.
+
+  Available Versions:
+
+  Version 2023.12.20260629:
+    Run the following command to upgrade to 2023.12.20260629:
+
+      dnf upgrade --releasever=2023.12.20260629
+
+    Release notes:
+     https://docs.aws.amazon.com/linux/al2023/release-notes/relnotes-2023.12.20260629.html
+
+  Version 2023.12.20260706:
+    Run the following command to upgrade to 2023.12.20260706:
+
+      dnf upgrade --releasever=2023.12.20260706
+
+    Release notes:
+     https://docs.aws.amazon.com/linux/al2023/release-notes/relnotes-2023.12.20260706.html
+
+  Version 2023.12.20260710:
+    Run the following command to upgrade to 2023.12.20260710:
+
+      dnf upgrade --releasever=2023.12.20260710
+
+    Release notes:
+     https://docs.aws.amazon.com/linux/al2023/release-notes/relnotes-2023.12.20260710.html
+
+=============================================================================================
+
+Installed:
+  git-2.50.1-1.amzn2023.0.1.x86_64             git-core-2.50.1-1.amzn2023.0.1.x86_64         
+  git-core-doc-2.50.1-1.amzn2023.0.1.noarch    perl-Error-1:0.17030-2.amzn2023.0.1.noarch    
+  perl-Git-2.50.1-1.amzn2023.0.1.noarch        perl-TermReadKey-2.38-9.amzn2023.0.3.x86_64   
+  perl-lib-0.65-477.amzn2023.0.9.x86_64       
+
+Complete!
+[hadoop@ip-172-31-71-49 ~]$ 
+[hadoop@ip-172-31-71-49 ~]$ 
+[hadoop@ip-172-31-71-49 ~]$ git clone https://github.com/bilaltan/emo-pipeline.git
+Cloning into 'emo-pipeline'...
+remote: Enumerating objects: 434, done.
+remote: Counting objects: 100% (434/434), done.
+remote: Compressing objects: 100% (308/308), done.
+remote: Total 434 (delta 265), reused 289 (delta 120), pack-reused 0 (from 0)
+Receiving objects: 100% (434/434), 14.12 MiB | 58.05 MiB/s, done.
+Resolving deltas: 100% (265/265), done.
+[hadoop@ip-172-31-71-49 ~]$ ls
+emo-pipeline
+[hadoop@ip-172-31-71-49 ~]$ cd emo-pipeline/
+[hadoop@ip-172-31-71-49 emo-pipeline]$ ls
+__init__.py                      extracted_tables_raw.txt      results
+__pycache__                      implementation_plan.md        results_summary.txt
+bare_conf_compsoc.tex            paper_results_reference.json  runners
+bare_conf_compsoc_save_this.tex  paper_results_reference.md    scratch_extracted_pages.txt
+conference_fit_analysis.md       papers                        utils
+emr_setup.sh                     phases
+experiment_config.py             pipeline
+[hadoop@ip-172-31-71-49 emo-pipeline]$ bash emr_setup.sh 
+=== 1. Discovering Large Storage Volume ===
+Using large storage path: /mnt/tmp
+=== 2. Installing System Packages & Development Tools ===
+Last metadata expiration check: 0:05:04 ago on Thu Jul 16 19:26:55 2026.
+No match for group package "system-rpm-config"
+No match for group package "rcs"
+No match for group package "pkgconfig"
+Dependencies resolved.
+=============================================================================================
+ Package                              Arch   Version                       Repository   Size
+=============================================================================================
+Installing group/module packages:
+ autoconf                             noarch 2.69-36.amzn2023.0.3          amazonlinux 666 k
+ automake                             noarch 1.16.5-9.amzn2023.0.3         amazonlinux 677 k
+ bison                                x86_64 3.7.4-2.amzn2023.0.2          amazonlinux 925 k
+ byacc                                x86_64 2.0.20210109-2.amzn2023.0.3   amazonlinux  90 k
+ cscope                               x86_64 15.9-15.amzn2023.0.3          amazonlinux 288 k
+ ctags                                x86_64 5.9-1.20210725.0.amzn2023.0.2 amazonlinux 719 k
+ diffstat                             x86_64 1.64-4.amzn2023.0.2           amazonlinux  43 k
+ doxygen                              x86_64 2:1.12.0-2.amzn2023.0.1       amazonlinux 5.6 M
+ elfutils                             x86_64 0.188-3.amzn2023.0.3          amazonlinux 517 k
+ flex                                 x86_64 2.6.4-7.amzn2023.0.2          amazonlinux 310 k
+ gcc-gfortran                         x86_64 11.5.0-5.amzn2023.0.5         amazonlinux  15 M
+ indent                               x86_64 2.2.12-7.amzn2023.0.6         amazonlinux 179 k
+ intltool                             noarch 0.51.0-18.amzn2023.0.3        amazonlinux  56 k
+ libtool                              x86_64 2.4.7-1.amzn2023.0.3          amazonlinux 596 k
+ patch                                x86_64 2.7.6-14.amzn2023.0.2         amazonlinux 129 k
+ patchutils                           x86_64 0.4.2-5.amzn2023.0.2          amazonlinux 100 k
+ rpm-build                            x86_64 4.16.1.3-29.amzn2023.0.6      amazonlinux  61 k
+ rpm-sign                             x86_64 4.16.1.3-29.amzn2023.0.6      amazonlinux  19 k
+ subversion                           x86_64 1.14.5-3.amzn2023.0.1         amazonlinux 1.0 M
+ swig                                 x86_64 4.1.1-4.amzn2023.0.5          amazonlinux 1.5 M
+ systemtap                            x86_64 5.4-1.amzn2023.0.2            amazonlinux  12 k
+Installing dependencies:
+ adobe-mappings-cmap                  noarch 20190730-1.amzn2023.0.2       amazonlinux 2.1 M
+ adobe-mappings-cmap-deprecated       noarch 20190730-1.amzn2023.0.2       amazonlinux 114 k
+ adobe-mappings-pdf                   noarch 20180407-8.amzn2023.0.2       amazonlinux 627 k
+ debugedit                            x86_64 5.0-10.amzn2023.0.1           amazonlinux  76 k
+ elfutils-devel                       x86_64 0.188-3.amzn2023.0.3          amazonlinux  46 k
+ elfutils-libelf-devel                x86_64 0.188-3.amzn2023.0.3          amazonlinux  19 k
+ gdb-minimal                          x86_64 16.3-1.amzn2023.0.1           amazonlinux 4.2 M
+ gettext-common-devel                 noarch 0.21-4.amzn2023.0.2           amazonlinux 406 k
+ gettext-devel                        x86_64 0.21-4.amzn2023.0.2           amazonlinux 200 k
+ google-droid-sans-fonts              noarch 20200215-9.amzn2023.0.2       amazonlinux 2.7 M
+ graphviz                             x86_64 2.44.0-25.amzn2023.0.7        amazonlinux 3.3 M
+ jbig2dec-libs                        x86_64 0.19-4.amzn2023.0.2           amazonlinux  74 k
+ libXaw                               x86_64 1.0.15-3.amzn2023.0.1         amazonlinux 206 k
+ libfontenc                           x86_64 1.1.7-3.amzn2023.0.1          amazonlinux  34 k
+ libgs                                x86_64 9.56.1-7.amzn2023.0.19        amazonlinux 3.6 M
+ libijs                               x86_64 0.35-13.amzn2023.0.2          amazonlinux  30 k
+ libpaper                             x86_64 1.1.28-2.amzn2023.0.2         amazonlinux  41 k
+ libquadmath-devel                    x86_64 11.5.0-5.amzn2023.0.5         amazonlinux 176 k
+ libserf                              x86_64 1.3.9-23.amzn2023.0.3         amazonlinux  58 k
+ libzstd-devel                        x86_64 1.5.5-1.amzn2023.0.1          amazonlinux  53 k
+ m4                                   x86_64 1.4.19-2.amzn2023.0.2         amazonlinux 296 k
+ mkfontscale                          x86_64 1.2.2-6.amzn2023.0.1          amazonlinux  33 k
+ mokutil                              x86_64 2:0.6.0-6.amzn2023            amazonlinux  49 k
+ perl                                 x86_64 4:5.32.1-477.amzn2023.0.9     amazonlinux  13 k
+ perl-Algorithm-Diff                  noarch 1.2010-2.amzn2023.0.2         amazonlinux  47 k
+ perl-Archive-Tar                     noarch 3.04-522.amzn2023.0.3         amazonlinux  74 k
+ perl-Archive-Zip                     noarch 1.68-4.amzn2023.0.2           amazonlinux 106 k
+ perl-Attribute-Handlers              noarch 1.01-477.amzn2023.0.9         amazonlinux  28 k
+ perl-AutoSplit                       noarch 5.74-477.amzn2023.0.9         amazonlinux  22 k
+ perl-Benchmark                       noarch 1.23-477.amzn2023.0.9         amazonlinux  27 k
+ perl-CPAN                            noarch 2.38-521.amzn2023.0.1         amazonlinux 561 k
+ perl-CPAN-Meta                       noarch 2.150013-1.amzn2023.0.1       amazonlinux 179 k
+ perl-CPAN-Meta-Requirements          noarch 2.145-1.amzn2023.0.1          amazonlinux  37 k
+ perl-CPAN-Meta-YAML                  noarch 0.020-522.amzn2023.0.1        amazonlinux  28 k
+ perl-Compress-Bzip2                  x86_64 2.28-3.amzn2023.0.3           amazonlinux  69 k
+ perl-Compress-Raw-Lzma               x86_64 2.221-1.amzn2023.0.2          amazonlinux  61 k
+ perl-Config-Extensions               noarch 0.03-477.amzn2023.0.9         amazonlinux  13 k
+ perl-Config-Perl-V                   noarch 0.39-1.amzn2023.0.1           amazonlinux  23 k
+ perl-DBM_Filter                      noarch 0.06-477.amzn2023.0.9         amazonlinux  32 k
+ perl-DB_File                         x86_64 1.860-1.amzn2023.0.2          amazonlinux  82 k
+ perl-Data-OptList                    noarch 0.110-15.amzn2023.0.2         amazonlinux  27 k
+ perl-Data-Section                    noarch 0.200007-12.amzn2023.0.2      amazonlinux  25 k
+ perl-Devel-PPPort                    x86_64 3.73-522.amzn2023.0.2         amazonlinux 220 k
+ perl-Devel-Peek                      x86_64 1.28-477.amzn2023.0.9         amazonlinux  32 k
+ perl-Devel-SelfStubber               noarch 1.06-477.amzn2023.0.9         amazonlinux  15 k
+ perl-Devel-Size                      x86_64 0.86-1.amzn2023.0.2           amazonlinux  32 k
+ perl-Digest-SHA1                     x86_64 2.13-32.amzn2023.0.3          amazonlinux  53 k
+ perl-DirHandle                       noarch 1.05-477.amzn2023.0.9         amazonlinux  13 k
+ perl-Dumpvalue                       noarch 2.27-477.amzn2023.0.9         amazonlinux  19 k
+ perl-Encode-devel                    x86_64 4:3.21-520.amzn2023.0.2       amazonlinux  42 k
+ perl-English                         noarch 1.11-477.amzn2023.0.9         amazonlinux  14 k
+ perl-Env                             noarch 1.04-458.amzn2023.0.2         amazonlinux  20 k
+ perl-ExtUtils-CBuilder               noarch 1:0.280236-2.amzn2023.0.3     amazonlinux  46 k
+ perl-ExtUtils-Command                noarch 2:7.62-1.amzn2023.0.2         amazonlinux  14 k
+ perl-ExtUtils-Constant               noarch 0.25-477.amzn2023.0.9         amazonlinux  47 k
+ perl-ExtUtils-Embed                  noarch 1.35-477.amzn2023.0.9         amazonlinux  18 k
+ perl-ExtUtils-Install                noarch 2.22-521.amzn2023.0.1         amazonlinux  45 k
+ perl-ExtUtils-MM-Utils               noarch 2:7.62-1.amzn2023.0.2         amazonlinux  12 k
+ perl-ExtUtils-MakeMaker              noarch 2:7.62-1.amzn2023.0.2         amazonlinux 288 k
+ perl-ExtUtils-Manifest               noarch 1:1.75-521.amzn2023.0.1       amazonlinux  35 k
+ perl-ExtUtils-Miniperl               noarch 1.09-477.amzn2023.0.9         amazonlinux  16 k
+ perl-ExtUtils-ParseXS                noarch 1:3.61-2.amzn2023.0.1         amazonlinux 293 k
+ perl-File-Compare                    noarch 1.100.600-477.amzn2023.0.9    amazonlinux  14 k
+ perl-File-DosGlob                    x86_64 1.12-477.amzn2023.0.9         amazonlinux  20 k
+ perl-File-Fetch                      noarch 1.08-4.amzn2023.0.1           amazonlinux  32 k
+ perl-File-HomeDir                    noarch 1.006-2.amzn2023.0.2          amazonlinux  58 k
+ perl-File-Which                      noarch 1.27-15.amzn2023.0.1          amazonlinux  23 k
+ perl-FileCache                       noarch 1.10-477.amzn2023.0.9         amazonlinux  15 k
+ perl-Filter-Simple                   noarch 0.96-458.amzn2023.0.2         amazonlinux  28 k
+ perl-FindBin                         noarch 1.51-477.amzn2023.0.9         amazonlinux  14 k
+ perl-GDBM_File                       x86_64 1.18-477.amzn2023.0.9         amazonlinux  23 k
+ perl-Hash-Util                       x86_64 0.23-477.amzn2023.0.9         amazonlinux  34 k
+ perl-Hash-Util-FieldHash             x86_64 1.20-477.amzn2023.0.9         amazonlinux  38 k
+ perl-I18N-Collate                    noarch 1.02-477.amzn2023.0.9         amazonlinux  14 k
+ perl-I18N-LangTags                   noarch 0.44-477.amzn2023.0.9         amazonlinux  55 k
+ perl-IO-Compress-Lzma                noarch 2.101-2.amzn2023.0.2          amazonlinux  74 k
+ perl-IO-Zlib                         noarch 1:1.11-2.amzn2023.0.2         amazonlinux  20 k
+ perl-IPC-Cmd                         noarch 2:1.04-459.amzn2023.0.2       amazonlinux  40 k
+ perl-IPC-SysV                        x86_64 2.09-2.amzn2023.0.3           amazonlinux  42 k
+ perl-IPC-System-Simple               noarch 1.30-4.amzn2023.0.2           amazonlinux  40 k
+ perl-Importer                        noarch 0.026-2.amzn2023.0.2          amazonlinux  40 k
+ perl-JSON-PP                         noarch 1:4.06-2.amzn2023.0.2         amazonlinux  66 k
+ perl-Locale-Maketext                 noarch 1.29-459.amzn2023.0.2         amazonlinux  95 k
+ perl-Locale-Maketext-Simple          noarch 1:0.21-477.amzn2023.0.9       amazonlinux  18 k
+ perl-MIME-Charset                    noarch 1.012.2-13.amzn2023.0.2       amazonlinux  49 k
+ perl-MRO-Compat                      noarch 0.13-13.amzn2023.0.2          amazonlinux  20 k
+ perl-Math-BigInt-FastCalc            x86_64 0.501.400-3.amzn2023.0.2      amazonlinux  28 k
+ perl-Memoize                         noarch 1.03-477.amzn2023.0.9         amazonlinux  57 k
+ perl-Module-Build                    noarch 2:0.42.31-7.amzn2023.0.2      amazonlinux 254 k
+ perl-Module-CoreList                 noarch 1:5.20211020-1.amzn2023.0.2   amazonlinux  82 k
+ perl-Module-CoreList-tools           noarch 1:5.20211020-1.amzn2023.0.2   amazonlinux  18 k
+ perl-Module-Load                     noarch 1:0.36-2.amzn2023.0.2         amazonlinux  18 k
+ perl-Module-Load-Conditional         noarch 0.74-2.amzn2023.0.2           amazonlinux  23 k
+ perl-Module-Loaded                   noarch 1:0.08-477.amzn2023.0.9       amazonlinux  14 k
+ perl-Module-Metadata                 noarch 1.000037-458.amzn2023.0.2     amazonlinux  36 k
+ perl-Module-Signature                noarch 0.87-3.amzn2023.0.2           amazonlinux  82 k
+ perl-NDBM_File                       x86_64 1.15-477.amzn2023.0.9         amazonlinux  22 k
+ perl-NEXT                            noarch 0.67-477.amzn2023.0.9         amazonlinux  21 k
+ perl-Net                             noarch 1.02-477.amzn2023.0.9         amazonlinux  26 k
+ perl-Net-Ping                        noarch 2.74-3.amzn2023.0.2           amazonlinux  50 k
+ perl-ODBM_File                       x86_64 1.16-477.amzn2023.0.9         amazonlinux  23 k
+ perl-Object-HashBase                 noarch 0.009-5.amzn2023.0.2          amazonlinux  26 k
+ perl-Opcode                          x86_64 1.48-477.amzn2023.0.9         amazonlinux  37 k
+ perl-Package-Generator               noarch 1.106-21.amzn2023.0.2         amazonlinux  23 k
+ perl-Params-Check                    noarch 1:0.38-459.amzn2023.0.2       amazonlinux  22 k
+ perl-Perl-OSType                     noarch 1.010-459.amzn2023.0.2        amazonlinux  23 k
+ perl-PerlIO-via-QuotedPrint          noarch 0.09-2.amzn2023.0.2           amazonlinux  22 k
+ perl-Pod-Checker                     noarch 4:1.74-2.amzn2023.0.2         amazonlinux  32 k
+ perl-Pod-Functions                   noarch 1.13-477.amzn2023.0.9         amazonlinux  14 k
+ perl-Pod-Html                        noarch 1.25-477.amzn2023.0.9         amazonlinux  27 k
+ perl-Safe                            noarch 2.41-477.amzn2023.0.9         amazonlinux  25 k
+ perl-Search-Dict                     noarch 1.07-477.amzn2023.0.9         amazonlinux  13 k
+ perl-SelfLoader                      noarch 1.26-477.amzn2023.0.9         amazonlinux  22 k
+ perl-Software-License                noarch 0.103014-10.amzn2023.0.2      amazonlinux 130 k
+ perl-Sub-Exporter                    noarch 0.987-25.amzn2023.0.2         amazonlinux  67 k
+ perl-Sub-Install                     noarch 0.928-26.amzn2023.0.2         amazonlinux  23 k
+ perl-Sys-Syslog                      x86_64 0.36-459.amzn2023.0.3         amazonlinux  47 k
+ perl-Term-Complete                   noarch 1.403-477.amzn2023.0.9        amazonlinux  13 k
+ perl-Term-ReadLine                   noarch 1.17-477.amzn2023.0.9         amazonlinux  19 k
+ perl-Term-Size-Perl                  x86_64 0.031-10.amzn2023.0.2         amazonlinux  22 k
+ perl-Term-Table                      noarch 0.015-6.amzn2023.0.2          amazonlinux  35 k
+ perl-Test                            noarch 1.31-477.amzn2023.0.9         amazonlinux  29 k
+ perl-Test-Harness                    noarch 1:3.42-459.amzn2023.0.2       amazonlinux 267 k
+ perl-Test-Simple                     noarch 3:1.302219-2.amzn2023.0.1     amazonlinux 857 k
+ perl-Text-Abbrev                     noarch 1.02-477.amzn2023.0.9         amazonlinux  12 k
+ perl-Text-Balanced                   noarch 2.04-2.amzn2023.0.2           amazonlinux  48 k
+ perl-Text-Diff                       noarch 1.45-11.amzn2023.0.2          amazonlinux  41 k
+ perl-Text-Glob                       noarch 0.11-13.amzn2023.0.2          amazonlinux  14 k
+ perl-Text-Template                   noarch 1.59-3.amzn2023.0.2           amazonlinux  60 k
+ perl-Thread                          noarch 3.05-477.amzn2023.0.9         amazonlinux  18 k
+ perl-Thread-Queue                    noarch 3.14-458.amzn2023.0.2         amazonlinux  22 k
+ perl-Thread-Semaphore                noarch 2.13-477.amzn2023.0.9         amazonlinux  16 k
+ perl-Tie                             noarch 4.6-477.amzn2023.0.9          amazonlinux  32 k
+ perl-Tie-File                        noarch 1.06-477.amzn2023.0.9         amazonlinux  43 k
+ perl-Tie-Memoize                     noarch 1.1-477.amzn2023.0.9          amazonlinux  14 k
+ perl-Tie-RefHash                     noarch 1.40-2.amzn2023.0.2           amazonlinux  24 k
+ perl-Time                            noarch 1.03-477.amzn2023.0.9         amazonlinux  19 k
+ perl-Time-Piece                      x86_64 1.3401-477.amzn2023.0.9       amazonlinux  41 k
+ perl-Unicode-Collate                 x86_64 1.29-2.amzn2023.0.3           amazonlinux 740 k
+ perl-Unicode-Normalize               x86_64 1.27-459.amzn2023.0.3         amazonlinux  91 k
+ perl-Unicode-UCD                     noarch 0.75-477.amzn2023.0.9         amazonlinux  79 k
+ perl-User-pwent                      noarch 1.03-477.amzn2023.0.9         amazonlinux  21 k
+ perl-autodie                         noarch 2.37-522.amzn2023.0.1         amazonlinux  96 k
+ perl-autouse                         noarch 1.11-477.amzn2023.0.9         amazonlinux  14 k
+ perl-bignum                          noarch 0.67-522.amzn2023.0.1         amazonlinux  51 k
+ perl-blib                            noarch 1.07-477.amzn2023.0.9         amazonlinux  13 k
+ perl-debugger                        noarch 1.56-477.amzn2023.0.9         amazonlinux 134 k
+ perl-deprecate                       noarch 0.04-477.amzn2023.0.9         amazonlinux  15 k
+ perl-devel                           x86_64 4:5.32.1-477.amzn2023.0.9     amazonlinux 660 k
+ perl-diagnostics                     noarch 1.37-477.amzn2023.0.9         amazonlinux 211 k
+ perl-doc                             noarch 5.32.1-477.amzn2023.0.9       amazonlinux 4.5 M
+ perl-encoding-warnings               noarch 0.13-477.amzn2023.0.9         amazonlinux  17 k
+ perl-experimental                    noarch 0.036-3.amzn2023.0.1          amazonlinux  29 k
+ perl-fields                          noarch 2.27-477.amzn2023.0.9         amazonlinux  16 k
+ perl-filetest                        noarch 1.03-477.amzn2023.0.9         amazonlinux  15 k
+ perl-inc-latest                      noarch 2:0.500-18.amzn2023.0.2       amazonlinux  24 k
+ perl-less                            noarch 0.03-477.amzn2023.0.9         amazonlinux  14 k
+ perl-libnetcfg                       noarch 4:5.32.1-477.amzn2023.0.9     amazonlinux  17 k
+ perl-local-lib                       noarch 2.000024-11.amzn2023.0.2      amazonlinux  68 k
+ perl-macros                          noarch 4:5.32.1-477.amzn2023.0.9     amazonlinux  11 k
+ perl-meta-notation                   noarch 5.32.1-477.amzn2023.0.9       amazonlinux  10 k
+ perl-perlfaq                         noarch 5.20210520-1.amzn2023.0.2     amazonlinux 374 k
+ perl-ph                              x86_64 5.32.1-477.amzn2023.0.9       amazonlinux  43 k
+ perl-sigtrap                         noarch 1.09-477.amzn2023.0.9         amazonlinux  16 k
+ perl-sort                            noarch 2.04-477.amzn2023.0.9         amazonlinux  14 k
+ perl-threads                         x86_64 1:2.25-458.amzn2023.0.4       amazonlinux  57 k
+ perl-threads-shared                  x86_64 1.61-458.amzn2023.0.3         amazonlinux  44 k
+ perl-utils                           noarch 5.32.1-477.amzn2023.0.9       amazonlinux  56 k
+ perl-version                         x86_64 7:0.99.29-1.amzn2023.0.3      amazonlinux  62 k
+ perl-vmsish                          noarch 1.04-477.amzn2023.0.9         amazonlinux  14 k
+ sombok                               x86_64 2.4.0-14.amzn2023.0.2         amazonlinux  48 k
+ subversion-libs                      x86_64 1.14.5-3.amzn2023.0.1         amazonlinux 1.5 M
+ systemd-rpm-macros                   noarch 252.23-12.amzn2023            amazonlinux  13 k
+ systemtap-client                     x86_64 5.4-1.amzn2023.0.2            amazonlinux 3.7 M
+ systemtap-devel                      x86_64 5.4-1.amzn2023.0.2            amazonlinux 2.2 M
+ systemtap-sdt-devel                  x86_64 5.4-1.amzn2023.0.2            amazonlinux  71 k
+ systemtap-sdt-dtrace                 x86_64 5.4-1.amzn2023.0.2            amazonlinux  72 k
+ urw-base35-bookman-fonts             noarch 20200910-6.amzn2023.0.2       amazonlinux 848 k
+ urw-base35-c059-fonts                noarch 20200910-6.amzn2023.0.2       amazonlinux 875 k
+ urw-base35-d050000l-fonts            noarch 20200910-6.amzn2023.0.2       amazonlinux  76 k
+ urw-base35-fonts                     noarch 20200910-6.amzn2023.0.2       amazonlinux  11 k
+ urw-base35-fonts-common              noarch 20200910-6.amzn2023.0.2       amazonlinux  21 k
+ urw-base35-gothic-fonts              noarch 20200910-6.amzn2023.0.2       amazonlinux 643 k
+ urw-base35-nimbus-mono-ps-fonts      noarch 20200910-6.amzn2023.0.2       amazonlinux 795 k
+ urw-base35-nimbus-roman-fonts        noarch 20200910-6.amzn2023.0.2       amazonlinux 857 k
+ urw-base35-nimbus-sans-fonts         noarch 20200910-6.amzn2023.0.2       amazonlinux 1.3 M
+ urw-base35-p052-fonts                noarch 20200910-6.amzn2023.0.2       amazonlinux 974 k
+ urw-base35-standard-symbols-ps-fonts noarch 20200910-6.amzn2023.0.2       amazonlinux  42 k
+ urw-base35-z003-fonts                noarch 20200910-6.amzn2023.0.2       amazonlinux 276 k
+ utf8proc                             x86_64 2.6.1-2.amzn2023.0.2          amazonlinux  80 k
+ xorg-x11-fonts-ISO8859-1-100dpi      noarch 7.5-38.amzn2023.0.1           amazonlinux 1.0 M
+Installing weak dependencies:
+ elfutils-debuginfod-client-devel     x86_64 0.188-3.amzn2023.0.3          amazonlinux  17 k
+ kernel-devel                         x86_64 1:6.1.175-219.357.amzn2023    amazonlinux  16 M
+ perl-CPAN-DistnameInfo               noarch 0.12-21.amzn2023.0.2          amazonlinux  15 k
+ perl-Module-Pluggable                noarch 2:5.2-16.amzn2023.0.2         amazonlinux  32 k
+ perl-Module-Runtime                  noarch 0.016-11.amzn2023.0.2         amazonlinux  24 k
+ perl-Term-Size-Any                   noarch 0.002-33.amzn2023.0.2         amazonlinux  14 k
+ perl-Unicode-LineBreak               x86_64 2019.001-9.amzn2023.0.4       amazonlinux 120 k
+Installing Groups:
+ Development Tools                                                                          
+
+Transaction Summary
+=============================================================================================
+Install  219 Packages
+
+Total download size: 91 M
+Installed size: 340 M
+Downloading Packages:
+(1/219): adobe-mappings-cmap-deprecated-20190730-1.amzn2023. 3.5 MB/s | 114 kB     00:00    
+(2/219): adobe-mappings-cmap-20190730-1.amzn2023.0.2.noarch.  43 MB/s | 2.1 MB     00:00    
+(3/219): adobe-mappings-pdf-20180407-8.amzn2023.0.2.noarch.r  11 MB/s | 627 kB     00:00    
+(4/219): autoconf-2.69-36.amzn2023.0.3.noarch.rpm             18 MB/s | 666 kB     00:00    
+(5/219): automake-1.16.5-9.amzn2023.0.3.noarch.rpm            18 MB/s | 677 kB     00:00    
+(6/219): bison-3.7.4-2.amzn2023.0.2.x86_64.rpm                24 MB/s | 925 kB     00:00    
+(7/219): byacc-2.0.20210109-2.amzn2023.0.3.x86_64.rpm        3.2 MB/s |  90 kB     00:00    
+(8/219): cscope-15.9-15.amzn2023.0.3.x86_64.rpm              9.3 MB/s | 288 kB     00:00    
+(9/219): debugedit-5.0-10.amzn2023.0.1.x86_64.rpm            2.3 MB/s |  76 kB     00:00    
+(10/219): ctags-5.9-1.20210725.0.amzn2023.0.2.x86_64.rpm      17 MB/s | 719 kB     00:00    
+(11/219): diffstat-1.64-4.amzn2023.0.2.x86_64.rpm            1.4 MB/s |  43 kB     00:00    
+(12/219): elfutils-0.188-3.amzn2023.0.3.x86_64.rpm            14 MB/s | 517 kB     00:00    
+(13/219): elfutils-debuginfod-client-devel-0.188-3.amzn2023. 570 kB/s |  17 kB     00:00    
+(14/219): doxygen-1.12.0-2.amzn2023.0.1.x86_64.rpm            64 MB/s | 5.6 MB     00:00    
+(15/219): elfutils-devel-0.188-3.amzn2023.0.3.x86_64.rpm     1.0 MB/s |  46 kB     00:00    
+(16/219): elfutils-libelf-devel-0.188-3.amzn2023.0.3.x86_64. 451 kB/s |  19 kB     00:00    
+(17/219): flex-2.6.4-7.amzn2023.0.2.x86_64.rpm               8.7 MB/s | 310 kB     00:00    
+(18/219): gdb-minimal-16.3-1.amzn2023.0.1.x86_64.rpm          59 MB/s | 4.2 MB     00:00    
+(19/219): gettext-common-devel-0.21-4.amzn2023.0.2.noarch.rp 9.0 MB/s | 406 kB     00:00    
+(20/219): gettext-devel-0.21-4.amzn2023.0.2.x86_64.rpm       4.9 MB/s | 200 kB     00:00    
+(21/219): google-droid-sans-fonts-20200215-9.amzn2023.0.2.no  43 MB/s | 2.7 MB     00:00    
+(22/219): graphviz-2.44.0-25.amzn2023.0.7.x86_64.rpm          58 MB/s | 3.3 MB     00:00    
+(23/219): gcc-gfortran-11.5.0-5.amzn2023.0.5.x86_64.rpm       63 MB/s |  15 MB     00:00    
+(24/219): intltool-0.51.0-18.amzn2023.0.3.noarch.rpm         884 kB/s |  56 kB     00:00    
+(25/219): indent-2.2.12-7.amzn2023.0.6.x86_64.rpm            1.8 MB/s | 179 kB     00:00    
+(26/219): jbig2dec-libs-0.19-4.amzn2023.0.2.x86_64.rpm       3.1 MB/s |  74 kB     00:00    
+(27/219): libXaw-1.0.15-3.amzn2023.0.1.x86_64.rpm            5.4 MB/s | 206 kB     00:00    
+(28/219): libfontenc-1.1.7-3.amzn2023.0.1.x86_64.rpm         1.5 MB/s |  34 kB     00:00    
+(29/219): libijs-0.35-13.amzn2023.0.2.x86_64.rpm             1.1 MB/s |  30 kB     00:00    
+(30/219): libgs-9.56.1-7.amzn2023.0.19.x86_64.rpm             59 MB/s | 3.6 MB     00:00    
+(31/219): libpaper-1.1.28-2.amzn2023.0.2.x86_64.rpm          1.3 MB/s |  41 kB     00:00    
+(32/219): libquadmath-devel-11.5.0-5.amzn2023.0.5.x86_64.rpm 6.9 MB/s | 176 kB     00:00    
+(33/219): libserf-1.3.9-23.amzn2023.0.3.x86_64.rpm           2.0 MB/s |  58 kB     00:00    
+(34/219): libzstd-devel-1.5.5-1.amzn2023.0.1.x86_64.rpm      2.1 MB/s |  53 kB     00:00    
+(35/219): libtool-2.4.7-1.amzn2023.0.3.x86_64.rpm             16 MB/s | 596 kB     00:00    
+(36/219): m4-1.4.19-2.amzn2023.0.2.x86_64.rpm                 11 MB/s | 296 kB     00:00    
+(37/219): mkfontscale-1.2.2-6.amzn2023.0.1.x86_64.rpm        1.1 MB/s |  33 kB     00:00    
+(38/219): mokutil-0.6.0-6.amzn2023.x86_64.rpm                1.8 MB/s |  49 kB     00:00    
+(39/219): patch-2.7.6-14.amzn2023.0.2.x86_64.rpm             4.9 MB/s | 129 kB     00:00    
+(40/219): patchutils-0.4.2-5.amzn2023.0.2.x86_64.rpm         3.2 MB/s | 100 kB     00:00    
+(41/219): kernel-devel-6.1.175-219.357.amzn2023.x86_64.rpm    51 MB/s |  16 MB     00:00    
+(42/219): perl-5.32.1-477.amzn2023.0.9.x86_64.rpm            141 kB/s |  13 kB     00:00    
+(43/219): perl-Algorithm-Diff-1.2010-2.amzn2023.0.2.noarch.r 671 kB/s |  47 kB     00:00    
+(44/219): perl-Archive-Tar-3.04-522.amzn2023.0.3.noarch.rpm  2.6 MB/s |  74 kB     00:00    
+(45/219): perl-Attribute-Handlers-1.01-477.amzn2023.0.9.noar 1.0 MB/s |  28 kB     00:00    
+(46/219): perl-Archive-Zip-1.68-4.amzn2023.0.2.noarch.rpm    3.5 MB/s | 106 kB     00:00    
+(47/219): perl-AutoSplit-5.74-477.amzn2023.0.9.noarch.rpm    897 kB/s |  22 kB     00:00    
+(48/219): perl-Benchmark-1.23-477.amzn2023.0.9.noarch.rpm    918 kB/s |  27 kB     00:00    
+(49/219): perl-CPAN-2.38-521.amzn2023.0.1.noarch.rpm          16 MB/s | 561 kB     00:00    
+(50/219): perl-CPAN-DistnameInfo-0.12-21.amzn2023.0.2.noarch 668 kB/s |  15 kB     00:00    
+(51/219): perl-CPAN-Meta-Requirements-2.145-1.amzn2023.0.1.n 1.4 MB/s |  37 kB     00:00    
+(52/219): perl-CPAN-Meta-YAML-0.020-522.amzn2023.0.1.noarch. 1.1 MB/s |  28 kB     00:00    
+(53/219): perl-Compress-Bzip2-2.28-3.amzn2023.0.3.x86_64.rpm 2.7 MB/s |  69 kB     00:00    
+(54/219): perl-Compress-Raw-Lzma-2.221-1.amzn2023.0.2.x86_64 2.3 MB/s |  61 kB     00:00    
+(55/219): perl-CPAN-Meta-2.150013-1.amzn2023.0.1.noarch.rpm  2.4 MB/s | 179 kB     00:00    
+(56/219): perl-Config-Extensions-0.03-477.amzn2023.0.9.noarc 466 kB/s |  13 kB     00:00    
+(57/219): perl-DBM_Filter-0.06-477.amzn2023.0.9.noarch.rpm   1.2 MB/s |  32 kB     00:00    
+(58/219): perl-DB_File-1.860-1.amzn2023.0.2.x86_64.rpm       2.1 MB/s |  82 kB     00:00    
+(59/219): perl-Data-OptList-0.110-15.amzn2023.0.2.noarch.rpm 990 kB/s |  27 kB     00:00    
+(60/219): perl-Config-Perl-V-0.39-1.amzn2023.0.1.noarch.rpm  322 kB/s |  23 kB     00:00    
+(61/219): perl-Data-Section-0.200007-12.amzn2023.0.2.noarch. 1.0 MB/s |  25 kB     00:00    
+(62/219): perl-Devel-PPPort-3.73-522.amzn2023.0.2.x86_64.rpm 7.6 MB/s | 220 kB     00:00    
+(63/219): perl-Devel-Peek-1.28-477.amzn2023.0.9.x86_64.rpm   1.1 MB/s |  32 kB     00:00    
+(64/219): perl-Devel-SelfStubber-1.06-477.amzn2023.0.9.noarc 554 kB/s |  15 kB     00:00    
+(65/219): perl-Devel-Size-0.86-1.amzn2023.0.2.x86_64.rpm     1.2 MB/s |  32 kB     00:00    
+(66/219): perl-Digest-SHA1-2.13-32.amzn2023.0.3.x86_64.rpm   2.0 MB/s |  53 kB     00:00    
+(67/219): perl-DirHandle-1.05-477.amzn2023.0.9.noarch.rpm    546 kB/s |  13 kB     00:00    
+(68/219): perl-Dumpvalue-2.27-477.amzn2023.0.9.noarch.rpm    633 kB/s |  19 kB     00:00    
+(69/219): perl-Encode-devel-3.21-520.amzn2023.0.2.x86_64.rpm 1.6 MB/s |  42 kB     00:00    
+(70/219): perl-English-1.11-477.amzn2023.0.9.noarch.rpm      537 kB/s |  14 kB     00:00    
+(71/219): perl-Env-1.04-458.amzn2023.0.2.noarch.rpm          696 kB/s |  20 kB     00:00    
+(72/219): perl-ExtUtils-CBuilder-0.280236-2.amzn2023.0.3.noa 2.0 MB/s |  46 kB     00:00    
+(73/219): perl-ExtUtils-Command-7.62-1.amzn2023.0.2.noarch.r 518 kB/s |  14 kB     00:00    
+(74/219): perl-ExtUtils-Embed-1.35-477.amzn2023.0.9.noarch.r 673 kB/s |  18 kB     00:00    
+(75/219): perl-ExtUtils-Constant-0.25-477.amzn2023.0.9.noarc 1.4 MB/s |  47 kB     00:00    
+(76/219): perl-ExtUtils-Install-2.22-521.amzn2023.0.1.noarch 1.4 MB/s |  45 kB     00:00    
+(77/219): perl-ExtUtils-MM-Utils-7.62-1.amzn2023.0.2.noarch. 444 kB/s |  12 kB     00:00    
+(78/219): perl-ExtUtils-MakeMaker-7.62-1.amzn2023.0.2.noarch 9.8 MB/s | 288 kB     00:00    
+(79/219): perl-ExtUtils-Manifest-1.75-521.amzn2023.0.1.noarc 1.6 MB/s |  35 kB     00:00    
+(80/219): perl-ExtUtils-Miniperl-1.09-477.amzn2023.0.9.noarc 558 kB/s |  16 kB     00:00    
+(81/219): perl-ExtUtils-ParseXS-3.61-2.amzn2023.0.1.noarch.r 9.9 MB/s | 293 kB     00:00    
+(82/219): perl-File-Compare-1.100.600-477.amzn2023.0.9.noarc 517 kB/s |  14 kB     00:00    
+(83/219): perl-File-DosGlob-1.12-477.amzn2023.0.9.x86_64.rpm 772 kB/s |  20 kB     00:00    
+(84/219): perl-File-Fetch-1.08-4.amzn2023.0.1.noarch.rpm     1.3 MB/s |  32 kB     00:00    
+(85/219): perl-File-HomeDir-1.006-2.amzn2023.0.2.noarch.rpm  2.1 MB/s |  58 kB     00:00    
+(86/219): perl-File-Which-1.27-15.amzn2023.0.1.noarch.rpm    951 kB/s |  23 kB     00:00    
+(87/219): perl-FileCache-1.10-477.amzn2023.0.9.noarch.rpm    535 kB/s |  15 kB     00:00    
+(88/219): perl-Filter-Simple-0.96-458.amzn2023.0.2.noarch.rp 1.0 MB/s |  28 kB     00:00    
+(89/219): perl-FindBin-1.51-477.amzn2023.0.9.noarch.rpm      533 kB/s |  14 kB     00:00    
+(90/219): perl-GDBM_File-1.18-477.amzn2023.0.9.x86_64.rpm    843 kB/s |  23 kB     00:00    
+(91/219): perl-Hash-Util-0.23-477.amzn2023.0.9.x86_64.rpm    1.2 MB/s |  34 kB     00:00    
+(92/219): perl-Hash-Util-FieldHash-1.20-477.amzn2023.0.9.x86 1.5 MB/s |  38 kB     00:00    
+(93/219): perl-I18N-Collate-1.02-477.amzn2023.0.9.noarch.rpm 688 kB/s |  14 kB     00:00    
+(94/219): perl-I18N-LangTags-0.44-477.amzn2023.0.9.noarch.rp 2.1 MB/s |  55 kB     00:00    
+(95/219): perl-IO-Zlib-1.11-2.amzn2023.0.2.noarch.rpm        812 kB/s |  20 kB     00:00    
+(96/219): perl-IO-Compress-Lzma-2.101-2.amzn2023.0.2.noarch. 2.5 MB/s |  74 kB     00:00    
+(97/219): perl-IPC-Cmd-1.04-459.amzn2023.0.2.noarch.rpm      1.5 MB/s |  40 kB     00:00    
+(98/219): perl-IPC-SysV-2.09-2.amzn2023.0.3.x86_64.rpm       1.6 MB/s |  42 kB     00:00    
+(99/219): perl-IPC-System-Simple-1.30-4.amzn2023.0.2.noarch. 1.4 MB/s |  40 kB     00:00    
+(100/219): perl-Importer-0.026-2.amzn2023.0.2.noarch.rpm     1.5 MB/s |  40 kB     00:00    
+(101/219): perl-JSON-PP-4.06-2.amzn2023.0.2.noarch.rpm       2.2 MB/s |  66 kB     00:00    
+(102/219): perl-Locale-Maketext-Simple-0.21-477.amzn2023.0.9 705 kB/s |  18 kB     00:00    
+(103/219): perl-Locale-Maketext-1.29-459.amzn2023.0.2.noarch 2.8 MB/s |  95 kB     00:00    
+(104/219): perl-MIME-Charset-1.012.2-13.amzn2023.0.2.noarch. 1.8 MB/s |  49 kB     00:00    
+(105/219): perl-MRO-Compat-0.13-13.amzn2023.0.2.noarch.rpm   711 kB/s |  20 kB     00:00    
+(106/219): perl-Math-BigInt-FastCalc-0.501.400-3.amzn2023.0. 987 kB/s |  28 kB     00:00    
+(107/219): perl-Memoize-1.03-477.amzn2023.0.9.noarch.rpm     2.2 MB/s |  57 kB     00:00    
+(108/219): perl-Module-Build-0.42.31-7.amzn2023.0.2.noarch.r 8.5 MB/s | 254 kB     00:00    
+(109/219): perl-Module-CoreList-5.20211020-1.amzn2023.0.2.no 2.6 MB/s |  82 kB     00:00    
+(110/219): perl-Module-CoreList-tools-5.20211020-1.amzn2023. 632 kB/s |  18 kB     00:00    
+(111/219): perl-Module-Load-0.36-2.amzn2023.0.2.noarch.rpm   702 kB/s |  18 kB     00:00    
+(112/219): perl-Module-Load-Conditional-0.74-2.amzn2023.0.2. 736 kB/s |  23 kB     00:00    
+(113/219): perl-Module-Loaded-0.08-477.amzn2023.0.9.noarch.r 525 kB/s |  14 kB     00:00    
+(114/219): perl-Module-Metadata-1.000037-458.amzn2023.0.2.no 1.2 MB/s |  36 kB     00:00    
+(115/219): perl-Module-Pluggable-5.2-16.amzn2023.0.2.noarch. 1.2 MB/s |  32 kB     00:00    
+(116/219): perl-Module-Runtime-0.016-11.amzn2023.0.2.noarch. 971 kB/s |  24 kB     00:00    
+(117/219): perl-NDBM_File-1.15-477.amzn2023.0.9.x86_64.rpm   924 kB/s |  22 kB     00:00    
+(118/219): perl-Module-Signature-0.87-3.amzn2023.0.2.noarch. 2.4 MB/s |  82 kB     00:00    
+(119/219): perl-NEXT-0.67-477.amzn2023.0.9.noarch.rpm        768 kB/s |  21 kB     00:00    
+(120/219): perl-Net-1.02-477.amzn2023.0.9.noarch.rpm         902 kB/s |  26 kB     00:00    
+(121/219): perl-Net-Ping-2.74-3.amzn2023.0.2.noarch.rpm      1.8 MB/s |  50 kB     00:00    
+(122/219): perl-ODBM_File-1.16-477.amzn2023.0.9.x86_64.rpm   925 kB/s |  23 kB     00:00    
+(123/219): perl-Object-HashBase-0.009-5.amzn2023.0.2.noarch. 1.1 MB/s |  26 kB     00:00    
+(124/219): perl-Opcode-1.48-477.amzn2023.0.9.x86_64.rpm      1.2 MB/s |  37 kB     00:00    
+(125/219): perl-Package-Generator-1.106-21.amzn2023.0.2.noar 819 kB/s |  23 kB     00:00    
+(126/219): perl-Params-Check-0.38-459.amzn2023.0.2.noarch.rp 933 kB/s |  22 kB     00:00    
+(127/219): perl-Perl-OSType-1.010-459.amzn2023.0.2.noarch.rp 971 kB/s |  23 kB     00:00    
+(128/219): perl-PerlIO-via-QuotedPrint-0.09-2.amzn2023.0.2.n 862 kB/s |  22 kB     00:00    
+(129/219): perl-Pod-Checker-1.74-2.amzn2023.0.2.noarch.rpm   1.3 MB/s |  32 kB     00:00    
+(130/219): perl-Pod-Functions-1.13-477.amzn2023.0.9.noarch.r 539 kB/s |  14 kB     00:00    
+(131/219): perl-Pod-Html-1.25-477.amzn2023.0.9.noarch.rpm    880 kB/s |  27 kB     00:00    
+(132/219): perl-Safe-2.41-477.amzn2023.0.9.noarch.rpm        846 kB/s |  25 kB     00:00    
+(133/219): perl-Search-Dict-1.07-477.amzn2023.0.9.noarch.rpm 554 kB/s |  13 kB     00:00    
+(134/219): perl-SelfLoader-1.26-477.amzn2023.0.9.noarch.rpm  838 kB/s |  22 kB     00:00    
+(135/219): perl-Sub-Exporter-0.987-25.amzn2023.0.2.noarch.rp 2.3 MB/s |  67 kB     00:00    
+(136/219): perl-Software-License-0.103014-10.amzn2023.0.2.no 3.7 MB/s | 130 kB     00:00    
+(137/219): perl-Sub-Install-0.928-26.amzn2023.0.2.noarch.rpm 718 kB/s |  23 kB     00:00    
+(138/219): perl-Sys-Syslog-0.36-459.amzn2023.0.3.x86_64.rpm  1.7 MB/s |  47 kB     00:00    
+(139/219): perl-Term-Complete-1.403-477.amzn2023.0.9.noarch. 461 kB/s |  13 kB     00:00    
+(140/219): perl-Term-ReadLine-1.17-477.amzn2023.0.9.noarch.r 641 kB/s |  19 kB     00:00    
+(141/219): perl-Term-Size-Any-0.002-33.amzn2023.0.2.noarch.r 478 kB/s |  14 kB     00:00    
+(142/219): perl-Term-Size-Perl-0.031-10.amzn2023.0.2.x86_64. 800 kB/s |  22 kB     00:00    
+(143/219): perl-Term-Table-0.015-6.amzn2023.0.2.noarch.rpm   1.2 MB/s |  35 kB     00:00    
+(144/219): perl-Test-1.31-477.amzn2023.0.9.noarch.rpm        1.2 MB/s |  29 kB     00:00    
+(145/219): perl-Test-Harness-3.42-459.amzn2023.0.2.noarch.rp 9.8 MB/s | 267 kB     00:00    
+(146/219): perl-Test-Simple-1.302219-2.amzn2023.0.1.noarch.r  29 MB/s | 857 kB     00:00    
+(147/219): perl-Text-Abbrev-1.02-477.amzn2023.0.9.noarch.rpm 442 kB/s |  12 kB     00:00    
+(148/219): perl-Text-Balanced-2.04-2.amzn2023.0.2.noarch.rpm 1.6 MB/s |  48 kB     00:00    
+(149/219): perl-Text-Diff-1.45-11.amzn2023.0.2.noarch.rpm    1.4 MB/s |  41 kB     00:00    
+(150/219): perl-Text-Glob-0.11-13.amzn2023.0.2.noarch.rpm    496 kB/s |  14 kB     00:00    
+(151/219): perl-Text-Template-1.59-3.amzn2023.0.2.noarch.rpm 2.1 MB/s |  60 kB     00:00    
+(152/219): perl-Thread-3.05-477.amzn2023.0.9.noarch.rpm      692 kB/s |  18 kB     00:00    
+(153/219): perl-Thread-Queue-3.14-458.amzn2023.0.2.noarch.rp 890 kB/s |  22 kB     00:00    
+(154/219): perl-Thread-Semaphore-2.13-477.amzn2023.0.9.noarc 530 kB/s |  16 kB     00:00    
+(155/219): perl-Tie-File-1.06-477.amzn2023.0.9.noarch.rpm    1.8 MB/s |  43 kB     00:00    
+(156/219): perl-Tie-4.6-477.amzn2023.0.9.noarch.rpm          1.1 MB/s |  32 kB     00:00    
+(157/219): perl-Tie-Memoize-1.1-477.amzn2023.0.9.noarch.rpm  565 kB/s |  14 kB     00:00    
+(158/219): perl-Tie-RefHash-1.40-2.amzn2023.0.2.noarch.rpm   937 kB/s |  24 kB     00:00    
+(159/219): perl-Time-1.03-477.amzn2023.0.9.noarch.rpm        735 kB/s |  19 kB     00:00    
+(160/219): perl-Time-Piece-1.3401-477.amzn2023.0.9.x86_64.rp 1.4 MB/s |  41 kB     00:00    
+(161/219): perl-Unicode-LineBreak-2019.001-9.amzn2023.0.4.x8 4.7 MB/s | 120 kB     00:00    
+(162/219): perl-Unicode-Collate-1.29-2.amzn2023.0.3.x86_64.r  20 MB/s | 740 kB     00:00    
+(163/219): perl-Unicode-Normalize-1.27-459.amzn2023.0.3.x86_ 3.6 MB/s |  91 kB     00:00    
+(164/219): perl-Unicode-UCD-0.75-477.amzn2023.0.9.noarch.rpm 2.5 MB/s |  79 kB     00:00    
+(165/219): perl-User-pwent-1.03-477.amzn2023.0.9.noarch.rpm  728 kB/s |  21 kB     00:00    
+(166/219): perl-autodie-2.37-522.amzn2023.0.1.noarch.rpm     3.4 MB/s |  96 kB     00:00    
+(167/219): perl-autouse-1.11-477.amzn2023.0.9.noarch.rpm     547 kB/s |  14 kB     00:00    
+(168/219): perl-bignum-0.67-522.amzn2023.0.1.noarch.rpm      1.7 MB/s |  51 kB     00:00    
+(169/219): perl-blib-1.07-477.amzn2023.0.9.noarch.rpm        441 kB/s |  13 kB     00:00    
+(170/219): perl-debugger-1.56-477.amzn2023.0.9.noarch.rpm    6.1 MB/s | 134 kB     00:00    
+(171/219): perl-deprecate-0.04-477.amzn2023.0.9.noarch.rpm   585 kB/s |  15 kB     00:00    
+(172/219): perl-devel-5.32.1-477.amzn2023.0.9.x86_64.rpm      20 MB/s | 660 kB     00:00    
+(173/219): perl-diagnostics-1.37-477.amzn2023.0.9.noarch.rpm 6.5 MB/s | 211 kB     00:00    
+(174/219): perl-encoding-warnings-0.13-477.amzn2023.0.9.noar 549 kB/s |  17 kB     00:00    
+(175/219): perl-experimental-0.036-3.amzn2023.0.1.noarch.rpm 1.0 MB/s |  29 kB     00:00    
+(176/219): perl-doc-5.32.1-477.amzn2023.0.9.noarch.rpm        63 MB/s | 4.5 MB     00:00    
+(177/219): perl-fields-2.27-477.amzn2023.0.9.noarch.rpm      505 kB/s |  16 kB     00:00    
+(178/219): perl-filetest-1.03-477.amzn2023.0.9.noarch.rpm    517 kB/s |  15 kB     00:00    
+(179/219): perl-inc-latest-0.500-18.amzn2023.0.2.noarch.rpm  942 kB/s |  24 kB     00:00    
+(180/219): perl-less-0.03-477.amzn2023.0.9.noarch.rpm        470 kB/s |  14 kB     00:00    
+(181/219): perl-libnetcfg-5.32.1-477.amzn2023.0.9.noarch.rpm 584 kB/s |  17 kB     00:00    
+(182/219): perl-local-lib-2.000024-11.amzn2023.0.2.noarch.rp 2.4 MB/s |  68 kB     00:00    
+(183/219): perl-meta-notation-5.32.1-477.amzn2023.0.9.noarch 380 kB/s |  10 kB     00:00    
+(184/219): perl-macros-5.32.1-477.amzn2023.0.9.noarch.rpm    364 kB/s |  11 kB     00:00    
+(185/219): perl-ph-5.32.1-477.amzn2023.0.9.x86_64.rpm        1.8 MB/s |  43 kB     00:00    
+(186/219): perl-sigtrap-1.09-477.amzn2023.0.9.noarch.rpm     659 kB/s |  16 kB     00:00    
+(187/219): perl-perlfaq-5.20210520-1.amzn2023.0.2.noarch.rpm 9.4 MB/s | 374 kB     00:00    
+(188/219): perl-sort-2.04-477.amzn2023.0.9.noarch.rpm        540 kB/s |  14 kB     00:00    
+(189/219): perl-threads-2.25-458.amzn2023.0.4.x86_64.rpm     2.2 MB/s |  57 kB     00:00    
+(190/219): perl-threads-shared-1.61-458.amzn2023.0.3.x86_64. 1.8 MB/s |  44 kB     00:00    
+(191/219): perl-utils-5.32.1-477.amzn2023.0.9.noarch.rpm     1.8 MB/s |  56 kB     00:00    
+(192/219): perl-version-0.99.29-1.amzn2023.0.3.x86_64.rpm    2.1 MB/s |  62 kB     00:00    
+(193/219): perl-vmsish-1.04-477.amzn2023.0.9.noarch.rpm      524 kB/s |  14 kB     00:00    
+(194/219): rpm-build-4.16.1.3-29.amzn2023.0.6.x86_64.rpm     2.5 MB/s |  61 kB     00:00    
+(195/219): rpm-sign-4.16.1.3-29.amzn2023.0.6.x86_64.rpm      724 kB/s |  19 kB     00:00    
+(196/219): sombok-2.4.0-14.amzn2023.0.2.x86_64.rpm           1.8 MB/s |  48 kB     00:00    
+(197/219): subversion-1.14.5-3.amzn2023.0.1.x86_64.rpm        29 MB/s | 1.0 MB     00:00    
+(198/219): subversion-libs-1.14.5-3.amzn2023.0.1.x86_64.rpm   34 MB/s | 1.5 MB     00:00    
+(199/219): swig-4.1.1-4.amzn2023.0.5.x86_64.rpm               28 MB/s | 1.5 MB     00:00    
+(200/219): systemd-rpm-macros-252.23-12.amzn2023.noarch.rpm  476 kB/s |  13 kB     00:00    
+(201/219): systemtap-5.4-1.amzn2023.0.2.x86_64.rpm           428 kB/s |  12 kB     00:00    
+(202/219): systemtap-devel-5.4-1.amzn2023.0.2.x86_64.rpm      48 MB/s | 2.2 MB     00:00    
+(203/219): systemtap-sdt-devel-5.4-1.amzn2023.0.2.x86_64.rpm 2.1 MB/s |  71 kB     00:00    
+(204/219): systemtap-sdt-dtrace-5.4-1.amzn2023.0.2.x86_64.rp 2.4 MB/s |  72 kB     00:00    
+(205/219): systemtap-client-5.4-1.amzn2023.0.2.x86_64.rpm     38 MB/s | 3.7 MB     00:00    
+(206/219): urw-base35-bookman-fonts-20200910-6.amzn2023.0.2.  16 MB/s | 848 kB     00:00    
+(207/219): urw-base35-c059-fonts-20200910-6.amzn2023.0.2.noa  22 MB/s | 875 kB     00:00    
+(208/219): urw-base35-fonts-20200910-6.amzn2023.0.2.noarch.r 430 kB/s |  11 kB     00:00    
+(209/219): urw-base35-fonts-common-20200910-6.amzn2023.0.2.n 828 kB/s |  21 kB     00:00    
+(210/219): urw-base35-d050000l-fonts-20200910-6.amzn2023.0.2 1.5 MB/s |  76 kB     00:00    
+(211/219): urw-base35-gothic-fonts-20200910-6.amzn2023.0.2.n  16 MB/s | 643 kB     00:00    
+(212/219): urw-base35-nimbus-mono-ps-fonts-20200910-6.amzn20  22 MB/s | 795 kB     00:00    
+(213/219): urw-base35-nimbus-roman-fonts-20200910-6.amzn2023  20 MB/s | 857 kB     00:00    
+(214/219): urw-base35-nimbus-sans-fonts-20200910-6.amzn2023.  33 MB/s | 1.3 MB     00:00    
+(215/219): urw-base35-p052-fonts-20200910-6.amzn2023.0.2.noa  24 MB/s | 974 kB     00:00    
+(216/219): urw-base35-standard-symbols-ps-fonts-20200910-6.a 1.3 MB/s |  42 kB     00:00    
+(217/219): urw-base35-z003-fonts-20200910-6.amzn2023.0.2.noa 7.3 MB/s | 276 kB     00:00    
+(218/219): utf8proc-2.6.1-2.amzn2023.0.2.x86_64.rpm          2.6 MB/s |  80 kB     00:00    
+(219/219): xorg-x11-fonts-ISO8859-1-100dpi-7.5-38.amzn2023.0  29 MB/s | 1.0 MB     00:00    
+---------------------------------------------------------------------------------------------
+Total                                                         35 MB/s |  91 MB     00:02     
+Running transaction check
+Transaction check succeeded.
+Running transaction test
+Transaction test succeeded.
+Running transaction
+  Preparing        :                                                                     1/1 
+  Installing       : urw-base35-fonts-common-20200910-6.amzn2023.0.2.noarch            1/219 
+  Installing       : perl-version-7:0.99.29-1.amzn2023.0.3.x86_64                      2/219 
+  Installing       : perl-threads-1:2.25-458.amzn2023.0.4.x86_64                       3/219 
+  Installing       : perl-threads-shared-1.61-458.amzn2023.0.3.x86_64                  4/219 
+  Installing       : perl-File-Compare-1.100.600-477.amzn2023.0.9.noarch               5/219 
+  Installing       : perl-ExtUtils-Manifest-1:1.75-521.amzn2023.0.1.noarch             6/219 
+  Installing       : perl-CPAN-Meta-Requirements-2.145-1.amzn2023.0.1.noarch           7/219 
+  Installing       : perl-JSON-PP-1:4.06-2.amzn2023.0.2.noarch                         8/219 
+  Installing       : perl-Module-CoreList-1:5.20211020-1.amzn2023.0.2.noarch           9/219 
+  Installing       : perl-Module-Metadata-1.000037-458.amzn2023.0.2.noarch            10/219 
+  Installing       : perl-meta-notation-5.32.1-477.amzn2023.0.9.noarch                11/219 
+  Installing       : perl-Unicode-Normalize-1.27-459.amzn2023.0.3.x86_64              12/219 
+  Installing       : perl-Tie-4.6-477.amzn2023.0.9.noarch                             13/219 
+  Installing       : perl-Term-ReadLine-1.17-477.amzn2023.0.9.noarch                  14/219 
+  Installing       : perl-Perl-OSType-1.010-459.amzn2023.0.2.noarch                   15/219 
+  Installing       : perl-Module-Load-1:0.36-2.amzn2023.0.2.noarch                    16/219 
+  Installing       : perl-Devel-Peek-1.28-477.amzn2023.0.9.x86_64                     17/219 
+  Installing       : patch-2.7.6-14.amzn2023.0.2.x86_64                               18/219 
+  Installing       : m4-1.4.19-2.amzn2023.0.2.x86_64                                  19/219 
+  Installing       : autoconf-2.69-36.amzn2023.0.3.noarch                             20/219 
+  Installing       : perl-Dumpvalue-2.27-477.amzn2023.0.9.noarch                      21/219 
+  Installing       : perl-IO-Zlib-1:1.11-2.amzn2023.0.2.noarch                        22/219 
+  Installing       : perl-Thread-Queue-3.14-458.amzn2023.0.2.noarch                   23/219 
+  Installing       : automake-1.16.5-9.amzn2023.0.3.noarch                            24/219 
+  Installing       : perl-doc-5.32.1-477.amzn2023.0.9.noarch                          25/219 
+  Installing       : perl-deprecate-0.04-477.amzn2023.0.9.noarch                      26/219 
+  Installing       : perl-autouse-1.11-477.amzn2023.0.9.noarch                        27/219 
+  Installing       : perl-User-pwent-1.03-477.amzn2023.0.9.noarch                     28/219 
+  Installing       : perl-Tie-RefHash-1.40-2.amzn2023.0.2.noarch                      29/219 
+  Installing       : perl-Text-Balanced-2.04-2.amzn2023.0.2.noarch                    30/219 
+  Installing       : perl-Sub-Install-0.928-26.amzn2023.0.2.noarch                    31/219 
+  Installing       : perl-SelfLoader-1.26-477.amzn2023.0.9.noarch                     32/219 
+  Installing       : perl-Pod-Html-1.25-477.amzn2023.0.9.noarch                       33/219 
+  Installing       : perl-Opcode-1.48-477.amzn2023.0.9.x86_64                         34/219 
+  Installing       : perl-Safe-2.41-477.amzn2023.0.9.noarch                           35/219 
+  Installing       : perl-Net-Ping-2.74-3.amzn2023.0.2.noarch                         36/219 
+  Installing       : perl-NDBM_File-1.15-477.amzn2023.0.9.x86_64                      37/219 
+  Installing       : perl-I18N-LangTags-0.44-477.amzn2023.0.9.noarch                  38/219 
+  Installing       : perl-Locale-Maketext-1.29-459.amzn2023.0.2.noarch                39/219 
+  Installing       : perl-Locale-Maketext-Simple-1:0.21-477.amzn2023.0.9.noarch       40/219 
+  Installing       : perl-Params-Check-1:0.38-459.amzn2023.0.2.noarch                 41/219 
+  Installing       : perl-Module-Load-Conditional-0.74-2.amzn2023.0.2.noarch          42/219 
+  Installing       : perl-Hash-Util-FieldHash-1.20-477.amzn2023.0.9.x86_64            43/219 
+  Installing       : perl-Hash-Util-0.23-477.amzn2023.0.9.x86_64                      44/219 
+  Installing       : perl-fields-2.27-477.amzn2023.0.9.noarch                         45/219 
+  Installing       : perl-ExtUtils-ParseXS-1:3.61-2.amzn2023.0.1.noarch               46/219 
+  Installing       : perl-ExtUtils-MM-Utils-2:7.62-1.amzn2023.0.2.noarch              47/219 
+  Installing       : perl-IPC-Cmd-2:1.04-459.amzn2023.0.2.noarch                      48/219 
+  Installing       : perl-ExtUtils-Constant-0.25-477.amzn2023.0.9.noarch              49/219 
+  Installing       : perl-ExtUtils-Command-2:7.62-1.amzn2023.0.2.noarch               50/219 
+  Installing       : perl-DirHandle-1.05-477.amzn2023.0.9.noarch                      51/219 
+  Installing       : perl-Devel-PPPort-3.73-522.amzn2023.0.2.x86_64                   52/219 
+  Installing       : perl-CPAN-Meta-YAML-0.020-522.amzn2023.0.1.noarch                53/219 
+  Installing       : perl-CPAN-Meta-2.150013-1.amzn2023.0.1.noarch                    54/219 
+  Installing       : perl-Benchmark-1.23-477.amzn2023.0.9.noarch                      55/219 
+  Installing       : perl-Test-Harness-1:3.42-459.amzn2023.0.2.noarch                 56/219 
+  Installing       : perl-AutoSplit-5.74-477.amzn2023.0.9.noarch                      57/219 
+  Installing       : gdb-minimal-16.3-1.amzn2023.0.1.x86_64                           58/219 
+  Installing       : elfutils-libelf-devel-0.188-3.amzn2023.0.3.x86_64                59/219 
+  Installing       : elfutils-0.188-3.amzn2023.0.3.x86_64                             60/219 
+  Installing       : adobe-mappings-cmap-20190730-1.amzn2023.0.2.noarch               61/219 
+  Installing       : adobe-mappings-cmap-deprecated-20190730-1.amzn2023.0.2.noarch    62/219 
+  Installing       : debugedit-5.0-10.amzn2023.0.1.x86_64                             63/219 
+  Installing       : perl-File-Fetch-1.08-4.amzn2023.0.1.noarch                       64/219 
+  Installing       : perl-Memoize-1.03-477.amzn2023.0.9.noarch                        65/219 
+  Installing       : perl-Devel-SelfStubber-1.06-477.amzn2023.0.9.noarch              66/219 
+  Installing       : perl-Data-OptList-0.110-15.amzn2023.0.2.noarch                   67/219 
+  Installing       : perl-Filter-Simple-0.96-458.amzn2023.0.2.noarch                  68/219 
+  Installing       : perl-debugger-1.56-477.amzn2023.0.9.noarch                       69/219 
+  Installing       : perl-Env-1.04-458.amzn2023.0.2.noarch                            70/219 
+  Installing       : perl-Unicode-Collate-1.29-2.amzn2023.0.3.x86_64                  71/219 
+  Installing       : perl-Unicode-UCD-0.75-477.amzn2023.0.9.noarch                    72/219 
+  Installing       : perl-sigtrap-1.09-477.amzn2023.0.9.noarch                        73/219 
+  Installing       : perl-Module-CoreList-tools-1:5.20211020-1.amzn2023.0.2.noarch    74/219 
+  Installing       : perl-Thread-3.05-477.amzn2023.0.9.noarch                         75/219 
+  Installing       : perl-Thread-Semaphore-2.13-477.amzn2023.0.9.noarch               76/219 
+  Installing       : perl-experimental-0.036-3.amzn2023.0.1.noarch                    77/219 
+  Installing       : urw-base35-bookman-fonts-20200910-6.amzn2023.0.2.noarch          78/219 
+  Running scriptlet: urw-base35-bookman-fonts-20200910-6.amzn2023.0.2.noarch          78/219 
+  Installing       : urw-base35-c059-fonts-20200910-6.amzn2023.0.2.noarch             79/219 
+  Running scriptlet: urw-base35-c059-fonts-20200910-6.amzn2023.0.2.noarch             79/219 
+  Installing       : urw-base35-d050000l-fonts-20200910-6.amzn2023.0.2.noarch         80/219 
+  Running scriptlet: urw-base35-d050000l-fonts-20200910-6.amzn2023.0.2.noarch         80/219 
+  Installing       : urw-base35-gothic-fonts-20200910-6.amzn2023.0.2.noarch           81/219 
+  Running scriptlet: urw-base35-gothic-fonts-20200910-6.amzn2023.0.2.noarch           81/219 
+  Installing       : urw-base35-nimbus-mono-ps-fonts-20200910-6.amzn2023.0.2.noarc    82/219 
+  Running scriptlet: urw-base35-nimbus-mono-ps-fonts-20200910-6.amzn2023.0.2.noarc    82/219 
+  Installing       : urw-base35-nimbus-roman-fonts-20200910-6.amzn2023.0.2.noarch     83/219 
+  Running scriptlet: urw-base35-nimbus-roman-fonts-20200910-6.amzn2023.0.2.noarch     83/219 
+  Installing       : urw-base35-nimbus-sans-fonts-20200910-6.amzn2023.0.2.noarch      84/219 
+  Running scriptlet: urw-base35-nimbus-sans-fonts-20200910-6.amzn2023.0.2.noarch      84/219 
+  Installing       : urw-base35-p052-fonts-20200910-6.amzn2023.0.2.noarch             85/219 
+  Running scriptlet: urw-base35-p052-fonts-20200910-6.amzn2023.0.2.noarch             85/219 
+  Installing       : urw-base35-standard-symbols-ps-fonts-20200910-6.amzn2023.0.2.    86/219 
+  Running scriptlet: urw-base35-standard-symbols-ps-fonts-20200910-6.amzn2023.0.2.    86/219 
+  Installing       : urw-base35-z003-fonts-20200910-6.amzn2023.0.2.noarch             87/219 
+  Running scriptlet: urw-base35-z003-fonts-20200910-6.amzn2023.0.2.noarch             87/219 
+  Installing       : urw-base35-fonts-20200910-6.amzn2023.0.2.noarch                  88/219 
+  Installing       : utf8proc-2.6.1-2.amzn2023.0.2.x86_64                             89/219 
+  Installing       : systemtap-sdt-dtrace-5.4-1.amzn2023.0.2.x86_64                   90/219 
+  Installing       : systemtap-sdt-devel-5.4-1.amzn2023.0.2.x86_64                    91/219 
+  Installing       : perl-ExtUtils-MakeMaker-2:7.62-1.amzn2023.0.2.noarch             92/219 
+  Installing       : perl-ExtUtils-Install-2.22-521.amzn2023.0.1.noarch               93/219 
+  Installing       : perl-devel-4:5.32.1-477.amzn2023.0.9.x86_64                      94/219 
+  Installing       : perl-ExtUtils-CBuilder-1:0.280236-2.amzn2023.0.3.noarch          95/219 
+  Installing       : perl-ExtUtils-Embed-1.35-477.amzn2023.0.9.noarch                 96/219 
+  Installing       : perl-ExtUtils-Miniperl-1.09-477.amzn2023.0.9.noarch              97/219 
+  Installing       : perl-Encode-devel-4:3.21-520.amzn2023.0.2.x86_64                 98/219 
+  Installing       : perl-inc-latest-2:0.500-18.amzn2023.0.2.noarch                   99/219 
+  Installing       : perl-libnetcfg-4:5.32.1-477.amzn2023.0.9.noarch                 100/219 
+  Installing       : sombok-2.4.0-14.amzn2023.0.2.x86_64                             101/219 
+  Installing       : perl-vmsish-1.04-477.amzn2023.0.9.noarch                        102/219 
+  Installing       : perl-utils-5.32.1-477.amzn2023.0.9.noarch                       103/219 
+  Installing       : perl-sort-2.04-477.amzn2023.0.9.noarch                          104/219 
+  Installing       : perl-ph-5.32.1-477.amzn2023.0.9.x86_64                          105/219 
+  Installing       : perl-perlfaq-5.20210520-1.amzn2023.0.2.noarch                   106/219 
+  Installing       : perl-macros-4:5.32.1-477.amzn2023.0.9.noarch                    107/219 
+  Installing       : perl-local-lib-2.000024-11.amzn2023.0.2.noarch                  108/219 
+  Installing       : perl-less-0.03-477.amzn2023.0.9.noarch                          109/219 
+  Installing       : perl-filetest-1.03-477.amzn2023.0.9.noarch                      110/219 
+  Installing       : perl-encoding-warnings-0.13-477.amzn2023.0.9.noarch             111/219 
+  Installing       : perl-diagnostics-1.37-477.amzn2023.0.9.noarch                   112/219 
+  Installing       : perl-blib-1.07-477.amzn2023.0.9.noarch                          113/219 
+  Installing       : perl-bignum-0.67-522.amzn2023.0.1.noarch                        114/219 
+  Installing       : perl-Time-Piece-1.3401-477.amzn2023.0.9.x86_64                  115/219 
+  Installing       : perl-Time-1.03-477.amzn2023.0.9.noarch                          116/219 
+  Installing       : perl-Tie-Memoize-1.1-477.amzn2023.0.9.noarch                    117/219 
+  Installing       : perl-Tie-File-1.06-477.amzn2023.0.9.noarch                      118/219 
+  Installing       : perl-Text-Template-1.59-3.amzn2023.0.2.noarch                   119/219 
+  Installing       : perl-Text-Glob-0.11-13.amzn2023.0.2.noarch                      120/219 
+  Installing       : perl-Text-Abbrev-1.02-477.amzn2023.0.9.noarch                   121/219 
+  Installing       : perl-Test-1.31-477.amzn2023.0.9.noarch                          122/219 
+  Installing       : perl-Term-Size-Perl-0.031-10.amzn2023.0.2.x86_64                123/219 
+  Installing       : perl-Term-Size-Any-0.002-33.amzn2023.0.2.noarch                 124/219 
+  Installing       : perl-Term-Complete-1.403-477.amzn2023.0.9.noarch                125/219 
+  Installing       : perl-Sys-Syslog-0.36-459.amzn2023.0.3.x86_64                    126/219 
+  Installing       : perl-Search-Dict-1.07-477.amzn2023.0.9.noarch                   127/219 
+  Installing       : perl-Pod-Functions-1.13-477.amzn2023.0.9.noarch                 128/219 
+  Installing       : perl-Pod-Checker-4:1.74-2.amzn2023.0.2.noarch                   129/219 
+  Installing       : perl-PerlIO-via-QuotedPrint-0.09-2.amzn2023.0.2.noarch          130/219 
+  Installing       : perl-Package-Generator-1.106-21.amzn2023.0.2.noarch             131/219 
+  Installing       : perl-Sub-Exporter-0.987-25.amzn2023.0.2.noarch                  132/219 
+  Installing       : perl-Object-HashBase-0.009-5.amzn2023.0.2.noarch                133/219 
+  Installing       : perl-ODBM_File-1.16-477.amzn2023.0.9.x86_64                     134/219 
+  Installing       : perl-Net-1.02-477.amzn2023.0.9.noarch                           135/219 
+  Installing       : perl-NEXT-0.67-477.amzn2023.0.9.noarch                          136/219 
+  Installing       : perl-Module-Runtime-0.016-11.amzn2023.0.2.noarch                137/219 
+  Installing       : perl-Module-Pluggable-2:5.2-16.amzn2023.0.2.noarch              138/219 
+  Installing       : perl-Module-Loaded-1:0.08-477.amzn2023.0.9.noarch               139/219 
+  Installing       : perl-Math-BigInt-FastCalc-0.501.400-3.amzn2023.0.2.x86_64       140/219 
+  Installing       : perl-MRO-Compat-0.13-13.amzn2023.0.2.noarch                     141/219 
+  Installing       : perl-Data-Section-0.200007-12.amzn2023.0.2.noarch               142/219 
+  Installing       : perl-Software-License-0.103014-10.amzn2023.0.2.noarch           143/219 
+  Installing       : perl-Module-Build-2:0.42.31-7.amzn2023.0.2.noarch               144/219 
+  Installing       : perl-MIME-Charset-1.012.2-13.amzn2023.0.2.noarch                145/219 
+  Installing       : perl-Unicode-LineBreak-2019.001-9.amzn2023.0.4.x86_64           146/219 
+  Installing       : perl-Importer-0.026-2.amzn2023.0.2.noarch                       147/219 
+  Installing       : perl-Term-Table-0.015-6.amzn2023.0.2.noarch                     148/219 
+  Installing       : perl-Test-Simple-3:1.302219-2.amzn2023.0.1.noarch               149/219 
+  Installing       : perl-IPC-System-Simple-1.30-4.amzn2023.0.2.noarch               150/219 
+  Installing       : perl-autodie-2.37-522.amzn2023.0.1.noarch                       151/219 
+  Installing       : perl-IPC-SysV-2.09-2.amzn2023.0.3.x86_64                        152/219 
+  Installing       : perl-I18N-Collate-1.02-477.amzn2023.0.9.noarch                  153/219 
+  Installing       : perl-GDBM_File-1.18-477.amzn2023.0.9.x86_64                     154/219 
+  Installing       : perl-FindBin-1.51-477.amzn2023.0.9.noarch                       155/219 
+  Installing       : perl-FileCache-1.10-477.amzn2023.0.9.noarch                     156/219 
+  Installing       : perl-File-Which-1.27-15.amzn2023.0.1.noarch                     157/219 
+  Installing       : perl-File-HomeDir-1.006-2.amzn2023.0.2.noarch                   158/219 
+  Installing       : perl-File-DosGlob-1.12-477.amzn2023.0.9.x86_64                  159/219 
+  Installing       : perl-English-1.11-477.amzn2023.0.9.noarch                       160/219 
+  Installing       : perl-Digest-SHA1-2.13-32.amzn2023.0.3.x86_64                    161/219 
+  Installing       : perl-Devel-Size-0.86-1.amzn2023.0.2.x86_64                      162/219 
+  Installing       : perl-DB_File-1.860-1.amzn2023.0.2.x86_64                        163/219 
+  Installing       : perl-DBM_Filter-0.06-477.amzn2023.0.9.noarch                    164/219 
+  Installing       : perl-Config-Perl-V-0.39-1.amzn2023.0.1.noarch                   165/219 
+  Installing       : perl-Config-Extensions-0.03-477.amzn2023.0.9.noarch             166/219 
+  Installing       : perl-Compress-Raw-Lzma-2.221-1.amzn2023.0.2.x86_64              167/219 
+  Installing       : perl-IO-Compress-Lzma-2.101-2.amzn2023.0.2.noarch               168/219 
+  Installing       : perl-Compress-Bzip2-2.28-3.amzn2023.0.3.x86_64                  169/219 
+  Installing       : perl-CPAN-DistnameInfo-0.12-21.amzn2023.0.2.noarch              170/219 
+  Installing       : perl-Attribute-Handlers-1.01-477.amzn2023.0.9.noarch            171/219 
+  Installing       : perl-Archive-Zip-1.68-4.amzn2023.0.2.noarch                     172/219 
+  Installing       : perl-Algorithm-Diff-1.2010-2.amzn2023.0.2.noarch                173/219 
+  Installing       : perl-Text-Diff-1.45-11.amzn2023.0.2.noarch                      174/219 
+  Installing       : perl-Archive-Tar-3.04-522.amzn2023.0.3.noarch                   175/219 
+  Installing       : perl-Module-Signature-0.87-3.amzn2023.0.2.noarch                176/219 
+  Installing       : perl-CPAN-2.38-521.amzn2023.0.1.noarch                          177/219 
+  Installing       : perl-4:5.32.1-477.amzn2023.0.9.x86_64                           178/219 
+  Installing       : kernel-devel-1:6.1.175-219.357.amzn2023.x86_64                  179/219 
+  Running scriptlet: kernel-devel-1:6.1.175-219.357.amzn2023.x86_64                  179/219 
+  Installing       : mokutil-2:0.6.0-6.amzn2023.x86_64                               180/219 
+  Installing       : systemtap-client-5.4-1.amzn2023.0.2.x86_64                      181/219 
+  Installing       : libzstd-devel-1.5.5-1.amzn2023.0.1.x86_64                       182/219 
+  Installing       : libserf-1.3.9-23.amzn2023.0.3.x86_64                            183/219 
+  Installing       : subversion-libs-1.14.5-3.amzn2023.0.1.x86_64                    184/219 
+  Installing       : libquadmath-devel-11.5.0-5.amzn2023.0.5.x86_64                  185/219 
+  Installing       : libpaper-1.1.28-2.amzn2023.0.2.x86_64                           186/219 
+  Installing       : libijs-0.35-13.amzn2023.0.2.x86_64                              187/219 
+  Installing       : libfontenc-1.1.7-3.amzn2023.0.1.x86_64                          188/219 
+  Installing       : mkfontscale-1.2.2-6.amzn2023.0.1.x86_64                         189/219 
+  Installing       : xorg-x11-fonts-ISO8859-1-100dpi-7.5-38.amzn2023.0.1.noarch      190/219 
+  Running scriptlet: xorg-x11-fonts-ISO8859-1-100dpi-7.5-38.amzn2023.0.1.noarch      190/219 
+  Installing       : libXaw-1.0.15-3.amzn2023.0.1.x86_64                             191/219 
+  Installing       : jbig2dec-libs-0.19-4.amzn2023.0.2.x86_64                        192/219 
+  Installing       : google-droid-sans-fonts-20200215-9.amzn2023.0.2.noarch          193/219 
+  Installing       : gettext-common-devel-0.21-4.amzn2023.0.2.noarch                 194/219 
+  Installing       : gettext-devel-0.21-4.amzn2023.0.2.x86_64                        195/219 
+  Installing       : elfutils-debuginfod-client-devel-0.188-3.amzn2023.0.3.x86_64    196/219 
+  Installing       : elfutils-devel-0.188-3.amzn2023.0.3.x86_64                      197/219 
+  Installing       : systemtap-devel-5.4-1.amzn2023.0.2.x86_64                       198/219 
+  Installing       : adobe-mappings-pdf-20180407-8.amzn2023.0.2.noarch               199/219 
+  Installing       : libgs-9.56.1-7.amzn2023.0.19.x86_64                             200/219 
+  Installing       : graphviz-2.44.0-25.amzn2023.0.7.x86_64                          201/219 
+  Running scriptlet: graphviz-2.44.0-25.amzn2023.0.7.x86_64                          201/219 
+  Installing       : doxygen-2:1.12.0-2.amzn2023.0.1.x86_64                          202/219 
+  Installing       : systemtap-5.4-1.amzn2023.0.2.x86_64                             203/219 
+  Running scriptlet: systemtap-5.4-1.amzn2023.0.2.x86_64                             203/219 
+  Installing       : intltool-0.51.0-18.amzn2023.0.3.noarch                          204/219 
+  Installing       : gcc-gfortran-11.5.0-5.amzn2023.0.5.x86_64                       205/219 
+  Installing       : subversion-1.14.5-3.amzn2023.0.1.x86_64                         206/219 
+  Running scriptlet: subversion-1.14.5-3.amzn2023.0.1.x86_64                         206/219 
+  Installing       : rpm-build-4.16.1.3-29.amzn2023.0.6.x86_64                       207/219 
+  Installing       : libtool-2.4.7-1.amzn2023.0.3.x86_64                             208/219 
+  Installing       : bison-3.7.4-2.amzn2023.0.2.x86_64                               209/219 
+  Installing       : flex-2.6.4-7.amzn2023.0.2.x86_64                                210/219 
+  Installing       : patchutils-0.4.2-5.amzn2023.0.2.x86_64                          211/219 
+  Installing       : systemd-rpm-macros-252.23-12.amzn2023.noarch                    212/219 
+  Installing       : swig-4.1.1-4.amzn2023.0.5.x86_64                                213/219 
+  Installing       : rpm-sign-4.16.1.3-29.amzn2023.0.6.x86_64                        214/219 
+  Installing       : indent-2.2.12-7.amzn2023.0.6.x86_64                             215/219 
+  Installing       : diffstat-1.64-4.amzn2023.0.2.x86_64                             216/219 
+  Installing       : ctags-5.9-1.20210725.0.amzn2023.0.2.x86_64                      217/219 
+  Installing       : cscope-15.9-15.amzn2023.0.3.x86_64                              218/219 
+  Running scriptlet: cscope-15.9-15.amzn2023.0.3.x86_64                              218/219 
+  Installing       : byacc-2.0.20210109-2.amzn2023.0.3.x86_64                        219/219 
+  Running scriptlet: urw-base35-bookman-fonts-20200910-6.amzn2023.0.2.noarch         219/219 
+  Running scriptlet: urw-base35-c059-fonts-20200910-6.amzn2023.0.2.noarch            219/219 
+  Running scriptlet: urw-base35-d050000l-fonts-20200910-6.amzn2023.0.2.noarch        219/219 
+  Running scriptlet: urw-base35-gothic-fonts-20200910-6.amzn2023.0.2.noarch          219/219 
+  Running scriptlet: urw-base35-nimbus-mono-ps-fonts-20200910-6.amzn2023.0.2.noarc   219/219 
+  Running scriptlet: urw-base35-nimbus-roman-fonts-20200910-6.amzn2023.0.2.noarch    219/219 
+  Running scriptlet: urw-base35-nimbus-sans-fonts-20200910-6.amzn2023.0.2.noarch     219/219 
+  Running scriptlet: urw-base35-p052-fonts-20200910-6.amzn2023.0.2.noarch            219/219 
+  Running scriptlet: urw-base35-standard-symbols-ps-fonts-20200910-6.amzn2023.0.2.   219/219 
+  Running scriptlet: urw-base35-z003-fonts-20200910-6.amzn2023.0.2.noarch            219/219 
+  Running scriptlet: byacc-2.0.20210109-2.amzn2023.0.3.x86_64                        219/219 
+/etc/tmpfiles.d/hadoop-hdfs.conf:1: Line references path below legacy directory /var/run/, updating /var/run/hadoop-hdfs → /run/hadoop-hdfs; please update the tmpfiles.d/ drop-in file accordingly.
+/etc/tmpfiles.d/hadoop-httpfs.conf:1: Line references path below legacy directory /var/run/, updating /var/run/hadoop-httpfs → /run/hadoop-httpfs; please update the tmpfiles.d/ drop-in file accordingly.
+/etc/tmpfiles.d/hadoop-kms.conf:1: Line references path below legacy directory /var/run/, updating /var/run/hadoop-kms → /run/hadoop-kms; please update the tmpfiles.d/ drop-in file accordingly.
+/etc/tmpfiles.d/hadoop-mapreduce.conf:1: Line references path below legacy directory /var/run/, updating /var/run/hadoop-mapreduce → /run/hadoop-mapreduce; please update the tmpfiles.d/ drop-in file accordingly.
+/etc/tmpfiles.d/hadoop-yarn.conf:1: Line references path below legacy directory /var/run/, updating /var/run/hadoop-yarn → /run/hadoop-yarn; please update the tmpfiles.d/ drop-in file accordingly.
+/etc/tmpfiles.d/hbase.conf:1: Line references path below legacy directory /var/run/, updating /var/run/hbase → /run/hbase; please update the tmpfiles.d/ drop-in file accordingly.
+/etc/tmpfiles.d/hive.conf:1: Line references path below legacy directory /var/run/, updating /var/run/hive → /run/hive; please update the tmpfiles.d/ drop-in file accordingly.
+/etc/tmpfiles.d/livy-server.conf:1: Line references path below legacy directory /var/run/, updating /var/run/livy → /run/livy; please update the tmpfiles.d/ drop-in file accordingly.
+/etc/tmpfiles.d/spark.conf:1: Line references path below legacy directory /var/run/, updating /var/run/spark → /run/spark; please update the tmpfiles.d/ drop-in file accordingly.
+/etc/tmpfiles.d/zookeeper.conf:1: Line references path below legacy directory /var/run/, updating /var/run/zookeeper → /run/zookeeper; please update the tmpfiles.d/ drop-in file accordingly.
+"/var/lib" already exists and is not a directory.
+Detected unsafe path transition /mnt (owned by hadoop) → /mnt/var (owned by root) during canonicalization of /var/lib/gssproxy.
+"/var/log" already exists and is not a directory.
+Detected unsafe path transition /mnt (owned by hadoop) → /mnt/var (owned by root) during canonicalization of /var/log.
+"/var/cache" already exists and is not a directory.
+Detected unsafe path transition /mnt (owned by hadoop) → /mnt/var (owned by root) during canonicalization of /var/cache.
+Detected unsafe path transition /mnt (owned by hadoop) → /mnt/var (owned by root) during canonicalization of /var/log.
+Detected unsafe path transition /mnt (owned by hadoop) → /mnt/var (owned by root) during canonicalization of /var/lib.
+Detected unsafe path transition /mnt (owned by hadoop) → /mnt/var (owned by root) during canonicalization of /var/lib.
+Detected unsafe path transition /mnt (owned by hadoop) → /mnt/var (owned by root) during canonicalization of /var/lib/systemd.
+Detected unsafe path transition /mnt (owned by hadoop) → /mnt/var (owned by root) during canonicalization of /var/lib/systemd.
+Detected unsafe path transition /mnt (owned by hadoop) → /mnt/var (owned by root) during canonicalization of /var/lib.
+Detected unsafe path transition /mnt (owned by hadoop) → /mnt/var (owned by root) during canonicalization of /var/log.
+Detected unsafe path transition /mnt (owned by hadoop) → /mnt/var (owned by root) during canonicalization of /var/cache.
+"/tmp" already exists and is not a directory.
+"/var/tmp" already exists and is not a directory.
+Detected unsafe path transition /mnt (owned by hadoop) → /mnt/var (owned by root) during canonicalization of /var/log.
+Detected unsafe path transition /mnt (owned by hadoop) → /mnt/var (owned by root) during canonicalization of /var/log.
+Detected unsafe path transition /mnt (owned by hadoop) → /mnt/var (owned by root) during canonicalization of /var/log.
+Detected unsafe path transition /mnt (owned by hadoop) → /mnt/var (owned by root) during canonicalization of /var/log/journal.
+Detected unsafe path transition /mnt (owned by hadoop) → /mnt/var (owned by root) during canonicalization of /var/log/journal.
+Detected unsafe path transition /mnt (owned by hadoop) → /mnt/var (owned by root) during canonicalization of /var/log/journal.
+Detected unsafe path transition /mnt (owned by hadoop) → /mnt/var (owned by root) during canonicalization of /var/log/journal/ec2bb0064c9539d3abe719e0e579d6eb.
+Detected unsafe path transition /mnt (owned by hadoop) → /mnt/var (owned by root) during canonicalization of /var/log/journal/ec2bb0064c9539d3abe719e0e579d6eb.
+Detected unsafe path transition /mnt (owned by hadoop) → /mnt/var (owned by root) during canonicalization of /var/log/journal/ec2bb0064c9539d3abe719e0e579d6eb.
+Detected unsafe path transition /mnt (owned by hadoop) → /mnt/var (owned by root) during canonicalization of /var/log/journal/ec2bb0064c9539d3abe719e0e579d6eb/system.journal.
+Detected unsafe path transition /mnt (owned by hadoop) → /mnt/var (owned by root) during canonicalization of /var/log/journal/ec2bb0064c9539d3abe719e0e579d6eb/system.journal.
+
+  Verifying        : adobe-mappings-cmap-20190730-1.amzn2023.0.2.noarch                1/219 
+  Verifying        : adobe-mappings-cmap-deprecated-20190730-1.amzn2023.0.2.noarch     2/219 
+  Verifying        : adobe-mappings-pdf-20180407-8.amzn2023.0.2.noarch                 3/219 
+  Verifying        : autoconf-2.69-36.amzn2023.0.3.noarch                              4/219 
+  Verifying        : automake-1.16.5-9.amzn2023.0.3.noarch                             5/219 
+  Verifying        : bison-3.7.4-2.amzn2023.0.2.x86_64                                 6/219 
+  Verifying        : byacc-2.0.20210109-2.amzn2023.0.3.x86_64                          7/219 
+  Verifying        : cscope-15.9-15.amzn2023.0.3.x86_64                                8/219 
+  Verifying        : ctags-5.9-1.20210725.0.amzn2023.0.2.x86_64                        9/219 
+  Verifying        : debugedit-5.0-10.amzn2023.0.1.x86_64                             10/219 
+  Verifying        : diffstat-1.64-4.amzn2023.0.2.x86_64                              11/219 
+  Verifying        : doxygen-2:1.12.0-2.amzn2023.0.1.x86_64                           12/219 
+  Verifying        : elfutils-0.188-3.amzn2023.0.3.x86_64                             13/219 
+  Verifying        : elfutils-debuginfod-client-devel-0.188-3.amzn2023.0.3.x86_64     14/219 
+  Verifying        : elfutils-devel-0.188-3.amzn2023.0.3.x86_64                       15/219 
+  Verifying        : elfutils-libelf-devel-0.188-3.amzn2023.0.3.x86_64                16/219 
+  Verifying        : flex-2.6.4-7.amzn2023.0.2.x86_64                                 17/219 
+  Verifying        : gcc-gfortran-11.5.0-5.amzn2023.0.5.x86_64                        18/219 
+  Verifying        : gdb-minimal-16.3-1.amzn2023.0.1.x86_64                           19/219 
+  Verifying        : gettext-common-devel-0.21-4.amzn2023.0.2.noarch                  20/219 
+  Verifying        : gettext-devel-0.21-4.amzn2023.0.2.x86_64                         21/219 
+  Verifying        : google-droid-sans-fonts-20200215-9.amzn2023.0.2.noarch           22/219 
+  Verifying        : graphviz-2.44.0-25.amzn2023.0.7.x86_64                           23/219 
+  Verifying        : indent-2.2.12-7.amzn2023.0.6.x86_64                              24/219 
+  Verifying        : intltool-0.51.0-18.amzn2023.0.3.noarch                           25/219 
+  Verifying        : jbig2dec-libs-0.19-4.amzn2023.0.2.x86_64                         26/219 
+  Verifying        : kernel-devel-1:6.1.175-219.357.amzn2023.x86_64                   27/219 
+  Verifying        : libXaw-1.0.15-3.amzn2023.0.1.x86_64                              28/219 
+  Verifying        : libfontenc-1.1.7-3.amzn2023.0.1.x86_64                           29/219 
+  Verifying        : libgs-9.56.1-7.amzn2023.0.19.x86_64                              30/219 
+  Verifying        : libijs-0.35-13.amzn2023.0.2.x86_64                               31/219 
+  Verifying        : libpaper-1.1.28-2.amzn2023.0.2.x86_64                            32/219 
+  Verifying        : libquadmath-devel-11.5.0-5.amzn2023.0.5.x86_64                   33/219 
+  Verifying        : libserf-1.3.9-23.amzn2023.0.3.x86_64                             34/219 
+  Verifying        : libtool-2.4.7-1.amzn2023.0.3.x86_64                              35/219 
+  Verifying        : libzstd-devel-1.5.5-1.amzn2023.0.1.x86_64                        36/219 
+  Verifying        : m4-1.4.19-2.amzn2023.0.2.x86_64                                  37/219 
+  Verifying        : mkfontscale-1.2.2-6.amzn2023.0.1.x86_64                          38/219 
+  Verifying        : mokutil-2:0.6.0-6.amzn2023.x86_64                                39/219 
+  Verifying        : patch-2.7.6-14.amzn2023.0.2.x86_64                               40/219 
+  Verifying        : patchutils-0.4.2-5.amzn2023.0.2.x86_64                           41/219 
+  Verifying        : perl-4:5.32.1-477.amzn2023.0.9.x86_64                            42/219 
+  Verifying        : perl-Algorithm-Diff-1.2010-2.amzn2023.0.2.noarch                 43/219 
+  Verifying        : perl-Archive-Tar-3.04-522.amzn2023.0.3.noarch                    44/219 
+  Verifying        : perl-Archive-Zip-1.68-4.amzn2023.0.2.noarch                      45/219 
+  Verifying        : perl-Attribute-Handlers-1.01-477.amzn2023.0.9.noarch             46/219 
+  Verifying        : perl-AutoSplit-5.74-477.amzn2023.0.9.noarch                      47/219 
+  Verifying        : perl-Benchmark-1.23-477.amzn2023.0.9.noarch                      48/219 
+  Verifying        : perl-CPAN-2.38-521.amzn2023.0.1.noarch                           49/219 
+  Verifying        : perl-CPAN-DistnameInfo-0.12-21.amzn2023.0.2.noarch               50/219 
+  Verifying        : perl-CPAN-Meta-2.150013-1.amzn2023.0.1.noarch                    51/219 
+  Verifying        : perl-CPAN-Meta-Requirements-2.145-1.amzn2023.0.1.noarch          52/219 
+  Verifying        : perl-CPAN-Meta-YAML-0.020-522.amzn2023.0.1.noarch                53/219 
+  Verifying        : perl-Compress-Bzip2-2.28-3.amzn2023.0.3.x86_64                   54/219 
+  Verifying        : perl-Compress-Raw-Lzma-2.221-1.amzn2023.0.2.x86_64               55/219 
+  Verifying        : perl-Config-Extensions-0.03-477.amzn2023.0.9.noarch              56/219 
+  Verifying        : perl-Config-Perl-V-0.39-1.amzn2023.0.1.noarch                    57/219 
+  Verifying        : perl-DBM_Filter-0.06-477.amzn2023.0.9.noarch                     58/219 
+  Verifying        : perl-DB_File-1.860-1.amzn2023.0.2.x86_64                         59/219 
+  Verifying        : perl-Data-OptList-0.110-15.amzn2023.0.2.noarch                   60/219 
+  Verifying        : perl-Data-Section-0.200007-12.amzn2023.0.2.noarch                61/219 
+  Verifying        : perl-Devel-PPPort-3.73-522.amzn2023.0.2.x86_64                   62/219 
+  Verifying        : perl-Devel-Peek-1.28-477.amzn2023.0.9.x86_64                     63/219 
+  Verifying        : perl-Devel-SelfStubber-1.06-477.amzn2023.0.9.noarch              64/219 
+  Verifying        : perl-Devel-Size-0.86-1.amzn2023.0.2.x86_64                       65/219 
+  Verifying        : perl-Digest-SHA1-2.13-32.amzn2023.0.3.x86_64                     66/219 
+  Verifying        : perl-DirHandle-1.05-477.amzn2023.0.9.noarch                      67/219 
+  Verifying        : perl-Dumpvalue-2.27-477.amzn2023.0.9.noarch                      68/219 
+  Verifying        : perl-Encode-devel-4:3.21-520.amzn2023.0.2.x86_64                 69/219 
+  Verifying        : perl-English-1.11-477.amzn2023.0.9.noarch                        70/219 
+  Verifying        : perl-Env-1.04-458.amzn2023.0.2.noarch                            71/219 
+  Verifying        : perl-ExtUtils-CBuilder-1:0.280236-2.amzn2023.0.3.noarch          72/219 
+  Verifying        : perl-ExtUtils-Command-2:7.62-1.amzn2023.0.2.noarch               73/219 
+  Verifying        : perl-ExtUtils-Constant-0.25-477.amzn2023.0.9.noarch              74/219 
+  Verifying        : perl-ExtUtils-Embed-1.35-477.amzn2023.0.9.noarch                 75/219 
+  Verifying        : perl-ExtUtils-Install-2.22-521.amzn2023.0.1.noarch               76/219 
+  Verifying        : perl-ExtUtils-MM-Utils-2:7.62-1.amzn2023.0.2.noarch              77/219 
+  Verifying        : perl-ExtUtils-MakeMaker-2:7.62-1.amzn2023.0.2.noarch             78/219 
+  Verifying        : perl-ExtUtils-Manifest-1:1.75-521.amzn2023.0.1.noarch            79/219 
+  Verifying        : perl-ExtUtils-Miniperl-1.09-477.amzn2023.0.9.noarch              80/219 
+  Verifying        : perl-ExtUtils-ParseXS-1:3.61-2.amzn2023.0.1.noarch               81/219 
+  Verifying        : perl-File-Compare-1.100.600-477.amzn2023.0.9.noarch              82/219 
+  Verifying        : perl-File-DosGlob-1.12-477.amzn2023.0.9.x86_64                   83/219 
+  Verifying        : perl-File-Fetch-1.08-4.amzn2023.0.1.noarch                       84/219 
+  Verifying        : perl-File-HomeDir-1.006-2.amzn2023.0.2.noarch                    85/219 
+  Verifying        : perl-File-Which-1.27-15.amzn2023.0.1.noarch                      86/219 
+  Verifying        : perl-FileCache-1.10-477.amzn2023.0.9.noarch                      87/219 
+  Verifying        : perl-Filter-Simple-0.96-458.amzn2023.0.2.noarch                  88/219 
+  Verifying        : perl-FindBin-1.51-477.amzn2023.0.9.noarch                        89/219 
+  Verifying        : perl-GDBM_File-1.18-477.amzn2023.0.9.x86_64                      90/219 
+  Verifying        : perl-Hash-Util-0.23-477.amzn2023.0.9.x86_64                      91/219 
+  Verifying        : perl-Hash-Util-FieldHash-1.20-477.amzn2023.0.9.x86_64            92/219 
+  Verifying        : perl-I18N-Collate-1.02-477.amzn2023.0.9.noarch                   93/219 
+  Verifying        : perl-I18N-LangTags-0.44-477.amzn2023.0.9.noarch                  94/219 
+  Verifying        : perl-IO-Compress-Lzma-2.101-2.amzn2023.0.2.noarch                95/219 
+  Verifying        : perl-IO-Zlib-1:1.11-2.amzn2023.0.2.noarch                        96/219 
+  Verifying        : perl-IPC-Cmd-2:1.04-459.amzn2023.0.2.noarch                      97/219 
+  Verifying        : perl-IPC-SysV-2.09-2.amzn2023.0.3.x86_64                         98/219 
+  Verifying        : perl-IPC-System-Simple-1.30-4.amzn2023.0.2.noarch                99/219 
+  Verifying        : perl-Importer-0.026-2.amzn2023.0.2.noarch                       100/219 
+  Verifying        : perl-JSON-PP-1:4.06-2.amzn2023.0.2.noarch                       101/219 
+  Verifying        : perl-Locale-Maketext-1.29-459.amzn2023.0.2.noarch               102/219 
+  Verifying        : perl-Locale-Maketext-Simple-1:0.21-477.amzn2023.0.9.noarch      103/219 
+  Verifying        : perl-MIME-Charset-1.012.2-13.amzn2023.0.2.noarch                104/219 
+  Verifying        : perl-MRO-Compat-0.13-13.amzn2023.0.2.noarch                     105/219 
+  Verifying        : perl-Math-BigInt-FastCalc-0.501.400-3.amzn2023.0.2.x86_64       106/219 
+  Verifying        : perl-Memoize-1.03-477.amzn2023.0.9.noarch                       107/219 
+  Verifying        : perl-Module-Build-2:0.42.31-7.amzn2023.0.2.noarch               108/219 
+  Verifying        : perl-Module-CoreList-1:5.20211020-1.amzn2023.0.2.noarch         109/219 
+  Verifying        : perl-Module-CoreList-tools-1:5.20211020-1.amzn2023.0.2.noarch   110/219 
+  Verifying        : perl-Module-Load-1:0.36-2.amzn2023.0.2.noarch                   111/219 
+  Verifying        : perl-Module-Load-Conditional-0.74-2.amzn2023.0.2.noarch         112/219 
+  Verifying        : perl-Module-Loaded-1:0.08-477.amzn2023.0.9.noarch               113/219 
+  Verifying        : perl-Module-Metadata-1.000037-458.amzn2023.0.2.noarch           114/219 
+  Verifying        : perl-Module-Pluggable-2:5.2-16.amzn2023.0.2.noarch              115/219 
+  Verifying        : perl-Module-Runtime-0.016-11.amzn2023.0.2.noarch                116/219 
+  Verifying        : perl-Module-Signature-0.87-3.amzn2023.0.2.noarch                117/219 
+  Verifying        : perl-NDBM_File-1.15-477.amzn2023.0.9.x86_64                     118/219 
+  Verifying        : perl-NEXT-0.67-477.amzn2023.0.9.noarch                          119/219 
+  Verifying        : perl-Net-1.02-477.amzn2023.0.9.noarch                           120/219 
+  Verifying        : perl-Net-Ping-2.74-3.amzn2023.0.2.noarch                        121/219 
+  Verifying        : perl-ODBM_File-1.16-477.amzn2023.0.9.x86_64                     122/219 
+  Verifying        : perl-Object-HashBase-0.009-5.amzn2023.0.2.noarch                123/219 
+  Verifying        : perl-Opcode-1.48-477.amzn2023.0.9.x86_64                        124/219 
+  Verifying        : perl-Package-Generator-1.106-21.amzn2023.0.2.noarch             125/219 
+  Verifying        : perl-Params-Check-1:0.38-459.amzn2023.0.2.noarch                126/219 
+  Verifying        : perl-Perl-OSType-1.010-459.amzn2023.0.2.noarch                  127/219 
+  Verifying        : perl-PerlIO-via-QuotedPrint-0.09-2.amzn2023.0.2.noarch          128/219 
+  Verifying        : perl-Pod-Checker-4:1.74-2.amzn2023.0.2.noarch                   129/219 
+  Verifying        : perl-Pod-Functions-1.13-477.amzn2023.0.9.noarch                 130/219 
+  Verifying        : perl-Pod-Html-1.25-477.amzn2023.0.9.noarch                      131/219 
+  Verifying        : perl-Safe-2.41-477.amzn2023.0.9.noarch                          132/219 
+  Verifying        : perl-Search-Dict-1.07-477.amzn2023.0.9.noarch                   133/219 
+  Verifying        : perl-SelfLoader-1.26-477.amzn2023.0.9.noarch                    134/219 
+  Verifying        : perl-Software-License-0.103014-10.amzn2023.0.2.noarch           135/219 
+  Verifying        : perl-Sub-Exporter-0.987-25.amzn2023.0.2.noarch                  136/219 
+  Verifying        : perl-Sub-Install-0.928-26.amzn2023.0.2.noarch                   137/219 
+  Verifying        : perl-Sys-Syslog-0.36-459.amzn2023.0.3.x86_64                    138/219 
+  Verifying        : perl-Term-Complete-1.403-477.amzn2023.0.9.noarch                139/219 
+  Verifying        : perl-Term-ReadLine-1.17-477.amzn2023.0.9.noarch                 140/219 
+  Verifying        : perl-Term-Size-Any-0.002-33.amzn2023.0.2.noarch                 141/219 
+  Verifying        : perl-Term-Size-Perl-0.031-10.amzn2023.0.2.x86_64                142/219 
+  Verifying        : perl-Term-Table-0.015-6.amzn2023.0.2.noarch                     143/219 
+  Verifying        : perl-Test-1.31-477.amzn2023.0.9.noarch                          144/219 
+  Verifying        : perl-Test-Harness-1:3.42-459.amzn2023.0.2.noarch                145/219 
+  Verifying        : perl-Test-Simple-3:1.302219-2.amzn2023.0.1.noarch               146/219 
+  Verifying        : perl-Text-Abbrev-1.02-477.amzn2023.0.9.noarch                   147/219 
+  Verifying        : perl-Text-Balanced-2.04-2.amzn2023.0.2.noarch                   148/219 
+  Verifying        : perl-Text-Diff-1.45-11.amzn2023.0.2.noarch                      149/219 
+  Verifying        : perl-Text-Glob-0.11-13.amzn2023.0.2.noarch                      150/219 
+  Verifying        : perl-Text-Template-1.59-3.amzn2023.0.2.noarch                   151/219 
+  Verifying        : perl-Thread-3.05-477.amzn2023.0.9.noarch                        152/219 
+  Verifying        : perl-Thread-Queue-3.14-458.amzn2023.0.2.noarch                  153/219 
+  Verifying        : perl-Thread-Semaphore-2.13-477.amzn2023.0.9.noarch              154/219 
+  Verifying        : perl-Tie-4.6-477.amzn2023.0.9.noarch                            155/219 
+  Verifying        : perl-Tie-File-1.06-477.amzn2023.0.9.noarch                      156/219 
+  Verifying        : perl-Tie-Memoize-1.1-477.amzn2023.0.9.noarch                    157/219 
+  Verifying        : perl-Tie-RefHash-1.40-2.amzn2023.0.2.noarch                     158/219 
+  Verifying        : perl-Time-1.03-477.amzn2023.0.9.noarch                          159/219 
+  Verifying        : perl-Time-Piece-1.3401-477.amzn2023.0.9.x86_64                  160/219 
+  Verifying        : perl-Unicode-Collate-1.29-2.amzn2023.0.3.x86_64                 161/219 
+  Verifying        : perl-Unicode-LineBreak-2019.001-9.amzn2023.0.4.x86_64           162/219 
+  Verifying        : perl-Unicode-Normalize-1.27-459.amzn2023.0.3.x86_64             163/219 
+  Verifying        : perl-Unicode-UCD-0.75-477.amzn2023.0.9.noarch                   164/219 
+  Verifying        : perl-User-pwent-1.03-477.amzn2023.0.9.noarch                    165/219 
+  Verifying        : perl-autodie-2.37-522.amzn2023.0.1.noarch                       166/219 
+  Verifying        : perl-autouse-1.11-477.amzn2023.0.9.noarch                       167/219 
+  Verifying        : perl-bignum-0.67-522.amzn2023.0.1.noarch                        168/219 
+  Verifying        : perl-blib-1.07-477.amzn2023.0.9.noarch                          169/219 
+  Verifying        : perl-debugger-1.56-477.amzn2023.0.9.noarch                      170/219 
+  Verifying        : perl-deprecate-0.04-477.amzn2023.0.9.noarch                     171/219 
+  Verifying        : perl-devel-4:5.32.1-477.amzn2023.0.9.x86_64                     172/219 
+  Verifying        : perl-diagnostics-1.37-477.amzn2023.0.9.noarch                   173/219 
+  Verifying        : perl-doc-5.32.1-477.amzn2023.0.9.noarch                         174/219 
+  Verifying        : perl-encoding-warnings-0.13-477.amzn2023.0.9.noarch             175/219 
+  Verifying        : perl-experimental-0.036-3.amzn2023.0.1.noarch                   176/219 
+  Verifying        : perl-fields-2.27-477.amzn2023.0.9.noarch                        177/219 
+  Verifying        : perl-filetest-1.03-477.amzn2023.0.9.noarch                      178/219 
+  Verifying        : perl-inc-latest-2:0.500-18.amzn2023.0.2.noarch                  179/219 
+  Verifying        : perl-less-0.03-477.amzn2023.0.9.noarch                          180/219 
+  Verifying        : perl-libnetcfg-4:5.32.1-477.amzn2023.0.9.noarch                 181/219 
+  Verifying        : perl-local-lib-2.000024-11.amzn2023.0.2.noarch                  182/219 
+  Verifying        : perl-macros-4:5.32.1-477.amzn2023.0.9.noarch                    183/219 
+  Verifying        : perl-meta-notation-5.32.1-477.amzn2023.0.9.noarch               184/219 
+  Verifying        : perl-perlfaq-5.20210520-1.amzn2023.0.2.noarch                   185/219 
+  Verifying        : perl-ph-5.32.1-477.amzn2023.0.9.x86_64                          186/219 
+  Verifying        : perl-sigtrap-1.09-477.amzn2023.0.9.noarch                       187/219 
+  Verifying        : perl-sort-2.04-477.amzn2023.0.9.noarch                          188/219 
+  Verifying        : perl-threads-1:2.25-458.amzn2023.0.4.x86_64                     189/219 
+  Verifying        : perl-threads-shared-1.61-458.amzn2023.0.3.x86_64                190/219 
+  Verifying        : perl-utils-5.32.1-477.amzn2023.0.9.noarch                       191/219 
+  Verifying        : perl-version-7:0.99.29-1.amzn2023.0.3.x86_64                    192/219 
+  Verifying        : perl-vmsish-1.04-477.amzn2023.0.9.noarch                        193/219 
+  Verifying        : rpm-build-4.16.1.3-29.amzn2023.0.6.x86_64                       194/219 
+  Verifying        : rpm-sign-4.16.1.3-29.amzn2023.0.6.x86_64                        195/219 
+  Verifying        : sombok-2.4.0-14.amzn2023.0.2.x86_64                             196/219 
+  Verifying        : subversion-1.14.5-3.amzn2023.0.1.x86_64                         197/219 
+  Verifying        : subversion-libs-1.14.5-3.amzn2023.0.1.x86_64                    198/219 
+  Verifying        : swig-4.1.1-4.amzn2023.0.5.x86_64                                199/219 
+  Verifying        : systemd-rpm-macros-252.23-12.amzn2023.noarch                    200/219 
+  Verifying        : systemtap-5.4-1.amzn2023.0.2.x86_64                             201/219 
+  Verifying        : systemtap-client-5.4-1.amzn2023.0.2.x86_64                      202/219 
+  Verifying        : systemtap-devel-5.4-1.amzn2023.0.2.x86_64                       203/219 
+  Verifying        : systemtap-sdt-devel-5.4-1.amzn2023.0.2.x86_64                   204/219 
+  Verifying        : systemtap-sdt-dtrace-5.4-1.amzn2023.0.2.x86_64                  205/219 
+  Verifying        : urw-base35-bookman-fonts-20200910-6.amzn2023.0.2.noarch         206/219 
+  Verifying        : urw-base35-c059-fonts-20200910-6.amzn2023.0.2.noarch            207/219 
+  Verifying        : urw-base35-d050000l-fonts-20200910-6.amzn2023.0.2.noarch        208/219 
+  Verifying        : urw-base35-fonts-20200910-6.amzn2023.0.2.noarch                 209/219 
+  Verifying        : urw-base35-fonts-common-20200910-6.amzn2023.0.2.noarch          210/219 
+  Verifying        : urw-base35-gothic-fonts-20200910-6.amzn2023.0.2.noarch          211/219 
+  Verifying        : urw-base35-nimbus-mono-ps-fonts-20200910-6.amzn2023.0.2.noarc   212/219 
+  Verifying        : urw-base35-nimbus-roman-fonts-20200910-6.amzn2023.0.2.noarch    213/219 
+  Verifying        : urw-base35-nimbus-sans-fonts-20200910-6.amzn2023.0.2.noarch     214/219 
+  Verifying        : urw-base35-p052-fonts-20200910-6.amzn2023.0.2.noarch            215/219 
+  Verifying        : urw-base35-standard-symbols-ps-fonts-20200910-6.amzn2023.0.2.   216/219 
+  Verifying        : urw-base35-z003-fonts-20200910-6.amzn2023.0.2.noarch            217/219 
+  Verifying        : utf8proc-2.6.1-2.amzn2023.0.2.x86_64                            218/219 
+  Verifying        : xorg-x11-fonts-ISO8859-1-100dpi-7.5-38.amzn2023.0.1.noarch      219/219 
+=============================================================================================
+WARNING:
+  A newer release of "Amazon Linux" is available.
+
+  Available Versions:
+
+  Version 2023.12.20260629:
+    Run the following command to upgrade to 2023.12.20260629:
+
+      dnf upgrade --releasever=2023.12.20260629
+
+    Release notes:
+     https://docs.aws.amazon.com/linux/al2023/release-notes/relnotes-2023.12.20260629.html
+
+  Version 2023.12.20260706:
+    Run the following command to upgrade to 2023.12.20260706:
+
+      dnf upgrade --releasever=2023.12.20260706
+
+    Release notes:
+     https://docs.aws.amazon.com/linux/al2023/release-notes/relnotes-2023.12.20260706.html
+
+  Version 2023.12.20260710:
+    Run the following command to upgrade to 2023.12.20260710:
+
+      dnf upgrade --releasever=2023.12.20260710
+
+    Release notes:
+     https://docs.aws.amazon.com/linux/al2023/release-notes/relnotes-2023.12.20260710.html
+
+=============================================================================================
+
+Installed:
+  adobe-mappings-cmap-20190730-1.amzn2023.0.2.noarch                                         
+  adobe-mappings-cmap-deprecated-20190730-1.amzn2023.0.2.noarch                              
+  adobe-mappings-pdf-20180407-8.amzn2023.0.2.noarch                                          
+  autoconf-2.69-36.amzn2023.0.3.noarch                                                       
+  automake-1.16.5-9.amzn2023.0.3.noarch                                                      
+  bison-3.7.4-2.amzn2023.0.2.x86_64                                                          
+  byacc-2.0.20210109-2.amzn2023.0.3.x86_64                                                   
+  cscope-15.9-15.amzn2023.0.3.x86_64                                                         
+  ctags-5.9-1.20210725.0.amzn2023.0.2.x86_64                                                 
+  debugedit-5.0-10.amzn2023.0.1.x86_64                                                       
+  diffstat-1.64-4.amzn2023.0.2.x86_64                                                        
+  doxygen-2:1.12.0-2.amzn2023.0.1.x86_64                                                     
+  elfutils-0.188-3.amzn2023.0.3.x86_64                                                       
+  elfutils-debuginfod-client-devel-0.188-3.amzn2023.0.3.x86_64                               
+  elfutils-devel-0.188-3.amzn2023.0.3.x86_64                                                 
+  elfutils-libelf-devel-0.188-3.amzn2023.0.3.x86_64                                          
+  flex-2.6.4-7.amzn2023.0.2.x86_64                                                           
+  gcc-gfortran-11.5.0-5.amzn2023.0.5.x86_64                                                  
+  gdb-minimal-16.3-1.amzn2023.0.1.x86_64                                                     
+  gettext-common-devel-0.21-4.amzn2023.0.2.noarch                                            
+  gettext-devel-0.21-4.amzn2023.0.2.x86_64                                                   
+  google-droid-sans-fonts-20200215-9.amzn2023.0.2.noarch                                     
+  graphviz-2.44.0-25.amzn2023.0.7.x86_64                                                     
+  indent-2.2.12-7.amzn2023.0.6.x86_64                                                        
+  intltool-0.51.0-18.amzn2023.0.3.noarch                                                     
+  jbig2dec-libs-0.19-4.amzn2023.0.2.x86_64                                                   
+  kernel-devel-1:6.1.175-219.357.amzn2023.x86_64                                             
+  libXaw-1.0.15-3.amzn2023.0.1.x86_64                                                        
+  libfontenc-1.1.7-3.amzn2023.0.1.x86_64                                                     
+  libgs-9.56.1-7.amzn2023.0.19.x86_64                                                        
+  libijs-0.35-13.amzn2023.0.2.x86_64                                                         
+  libpaper-1.1.28-2.amzn2023.0.2.x86_64                                                      
+  libquadmath-devel-11.5.0-5.amzn2023.0.5.x86_64                                             
+  libserf-1.3.9-23.amzn2023.0.3.x86_64                                                       
+  libtool-2.4.7-1.amzn2023.0.3.x86_64                                                        
+  libzstd-devel-1.5.5-1.amzn2023.0.1.x86_64                                                  
+  m4-1.4.19-2.amzn2023.0.2.x86_64                                                            
+  mkfontscale-1.2.2-6.amzn2023.0.1.x86_64                                                    
+  mokutil-2:0.6.0-6.amzn2023.x86_64                                                          
+  patch-2.7.6-14.amzn2023.0.2.x86_64                                                         
+  patchutils-0.4.2-5.amzn2023.0.2.x86_64                                                     
+  perl-4:5.32.1-477.amzn2023.0.9.x86_64                                                      
+  perl-Algorithm-Diff-1.2010-2.amzn2023.0.2.noarch                                           
+  perl-Archive-Tar-3.04-522.amzn2023.0.3.noarch                                              
+  perl-Archive-Zip-1.68-4.amzn2023.0.2.noarch                                                
+  perl-Attribute-Handlers-1.01-477.amzn2023.0.9.noarch                                       
+  perl-AutoSplit-5.74-477.amzn2023.0.9.noarch                                                
+  perl-Benchmark-1.23-477.amzn2023.0.9.noarch                                                
+  perl-CPAN-2.38-521.amzn2023.0.1.noarch                                                     
+  perl-CPAN-DistnameInfo-0.12-21.amzn2023.0.2.noarch                                         
+  perl-CPAN-Meta-2.150013-1.amzn2023.0.1.noarch                                              
+  perl-CPAN-Meta-Requirements-2.145-1.amzn2023.0.1.noarch                                    
+  perl-CPAN-Meta-YAML-0.020-522.amzn2023.0.1.noarch                                          
+  perl-Compress-Bzip2-2.28-3.amzn2023.0.3.x86_64                                             
+  perl-Compress-Raw-Lzma-2.221-1.amzn2023.0.2.x86_64                                         
+  perl-Config-Extensions-0.03-477.amzn2023.0.9.noarch                                        
+  perl-Config-Perl-V-0.39-1.amzn2023.0.1.noarch                                              
+  perl-DBM_Filter-0.06-477.amzn2023.0.9.noarch                                               
+  perl-DB_File-1.860-1.amzn2023.0.2.x86_64                                                   
+  perl-Data-OptList-0.110-15.amzn2023.0.2.noarch                                             
+  perl-Data-Section-0.200007-12.amzn2023.0.2.noarch                                          
+  perl-Devel-PPPort-3.73-522.amzn2023.0.2.x86_64                                             
+  perl-Devel-Peek-1.28-477.amzn2023.0.9.x86_64                                               
+  perl-Devel-SelfStubber-1.06-477.amzn2023.0.9.noarch                                        
+  perl-Devel-Size-0.86-1.amzn2023.0.2.x86_64                                                 
+  perl-Digest-SHA1-2.13-32.amzn2023.0.3.x86_64                                               
+  perl-DirHandle-1.05-477.amzn2023.0.9.noarch                                                
+  perl-Dumpvalue-2.27-477.amzn2023.0.9.noarch                                                
+  perl-Encode-devel-4:3.21-520.amzn2023.0.2.x86_64                                           
+  perl-English-1.11-477.amzn2023.0.9.noarch                                                  
+  perl-Env-1.04-458.amzn2023.0.2.noarch                                                      
+  perl-ExtUtils-CBuilder-1:0.280236-2.amzn2023.0.3.noarch                                    
+  perl-ExtUtils-Command-2:7.62-1.amzn2023.0.2.noarch                                         
+  perl-ExtUtils-Constant-0.25-477.amzn2023.0.9.noarch                                        
+  perl-ExtUtils-Embed-1.35-477.amzn2023.0.9.noarch                                           
+  perl-ExtUtils-Install-2.22-521.amzn2023.0.1.noarch                                         
+  perl-ExtUtils-MM-Utils-2:7.62-1.amzn2023.0.2.noarch                                        
+  perl-ExtUtils-MakeMaker-2:7.62-1.amzn2023.0.2.noarch                                       
+  perl-ExtUtils-Manifest-1:1.75-521.amzn2023.0.1.noarch                                      
+  perl-ExtUtils-Miniperl-1.09-477.amzn2023.0.9.noarch                                        
+  perl-ExtUtils-ParseXS-1:3.61-2.amzn2023.0.1.noarch                                         
+  perl-File-Compare-1.100.600-477.amzn2023.0.9.noarch                                        
+  perl-File-DosGlob-1.12-477.amzn2023.0.9.x86_64                                             
+  perl-File-Fetch-1.08-4.amzn2023.0.1.noarch                                                 
+  perl-File-HomeDir-1.006-2.amzn2023.0.2.noarch                                              
+  perl-File-Which-1.27-15.amzn2023.0.1.noarch                                                
+  perl-FileCache-1.10-477.amzn2023.0.9.noarch                                                
+  perl-Filter-Simple-0.96-458.amzn2023.0.2.noarch                                            
+  perl-FindBin-1.51-477.amzn2023.0.9.noarch                                                  
+  perl-GDBM_File-1.18-477.amzn2023.0.9.x86_64                                                
+  perl-Hash-Util-0.23-477.amzn2023.0.9.x86_64                                                
+  perl-Hash-Util-FieldHash-1.20-477.amzn2023.0.9.x86_64                                      
+  perl-I18N-Collate-1.02-477.amzn2023.0.9.noarch                                             
+  perl-I18N-LangTags-0.44-477.amzn2023.0.9.noarch                                            
+  perl-IO-Compress-Lzma-2.101-2.amzn2023.0.2.noarch                                          
+  perl-IO-Zlib-1:1.11-2.amzn2023.0.2.noarch                                                  
+  perl-IPC-Cmd-2:1.04-459.amzn2023.0.2.noarch                                                
+  perl-IPC-SysV-2.09-2.amzn2023.0.3.x86_64                                                   
+  perl-IPC-System-Simple-1.30-4.amzn2023.0.2.noarch                                          
+  perl-Importer-0.026-2.amzn2023.0.2.noarch                                                  
+  perl-JSON-PP-1:4.06-2.amzn2023.0.2.noarch                                                  
+  perl-Locale-Maketext-1.29-459.amzn2023.0.2.noarch                                          
+  perl-Locale-Maketext-Simple-1:0.21-477.amzn2023.0.9.noarch                                 
+  perl-MIME-Charset-1.012.2-13.amzn2023.0.2.noarch                                           
+  perl-MRO-Compat-0.13-13.amzn2023.0.2.noarch                                                
+  perl-Math-BigInt-FastCalc-0.501.400-3.amzn2023.0.2.x86_64                                  
+  perl-Memoize-1.03-477.amzn2023.0.9.noarch                                                  
+  perl-Module-Build-2:0.42.31-7.amzn2023.0.2.noarch                                          
+  perl-Module-CoreList-1:5.20211020-1.amzn2023.0.2.noarch                                    
+  perl-Module-CoreList-tools-1:5.20211020-1.amzn2023.0.2.noarch                              
+  perl-Module-Load-1:0.36-2.amzn2023.0.2.noarch                                              
+  perl-Module-Load-Conditional-0.74-2.amzn2023.0.2.noarch                                    
+  perl-Module-Loaded-1:0.08-477.amzn2023.0.9.noarch                                          
+  perl-Module-Metadata-1.000037-458.amzn2023.0.2.noarch                                      
+  perl-Module-Pluggable-2:5.2-16.amzn2023.0.2.noarch                                         
+  perl-Module-Runtime-0.016-11.amzn2023.0.2.noarch                                           
+  perl-Module-Signature-0.87-3.amzn2023.0.2.noarch                                           
+  perl-NDBM_File-1.15-477.amzn2023.0.9.x86_64                                                
+  perl-NEXT-0.67-477.amzn2023.0.9.noarch                                                     
+  perl-Net-1.02-477.amzn2023.0.9.noarch                                                      
+  perl-Net-Ping-2.74-3.amzn2023.0.2.noarch                                                   
+  perl-ODBM_File-1.16-477.amzn2023.0.9.x86_64                                                
+  perl-Object-HashBase-0.009-5.amzn2023.0.2.noarch                                           
+  perl-Opcode-1.48-477.amzn2023.0.9.x86_64                                                   
+  perl-Package-Generator-1.106-21.amzn2023.0.2.noarch                                        
+  perl-Params-Check-1:0.38-459.amzn2023.0.2.noarch                                           
+  perl-Perl-OSType-1.010-459.amzn2023.0.2.noarch                                             
+  perl-PerlIO-via-QuotedPrint-0.09-2.amzn2023.0.2.noarch                                     
+  perl-Pod-Checker-4:1.74-2.amzn2023.0.2.noarch                                              
+  perl-Pod-Functions-1.13-477.amzn2023.0.9.noarch                                            
+  perl-Pod-Html-1.25-477.amzn2023.0.9.noarch                                                 
+  perl-Safe-2.41-477.amzn2023.0.9.noarch                                                     
+  perl-Search-Dict-1.07-477.amzn2023.0.9.noarch                                              
+  perl-SelfLoader-1.26-477.amzn2023.0.9.noarch                                               
+  perl-Software-License-0.103014-10.amzn2023.0.2.noarch                                      
+  perl-Sub-Exporter-0.987-25.amzn2023.0.2.noarch                                             
+  perl-Sub-Install-0.928-26.amzn2023.0.2.noarch                                              
+  perl-Sys-Syslog-0.36-459.amzn2023.0.3.x86_64                                               
+  perl-Term-Complete-1.403-477.amzn2023.0.9.noarch                                           
+  perl-Term-ReadLine-1.17-477.amzn2023.0.9.noarch                                            
+  perl-Term-Size-Any-0.002-33.amzn2023.0.2.noarch                                            
+  perl-Term-Size-Perl-0.031-10.amzn2023.0.2.x86_64                                           
+  perl-Term-Table-0.015-6.amzn2023.0.2.noarch                                                
+  perl-Test-1.31-477.amzn2023.0.9.noarch                                                     
+  perl-Test-Harness-1:3.42-459.amzn2023.0.2.noarch                                           
+  perl-Test-Simple-3:1.302219-2.amzn2023.0.1.noarch                                          
+  perl-Text-Abbrev-1.02-477.amzn2023.0.9.noarch                                              
+  perl-Text-Balanced-2.04-2.amzn2023.0.2.noarch                                              
+  perl-Text-Diff-1.45-11.amzn2023.0.2.noarch                                                 
+  perl-Text-Glob-0.11-13.amzn2023.0.2.noarch                                                 
+  perl-Text-Template-1.59-3.amzn2023.0.2.noarch                                              
+  perl-Thread-3.05-477.amzn2023.0.9.noarch                                                   
+  perl-Thread-Queue-3.14-458.amzn2023.0.2.noarch                                             
+  perl-Thread-Semaphore-2.13-477.amzn2023.0.9.noarch                                         
+  perl-Tie-4.6-477.amzn2023.0.9.noarch                                                       
+  perl-Tie-File-1.06-477.amzn2023.0.9.noarch                                                 
+  perl-Tie-Memoize-1.1-477.amzn2023.0.9.noarch                                               
+  perl-Tie-RefHash-1.40-2.amzn2023.0.2.noarch                                                
+  perl-Time-1.03-477.amzn2023.0.9.noarch                                                     
+  perl-Time-Piece-1.3401-477.amzn2023.0.9.x86_64                                             
+  perl-Unicode-Collate-1.29-2.amzn2023.0.3.x86_64                                            
+  perl-Unicode-LineBreak-2019.001-9.amzn2023.0.4.x86_64                                      
+  perl-Unicode-Normalize-1.27-459.amzn2023.0.3.x86_64                                        
+  perl-Unicode-UCD-0.75-477.amzn2023.0.9.noarch                                              
+  perl-User-pwent-1.03-477.amzn2023.0.9.noarch                                               
+  perl-autodie-2.37-522.amzn2023.0.1.noarch                                                  
+  perl-autouse-1.11-477.amzn2023.0.9.noarch                                                  
+  perl-bignum-0.67-522.amzn2023.0.1.noarch                                                   
+  perl-blib-1.07-477.amzn2023.0.9.noarch                                                     
+  perl-debugger-1.56-477.amzn2023.0.9.noarch                                                 
+  perl-deprecate-0.04-477.amzn2023.0.9.noarch                                                
+  perl-devel-4:5.32.1-477.amzn2023.0.9.x86_64                                                
+  perl-diagnostics-1.37-477.amzn2023.0.9.noarch                                              
+  perl-doc-5.32.1-477.amzn2023.0.9.noarch                                                    
+  perl-encoding-warnings-0.13-477.amzn2023.0.9.noarch                                        
+  perl-experimental-0.036-3.amzn2023.0.1.noarch                                              
+  perl-fields-2.27-477.amzn2023.0.9.noarch                                                   
+  perl-filetest-1.03-477.amzn2023.0.9.noarch                                                 
+  perl-inc-latest-2:0.500-18.amzn2023.0.2.noarch                                             
+  perl-less-0.03-477.amzn2023.0.9.noarch                                                     
+  perl-libnetcfg-4:5.32.1-477.amzn2023.0.9.noarch                                            
+  perl-local-lib-2.000024-11.amzn2023.0.2.noarch                                             
+  perl-macros-4:5.32.1-477.amzn2023.0.9.noarch                                               
+  perl-meta-notation-5.32.1-477.amzn2023.0.9.noarch                                          
+  perl-perlfaq-5.20210520-1.amzn2023.0.2.noarch                                              
+  perl-ph-5.32.1-477.amzn2023.0.9.x86_64                                                     
+  perl-sigtrap-1.09-477.amzn2023.0.9.noarch                                                  
+  perl-sort-2.04-477.amzn2023.0.9.noarch                                                     
+  perl-threads-1:2.25-458.amzn2023.0.4.x86_64                                                
+  perl-threads-shared-1.61-458.amzn2023.0.3.x86_64                                           
+  perl-utils-5.32.1-477.amzn2023.0.9.noarch                                                  
+  perl-version-7:0.99.29-1.amzn2023.0.3.x86_64                                               
+  perl-vmsish-1.04-477.amzn2023.0.9.noarch                                                   
+  rpm-build-4.16.1.3-29.amzn2023.0.6.x86_64                                                  
+  rpm-sign-4.16.1.3-29.amzn2023.0.6.x86_64                                                   
+  sombok-2.4.0-14.amzn2023.0.2.x86_64                                                        
+  subversion-1.14.5-3.amzn2023.0.1.x86_64                                                    
+  subversion-libs-1.14.5-3.amzn2023.0.1.x86_64                                               
+  swig-4.1.1-4.amzn2023.0.5.x86_64                                                           
+  systemd-rpm-macros-252.23-12.amzn2023.noarch                                               
+  systemtap-5.4-1.amzn2023.0.2.x86_64                                                        
+  systemtap-client-5.4-1.amzn2023.0.2.x86_64                                                 
+  systemtap-devel-5.4-1.amzn2023.0.2.x86_64                                                  
+  systemtap-sdt-devel-5.4-1.amzn2023.0.2.x86_64                                              
+  systemtap-sdt-dtrace-5.4-1.amzn2023.0.2.x86_64                                             
+  urw-base35-bookman-fonts-20200910-6.amzn2023.0.2.noarch                                    
+  urw-base35-c059-fonts-20200910-6.amzn2023.0.2.noarch                                       
+  urw-base35-d050000l-fonts-20200910-6.amzn2023.0.2.noarch                                   
+  urw-base35-fonts-20200910-6.amzn2023.0.2.noarch                                            
+  urw-base35-fonts-common-20200910-6.amzn2023.0.2.noarch                                     
+  urw-base35-gothic-fonts-20200910-6.amzn2023.0.2.noarch                                     
+  urw-base35-nimbus-mono-ps-fonts-20200910-6.amzn2023.0.2.noarch                             
+  urw-base35-nimbus-roman-fonts-20200910-6.amzn2023.0.2.noarch                               
+  urw-base35-nimbus-sans-fonts-20200910-6.amzn2023.0.2.noarch                                
+  urw-base35-p052-fonts-20200910-6.amzn2023.0.2.noarch                                       
+  urw-base35-standard-symbols-ps-fonts-20200910-6.amzn2023.0.2.noarch                        
+  urw-base35-z003-fonts-20200910-6.amzn2023.0.2.noarch                                       
+  utf8proc-2.6.1-2.amzn2023.0.2.x86_64                                                       
+  xorg-x11-fonts-ISO8859-1-100dpi-7.5-38.amzn2023.0.1.noarch                                 
+
+Complete!
+Last metadata expiration check: 0:05:40 ago on Thu Jul 16 19:26:55 2026.
+Package gcc-c++-11.5.0-5.amzn2023.0.5.x86_64 is already installed.
+Package make-1:4.3-5.amzn2023.0.2.x86_64 is already installed.
+Package git-2.50.1-1.amzn2023.0.1.x86_64 is already installed.
+Dependencies resolved.
+=============================================================================================
+ Package                     Arch        Version                      Repository        Size
+=============================================================================================
+Installing:
+ python3-devel               x86_64      3.9.25-1.amzn2023.0.6        amazonlinux      207 k
+ tmux                        x86_64      3.6a-1.amzn2023.0.1          amazonlinux      571 k
+Installing dependencies:
+ pyproject-rpm-macros        noarch      1.16.1-1.amzn2023.0.1        amazonlinux       43 k
+ python-rpm-macros           noarch      3.9-41.amzn2023.0.6          amazonlinux       15 k
+ python3-rpm-generators      noarch      12-15.amzn2023.0.5           amazonlinux       29 k
+ python3-rpm-macros          noarch      3.9-41.amzn2023.0.6          amazonlinux       11 k
+
+Transaction Summary
+=============================================================================================
+Install  6 Packages
+
+Total download size: 875 k
+Installed size: 2.3 M
+Downloading Packages:
+(1/6): python3-devel-3.9.25-1.amzn2023.0.6.x86_64.rpm        5.1 MB/s | 207 kB     00:00    
+(2/6): pyproject-rpm-macros-1.16.1-1.amzn2023.0.1.noarch.rpm 995 kB/s |  43 kB     00:00    
+(3/6): python-rpm-macros-3.9-41.amzn2023.0.6.noarch.rpm      337 kB/s |  15 kB     00:00    
+(4/6): python3-rpm-generators-12-15.amzn2023.0.5.noarch.rpm  1.0 MB/s |  29 kB     00:00    
+(5/6): tmux-3.6a-1.amzn2023.0.1.x86_64.rpm                    18 MB/s | 571 kB     00:00    
+(6/6): python3-rpm-macros-3.9-41.amzn2023.0.6.noarch.rpm     322 kB/s |  11 kB     00:00    
+---------------------------------------------------------------------------------------------
+Total                                                        7.3 MB/s | 875 kB     00:00     
+Running transaction check
+Transaction check succeeded.
+Running transaction test
+Transaction test succeeded.
+Running transaction
+  Preparing        :                                                                     1/1 
+  Installing       : python-rpm-macros-3.9-41.amzn2023.0.6.noarch                        1/6 
+  Installing       : python3-rpm-macros-3.9-41.amzn2023.0.6.noarch                       2/6 
+  Installing       : pyproject-rpm-macros-1.16.1-1.amzn2023.0.1.noarch                   3/6 
+  Installing       : python3-rpm-generators-12-15.amzn2023.0.5.noarch                    4/6 
+  Installing       : python3-devel-3.9.25-1.amzn2023.0.6.x86_64                          5/6 
+  Installing       : tmux-3.6a-1.amzn2023.0.1.x86_64                                     6/6 
+  Running scriptlet: tmux-3.6a-1.amzn2023.0.1.x86_64                                     6/6 
+  Verifying        : pyproject-rpm-macros-1.16.1-1.amzn2023.0.1.noarch                   1/6 
+  Verifying        : python-rpm-macros-3.9-41.amzn2023.0.6.noarch                        2/6 
+  Verifying        : python3-devel-3.9.25-1.amzn2023.0.6.x86_64                          3/6 
+  Verifying        : python3-rpm-generators-12-15.amzn2023.0.5.noarch                    4/6 
+  Verifying        : python3-rpm-macros-3.9-41.amzn2023.0.6.noarch                       5/6 
+  Verifying        : tmux-3.6a-1.amzn2023.0.1.x86_64                                     6/6 
+=============================================================================================
+WARNING:
+  A newer release of "Amazon Linux" is available.
+
+  Available Versions:
+
+  Version 2023.12.20260629:
+    Run the following command to upgrade to 2023.12.20260629:
+
+      dnf upgrade --releasever=2023.12.20260629
+
+    Release notes:
+     https://docs.aws.amazon.com/linux/al2023/release-notes/relnotes-2023.12.20260629.html
+
+  Version 2023.12.20260706:
+    Run the following command to upgrade to 2023.12.20260706:
+
+      dnf upgrade --releasever=2023.12.20260706
+
+    Release notes:
+     https://docs.aws.amazon.com/linux/al2023/release-notes/relnotes-2023.12.20260706.html
+
+  Version 2023.12.20260710:
+    Run the following command to upgrade to 2023.12.20260710:
+
+      dnf upgrade --releasever=2023.12.20260710
+
+    Release notes:
+     https://docs.aws.amazon.com/linux/al2023/release-notes/relnotes-2023.12.20260710.html
+
+=============================================================================================
+
+Installed:
+  pyproject-rpm-macros-1.16.1-1.amzn2023.0.1.noarch                                          
+  python-rpm-macros-3.9-41.amzn2023.0.6.noarch                                               
+  python3-devel-3.9.25-1.amzn2023.0.6.x86_64                                                 
+  python3-rpm-generators-12-15.amzn2023.0.5.noarch                                           
+  python3-rpm-macros-3.9-41.amzn2023.0.6.noarch                                              
+  tmux-3.6a-1.amzn2023.0.1.x86_64                                                            
+
+Complete!
+=== 3. Upgrading Pip ===
+Requirement already satisfied: pip in /usr/lib/python3.9/site-packages (21.3.1)
+Collecting pip
+  Downloading pip-26.0.1-py3-none-any.whl (1.8 MB)
+     |████████████████████████████████| 1.8 MB 15.5 MB/s            
+Installing collected packages: pip
+  WARNING: The scripts pip, pip3 and pip3.9 are installed in '/mnt/tmp/.local/bin' which is not on PATH.
+  Consider adding this directory to PATH or, if you prefer to suppress this warning, use --no-warn-script-location.
+Successfully installed pip
+=== 4. Installing Core Python Packages ===
+Collecting numpy
+  Downloading numpy-2.0.2-cp39-cp39-manylinux_2_17_x86_64.manylinux2014_x86_64.whl.metadata (60 kB)
+Requirement already satisfied: pyarrow in /usr/local/lib64/python3.9/site-packages (21.0.0)
+Collecting ogb
+  Downloading ogb-1.3.6-py3-none-any.whl.metadata (6.2 kB)
+Requirement already satisfied: boto3 in /usr/local/lib/python3.9/site-packages (1.40.59)
+Collecting torch>=1.6.0 (from ogb)
+  Downloading torch-2.8.0-cp39-cp39-manylinux_2_28_x86_64.whl.metadata (30 kB)
+Requirement already satisfied: tqdm>=4.29.0 in /usr/local/lib64/python3.9/site-packages (from ogb) (4.67.1)
+Collecting scikit-learn>=0.20.0 (from ogb)
+  Downloading scikit_learn-1.6.1-cp39-cp39-manylinux_2_17_x86_64.manylinux2014_x86_64.whl.metadata (18 kB)
+Requirement already satisfied: pandas>=0.24.0 in /usr/local/lib64/python3.9/site-packages (from ogb) (2.3.3)
+Requirement already satisfied: six>=1.12.0 in /usr/local/lib/python3.9/site-packages (from ogb) (1.13.0)
+Requirement already satisfied: urllib3>=1.24.0 in /usr/lib/python3.9/site-packages (from ogb) (1.25.10)
+Collecting outdated>=0.2.0 (from ogb)
+  Downloading outdated-0.2.2-py2.py3-none-any.whl.metadata (4.7 kB)
+Requirement already satisfied: botocore<1.41.0,>=1.40.59 in /usr/local/lib64/python3.9/site-packages (from boto3) (1.40.59)
+Requirement already satisfied: jmespath<2.0.0,>=0.7.1 in /usr/local/lib/python3.9/site-packages (from boto3) (1.0.1)
+Requirement already satisfied: s3transfer<0.15.0,>=0.14.0 in /usr/local/lib64/python3.9/site-packages (from boto3) (0.14.0)
+Requirement already satisfied: python-dateutil<3.0.0,>=2.1 in /usr/lib/python3.9/site-packages (from botocore<1.41.0,>=1.40.59->boto3) (2.8.1)
+Requirement already satisfied: setuptools>=44 in /usr/lib/python3.9/site-packages (from outdated>=0.2.0->ogb) (59.6.0)
+Collecting littleutils (from outdated>=0.2.0->ogb)
+  Downloading littleutils-0.2.4-py3-none-any.whl.metadata (679 bytes)
+Requirement already satisfied: requests in /usr/lib/python3.9/site-packages (from outdated>=0.2.0->ogb) (2.25.1)
+Collecting python-dateutil<3.0.0,>=2.1 (from botocore<1.41.0,>=1.40.59->boto3)
+  Downloading python_dateutil-2.9.0.post0-py2.py3-none-any.whl.metadata (8.4 kB)
+Requirement already satisfied: pytz>=2020.1 in /usr/local/lib/python3.9/site-packages (from pandas>=0.24.0->ogb) (2025.2)
+Collecting tzdata>=2022.7 (from pandas>=0.24.0->ogb)
+  Downloading tzdata-2026.3-py2.py3-none-any.whl.metadata (1.4 kB)
+Collecting scipy>=1.6.0 (from scikit-learn>=0.20.0->ogb)
+  Downloading scipy-1.13.1-cp39-cp39-manylinux_2_17_x86_64.manylinux2014_x86_64.whl.metadata (60 kB)
+Requirement already satisfied: joblib>=1.2.0 in /usr/local/lib64/python3.9/site-packages (from scikit-learn>=0.20.0->ogb) (1.5.2)
+Collecting threadpoolctl>=3.1.0 (from scikit-learn>=0.20.0->ogb)
+  Downloading threadpoolctl-3.6.0-py3-none-any.whl.metadata (13 kB)
+Requirement already satisfied: filelock in /usr/lib/python3.9/site-packages (from torch>=1.6.0->ogb) (3.3.1)
+Collecting typing-extensions>=4.10.0 (from torch>=1.6.0->ogb)
+  Downloading typing_extensions-4.16.0-py3-none-any.whl.metadata (3.3 kB)
+Collecting sympy>=1.13.3 (from torch>=1.6.0->ogb)
+  Downloading sympy-1.14.0-py3-none-any.whl.metadata (12 kB)
+Collecting networkx (from torch>=1.6.0->ogb)
+  Downloading networkx-3.2.1-py3-none-any.whl.metadata (5.2 kB)
+Requirement already satisfied: jinja2 in /usr/lib/python3.9/site-packages (from torch>=1.6.0->ogb) (2.11.3)
+Collecting fsspec (from torch>=1.6.0->ogb)
+  Downloading fsspec-2025.10.0-py3-none-any.whl.metadata (10 kB)
+Collecting nvidia-cuda-nvrtc-cu12==12.8.93 (from torch>=1.6.0->ogb)
+  Downloading nvidia_cuda_nvrtc_cu12-12.8.93-py3-none-manylinux2010_x86_64.manylinux_2_12_x86_64.whl.metadata (1.7 kB)
+Collecting nvidia-cuda-runtime-cu12==12.8.90 (from torch>=1.6.0->ogb)
+  Downloading nvidia_cuda_runtime_cu12-12.8.90-py3-none-manylinux2014_x86_64.manylinux_2_17_x86_64.whl.metadata (1.7 kB)
+Collecting nvidia-cuda-cupti-cu12==12.8.90 (from torch>=1.6.0->ogb)
+  Downloading nvidia_cuda_cupti_cu12-12.8.90-py3-none-manylinux2014_x86_64.manylinux_2_17_x86_64.whl.metadata (1.7 kB)
+Collecting nvidia-cudnn-cu12==9.10.2.21 (from torch>=1.6.0->ogb)
+  Downloading nvidia_cudnn_cu12-9.10.2.21-py3-none-manylinux_2_27_x86_64.whl.metadata (1.8 kB)
+Collecting nvidia-cublas-cu12==12.8.4.1 (from torch>=1.6.0->ogb)
+  Downloading nvidia_cublas_cu12-12.8.4.1-py3-none-manylinux_2_27_x86_64.whl.meta  Downloading nvidia_cublas_cu12-12.8.4.1-py3-none-manylinux_2_27_x86_64.whl.meta  Downloading nvidia_cublas_cu12-12.8.4.1-py3-none-manylinux_2_27_x86_64.whl.meta  Downloading nvidia_cublas_cu12-12.8.4.1-py3-none-manylinux_2_27_x86_64.whl.meta  Downloading nvidia_cublas_cu12-12.8.4.1-py3-none-manylinux_2_27_x86_64.whl.meta  Downloading nvidia_cublas_cu12-12.8.4.1-py3-none-manylinux_2_27_x86_64.whl.metadata (1.7 kB)
+Collecting nvidia-cufft-cu12==11.3.3.83 (from torch>=1.6.0->ogb)
+  Downloading nvidia_cufft_cu12-11.3.3.83-py3-none-manylinux2014_x86_64.manylinux_2_17_x86_64.whl.metadata (1.7 kB)
+Collecting nvidia-curand-cu12==10.3.9.90 (from torch>=1.6.0->ogb)
+  Downloading nvidia_curand_cu12-10.3.9.90-py3-none-manylinux_2_27_x86_64.whl.metadata (1.7 kB)
+Collecting nvidia-cusolver-cu12==11.7.3.90 (from torch>=1.6.0->ogb)
+  Downloading nvidia_cusolver_cu12-11.7.3.90-py3-none-manylinux_2_27_x86_64.whl.metadata (1.8 kB)
+Collecting nvidia-cusparse-cu12==12.5.8.93 (from torch>=1.6.0->ogb)
+  Downloading nvidia_cusparse_cu12-12.5.8.93-py3-none-manylinux2014_x86_64.manylinux_2_17_x86_64.whl.metadata (1.8 kB)
+Collecting nvidia-cusparselt-cu12==0.7.1 (from torch>=1.6.0->ogb)
+  Downloading nvidia_cusparselt_cu12-0.7.1-py3-none-manylinux2014_x86_64.whl.metadata (7.0 kB)
+Collecting nvidia-nccl-cu12==2.27.3 (from torch>=1.6.0->ogb)
+  Downloading nvidia_nccl_cu12-2.27.3-py3-none-manylinux2014_x86_64.manylinux_2_17_x86_64.whl.metadata (2.0 kB)
+Collecting nvidia-nvtx-cu12==12.8.90 (from torch>=1.6.0->ogb)
+  Downloading nvidia_nvtx_cu12-12.8.90-py3-none-manylinux2014_x86_64.manylinux_2_17_x86_64.whl.metadata (1.8 kB)
+Collecting nvidia-nvjitlink-cu12==12.8.93 (from torch>=1.6.0->ogb)
+  Downloading nvidia_nvjitlink_cu12-12.8.93-py3-none-manylinux2010_x86_64.manylinux_2_12_x86_64.whl.metadata (1.7 kB)
+Collecting nvidia-cufile-cu12==1.13.1.3 (from torch>=1.6.0->ogb)
+  Downloading nvidia_cufile_cu12-1.13.1.3-py3-none-manylinux2014_x86_64.manylinux_2_17_x86_64.whl.metadata (1.7 kB)
+Collecting triton==3.4.0 (from torch>=1.6.0->ogb)
+  Downloading triton-3.4.0-cp39-cp39-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl.metadata (1.7 kB)
+Collecting importlib-metadata (from triton==3.4.0->torch>=1.6.0->ogb)
+  Downloading importlib_metadata-8.7.1-py3-none-any.whl.metadata (4.7 kB)
+Collecting mpmath<1.4,>=1.1.0 (from sympy>=1.13.3->torch>=1.6.0->ogb)
+  Downloading mpmath-1.3.0-py3-none-any.whl.metadata (8.6 kB)
+Collecting zipp>=3.20 (from importlib-metadata->triton==3.4.0->torch>=1.6.0->ogb)
+  Downloading zipp-3.23.1-py3-none-any.whl.metadata (3.6 kB)
+Requirement already satisfied: MarkupSafe>=0.23 in /usr/lib64/python3.9/site-packages (from jinja2->torch>=1.6.0->ogb) (1.1.1)
+Requirement already satisfied: chardet<5,>=3.0.2 in /usr/lib/python3.9/site-packages (from requests->outdated>=0.2.0->ogb) (4.0.0)
+Requirement already satisfied: idna<3,>=2.5 in /usr/lib/python3.9/site-packages (from requests->outdated>=0.2.0->ogb) (2.10)
+Downloading numpy-2.0.2-cp39-cp39-manylinux_2_17_x86_64.manylinux2014_x86_64.whl (19.5 MB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 19.5/19.5 MB 200.8 MB/s  0:00:00
+Downloading ogb-1.3.6-py3-none-any.whl (78 kB)
+Downloading outdated-0.2.2-py2.py3-none-any.whl (7.5 kB)
+Downloading python_dateutil-2.9.0.post0-py2.py3-none-any.whl (229 kB)
+Downloading scikit_learn-1.6.1-cp39-cp39-manylinux_2_17_x86_64.manylinux2014_x86_64.whl (13.5 MB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 13.5/13.5 MB 261.2 MB/s  0:00:00
+Downloading scipy-1.13.1-cp39-cp39-manylinux_2_17_x86_64.manylinux2014_x86_64.whl (38.6 MB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 38.6/38.6 MB 279.5 MB/s  0:00:00
+Downloading threadpoolctl-3.6.0-py3-none-any.whl (18 kB)
+Downloading torch-2.8.0-cp39-cp39-manylinux_2_28_x86_64.whl (888.0 MB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 888.0/888.0 MB 31.7 MB/s  0:00:12
+Downloading nvidia_cublas_cu12-12.8.4.1-py3-none-manylinux_2_27_x86_64.whl (594.3 MB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 594.3/594.3 MB 54.9 MB/s  0:00:05
+Downloading nvidia_cuda_cupti_cu12-12.8.90-py3-none-manylinux2014_x86_64.manylinux_2_17_x86_64.whl (10.2 MB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 10.2/10.2 MB 111.8 MB/s  0:00:00
+Downloading nvidia_cuda_nvrtc_cu12-12.8.93-py3-none-manylinux2010_x86_64.manylinux_2_12_x86_64.whl (88.0 MB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 88.0/88.0 MB 148.2 MB/s  0:00:00
+Downloading nvidia_cuda_runtime_cu12-12.8.90-py3-none-manylinux2014_x86_64.manylinux_2_17_x86_64.whl (954 kB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 954.8/954.8 kB 114.3 MB/s  0:00:00
+Downloading nvidia_cudnn_cu12-9.10.2.21-py3-none-manylinux_2_27_x86_64.whl (706.8 MB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 706.8/706.8 MB 46.2 MB/s  0:00:06
+Downloading nvidia_cufft_cu12-11.3.3.83-py3-none-manylinux2014_x86_64.manylinux_2_17_x86_64.whl (193.1 MB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 193.1/193.1 MB 135.9 MB/s  0:00:01
+Downloading nvidia_cufile_cu12-1.13.1.3-py3-none-manylinux2014_x86_64.manylinux_2_17_x86_64.whl (1.2 MB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 1.2/1.2 MB 133.8 MB/s  0:00:00
+Downloading nvidia_curand_cu12-10.3.9.90-py3-none-manylinux_2_27_x86_64.whl (63.6 MB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 63.6/63.6 MB 137.9 MB/s  0:00:00
+Downloading nvidia_cusolver_cu12-11.7.3.90-py3-none-manylinux_2_27_x86_64.whl (267.5 MB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 267.5/267.5 MB 122.7 MB/s  0:00:02
+Downloading nvidia_cusparse_cu12-12.5.8.93-py3-none-manylinux2014_x86_64.manylinux_2_17_x86_64.whl (288.2 MB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 288.2/288.2 MB 118.6 MB/s  0:00:02
+Downloading nvidia_cusparselt_cu12-0.7.1-py3-none-manylinux2014_x86_64.whl (287.2 MB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 287.2/287.2 MB 123.4 MB/s  0:00:02
+Downloading nvidia_nccl_cu12-2.27.3-py3-none-manylinux2014_x86_64.manylinux_2_17_x86_64.whl (322.4 MB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 322.4/322.4 MB 92.6 MB/s  0:00:02
+Downloading nvidia_nvjitlink_cu12-12.8.93-py3-none-manylinux2010_x86_64.manylinux_2_12_x86_64.whl (39.3 MB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 39.3/39.3 MB 63.1 MB/s  0:00:00
+Downloading nvidia_nvtx_cu12-12.8.90-py3-none-manylinux2014_x86_64.manylinux_2_17_x86_64.whl (89 kB)
+Downloading triton-3.4.0-cp39-cp39-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl (155.4 MB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 155.4/155.4 MB 48.6 MB/s  0:00:03
+Downloading sympy-1.14.0-py3-none-any.whl (6.3 MB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 6.3/6.3 MB 45.2 MB/s  0:00:00
+Downloading mpmath-1.3.0-py3-none-any.whl (536 kB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 536.2/536.2 kB 5.7 MB/s  0:00:00
+Downloading typing_extensions-4.16.0-py3-none-any.whl (45 kB)
+Downloading tzdata-2026.3-py2.py3-none-any.whl (348 kB)
+Downloading fsspec-2025.10.0-py3-none-any.whl (200 kB)
+Downloading importlib_metadata-8.7.1-py3-none-any.whl (27 kB)
+Downloading zipp-3.23.1-py3-none-any.whl (10 kB)
+Downloading littleutils-0.2.4-py3-none-any.whl (8.1 kB)
+Downloading networkx-3.2.1-py3-none-any.whl (1.6 MB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 1.6/1.6 MB 20.7 MB/s  0:00:00
+Installing collected packages: nvidia-cusparselt-cu12, mpmath, zipp, tzdata, typing-extensions, threadpoolctl, sympy, python-dateutil, nvidia-nvtx-cu12, nvidia-nvjitlink-cu12, nvidia-nccl-cu12, nvidia-curand-cu12, nvidia-cufile-cu12, nvidia-cuda-runtime-cu12, nvidia-cuda-nvrtc-cu12, nvidia-cuda-cupti-cu12, nvidia-cublas-cu12, numpy, networkx, littleutils, fsspec, scipy, outdated, nvidia-cusparse-cu12, nvidia-cufft-cu12, nvidia-cudnn-cu12, importlib-metadata, triton, scikit-learn, nvidia-cusolver-cu12, torch, ogb
+   ━━━━━━━╸━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━  6/32 [sympy]  WARNING: The script isympy is installed in '/mnt/tmp/.local/bin' which is not on PATH.
+  Consider adding this directory to PATH or, if you prefer to suppress this warning, use --no-warn-script-location.
+   ━━━━━━━━━━━━━━━━━━━━━╺━━━━━━━━━━━━━━━━━━ 17/32 [numpy]  WARNING: The scripts f2py and numpy-config are installed in '/mnt/tmp/.local/bin' which is not on PATH.
+  Consider adding this directory to PATH or, if you prefer to suppress this warning, use --no-warn-script-location.
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╸━━━━━━ 27/32 [triton]  WARNING: The scripts proton and proton-viewer are installed in '/mnt/tmp/.local/bin' which is not on PATH.
+  Consider adding this directory to PATH or, if you prefer to suppress this warning, use --no-warn-script-location.
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╸━━ 30/32 [torch]  WARNING: The scripts torchfrtrace and torchrun are installed in '/mnt/tmp/.local/bin' which is not on PATH.
+  Consider adding this directory to PATH or, if you prefer to suppress this warning, use --no-warn-script-location.
+ERROR: pip's dependency resolver does not currently take into account all the packages that are installed. This behaviour is the source of the following dependency conflicts.
+matplotlib 3.9.4 requires contourpy>=1.0.1, which is not installed.
+matplotlib 3.9.4 requires cycler>=0.10, which is not installed.
+matplotlib 3.9.4 requires fonttools>=4.22.0, which is not installed.
+matplotlib 3.9.4 requires importlib-resources>=3.2.0; python_version < "3.10", which is not installed.
+matplotlib 3.9.4 requires kiwisolver>=1.3.1, which is not installed.
+matplotlib 3.9.4 requires pillow>=8, which is not installed.
+awscli 2.33.15 requires python-dateutil<=2.9.0,>=2.1, but you have python-dateutil 2.9.0.post0 which is incompatible.
+Successfully installed fsspec-2025.10.0 importlib-metadata-8.7.1 littleutils-0.2.4 mpmath-1.3.0 networkx-3.2.1 numpy-2.0.2 nvidia-cublas-cu12-12.8.4.1 nvidia-cuda-cupti-cu12-12.8.90 nvidia-cuda-nvrtc-cu12-12.8.93 nvidia-cuda-runtime-cu12-12.8.90 nvidia-cudnn-cu12-9.10.2.21 nvidia-cufft-cu12-11.3.3.83 nvidia-cufile-cu12-1.13.1.3 nvidia-curand-cu12-10.3.9.90 nvidia-cusolver-cu12-11.7.3.90 nvidia-cusparse-cu12-12.5.8.93 nvidia-cusparselt-cu12-0.7.1 nvidia-nccl-cu12-2.27.3 nvidia-nvjitlink-cu12-12.8.93 nvidia-nvtx-cu12-12.8.90 ogb-1.3.6 outdated-0.2.2 python-dateutil-2.9.0.post0 scikit-learn-1.6.1 scipy-1.13.1 sympy-1.14.0 threadpoolctl-3.6.0 torch-2.8.0 triton-3.4.0 typing-extensions-4.16.0 tzdata-2026.3 zipp-3.23.1
+Collecting igraph
+  Downloading igraph-1.0.0-cp39-abi3-manylinux_2_28_x86_64.whl.metadata (4.4 kB)
+Collecting leidenalg
+  Downloading leidenalg-0.12.0-cp38-abi3-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl.metadata (10 kB)
+Collecting texttable>=1.6.2 (from igraph)
+  Downloading texttable-1.7.0-py2.py3-none-any.whl.metadata (9.8 kB)
+Downloading igraph-1.0.0-cp39-abi3-manylinux_2_28_x86_64.whl (5.7 MB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 5.7/5.7 MB 37.2 MB/s  0:00:00
+Downloading leidenalg-0.12.0-cp38-abi3-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl (2.7 MB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 2.7/2.7 MB 30.4 MB/s  0:00:00
+Downloading texttable-1.7.0-py2.py3-none-any.whl (10 kB)
+Installing collected packages: texttable, igraph, leidenalg
+   ━━━━━━━━━━━━━╺━━━━━━━━━━━━━━━━━━━━━━━━━━ 1/3 [igraph]  WARNING: The script igraph is installed in '/mnt/tmp/.local/bin' which is not on PATH.
+  Consider adding this directory to PATH or, if you prefer to suppress this warning, use --no-warn-script-location.
+Successfully installed igraph-1.0.0 leidenalg-0.12.0 texttable-1.7.0
+Requirement already satisfied: torch in /mnt/tmp/.local/lib/python3.9/site-packages (2.8.0)
+Collecting torch-geometric
+  Downloading torch_geometric-2.6.1-py3-none-any.whl.metadata (63 kB)
+Requirement already satisfied: filelock in /usr/lib/python3.9/site-packages (from torch) (3.3.1)
+Requirement already satisfied: typing-extensions>=4.10.0 in /mnt/tmp/.local/lib/python3.9/site-packages (from torch) (4.16.0)
+Requirement already satisfied: sympy>=1.13.3 in /mnt/tmp/.local/lib/python3.9/site-packages (from torch) (1.14.0)
+Requirement already satisfied: networkx in /mnt/tmp/.local/lib/python3.9/site-packages (from torch) (3.2.1)
+Requirement already satisfied: jinja2 in /usr/lib/python3.9/site-packages (from torch) (2.11.3)
+Requirement already satisfied: fsspec in /mnt/tmp/.local/lib/python3.9/site-packages (from torch) (2025.10.0)
+Requirement already satisfied: nvidia-cuda-nvrtc-cu12==12.8.93 in /mnt/tmp/.local/lib/python3.9/site-packages (from torch) (12.8.93)
+Requirement already satisfied: nvidia-cuda-runtime-cu12==12.8.90 in /mnt/tmp/.local/lib/python3.9/site-packages (from torch) (12.8.90)
+Requirement already satisfied: nvidia-cuda-cupti-cu12==12.8.90 in /mnt/tmp/.local/lib/python3.9/site-packages (from torch) (12.8.90)
+Requirement already satisfied: nvidia-cudnn-cu12==9.10.2.21 in /mnt/tmp/.local/lib/python3.9/site-packages (from torch) (9.10.2.21)
+Requirement already satisfied: nvidia-cublas-cu12==12.8.4.1 in /mnt/tmp/.local/lib/python3.9/site-packages (from torch) (12.8.4.1)
+Requirement already satisfied: nvidia-cufft-cu12==11.3.3.83 in /mnt/tmp/.local/lib/python3.9/site-packages (from torch) (11.3.3.83)
+Requirement already satisfied: nvidia-curand-cu12==10.3.9.90 in /mnt/tmp/.local/lib/python3.9/site-packages (from torch) (10.3.9.90)
+Requirement already satisfied: nvidia-cusolver-cu12==11.7.3.90 in /mnt/tmp/.local/lib/python3.9/site-packages (from torch) (11.7.3.90)
+Requirement already satisfied: nvidia-cusparse-cu12==12.5.8.93 in /mnt/tmp/.local/lib/python3.9/site-packages (from torch) (12.5.8.93)
+Requirement already satisfied: nvidia-cusparselt-cu12==0.7.1 in /mnt/tmp/.local/lib/python3.9/site-packages (from torch) (0.7.1)
+Requirement already satisfied: nvidia-nccl-cu12==2.27.3 in /mnt/tmp/.local/lib/python3.9/site-packages (from torch) (2.27.3)
+Requirement already satisfied: nvidia-nvtx-cu12==12.8.90 in /mnt/tmp/.local/lib/python3.9/site-packages (from torch) (12.8.90)
+Requirement already satisfied: nvidia-nvjitlink-cu12==12.8.93 in /mnt/tmp/.local/lib/python3.9/site-packages (from torch) (12.8.93)
+Requirement already satisfied: nvidia-cufile-cu12==1.13.1.3 in /mnt/tmp/.local/lib/python3.9/site-packages (from torch) (1.13.1.3)
+Requirement already satisfied: triton==3.4.0 in /mnt/tmp/.local/lib/python3.9/site-packages (from torch) (3.4.0)
+Requirement already satisfied: setuptools>=40.8.0 in /usr/lib/python3.9/site-packages (from triton==3.4.0->torch) (59.6.0)
+Requirement already satisfied: importlib-metadata in /mnt/tmp/.local/lib/python3.9/site-packages (from triton==3.4.0->torch) (8.7.1)
+Collecting aiohttp (from torch-geometric)
+  Downloading aiohttp-3.13.5-cp39-cp39-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl.metadata (8.1 kB)
+Requirement already satisfied: numpy in /mnt/tmp/.local/lib/python3.9/site-packages (from torch-geometric) (2.0.2)
+Collecting psutil>=5.8.0 (from torch-geometric)
+  Downloading psutil-7.2.2-cp36-abi3-manylinux2010_x86_64.manylinux_2_12_x86_64.manylinux_2_28_x86_64.whl.metadata (22 kB)
+Requirement already satisfied: pyparsing in /usr/lib/python3.9/site-packages (from torch-geometric) (2.4.7)
+Requirement already satisfied: requests in /usr/lib/python3.9/site-packages (from torch-geometric) (2.25.1)
+Requirement already satisfied: tqdm in /usr/local/lib64/python3.9/site-packages (from torch-geometric) (4.67.1)
+Requirement already satisfied: mpmath<1.4,>=1.1.0 in /mnt/tmp/.local/lib/python3.9/site-packages (from sympy>=1.13.3->torch) (1.3.0)
+Collecting aiohappyeyeballs>=2.5.0 (from aiohttp->torch-geometric)
+  Downloading aiohappyeyeballs-2.6.1-py3-none-any.whl.metadata (5.9 kB)
+Collecting aiosignal>=1.4.0 (from aiohttp->torch-geometric)
+  Downloading aiosignal-1.4.0-py3-none-any.whl.metadata (3.7 kB)
+Collecting async-timeout<6.0,>=4.0 (from aiohttp->torch-geometric)
+  Downloading async_timeout-5.0.1-py3-none-any.whl.metadata (5.1 kB)
+Requirement already satisfied: attrs>=17.3.0 in /usr/lib/python3.9/site-packages (from aiohttp->torch-geometric) (20.3.0)
+Collecting frozenlist>=1.1.1 (from aiohttp->torch-geometric)
+  Downloading frozenlist-1.8.0-cp39-cp39-manylinux1_x86_64.manylinux_2_28_x86_64.manylinux_2_5_x86_64.whl.metadata (20 kB)
+Collecting multidict<7.0,>=4.5 (from aiohttp->torch-geometric)
+  Downloading multidict-6.7.1-cp39-cp39-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl.metadata (5.3 kB)
+Collecting propcache>=0.2.0 (from aiohttp->torch-geometric)
+  Downloading propcache-0.4.1-cp39-cp39-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl.metadata (13 kB)
+Collecting yarl<2.0,>=1.17.0 (from aiohttp->torch-geometric)
+  Downloading yarl-1.22.0-cp39-cp39-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl.metadata (75 kB)
+Requirement already satisfied: idna>=2.0 in /usr/lib/python3.9/site-packages (from yarl<2.0,>=1.17.0->aiohttp->torch-geometric) (2.10)
+Requirement already satisfied: zipp>=3.20 in /mnt/tmp/.local/lib/python3.9/site-packages (from importlib-metadata->triton==3.4.0->torch) (3.23.1)
+Requirement already satisfied: MarkupSafe>=0.23 in /usr/lib64/python3.9/site-packages (from jinja2->torch) (1.1.1)
+Requirement already satisfied: chardet<5,>=3.0.2 in /usr/lib/python3.9/site-packages (from requests->torch-geometric) (4.0.0)
+Requirement already satisfied: urllib3<1.27,>=1.21.1 in /usr/lib/python3.9/site-packages (from requests->torch-geometric) (1.25.10)
+Downloading torch_geometric-2.6.1-py3-none-any.whl (1.1 MB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 1.1/1.1 MB 14.0 MB/s  0:00:00
+Downloading psutil-7.2.2-cp36-abi3-manylinux2010_x86_64.manylinux_2_12_x86_64.manylinux_2_28_x86_64.whl (155 kB)
+Downloading aiohttp-3.13.5-cp39-cp39-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl (1.7 MB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 1.7/1.7 MB 19.1 MB/s  0:00:00
+Downloading async_timeout-5.0.1-py3-none-any.whl (6.2 kB)
+Downloading multidict-6.7.1-cp39-cp39-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl (240 kB)
+Downloading yarl-1.22.0-cp39-cp39-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl (346 kB)
+Downloading aiohappyeyeballs-2.6.1-py3-none-any.whl (15 kB)
+Downloading aiosignal-1.4.0-py3-none-any.whl (7.5 kB)
+Downloading frozenlist-1.8.0-cp39-cp39-manylinux1_x86_64.manylinux_2_28_x86_64.manylinux_2_5_x86_64.whl (219 kB)
+Downloading propcache-0.4.1-cp39-cp39-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl (197 kB)
+Installing collected packages: psutil, propcache, multidict, frozenlist, async-timeout, aiohappyeyeballs, yarl, aiosignal, aiohttp, torch-geometric
+Successfully installed aiohappyeyeballs-2.6.1 aiohttp-3.13.5 aiosignal-1.4.0 async-timeout-5.0.1 frozenlist-1.8.0 multidict-6.7.1 propcache-0.4.1 psutil-7.2.2 torch-geometric-2.6.1 yarl-1.22.0
+=== 5. Installing DGL (Deep Graph Library) ===
+Looking in links: https://data.dgl.ai/wheels/repo.html
+Collecting dgl==1.1.3
+  Downloading dgl-1.1.3-cp39-cp39-manylinux1_x86_64.whl.metadata (548 bytes)
+Requirement already satisfied: numpy>=1.14.0 in /mnt/tmp/.local/lib/python3.9/site-packages (from dgl==1.1.3) (2.0.2)
+Requirement already satisfied: scipy>=1.1.0 in /mnt/tmp/.local/lib/python3.9/site-packages (from dgl==1.1.3) (1.13.1)
+Requirement already satisfied: networkx>=2.1 in /mnt/tmp/.local/lib/python3.9/site-packages (from dgl==1.1.3) (3.2.1)
+Requirement already satisfied: requests>=2.19.0 in /usr/lib/python3.9/site-packages (from dgl==1.1.3) (2.25.1)
+Requirement already satisfied: tqdm in /usr/local/lib64/python3.9/site-packages (from dgl==1.1.3) (4.67.1)
+Requirement already satisfied: psutil>=5.8.0 in /mnt/tmp/.local/lib/python3.9/site-packages (from dgl==1.1.3) (7.2.2)
+Requirement already satisfied: chardet<5,>=3.0.2 in /usr/lib/python3.9/site-packages (from requests>=2.19.0->dgl==1.1.3) (4.0.0)
+Requirement already satisfied: idna<3,>=2.5 in /usr/lib/python3.9/site-packages (from requests>=2.19.0->dgl==1.1.3) (2.10)
+Requirement already satisfied: urllib3<1.27,>=1.21.1 in /usr/lib/python3.9/site-packages (from requests>=2.19.0->dgl==1.1.3) (1.25.10)
+Downloading dgl-1.1.3-cp39-cp39-manylinux1_x86_64.whl (6.5 MB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 6.5/6.5 MB 38.9 MB/s  0:00:00
+Installing collected packages: dgl
+Successfully installed dgl-1.1.3
+=== 6. Installing Reporting / Utility Packages ===
+Collecting xlsxwriter
+  Downloading xlsxwriter-3.2.9-py3-none-any.whl.metadata (2.7 kB)
+Collecting openpyxl
+  Downloading openpyxl-3.1.5-py2.py3-none-any.whl.metadata (2.5 kB)
+Requirement already satisfied: matplotlib in /usr/local/lib64/python3.9/site-packages (3.9.4)
+Requirement already satisfied: seaborn in /usr/local/lib64/python3.9/site-packages (0.13.2)
+Collecting et-xmlfile (from openpyxl)
+  Downloading et_xmlfile-2.0.0-py3-none-any.whl.metadata (2.7 kB)
+Collecting contourpy>=1.0.1 (from matplotlib)
+  Downloading contourpy-1.3.0-cp39-cp39-manylinux_2_17_x86_64.manylinux2014_x86_64.whl.metadata (5.4 kB)
+Collecting cycler>=0.10 (from matplotlib)
+  Downloading cycler-0.12.1-py3-none-any.whl.metadata (3.8 kB)
+Collecting fonttools>=4.22.0 (from matplotlib)
+  Downloading fonttools-4.60.2-cp39-cp39-manylinux2014_x86_64.manylinux_2_17_x86_64.whl.metadata (113 kB)
+Collecting kiwisolver>=1.3.1 (from matplotlib)
+  Downloading kiwisolver-1.4.7-cp39-cp39-manylinux_2_12_x86_64.manylinux2010_x86_64.whl.metadata (6.3 kB)
+Requirement already satisfied: numpy>=1.23 in /mnt/tmp/.local/lib/python3.9/site-packages (from matplotlib) (2.0.2)
+Requirement already satisfied: packaging>=20.0 in /usr/lib/python3.9/site-packages (from matplotlib) (21.3)
+Collecting pillow>=8 (from matplotlib)
+  Downloading pillow-11.3.0-cp39-cp39-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl.metadata (9.0 kB)
+Requirement already satisfied: pyparsing>=2.3.1 in /usr/lib/python3.9/site-packages (from matplotlib) (2.4.7)
+Requirement already satisfied: python-dateutil>=2.7 in /mnt/tmp/.local/lib/python3.9/site-packages (from matplotlib) (2.9.0.post0)
+Collecting importlib-resources>=3.2.0 (from matplotlib)
+  Downloading importlib_resources-6.5.2-py3-none-any.whl.metadata (3.9 kB)
+Requirement already satisfied: pandas>=1.2 in /usr/local/lib64/python3.9/site-packages (from seaborn) (2.3.3)
+Requirement already satisfied: zipp>=3.1.0 in /mnt/tmp/.local/lib/python3.9/site-packages (from importlib-resources>=3.2.0->matplotlib) (3.23.1)
+Requirement already satisfied: pytz>=2020.1 in /usr/local/lib/python3.9/site-packages (from pandas>=1.2->seaborn) (2025.2)
+Requirement already satisfied: tzdata>=2022.7 in /mnt/tmp/.local/lib/python3.9/site-packages (from pandas>=1.2->seaborn) (2026.3)
+Requirement already satisfied: six>=1.5 in /usr/local/lib/python3.9/site-packages (from python-dateutil>=2.7->matplotlib) (1.13.0)
+Downloading xlsxwriter-3.2.9-py3-none-any.whl (175 kB)
+Downloading openpyxl-3.1.5-py2.py3-none-any.whl (250 kB)
+Downloading contourpy-1.3.0-cp39-cp39-manylinux_2_17_x86_64.manylinux2014_x86_64.whl (321 kB)
+Downloading cycler-0.12.1-py3-none-any.whl (8.3 kB)
+Downloading fonttools-4.60.2-cp39-cp39-manylinux2014_x86_64.manylinux_2_17_x86_64.whl (4.8 MB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 4.8/4.8 MB 55.2 MB/s  0:00:00
+Downloading importlib_resources-6.5.2-py3-none-any.whl (37 kB)
+Downloading kiwisolver-1.4.7-cp39-cp39-manylinux_2_12_x86_64.manylinux2010_x86_64.whl (1.6 MB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 1.6/1.6 MB 24.9 MB/s  0:00:00
+Downloading pillow-11.3.0-cp39-cp39-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl (6.6 MB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 6.6/6.6 MB 46.4 MB/s  0:00:00
+Downloading et_xmlfile-2.0.0-py3-none-any.whl (18 kB)
+Installing collected packages: xlsxwriter, pillow, kiwisolver, importlib-resources, fonttools, et-xmlfile, cycler, contourpy, openpyxl
+   ━━━━━━━━━━━━━━━━━╸━━━━━━━━━━━━━━━━━━━━━━ 4/9 [fonttools]  WARNING: The scripts fonttools, pyftmerge, pyftsubset and ttx are installed in '/mnt/tmp/.local/bin' which is not on PATH.
+  Consider adding this directory to PATH or, if you prefer to suppress this warning, use --no-warn-script-location.
+Successfully installed contourpy-1.3.0 cycler-0.12.1 et-xmlfile-2.0.0 fonttools-4.60.2 importlib-resources-6.5.2 kiwisolver-1.4.7 openpyxl-3.1.5 pillow-11.3.0 xlsxwriter-3.2.9
+=========================================================
+ EMR DRIVER SETUP COMPLETED SUCCESSFULLY!
+=========================================================
+All packages installed to large disk: /mnt/tmp/.local
+To run the pipeline:
+  1. Edit experiment_config.py to configure your settings.
+  2. Run: python3 runners/run_emr.py
+=========================================================
+[hadoop@ip-172-31-71-49 emo-pipeline]$ 
+[hadoop@ip-172-31-71-49 emo-pipeline]$ 
+[hadoop@ip-172-31-71-49 emo-pipeline]$ 
+[hadoop@ip-172-31-71-49 emo-pipeline]$ 
+[hadoop@ip-172-31-71-49 emo-pipeline]$ 
+[hadoop@ip-172-31-71-49 emo-pipeline]$ tmux
+
+  ✓ Mean comm acc = 0.5267                                                                                                                                                                 22:00 [0/247]
+  ✓ Weighted comm acc = 0.5215
+  ✓ Mean comm link AUC = 0.7838
+  ✓ Weighted comm link AUC = 0.7596
+  ✓ Wall time: 554.0s
+    - Avg Load time: 1.14s | Max: 8.61s
+    - Avg Node Train: 53.98s | Max: 268.16s
+    - Avg Link Train: 50.13s | Max: 148.13s
+    ✓ Saved S3 checkpoint: s3://us-east-1-s3-gnn/gnn-bench-checkpoint/phase3/ogbn-products/ogbn-products_louvain_sage.parquet
+
+============================================================
+  PHASE 3 — GNN Training: ogbn-products / louvain / gatv2
+  tag=ogbn-products_ogbn-products_louvain
+============================================================
+  [Driver Warmstart] Extracting largest community for driver-side pre-training...
+  ✓ Driver-side base model trained successfully on Comm 5 (367,912 nodes).      
+  Training DF: 5,574,919 rows | 77 communities binned into 77 executor tasks    
+  ✓ Mean comm acc = 0.5207                        
+  ✓ Weighted comm acc = 0.5156
+  ✓ Mean comm link AUC = 0.7834
+  ✓ Weighted comm link AUC = 0.7593
+  ✓ Wall time: 505.4s
+    - Avg Load time: 1.08s | Max: 6.76s
+    - Avg Node Train: 52.17s | Max: 248.05s
+    - Avg Link Train: 48.86s | Max: 142.15s
+    ✓ Saved S3 checkpoint: s3://us-east-1-s3-gnn/gnn-bench-checkpoint/phase3/ogbn-products/ogbn-products_louvain_gatv2.parquet
+
+[PHASE 3b] - Parallel GNN Training with CaaN Global Graph
+  Dataset: ogbn-products | Algorithm: lpa
+    - Major communities (>= 100): 4376
+    - Minor communities (< 100): 88044
+26/07/16 21:31:59 WARN DAGScheduler: Broadcasting large task binary with size 3.0 MiB
+
+============================================================
+  PHASE 3b — GNN Training (CaaN): ogbn-products / lpa / sage
+  tag=ogbn-products_ogbn-products_lpa
+============================================================
+  [Driver Warmstart] Extracting largest community for driver-side pre-training...
+  ✓ Driver-side base model trained successfully on Comm 2445133 (25,844 nodes). 2]
+  ✓ Mean CaaN comm acc = 0.5041                                                 2]
+  ✓ Weighted CaaN comm acc = 0.5103
+  ✓ Wall time: 799.5s
+    ✓ Saved S3 checkpoint: s3://us-east-1-s3-gnn/gnn-bench-checkpoint/phase3b/ogbn-products/ogbn-products_lpa_sage.parquet
+
+============================================================
+  PHASE 3b — GNN Training (CaaN): ogbn-products / lpa / gatv2
+  tag=ogbn-products_ogbn-products_lpa
+============================================================
+  [Driver Warmstart] Extracting largest community for driver-side pre-training...
+  ✓ Driver-side base model trained successfully on Comm 2445133 (25,844 nodes). 2]
+  ✓ Mean CaaN comm acc = 0.4750                   
+  ✓ Weighted CaaN comm acc = 0.4969
+  ✓ Wall time: 784.6s
+    ✓ Saved S3 checkpoint: s3://us-east-1-s3-gnn/gnn-bench-checkpoint/phase3b/ogbn-products/ogbn-products_lpa_gatv2.parquet
+  Dataset: ogbn-products | Algorithm: louvain     
+    - Major communities (>= 100): 76
+    - Minor communities (< 100): 4315
+
+============================================================
+  PHASE 3b — GNN Training (CaaN): ogbn-products / louvain / sage
+  tag=ogbn-products_ogbn-products_louvain
+============================================================
+  [Driver Warmstart] Extracting largest community for driver-side pre-training...
+26/07/16 22:01:30 WARN DAGScheduler: Broadcasting large task binary with size 3.2 MiB
+  ✓ Driver-side base model trained successfully on Comm 5 (235,967 nodes).      0]]
+  ✓ Mean CaaN comm acc = 0.6156                   
+  ✓ Weighted CaaN comm acc = 0.6966
+  ✓ Wall time: 289.9s
+    ✓ Saved S3 checkpoint: s3://us-east-1-s3-gnn/gnn-bench-checkpoint/phase3b/ogbn-products/ogbn-products_louvain_sage.parquet
+
+============================================================
+  PHASE 3b — GNN Training (CaaN): ogbn-products / louvain / gatv2
+  tag=ogbn-products_ogbn-products_louvain
+============================================================
+  [Driver Warmstart] Extracting largest community for driver-side pre-training...
+26/07/16 22:06:21 WARN DAGScheduler: Broadcasting large task binary with size 3.2 MiB
+  ✓ Driver-side base model trained successfully on Comm 5 (235,967 nodes).      0]]
+  ✓ Mean CaaN comm acc = 0.6407                   
+  ✓ Weighted CaaN comm acc = 0.6808
+  ✓ Wall time: 317.9s
+    ✓ Saved S3 checkpoint: s3://us-east-1-s3-gnn/gnn-bench-checkpoint/phase3b/ogbn-products/ogbn-products_louvain_gatv2.parquet
+
+=========================================
