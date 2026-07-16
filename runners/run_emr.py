@@ -340,26 +340,60 @@ def main():
     driver_overhead = f"{driver_overhead_val}g"
     driver_cores = str(max(4, host_cores - 2))
 
-    # 4. Categorize scale dynamically based on storage footprint
+    # 4. Smart Dynamic Allocation Solver
+    # Profiles worker VMs based on driver host metrics, reserving a safe system buffer.
+    worker_mem_gb = max(32.0, host_mem_gb)
+    worker_cores = max(4, host_cores)
+    
+    usable_mem_gb = max(16.0, worker_mem_gb - 16.0) # OS/YARN buffer
+    usable_cores = max(2, worker_cores - 2)          # OS/YARN buffer
+
     if edges_size_mb <= 20.0:
         scale_label = "Small/Medium"
-        executor_instances = max(4, nodes_count * 7)
-        executor_mem = "8g"
-        executor_overhead = "4g"
-        executor_cores = "2"
+        mem_per_executor = 12.0 # Total memory container size (mem + overhead)
+        
+        # Calculate how many executors fit in memory, capped by core limits
+        execs_per_node = int(usable_mem_gb // mem_per_executor)
+        execs_per_node = max(2, min(execs_per_node, int(usable_cores // 2)))
+        
+        executor_instances = max(4, nodes_count * execs_per_node)
+        executor_mem_val = int(mem_per_executor * 0.67)
+        executor_overhead_val = int(mem_per_executor - executor_mem_val)
+        executor_mem = f"{executor_mem_val}g"
+        executor_overhead = f"{executor_overhead_val}g"
+        # Distribute remaining cores symmetrically
+        executor_cores = str(max(2, int(usable_cores // execs_per_node)))
+        
     elif edges_size_mb <= 1000.0:
         scale_label = "Large"
-        executor_instances = max(4, nodes_count * 4)
-        executor_mem = "16g"
-        executor_overhead = "8g"
-        executor_cores = "2"
+        mem_per_executor = 24.0 # 24 GB container size
+        
+        execs_per_node = int(usable_mem_gb // mem_per_executor)
+        execs_per_node = max(1, min(execs_per_node, int(usable_cores // 2)))
+        
+        executor_instances = max(4, nodes_count * execs_per_node)
+        executor_mem_val = int(mem_per_executor * 0.67)
+        executor_overhead_val = int(mem_per_executor - executor_mem_val)
+        executor_mem = f"{executor_mem_val}g"
+        executor_overhead = f"{executor_overhead_val}g"
+        # Distribute remaining cores symmetrically
+        executor_cores = str(max(2, int(usable_cores // execs_per_node)))
+        
     else:
         scale_label = "Massive (1B+ Scale)"
-        executor_instances = max(2, nodes_count * 4)
-        executor_mem = "16g"
-        executor_overhead = "8g"
-        executor_cores = "4"
-        # For massive graphs, ensure driver gets at least 40g
+        mem_per_executor = 32.0 # 32 GB container size
+        
+        execs_per_node = int(usable_mem_gb // mem_per_executor)
+        execs_per_node = max(1, min(execs_per_node, int(usable_cores // 2)))
+        
+        executor_instances = max(2, nodes_count * execs_per_node)
+        executor_mem_val = int(mem_per_executor * 0.67)
+        executor_overhead_val = int(mem_per_executor - executor_mem_val)
+        executor_mem = f"{executor_mem_val}g"
+        executor_overhead = f"{executor_overhead_val}g"
+        # Distribute remaining cores symmetrically
+        executor_cores = str(max(2, int(usable_cores // execs_per_node)))
+        
         if driver_mem_val < 40:
             driver_mem = "40g"
             driver_overhead = "12g"
