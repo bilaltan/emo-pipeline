@@ -349,9 +349,9 @@ def main():
         executor_cores = "2"
     elif edges_size_mb <= 1000.0:
         scale_label = "Large"
-        executor_instances = max(4, nodes_count * 7)
-        executor_mem = "8g"
-        executor_overhead = "4g"
+        executor_instances = max(4, nodes_count * 4)
+        executor_mem = "16g"
+        executor_overhead = "8g"
         executor_cores = "2"
     else:
         scale_label = "Massive (1B+ Scale)"
