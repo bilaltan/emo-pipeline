@@ -160,24 +160,31 @@ def run_phase4(spark, sc, datasets, dataset_cfg, baseline_cfg, get_paths_fn,
                         print(f"    SAGE-BL Epoch {epoch+1:2d}/{EPOCHS} loss={total_loss/max(nb,1):.4f}")
                 node_train_time = time.time() - t_node_start
 
-                # Evaluate directly end-to-end using test DGLDataLoader
-                test_nids = torch.where(torch.tensor(test_mask))[0]
-                test_dl = DGLDataLoader(g, test_nids, NeighborSampler(baseline_cfg.get('fanout', [15, 10])),
-                                        batch_size=baseline_cfg.get('batch', 1024)*4, shuffle=False, drop_last=False)
+                # Clean up training loader memory
+                del train_dl, sampler, train_nids
+                import gc; gc.collect()
+
+                # Evaluate directly end-to-end using full graph to save memory
                 model.eval()
-                correct = 0
-                total_t = 0
                 with torch.no_grad():
-                    for input_nodes, output_nodes, blocks in test_dl:
-                        x = blocks[0].srcdata['feat']
-                        labels = blocks[-1].dstdata['label']
-                        preds = model(blocks, x).argmax(dim=1)
-                        correct += (preds == labels).sum().item()
-                        total_t += len(labels)
-                acc = correct / total_t if total_t > 0 else 0.0
+                    h = g.ndata['feat']
+                    h = model.conv1(g, h).relu()
+                    h = model.dropout(h)
+                    h = model.conv2(g, h)
+                    logits = model.fc(h)
+                    
+                    preds = logits[test_mask].argmax(dim=1).cpu().numpy()
+                    correct = (preds == labels_np[test_mask]).sum()
+                    total_t = test_mask.sum()
+                    acc = correct / total_t if total_t > 0 else 0.0
 
             # ── Link Prediction Baseline ──────────────────────────────────────────
             if run_link and len(full_src) >= 5:
+                # Free node classification graph structure to prevent OOM
+                if 'g' in locals():
+                    del g
+                import gc; gc.collect()
+                
                 t_link_start = time.time()
                 torch.manual_seed(42 + run_idx)
 
