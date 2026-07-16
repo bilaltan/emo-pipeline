@@ -23,7 +23,9 @@ def run_phase4(spark, sc, datasets, dataset_cfg, baseline_cfg, get_paths_fn,
     from torch_geometric.utils import coalesce, add_remaining_self_loops, negative_sampling
     import torch_geometric.transforms as T
     from torch_geometric.data import Data
-    from torch_geometric.loader import NeighborLoader
+    import dgl
+    import dgl.nn as dglnn
+    from dgl.dataloading import NeighborSampler, DataLoader as DGLDataLoader
 
     for dataset in datasets:
         p   = get_paths_fn(dataset)
@@ -90,11 +92,16 @@ def run_phase4(spark, sc, datasets, dataset_cfg, baseline_cfg, get_paths_fn,
         class GraphSAGENodeClassifier(nn.Module):
             def __init__(self, in_f, h, nc):
                 super().__init__()
-                self.enc = GraphSAGE(in_f, h)
+                self.conv1 = dglnn.SAGEConv(in_f, h, 'mean')
+                self.conv2 = dglnn.SAGEConv(h,    h, 'mean')
                 self.fc = nn.Linear(h, nc)
-            def forward(self, x, edge_index):
-                z = self.enc.encode(x, edge_index)
-                return self.fc(z)
+                self.dropout = nn.Dropout(dropout_val)
+            def forward(self, blocks, x):
+                h = x
+                h = self.conv1(blocks[0], h).relu()
+                h = self.dropout(h)
+                h = self.conv2(blocks[1], h)
+                return self.fc(h)
 
         task_type = kwargs.get('task_type', 'node_classification')
         run_node = (task_type in ('node_classification', 'both'))
@@ -118,35 +125,33 @@ def run_phase4(spark, sc, datasets, dataset_cfg, baseline_cfg, get_paths_fn,
             # ── Node Classification Baseline ──────────────────────────────────────
             if run_node and train_mask.sum() > 0:
                 t_node_start = time.time()
+                
+                # Build DGL Graph
+                g = dgl.graph((torch.tensor(src_np, dtype=torch.long), torch.tensor(dst_np, dtype=torch.long)), num_nodes=n_nodes)
+                g = dgl.add_self_loop(g)
+                g.ndata['feat']  = torch.tensor(feats_np,  dtype=torch.float32)
+                g.ndata['label'] = torch.tensor(labels_np, dtype=torch.int64)
+
                 model = GraphSAGENodeClassifier(IN_FEATS, HIDDEN, NUM_CLASSES)
                 opt = torch.optim.Adam(model.parameters(), lr=baseline_cfg.get('lr', 1e-3), weight_decay=5e-4)
                 crit = nn.CrossEntropyLoss()
 
-                edge_index = torch.stack([full_src, full_dst], dim=0)
-                edge_index = coalesce(edge_index, num_nodes=n_nodes)
-                edge_index, _ = add_remaining_self_loops(edge_index, fill_value=1., num_nodes=n_nodes)
-
-                feat_t = torch.tensor(feats_np, dtype=torch.float32)
-                label_t = torch.tensor(labels_np, dtype=torch.long)
-
-                # Initialize NeighborLoader to train in mini-batches
-                graph_pyg = Data(x=feat_t, edge_index=edge_index, y=label_t)
-                train_loader = NeighborLoader(
-                    graph_pyg,
-                    num_neighbors=baseline_cfg.get('fanout', [15, 10]),
-                    batch_size=baseline_cfg.get('batch', 1024),
-                    input_nodes=torch.tensor(train_mask),
-                    shuffle=True
-                )
+                train_nids = torch.where(torch.tensor(train_mask))[0]
+                sampler = NeighborSampler(baseline_cfg.get('fanout', [15, 10]))
+                train_dl = DGLDataLoader(g, train_nids, sampler,
+                                         batch_size=baseline_cfg.get('batch', 1024),
+                                         shuffle=True, drop_last=False)
 
                 for epoch in range(EPOCHS):
                     model.train()
                     total_loss = 0.0
                     nb = 0
-                    for batch in train_loader:
+                    for input_nodes, output_nodes, blocks in train_dl:
+                        x = blocks[0].srcdata['feat']
+                        labels = blocks[-1].dstdata['label']
+                        logits = model(blocks, x)
+                        loss = crit(logits, labels)
                         opt.zero_grad()
-                        logits = model(batch.x, batch.edge_index)
-                        loss = crit(logits[:batch.batch_size], batch.y[:batch.batch_size])
                         loss.backward()
                         opt.step()
                         total_loss += loss.item()
@@ -155,14 +160,21 @@ def run_phase4(spark, sc, datasets, dataset_cfg, baseline_cfg, get_paths_fn,
                         print(f"    SAGE-BL Epoch {epoch+1:2d}/{EPOCHS} loss={total_loss/max(nb,1):.4f}")
                 node_train_time = time.time() - t_node_start
 
-                # Evaluate directly end-to-end (no downstream classifier)
+                # Evaluate directly end-to-end using test DGLDataLoader
+                test_nids = torch.where(torch.tensor(test_mask))[0]
+                test_dl = DGLDataLoader(g, test_nids, NeighborSampler(baseline_cfg.get('fanout', [15, 10])),
+                                        batch_size=baseline_cfg.get('batch', 1024)*4, shuffle=False, drop_last=False)
                 model.eval()
+                correct = 0
+                total_t = 0
                 with torch.no_grad():
-                    logits = model(feat_t, edge_index)
-                    preds = logits.argmax(dim=1).cpu().numpy()
-                    correct = (preds[test_mask] == labels_np[test_mask]).sum()
-                    total_t = test_mask.sum()
-                    acc = correct / total_t if total_t > 0 else 0.0
+                    for input_nodes, output_nodes, blocks in test_dl:
+                        x = blocks[0].srcdata['feat']
+                        labels = blocks[-1].dstdata['label']
+                        preds = model(blocks, x).argmax(dim=1)
+                        correct += (preds == labels).sum().item()
+                        total_t += len(labels)
+                acc = correct / total_t if total_t > 0 else 0.0
 
             # ── Link Prediction Baseline ──────────────────────────────────────────
             if run_link and len(full_src) >= 5:
