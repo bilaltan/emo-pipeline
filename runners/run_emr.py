@@ -427,14 +427,14 @@ def main():
         .config("spark.executorEnv.PYTHONPATH", f"/tmp/.local/lib/{py_version}/site-packages:$PYTHONPATH") \
         .config("spark.executorEnv.DGLBACKEND", "pytorch") \
         .config("spark.executorEnv.DGL_DOWNLOAD_DIR", "/tmp/.dgl") \
-        .config("spark.executorEnv.TMPDIR", large_tmp) \
-        .config("spark.executorEnv.TEMP", large_tmp) \
-        .config("spark.executorEnv.TMP", large_tmp) \
+        .config("spark.executorEnv.TMPDIR", ".") \
+        .config("spark.executorEnv.TEMP", ".") \
+        .config("spark.executorEnv.TMP", ".") \
         .config("spark.jars.packages", "io.delta:delta-spark_2.12:3.2.0,graphframes:graphframes:0.8.3-spark3.5-s_2.12") \
         .config("spark.jars.ivy", f"{large_tmp}/.ivy2") \
         .config("spark.local.dir", f"{large_tmp}") \
         .config("spark.driver.extraJavaOptions", f"-Djava.io.tmpdir={large_tmp}") \
-        .config("spark.executor.extraJavaOptions", f"-Djava.io.tmpdir={large_tmp}") \
+        .config("spark.executor.extraJavaOptions", "-Djava.io.tmpdir=.") \
         .config("spark.sql.extensions", "io.delta.sql.DeltaSparkSessionExtension") \
         .config("spark.sql.catalog.spark_catalog", "org.apache.spark.sql.delta.catalog.DeltaCatalog") \
         .config("spark.sql.execution.arrow.pyspark.enabled", "true") \
@@ -644,6 +644,81 @@ def main():
             safe_install(p)
 
         print("\n  ✓ ALL PIPELINE DEPENDENCIES VERIFIED AND READY.")
+
+        # ── Cluster Disk Space Check ──
+        try:
+            n_nodes = 0
+            feature_dim = 0
+            
+            try:
+                from pipeline.utils.paths import get_paths
+                p_paths = get_paths(dataset_name)
+                nodes_df = spark.read.format('delta').load(p_paths['nodes'])
+                n_nodes = nodes_df.count()
+                first_row = nodes_df.select('features').first()
+                if first_row and first_row['features'] is not None:
+                    feature_dim = len(first_row['features'])
+            except Exception:
+                fallback_stats = {
+                    'wikics': (11701, 300),
+                    'coauthor-cs': (18333, 6805),
+                    'coauthor-physics': (34493, 8415),
+                    'deezereurope': (28281, 128),
+                    'flickr': (89250, 500),
+                    'reddit': (232965, 602),
+                    'ogbn-arxiv': (169343, 128),
+                    'ogbn-products': (2449029, 100),
+                    'ogbn-papers100M': (111059956, 128)
+                }
+                n_nodes, feature_dim = fallback_stats.get(dataset_name, (200000, 128))
+
+            required_bytes = 2 * (n_nodes * feature_dim * 4)
+            required_gb = required_bytes / (1024**3)
+
+            print("\n" + "="*80)
+            print("  CLUSTER DISK SPACE COMPATIBILITY VERIFICATION")
+            print("="*80)
+            print(f"  Dataset: {dataset_name} | Nodes: {n_nodes:,} | Features: {feature_dim}")
+            print(f"  Required temp workspace disk space per executor container: {required_gb:.2f} GB")
+
+            # Check Driver Node
+            driver_free_gb = shutil.disk_usage(large_tmp).free / (1024**3)
+            print(f"  Driver temp space available ({large_tmp}): {driver_free_gb:.2f} GB")
+
+            # Check Executor Nodes
+            num_execs = int(spark.conf.get("spark.executor.instances", "4"))
+            def run_worker_disk_check(iterator):
+                import shutil
+                import socket
+                _, _, free = shutil.disk_usage('.')
+                free_gb = free / (1024**3)
+                if free < required_bytes:
+                    return [f"FAIL:{socket.gethostname()}:{free_gb:.2f} GB"]
+                else:
+                    return [f"OK:{socket.gethostname()}:{free_gb:.2f} GB"]
+
+            worker_check_rdd = sc.parallelize(range(num_execs * 2), num_execs * 2)
+            check_results = worker_check_rdd.mapPartitions(run_worker_disk_check).collect()
+
+            print("  Executor nodes disk check results:")
+            failures = []
+            for r in sorted(list(set(check_results))):
+                status, host, avail_gb = r.split(':')
+                if status == 'FAIL':
+                    print(f"    ❌ {host:<45} - INSUFFICIENT SPACE! Available: {avail_gb} (Needs {required_gb:.2f} GB)")
+                    failures.append(r)
+                else:
+                    print(f"    ✓  {host:<45} - Sufficient Space. Available: {avail_gb}")
+
+            if failures:
+                print("\n[FATAL ERROR] Cluster disk space check failed! Insufficient disk space on executors.")
+                print("Please allocate larger EBS volumes or clean executor caches before rerunning.")
+                sys.exit(1)
+
+            print("  ✓ ALL NODES HAVE SUFFICIENT TEMPORARY DISK SPACE TO EXECUTE GNN JOBS.")
+            print("="*80 + "\n")
+        except Exception as e:
+            print(f"  ⚠️ Warning: Could not complete cluster disk space check: {e}")
 
     # ── 4. FETCH AND PACK SCRIPTS ──────────────────────────────────────────────
     print("\n" + "="*80)
