@@ -5,11 +5,11 @@
 #      python upload_to_s3.py
 # ══════════════════════════════════════════════════════════════════════════════
 
-EXPERIMENT_NAME   = 'coauthor-physics'          # labels ALL S3 outputs; change per experiment run
+EXPERIMENT_NAME   = 'ogbn-products'          # labels ALL S3 outputs; change per experiment run
 
 # ── Datasets ───────────────────────────────────────────────────────────────────
 # To add ogbn-arxiv: set RUN_PHASE0=True first to ingest it.
-DATASETS_TO_RUN = ['coauthor-physics']
+DATASETS_TO_RUN = ['ogbn-products']
 
 # ── GNN Models to Run ─────────────────────────────────────────────────────────
 # Supported choices: 'sage', 'gat', 'gatv2', 'transformer', 'clusterscl'
