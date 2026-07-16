@@ -1,0 +1,457 @@
+
+  [Spark Auto-Scaler] Dataset: ogbn-arxiv | Physical Size: 11.77 MB | Scale: Small/Medium
+  [Spark Auto-Scaler] Active YARN Workers: 2
+  → Allocating 14 executors with 2 cores and 8g (+4g overhead) memory.
+  → Driver memory: 74g (+19g overhead)
+
+  ✓ SparkSession successfully configured and initialized as 'spark'.
+
+================================================================================
+  VERIFYING AND INSTALLING PYTHON ENVIRONMENT PACKAGES
+================================================================================
+  ✓ numpy           - Already installed on driver and executors (skipping)
+  ✓ ogb             - Already installed on driver and executors (skipping)
+  ✓ igraph          - Already installed on driver and executors (skipping)
+  ✓ leidenalg       - Already installed on driver and executors (skipping)
+  ✓ scikit-learn    - Already installed on driver and executors (skipping)
+  ✓ torch           - Already installed on driver and executors (skipping)
+  ✓ boto3           - Already installed on driver and executors (skipping)
+  ✓ xlsxwriter      - Already installed on driver and executors (skipping)
+  ✓ openpyxl        - Already installed on driver and executors (skipping)
+  ✓ matplotlib      - Already installed on driver and executors (skipping)
+  ✓ seaborn         - Already installed on driver and executors (skipping)
+  ✓ torch-geometric - Already installed on driver and executors (skipping)
+  ✓ pyarrow         - Already installed on driver and executors (skipping)
+  ✓ dgl==1.1.3      - Already installed on driver and executors (skipping)
+
+  ✓ ALL PIPELINE DEPENDENCIES VERIFIED AND READY.
+
+================================================================================
+  BOOTSTRAPPING EXPERIMENT CODE AND STAGE UTILITIES
+================================================================================
+  ► LOADING PIPELINE AND CONFIG FROM LOCAL PATHS...
+    ✓ Packed local pipeline folder to /tmp/pipeline.zip and copied to /tmp/pipeline
+  ✓ Registered pipeline.zip package on Spark Context
+
+  Run Profile: ogbn-arxiv
+  └─ Datasets: ['ogbn-arxiv']
+  └─ Algorithms: ['lpa', 'louvain']
+  └─ GNN Architecture: GCN (epochs=10, lr=0.01, hidden=256)
+  └─ Global Mapping: True | Boundary Expansion: True
+  └─ Ingestion Phase (Phase 0): True
+
+============================================================
+  PHASE 0 — Ingesting: ogbn-arxiv
+============================================================
+  Saving original (directed) graph: 169,343 nodes | 1,166,243 edges ...
+  Feature dimension: 128 | Ingesting in chunks of 7,812 nodes...
+  Original nodes written → s3://us-east-1-s3-gnn/delta-data/ogbn-arxiv/original_nodes/
+  Original edges written → s3://us-east-1-s3-gnn/delta-data/ogbn-arxiv/original_edges/
+  Nodes: 169,343 | Edges (both dirs): 2,315,598
+  Nodes written.
+  Edges written.
+  Masks written.
+  Compacting Delta tables (running OPTIMIZE & VACUUM) for ogbn-arxiv...
+    ✓ Compacted & Cleaned: s3://us-east-1-s3-gnn/delta-data/ogbn-arxiv/original_nodes/ (24.0s)
+    ✓ Compacted & Cleaned: s3://us-east-1-s3-gnn/delta-data/ogbn-arxiv/original_edges/ (8.6s)
+    ✓ Compacted & Cleaned: s3://us-east-1-s3-gnn/delta-data/ogbn-arxiv/nodes/ (16.3s)
+    ✓ Compacted & Cleaned: s3://us-east-1-s3-gnn/delta-data/ogbn-arxiv/edges/ (6.7s)
+    ✓ Compacted & Cleaned: s3://us-east-1-s3-gnn/delta-data/ogbn-arxiv/masks/ (6.7s)
+  ✓ ogbn-arxiv ingested in 221.7s
+
+============================================================
+  PHASE 1 — Community Detection: ogbn-arxiv
+============================================================
+  Graph loaded: 169,343 nodes | 2,315,598 edges  [3.3s]
+
+  ── [LPA] ──────────────────────────────
+    Iter 1/5: 55,605 comms  [5.6s]
+    Iter 2/5: 26,756 comms  [3.0s]
+    Iter 3/5: 17,786 comms  [2.5s]
+    Iter 4/5: 12,944 comms  [4.8s]
+    Iter 5/5: 10,376 comms  [13.5s]
+  ✓ [lpa] 10,376 communities | NMI=0.3878 | 36.2s
+
+  ── [LOUVAIN] ──────────────────────────────
+  Collecting edges to driver ...
+  Mapping node IDs using vectorized binary search ...
+  Building igraph (169,343 nodes) ...
+  Running louvain (resolution=1.0) ...
+  ✓ [louvain] 137 communities | NMI=0.3884 | 11.1s
+
+======================================================================
+  PHASE 1 SUMMARY
+======================================================================
+
+  Dataset: ogbn-arxiv
+  Algorithm        #Comms      NMI    Runtime
+  ------------ ---------- -------- ----------
+  lpa              10,376   0.3878      36.2s
+  louvain             137   0.3884      11.1s
+
+  [lpa] Community assignment details:
+    Vertices assigned: 169,343 / 169,343 (100.0% coverage)
+    Total communities: 10,376 | Valid (≥100): 219
+    Size stats: min=1  max=25,948  avg=16.3  median=3
+    Size buckets: 1-9:8,176 | 10-99:1,981 | 100-999:211 | 1K-9999:7 | 10K+:1
+    Top-10 largest: c166425=25,948, c169341=3,790, c169338=2,929, c169335=2,158, c168847=1,730, c155234=1,525, c166397=1,355, c161678=1,174, c167239=993, c169312=937
+
+  [louvain] Community assignment details:
+    Vertices assigned: 169,343 / 169,343 (100.0% coverage)
+    Total communities: 137 | Valid (≥100): 36
+    Size stats: min=3  max=16,595  avg=1236.1  median=16
+    Size buckets: 1-9:38 | 10-99:63 | 100-999:12 | 1K-9999:19 | 10K+:5
+    Top-10 largest: c21=16,595, c1=16,069, c18=15,427, c11=13,226, c4=10,556, c10=8,349, c15=7,801, c2=7,538, c5=7,464, c34=6,563
+
+============================================================
+  PHASE 2 — Partitioning: ogbn-arxiv
+============================================================
+
+  ── [LPA]  tag=ogbn-arxiv_ogbn-arxiv_lpa ──
+  Raw=10,376  Valid(≥100)=219  min=100  max=25,948  avg=420.9
+  Edges kept: 2,315,598 (100.0%)  Boundary nodes: 0  Internal: 169,343
+  Shuffle overhead (groupBy community_id): 3.4s
+  ✓ [lpa] Phase 2 done in 25.1s
+
+  ── [LOUVAIN]  tag=ogbn-arxiv_ogbn-arxiv_louvain ──
+  Raw=137  Valid(≥100)=36  min=118  max=16,595  avg=4654.4
+  Edges kept: 2,315,598 (100.0%)  Boundary nodes: 0  Internal: 169,343
+  Shuffle overhead (groupBy community_id): 2.7s
+  ✓ [louvain] Phase 2 done in 20.5s
+
+============================================================
+  PHASE 3 — GNN Training: ogbn-arxiv / lpa / sage
+  tag=ogbn-arxiv_ogbn-arxiv_lpa
+============================================================
+  [Driver Warmstart] Extracting largest community for driver-side pre-training...
+  ✓ Driver-side base model trained successfully on Comm -1 (125,912 nodes).
+  Training DF: 537,478 rows | 220 communities binned into 5 executor tasks
+  ✓ Mean comm acc = 0.4766
+  ✓ Weighted comm acc = 0.4605
+  ✓ Mean comm link AUC = 0.7210
+  ✓ Weighted comm link AUC = 0.6870
+  ✓ Wall time: 94.7s
+    - Avg Load time: 0.01s | Max: 0.45s
+    - Avg Node Train: 0.37s | Max: 22.41s
+    - Avg Link Train: 0.48s | Max: 18.63s
+    ✓ Saved S3 checkpoint: s3://us-east-1-s3-gnn/gnn-bench-checkpoint/phase3/ogbn-arxiv/ogbn-arxiv_lpa_sage.parquet
+
+============================================================
+  PHASE 3 — GNN Training: ogbn-arxiv / lpa / gatv2
+  tag=ogbn-arxiv_ogbn-arxiv_lpa
+============================================================
+  [Driver Warmstart] Extracting largest community for driver-side pre-training...
+  ✓ Driver-side base model trained successfully on Comm -1 (125,912 nodes).
+  Training DF: 537,478 rows | 220 communities binned into 5 executor tasks
+  ✓ Mean comm acc = 0.5698
+  ✓ Weighted comm acc = 0.5133
+  ✓ Mean comm link AUC = 0.7335
+  ✓ Weighted comm link AUC = 0.6949
+  ✓ Wall time: 285.7s
+    - Avg Load time: 0.01s | Max: 0.48s
+    - Avg Node Train: 1.17s | Max: 81.14s
+    - Avg Link Train: 1.52s | Max: 66.24s
+    ✓ Saved S3 checkpoint: s3://us-east-1-s3-gnn/gnn-bench-checkpoint/phase3/ogbn-arxiv/ogbn-arxiv_lpa_gatv2.parquet
+
+============================================================
+  PHASE 3 — GNN Training: ogbn-arxiv / louvain / sage
+  tag=ogbn-arxiv_ogbn-arxiv_louvain
+============================================================
+  [Driver Warmstart] Extracting largest community for driver-side pre-training...
+  ✓ Driver-side base model trained successfully on Comm 18 (44,576 nodes).
+  Training DF: 345,997 rows | 37 communities binned into 1 executor tasks
+  ✓ Mean comm acc = 0.3572
+  ✓ Weighted comm acc = 0.4559
+  ✓ Mean comm link AUC = 0.6561
+  ✓ Weighted comm link AUC = 0.6847
+  ✓ Wall time: 166.6s
+    - Avg Load time: 0.04s | Max: 0.20s
+    - Avg Node Train: 1.06s | Max: 6.36s
+    - Avg Link Train: 2.57s | Max: 9.92s
+    ✓ Saved S3 checkpoint: s3://us-east-1-s3-gnn/gnn-bench-checkpoint/phase3/ogbn-arxiv/ogbn-arxiv_louvain_sage.parquet
+
+============================================================
+  PHASE 3 — GNN Training: ogbn-arxiv / louvain / gatv2
+  tag=ogbn-arxiv_ogbn-arxiv_louvain
+============================================================
+  [Driver Warmstart] Extracting largest community for driver-side pre-training...
+  ✓ Driver-side base model trained successfully on Comm 18 (44,576 nodes).
+  Training DF: 345,997 rows | 37 communities binned into 1 executor tasks
+  ✓ Mean comm acc = 0.4544
+  ✓ Weighted comm acc = 0.5167
+  ✓ Mean comm link AUC = 0.6612
+  ✓ Weighted comm link AUC = 0.7103
+  ✓ Wall time: 535.4s
+    - Avg Load time: 0.04s | Max: 0.20s
+    - Avg Node Train: 3.68s | Max: 20.80s
+    - Avg Link Train: 9.42s | Max: 32.26s
+    ✓ Saved S3 checkpoint: s3://us-east-1-s3-gnn/gnn-bench-checkpoint/phase3/ogbn-arxiv/ogbn-arxiv_louvain_gatv2.parquet
+
+[PHASE 3b] - Parallel GNN Training with CaaN Global Graph
+  Dataset: ogbn-arxiv | Algorithm: lpa
+    - Major communities (>= 100): 219
+    - Minor communities (< 100): 10157
+
+============================================================
+  PHASE 3b — GNN Training (CaaN): ogbn-arxiv / lpa / sage
+  tag=ogbn-arxiv_ogbn-arxiv_lpa
+============================================================
+  [Driver Warmstart] Extracting largest community for driver-side pre-training...
+  ✓ Driver-side base model trained successfully on Comm 166425 (25,948 nodes).
+  ✓ Mean CaaN comm acc = 0.1654
+  ✓ Weighted CaaN comm acc = 0.2853
+  ✓ Wall time: 40.5s
+    ✓ Saved S3 checkpoint: s3://us-east-1-s3-gnn/gnn-bench-checkpoint/phase3b/ogbn-arxiv/ogbn-arxiv_lpa_sage.parquet
+
+============================================================
+  PHASE 3b — GNN Training (CaaN): ogbn-arxiv / lpa / gatv2
+  tag=ogbn-arxiv_ogbn-arxiv_lpa
+============================================================
+  [Driver Warmstart] Extracting largest community for driver-side pre-training...
+  ✓ Driver-side base model trained successfully on Comm 166425 (25,948 nodes).
+  ✓ Mean CaaN comm acc = 0.5565
+  ✓ Weighted CaaN comm acc = 0.4171
+  ✓ Wall time: 54.1s
+    ✓ Saved S3 checkpoint: s3://us-east-1-s3-gnn/gnn-bench-checkpoint/phase3b/ogbn-arxiv/ogbn-arxiv_lpa_gatv2.parquet
+  Dataset: ogbn-arxiv | Algorithm: louvain
+    - Major communities (>= 100): 36
+    - Minor communities (< 100): 101
+
+============================================================
+  PHASE 3b — GNN Training (CaaN): ogbn-arxiv / louvain / sage
+  tag=ogbn-arxiv_ogbn-arxiv_louvain
+============================================================
+  [Driver Warmstart] Extracting largest community for driver-side pre-training...
+  ✓ Driver-side base model trained successfully on Comm 21 (16,595 nodes).
+  ✓ Mean CaaN comm acc = 0.3497
+  ✓ Weighted CaaN comm acc = 0.4307
+  ✓ Wall time: 45.3s
+    ✓ Saved S3 checkpoint: s3://us-east-1-s3-gnn/gnn-bench-checkpoint/phase3b/ogbn-arxiv/ogbn-arxiv_louvain_sage.parquet
+
+============================================================
+  PHASE 3b — GNN Training (CaaN): ogbn-arxiv / louvain / gatv2
+  tag=ogbn-arxiv_ogbn-arxiv_louvain
+============================================================
+  [Driver Warmstart] Extracting largest community for driver-side pre-training...
+  ✓ Driver-side base model trained successfully on Comm 21 (16,595 nodes).
+  ✓ Mean CaaN comm acc = 0.4644
+  ✓ Weighted CaaN comm acc = 0.5093
+  ✓ Wall time: 82.7s
+    ✓ Saved S3 checkpoint: s3://us-east-1-s3-gnn/gnn-bench-checkpoint/phase3b/ogbn-arxiv/ogbn-arxiv_louvain_gatv2.parquet
+
+============================================================
+  PHASE 4 — GraphSAGE Baseline: ogbn-arxiv
+============================================================
+  epochs=10
+  Loaded in 6.1s
+
+  ── GraphSAGE Run 1/1 ──
+    Run 1 — acc=0.4616  auc=0.5112
+  ✓ [ogbn-arxiv] GraphSAGE Baseline  acc=0.4616±0.0000  auc=0.5112±0.0000  time=63.9s
+    ✓ Saved baseline 4 checkpoint to S3.
+
+============================================================
+  PHASE 4b — DistDGL Baseline: ogbn-arxiv
+============================================================
+  epochs=10  batch=1024  fanout=[10, 10]
+  Loaded in 6.3s
+  Graph: 169,343 nodes | 2,484,941 edges
+  Running DistDGL METIS graph partitioning...
+  [Info] METIS partition simulated due to local runner constraints: DistDGL METIS partitioning subprocess exited with code 2. Error: /usr/bin/python3: can't open file '/tmp/pipeline/phases/distdgl_partition_runner.py': [Errno 2] No such file or directory
+
+  Bootstrapping distributed DistGraph environment...
+  ✓ Distributed environment setup in 5.00s
+/mnt1/tmp/.local/lib/python3.9/site-packages/dgl/dataloading/dataloader.py:1149: DGLWarning: Dataloader CPU affinity opt is not enabled, consider switching it on (see enable_cpu_affinity() or CPU best practices for DGL [https://docs.dgl.ai/tutorials/cpu/cpu_best_practises.html])
+  dgl_warning(
+  Node Baseline Epoch  10/10  loss=1.2308
+  Link Baseline Epoch  10/10  loss=0.6921
+  ✓ [ogbn-arxiv] DistDGL Baseline node_acc=0.6559  link_auc=0.4574  time=68.0s (part=2.0s, boot=5.0s, node=39.1s, link=21.9s)  mem=9.18GB
+    ✓ Saved baseline 4b checkpoint to S3.
+
+[PHASE 4c] - ARMA Full-Graph Global Baseline (PyG)
+
+============================================================
+  PHASE 4c — ARMA Baseline: ogbn-arxiv
+============================================================
+  epochs=10
+  Loaded in 6.1s
+
+  ── ARMA Run 1/1 ──
+    Run 1 — acc=0.4710  auc=0.8276
+  ✓ [ogbn-arxiv] ARMA Baseline  acc=0.4710±0.0000  auc=0.8276±0.0000  time=234.6s
+    ✓ Saved baseline 4c checkpoint to S3.
+
+[PHASE 4d] - ASAP Full-Graph Global Baseline (PyG)
+
+============================================================
+  PHASE 4d — ASAP Baseline: ogbn-arxiv
+============================================================
+  epochs=10
+  Loaded in 5.9s
+
+  ── ASAP Run 1/1 ──
+    Run 1 — acc=0.3009  auc=0.8109
+  ✓ [ogbn-arxiv] ASAP Baseline  acc=0.3009±0.0000  auc=0.8109±0.0000  time=117.3s
+    ✓ Saved baseline 4d checkpoint to S3.
+
+[PHASE 4h] - GATv2 Full-Graph Global Baseline (PyG)
+
+============================================================
+  PHASE 4h — GATv2 Baseline: ogbn-arxiv
+============================================================
+  epochs=10
+  Loaded in 8.2s
+
+  ── GATv2 Run 1/1 ──
+    Run 1 — acc=0.5201  auc=0.8387
+  ✓ [ogbn-arxiv] GATv2 Baseline  acc=0.5201±0.0000  auc=0.8387±0.0000  time=65.1s
+    ✓ Saved baseline 4h checkpoint to S3.
+
+[PHASE 5] - Metrics Analysis, Visualizations, and Excel S3 Export
+
+===============================================================================================
+  PHASE 5A — PERFORMANCE COMPARISON (NODE ACCURACY & LINK AUC)
+===============================================================================================
+
+  Dataset: ogbn-arxiv
+  _Algorithm           Node Acc   Comm Acc    Bnd Acc    Int Acc     Link AUC
+  ---------------------------------------------------------------------------
+  lpa-sage               0.4605     0.4766     0.0000     0.4766       0.6870
+  lpa-sage-caan          0.2853     0.1654     0.0000     0.1654       0.5000
+  lpa-gatv2              0.5133     0.5698     0.0000     0.5698       0.6949
+  lpa-gatv2-caan         0.4171     0.5565     0.0000     0.5565       0.5000
+  louvain-sage           0.4559     0.3572     0.0000     0.3572       0.6847
+  louvain-sage-caan      0.4307     0.3497     0.0000     0.3497       0.5000
+  louvain-gatv2          0.5167     0.4544     0.0000     0.4544       0.7103
+  louvain-gatv2-caan     0.5093     0.4644     0.0000     0.4644       0.5000
+  SAGE-BL                0.4616          —          —          —       0.5112
+  DISTDGL                0.6559          —          —          —       0.4574
+  ARMA-BL                0.4710          —          —          —       0.8276
+  ASAP-BL                0.3009          —          —          —       0.8109
+  GATv2-BL               0.5201          —          —          —       0.8387
+
+  [ogbn-arxiv] Performance by community size bucket:
+    lpa-sage:
+      large   : n=220  acc=0.4766  auc=0.7210
+    lpa-sage-caan:
+      small   : n=1  acc=0.1363  auc=0.5000
+      medium  : n=125  acc=0.0967  auc=0.5000
+      large   : n=94  acc=0.2571  auc=0.5000
+    lpa-gatv2:
+      large   : n=220  acc=0.5698  auc=0.7335
+    lpa-gatv2-caan:
+      small   : n=1  acc=0.1001  auc=0.5000
+      medium  : n=125  acc=0.5245  auc=0.5000
+      large   : n=94  acc=0.6039  auc=0.5000
+    louvain-sage:
+      medium  : n=1  acc=0.0000  auc=0.5916
+      large   : n=36  acc=0.3671  auc=0.6579
+    louvain-sage-caan:
+      small   : n=1  acc=0.3787  auc=0.5000
+      medium  : n=1  acc=0.0000  auc=0.5000
+      large   : n=35  acc=0.3588  auc=0.5000
+    louvain-gatv2:
+      medium  : n=1  acc=0.0000  auc=0.5136
+      large   : n=36  acc=0.4670  auc=0.6653
+    louvain-gatv2-caan:
+      small   : n=1  acc=0.1660  auc=0.5000
+      medium  : n=1  acc=0.0000  auc=0.5000
+      large   : n=35  acc=0.4862  auc=0.5000
+
+================================================================================
+  PHASE 5B — TIMING COMPARISON
+================================================================================
+
+  Dataset: ogbn-arxiv
+  Algorithm             Phase1    Phase2    Phase3   Phase3b     Total
+  --------------------------------------------------------------------
+  lpa-sage               36.2s     25.1s     94.7s     40.5s    196.6s
+  lpa-gatv2              36.2s     25.1s    285.7s     54.1s    401.2s
+  louvain-sage           11.1s     20.5s    166.6s     45.3s    243.5s
+  louvain-gatv2          11.1s     20.5s    535.4s     82.7s    649.7s
+  BASELINE (SAGE)            —         —         —     63.9s (Node: 17.8s, Link: 46.1s)
+  DISTDGL                    —         —         —     68.0s (Node: 39.1s, Link: 21.9s)
+  ARMA                       —         —         —    234.6s (Node: 114.9s, Link: 119.7s)
+  ASAP                       —         —         —    117.3s (Node: 52.0s, Link: 65.2s)
+  GATv2-BL                   —         —         —     65.1s (Node: 33.9s, Link: 31.1s)
+  XLSX → s3://us-east-1-s3-gnn/gnn-bench-out/ogbn-arxiv_results.xlsx
+  Plot → s3://us-east-1-s3-gnn/gnn-bench-out/plots/ogbn-arxiv/ogbn-arxiv_acc_dist.png
+  Plot → s3://us-east-1-s3-gnn/gnn-bench-out/plots/ogbn-arxiv/ogbn-arxiv_boundary_internal.png
+  Plot → s3://us-east-1-s3-gnn/gnn-bench-out/plots/ogbn-arxiv/ogbn-arxiv_timing.png
+
+================================================================================
+  FINAL PIPELINE REPORT SUMMARY
+================================================================================
+╔══════════════════════════════════════════════════════════════╗
+║  EXPERIMENT: ogbn-arxiv                                     ║
+║  Global mapping: True                                        ║
+╠══════════════════════════════════════════════════════════════╣
+║   Dataset                        ogbn-arxiv                    ║
+║   Phase 0 (ingest)               221.7s                        ║
+║   Phase 1 [lpa]                  36.2s                         ║
+║   Phase 2 [lpa]                  25.1s                         ║
+║   Phase 3 [lpa-sage]             94.7s                         ║
+║   Phase 3b [lpa-sage-caan]       40.5s                         ║
+║   Phase 3 [lpa-gatv2]            285.7s                        ║
+║   Phase 3b [lpa-gatv2-caan]      54.1s                         ║
+║   Phase 1 [louvain]              11.1s                         ║
+║   Phase 2 [louvain]              20.5s                         ║
+║   Phase 3 [louvain-sage]         166.6s                        ║
+║   Phase 3b [louvain-sage-caan]   45.3s                         ║
+║   Phase 3 [louvain-gatv2]        535.4s                        ║
+║   Phase 3b [louvain-gatv2-caan]  82.7s                         ║
+║   Phase 4 (baseline)             63.9s                         ║
+║   Phase 4b (DistDGL)             68.0s                         ║
+║   Phase 4c (ARMA)                234.6s                        ║
+║   Phase 4d (ASAP)                117.3s                        ║
+║   Phase 4h (GATv2)               65.1s                         ║
+╠══════════════════════════════════════════════════════════════╣
+║   [lpa-sage] global acc          0.4605                        ║
+║   [lpa-sage] boundary acc        0.0000                        ║
+║   [lpa-sage] internal acc        0.4766                        ║
+║   [lpa-sage] link AUC            0.6870                        ║
+║   [lpa-sage-caan] global acc     0.2853                        ║
+║   [lpa-sage-caan] boundary acc   0.0000                        ║
+║   [lpa-sage-caan] internal acc   0.1654                        ║
+║   [lpa-sage-caan] link AUC       0.5000                        ║
+║   [lpa-gatv2] global acc         0.5133                        ║
+║   [lpa-gatv2] boundary acc       0.0000                        ║
+║   [lpa-gatv2] internal acc       0.5698                        ║
+║   [lpa-gatv2] link AUC           0.6949                        ║
+║   [lpa-gatv2-caan] global acc    0.4171                        ║
+║   [lpa-gatv2-caan] boundary acc  0.0000                        ║
+║   [lpa-gatv2-caan] internal acc  0.5565                        ║
+║   [lpa-gatv2-caan] link AUC      0.5000                        ║
+║   [lpa] communities              10,376 raw → 219 valid        ║
+║   [louvain-sage] global acc      0.4559                        ║
+║   [louvain-sage] boundary acc    0.0000                        ║
+║   [louvain-sage] internal acc    0.3572                        ║
+║   [louvain-sage] link AUC        0.6847                        ║
+║   [louvain-sage-caan] global acc 0.4307                        ║
+║   [louvain-sage-caan] boundary acc 0.0000                      ║
+║   [louvain-sage-caan] internal acc 0.3497                      ║
+║   [louvain-sage-caan] link AUC   0.5000                        ║
+║   [louvain-gatv2] global acc     0.5167                        ║
+║   [louvain-gatv2] boundary acc   0.0000                        ║
+║   [louvain-gatv2] internal acc   0.4544                        ║
+║   [louvain-gatv2] link AUC       0.7103                        ║
+║   [louvain-gatv2-caan] global acc 0.5093                       ║
+║   [louvain-gatv2-caan] boundary acc 0.0000                     ║
+║   [louvain-gatv2-caan] internal acc 0.4644                     ║
+║   [louvain-gatv2-caan] link AUC  0.5000                        ║
+║   [louvain] communities          137 raw → 36 valid            ║
+║   Baseline acc                   0.4616                        ║
+║   Baseline link AUC              0.5112  (63.9s)               ║
+║   DistDGL acc                    0.6559                        ║
+║   DistDGL link AUC               0.4574  (68.0s)               ║
+║   ARMA acc                       0.4710                        ║
+║   ARMA link AUC                  0.8276  (234.6s)              ║
+║   ASAP acc                       0.3009                        ║
+║   ASAP link AUC                  0.8109  (117.3s)              ║
+║   GATv2 acc                      0.5201                        ║
+║   GATv2 link AUC                 0.8387  (65.1s)               ║
+╚══════════════════════════════════════════════════════════════╝
+
+[SUCCESS] EMR Driver execution completed in 2397.2 seconds.
+================================================================================
+
