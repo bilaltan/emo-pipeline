@@ -5,11 +5,11 @@
 #      python upload_to_s3.py
 # ══════════════════════════════════════════════════════════════════════════════
 
-EXPERIMENT_NAME   = 'ogbn-products'          # labels ALL S3 outputs; change per experiment run
+EXPERIMENT_NAME   = 'ogbn-arxiv'          # labels ALL S3 outputs; change per experiment run
 
 # ── Datasets ───────────────────────────────────────────────────────────────────
 # To add ogbn-arxiv: set RUN_PHASE0=True first to ingest it.
-DATASETS_TO_RUN = ['ogbn-products']
+DATASETS_TO_RUN = ['ogbn-arxiv']
 
 # ── GNN Models to Run ─────────────────────────────────────────────────────────
 # Supported choices: 'sage', 'gat', 'gatv2', 'transformer', 'clusterscl'
@@ -31,7 +31,7 @@ N_BASELINE_RUNS   = 1          # number of runs per baseline for mean ± std
 #   'lpa'     = distributed Spark (fast, lower community quality)
 #   'louvain' = driver/igraph   (moderate quality, pulls graph to driver RAM)
 #   'igraph_lpa' = driver/igraph   (LPA using igraph)
-RUN_PHASE1         = True             # Set to False to skip community detection phase
+RUN_PHASE1         = False             # Set to False to skip community detection phase
 ALGORITHMS_TO_RUN  = ['lpa', 'louvain']
 LPA_MAX_ITER       = 5
 RESOLUTION         = 1.0              # louvain / leiden resolution parameter
@@ -43,15 +43,15 @@ MIN_COMMUNITY_SIZE = 100              # communities smaller than this are exclud
 #   Required for valid global accuracy comparison (Pipelines.txt §5).
 # USE_GLOBAL_MAPPING = False (ablation only):
 #   Per-community 70/15/15 random split inside UDF → NOT globally comparable.
-RUN_PHASE2         = True             # Set to False to skip subgraph generation phase
-RUN_PHASE3         = True             # Set to False to skip parallel GNN UDF training phase
+RUN_PHASE2         = False             # Set to False to skip subgraph generation phase
+RUN_PHASE3         = False             # Set to False to skip parallel GNN UDF training phase
 USE_GLOBAL_MAPPING = True
 
 GCN_HIDDEN_DIM    = 256
 GCN_NUM_EPOCHS    = 10
 GCN_LR            = 0.001
 GCN_DROPOUT       = 0.5
-RUN_PHASE3B       = True              # Phase 3b: CaaN Global Graph GNN Training
+RUN_PHASE3B       = False              # Phase 3b: CaaN Global Graph GNN Training
 
 # ── New Advanced Features ──────────────────────────────────────────────────────
 # Tiny community handling: 'drop' (ignore them), 'misc' (group them all into community_id = -1)
@@ -72,12 +72,12 @@ BASELINE_BATCH    = 1024
 BASELINE_FANOUT   = [15, 10]
 BASELINE_LR       = GCN_LR
 RUN_PHASE4B       = True       # DistDGL Baseline Simulation
-RUN_PHASE4C       = True       # ARMA Baseline
-RUN_PHASE4D       = True       # ASAP Baseline
-RUN_PHASE4E       = True       # GAT Baseline
-RUN_PHASE4F       = True       # Graph Transformer Baseline
-RUN_PHASE4G       = True       # ClusterSCL Baseline
-RUN_PHASE4H       = True       # GATv2 Baseline
+RUN_PHASE4C       = False       # ARMA Baseline
+RUN_PHASE4D       = False       # ASAP Baseline
+RUN_PHASE4E       = False       # GAT Baseline
+RUN_PHASE4F       = False       # Graph Transformer Baseline
+RUN_PHASE4G       = False       # ClusterSCL Baseline
+RUN_PHASE4H       = False       # GATv2 Baseline
 
 # ── Infrastructure ─────────────────────────────────────────────────────────────
 S3_BUCKET         = 'us-east-1-s3-gnn'
