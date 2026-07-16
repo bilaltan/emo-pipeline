@@ -64,6 +64,16 @@ def run_phase4(spark, sc, datasets, dataset_cfg, baseline_cfg, get_paths_fn,
         full_src = torch.tensor(src_np, dtype=torch.long)
         full_dst = torch.tensor(dst_np, dtype=torch.long)
 
+        # Build DGL Graph once outside the runs loop to optimize memory
+        g = dgl.graph((full_src, full_dst), num_nodes=n_nodes)
+        g = dgl.add_self_loop(g)
+        g.ndata['feat']  = torch.tensor(feats_np,  dtype=torch.float32)
+        g.ndata['label'] = torch.tensor(labels_np, dtype=torch.int64)
+
+        # Reclaim massive Pandas/Numpy memory allocations immediately
+        del nodes_pd, edges_pd, masks_pd, src_np, dst_np
+        import gc; gc.collect()
+
         HIDDEN = baseline_cfg.get('hidden_dim', 256)
         dropout_val = baseline_cfg.get('dropout', 0.5)
 
@@ -125,12 +135,6 @@ def run_phase4(spark, sc, datasets, dataset_cfg, baseline_cfg, get_paths_fn,
             # ── Node Classification Baseline ──────────────────────────────────────
             if run_node and train_mask.sum() > 0:
                 t_node_start = time.time()
-                
-                # Build DGL Graph
-                g = dgl.graph((torch.tensor(src_np, dtype=torch.long), torch.tensor(dst_np, dtype=torch.long)), num_nodes=n_nodes)
-                g = dgl.add_self_loop(g)
-                g.ndata['feat']  = torch.tensor(feats_np,  dtype=torch.float32)
-                g.ndata['label'] = torch.tensor(labels_np, dtype=torch.int64)
 
                 model = GraphSAGENodeClassifier(IN_FEATS, HIDDEN, NUM_CLASSES)
                 opt = torch.optim.Adam(model.parameters(), lr=baseline_cfg.get('lr', 1e-3), weight_decay=5e-4)
@@ -180,9 +184,6 @@ def run_phase4(spark, sc, datasets, dataset_cfg, baseline_cfg, get_paths_fn,
 
             # ── Link Prediction Baseline ──────────────────────────────────────────
             if run_link and len(full_src) >= 5:
-                # Free node classification graph structure to prevent OOM
-                if 'g' in locals():
-                    del g
                 import gc; gc.collect()
                 
                 t_link_start = time.time()
@@ -300,6 +301,11 @@ def run_phase4(spark, sc, datasets, dataset_cfg, baseline_cfg, get_paths_fn,
         print(f"  ✓ [{dataset}] GraphSAGE Baseline  acc={mean_acc:.4f}±{std_acc:.4f}  "
               f"auc={mean_auc:.4f}±{std_auc:.4f}  "
               f"time={mean_node_time + mean_link_time:.1f}s")
+              
+        # Cleanup graph structure at the end of run_phase4
+        if 'g' in locals():
+            del g
+        import gc; gc.collect()
 
 
 def run_phase4b(spark, sc, datasets, dataset_cfg, baseline_cfg, get_paths_fn,
