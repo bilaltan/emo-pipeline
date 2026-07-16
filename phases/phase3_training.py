@@ -316,11 +316,11 @@ def _train_gnn_community_single(pdf, base_weights_bc=None, base_embeddings_bc=No
                     self.dr = nn.Dropout(dropout)
                 def forward(self, g, x):
                     x = torch.relu(self.c1(g, x)); x = self.dr(x)
-                    x = torch.relu(self.c2(g, x))
+                    x = self.c2(g, x)
                     return self.fc(x)
                 def encode(self, g, x):
                     x = torch.relu(self.c1(g, x)); x = self.dr(x)
-                    return torch.relu(self.c2(g, x))
+                    return self.c2(g, x)
             model = GraphSAGECommunity(feat_arr.shape[1], hidden_dim, num_classes)
             opt   = torch.optim.Adam(model.parameters(), lr=lr, weight_decay=5e-4)
             crit  = nn.CrossEntropyLoss()
@@ -623,7 +623,7 @@ def _train_gnn_community_single(pdf, base_weights_bc=None, base_embeddings_bc=No
                     self.dr = nn.Dropout(dropout)
                 def forward(self, g, x):
                     x = torch.relu(self.c1(g, x)); x = self.dr(x)
-                    x = torch.relu(self.c2(g, x))
+                    x = self.c2(g, x)
                     return x
             
             encoder = GCNEncoder(feat_arr.shape[1], hidden_dim)
@@ -861,11 +861,11 @@ def run_phase3(spark, sc, datasets, algorithms, use_global_mapping,
                             self.dr = nn.Dropout(float(gcn_cfg['dropout']))
                         def forward(self, g, x):
                             x = torch.relu(self.c1(g, x)); x = self.dr(x)
-                            x = torch.relu(self.c2(g, x))
+                            x = self.c2(g, x)
                             return self.fc(x)
                         def encode(self, g, x):
                             x = torch.relu(self.c1(g, x)); x = self.dr(x)
-                            return torch.relu(self.c2(g, x))
+                            return self.c2(g, x)
                             
                     base_model = DriverGraphSAGE(in_feats, hidden_dim, num_classes)
                     opt = torch.optim.Adam(base_model.parameters(), lr=float(gcn_cfg['lr']))

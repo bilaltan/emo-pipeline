@@ -260,11 +260,11 @@ def _train_minor_global_caan(dataset, gcn_cfg, dataset_cfg, caan_components, mod
                 self.dr = nn.Dropout(dropout)
             def forward(self, g, x):
                 x = torch.relu(self.c1(g, x)); x = self.dr(x)
-                x = torch.relu(self.c2(g, x))
+                x = self.c2(g, x)
                 return self.fc(x)
             def encode(self, g, x):
                 x = torch.relu(self.c1(g, x)); x = self.dr(x)
-                return torch.relu(self.c2(g, x))
+                return self.c2(g, x)
         model = GraphSAGECommunity(feat_arr.shape[1], hidden_dim, num_classes)
         opt   = torch.optim.Adam(model.parameters(), lr=lr, weight_decay=5e-4)
         crit  = nn.CrossEntropyLoss()
@@ -731,11 +731,11 @@ def make_caan_udf(super_nodes_dict_bc, minor_node_to_idx_bc, minor_feats_arr_bc,
                         self.dr = nn.Dropout(dropout)
                     def forward(self, g, x):
                         x = torch.relu(self.c1(g, x)); x = self.dr(x)
-                        x = torch.relu(self.c2(g, x))
+                        x = self.c2(g, x)
                         return self.fc(x)
                     def encode(self, g, x):
                         x = torch.relu(self.c1(g, x)); x = self.dr(x)
-                        return torch.relu(self.c2(g, x))
+                        return self.c2(g, x)
                 model = GraphSAGECommunity(feat_arr.shape[1], hidden_dim, num_classes)
                 opt   = torch.optim.Adam(model.parameters(), lr=lr, weight_decay=5e-4)
                 crit  = nn.CrossEntropyLoss()
@@ -1230,11 +1230,11 @@ def run_phase3b(spark, sc, datasets, algorithms, use_global_mapping,
                             self.dr = nn.Dropout(float(gcn_cfg['dropout']))
                         def forward(self, g, x):
                             x = torch.relu(self.c1(g, x)); x = self.dr(x)
-                            x = torch.relu(self.c2(g, x))
+                            x = self.c2(g, x)
                             return self.fc(x)
                         def encode(self, g, x):
                             x = torch.relu(self.c1(g, x)); x = self.dr(x)
-                            return torch.relu(self.c2(g, x))
+                            return self.c2(g, x)
                             
                     base_model = DriverGraphSAGE(in_feats, hidden_dim, num_classes)
                     opt = torch.optim.Adam(base_model.parameters(), lr=float(gcn_cfg['lr']))
