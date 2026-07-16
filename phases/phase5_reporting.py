@@ -315,13 +315,17 @@ def save_plots_and_xlsx(datasets, algorithms, phase3_results, phase4_results,
                         bl = (phase4g_results or {}).get(dataset)
                     elif m_type == 'gatv2':
                         bl = (phase4h_results or {}).get(dataset)
-                    
                     b_acc = bl.get('test_acc') if bl else None
                     bl_auc = bl.get('link_auc') if bl else None
                     
                     if df is not None:
                         g_acc = df.attrs.get('weighted_comm_acc')
                         l_auc = df.attrs.get('weighted_comm_link_auc')
+                        t_ph1 = timing.get(('phase1', dataset, alg))
+                        t_ph2 = timing.get(('phase2', dataset, alg))
+                        t_ph3 = timing.get(('phase3', dataset, alg, m_type), timing.get(('phase3', dataset, alg)))
+                        t_base = timing.get(('phase4' if m_type == 'sage' else ('phase4e' if m_type == 'gat' else ('phase4h' if m_type == 'gatv2' else ('phase4f' if m_type == 'transformer' else 'phase4g'))), dataset))
+                        
                         summary_rows.append({
                             'experiment':             experiment_name,
                             'dataset':                dataset,
@@ -339,10 +343,11 @@ def save_plots_and_xlsx(datasets, algorithms, phase3_results, phase4_results,
                             'weighted_comm_link_auc': l_auc,
                             'baseline_link_auc':      bl_auc,
                             'auc_gap':                (bl_auc - l_auc) if (bl_auc is not None and l_auc is not None) else None,
-                            'phase1_s':          timing.get(('phase1', dataset, alg)),
-                            'phase2_s':          timing.get(('phase2', dataset, alg)),
-                            'phase3_s':          timing.get(('phase3', dataset, alg, m_type), timing.get(('phase3', dataset, alg))),
-                            'baseline_s':        timing.get(('phase4' if m_type == 'sage' else ('phase4e' if m_type == 'gat' else ('phase4h' if m_type == 'gatv2' else ('phase4f' if m_type == 'transformer' else 'phase4g'))), dataset)),
+                            'phase1_s':          t_ph1,
+                            'phase2_s':          t_ph2,
+                            'phase3_s':          t_ph3,
+                            'total_123_s':        (t_ph1 or 0.0) + (t_ph2 or 0.0) + (t_ph3 or 0.0),
+                            'baseline_s':        t_base,
                         })
                     
                     if phase3b_results is not None:
@@ -350,6 +355,11 @@ def save_plots_and_xlsx(datasets, algorithms, phase3_results, phase4_results,
                         if dfb is not None:
                             gb_acc = dfb.attrs.get('weighted_comm_acc')
                             lb_auc = dfb.attrs.get('weighted_comm_link_auc')
+                            t_ph1 = timing.get(('phase1', dataset, alg))
+                            t_ph2 = timing.get(('phase2', dataset, alg))
+                            t_ph3b = timing.get(('phase3b', dataset, alg, m_type))
+                            t_base = timing.get(('phase4' if m_type == 'sage' else ('phase4e' if m_type == 'gat' else ('phase4h' if m_type == 'gatv2' else ('phase4f' if m_type == 'transformer' else 'phase4g'))), dataset))
+                            
                             summary_rows.append({
                                 'experiment':             experiment_name,
                                 'dataset':                dataset,
@@ -363,14 +373,15 @@ def save_plots_and_xlsx(datasets, algorithms, phase3_results, phase4_results,
                                 'weighted_comm_acc':      gb_acc,
                                 'baseline_acc':           b_acc,
                                 'acc_gap':                (b_acc - gb_acc) if (b_acc and gb_acc) else None,
-                                'mean_comm_link_acc':     dfb['comm_link_auc'].mean() if 'comm_link_acc' in dfb.columns else None,
+                                'mean_comm_link_acc':     dfb['comm_link_auc'].mean() if 'comm_link_auc' in dfb.columns else None,
                                 'weighted_comm_link_auc': lb_auc,
                                 'baseline_link_auc':      bl_auc,
                                 'auc_gap':                (bl_auc - lb_auc) if (bl_auc is not None and lb_auc is not None) else None,
-                                'phase1_s':          timing.get(('phase1', dataset, alg)),
-                                'phase2_s':          timing.get(('phase2', dataset, alg)),
-                                'phase3_s':          timing.get(('phase3b', dataset, alg, m_type)),
-                                'baseline_s':        timing.get(('phase4' if m_type == 'sage' else ('phase4e' if m_type == 'gat' else ('phase4h' if m_type == 'gatv2' else ('phase4f' if m_type == 'transformer' else 'phase4g'))), dataset)),
+                                'phase1_s':          t_ph1,
+                                'phase2_s':          t_ph2,
+                                'phase3_s':          t_ph3b,
+                                'total_123_s':        (t_ph1 or 0.0) + (t_ph2 or 0.0) + (t_ph3b or 0.0),
+                                'baseline_s':        t_base,
                             })
         pd.DataFrame(summary_rows).to_excel(xw, index=False, sheet_name='summary')
 

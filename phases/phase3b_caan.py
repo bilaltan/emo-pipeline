@@ -347,8 +347,9 @@ def _train_minor_global_caan(dataset, gcn_cfg, dataset_cfg, caan_components, mod
 
 def make_caan_udf(super_nodes_dict_bc, minor_node_to_idx_bc, minor_feats_arr_bc,
                   minor_labels_arr_bc, minor_splits_arr_bc, minor_ids_arr_bc,
-                  caan_adj_bc, node_to_comm_bc, major_comms_bc):
-    def _train_gnn_community_caan(pdf):
+                  caan_adj_bc, node_to_comm_bc, major_comms_bc,
+                  base_weights_bc=None, base_embeddings_bc=None, base_node_map_bc=None):
+    def _train_gnn_community_caan_single(pdf):
         import os, time, subprocess, sys, resource
         import numpy as np
         import pandas as pd
@@ -396,6 +397,10 @@ def make_caan_udf(super_nodes_dict_bc, minor_node_to_idx_bc, minor_feats_arr_bc,
         dropout = float(pdf['_dropout'].iloc[0])
         task_type = str(pdf['_task_type'].iloc[0]) if '_task_type' in pdf.columns else 'node_classification'
         model_type = str(pdf['_model_type'].iloc[0]) if '_model_type' in pdf.columns else 'sage'
+        
+        # Warm-start logic: override epochs
+        if base_weights_bc is not None and model_type == 'sage':
+            num_epochs = max(1, num_epochs // 3)
         
         super_nodes_dict = super_nodes_dict_bc.value
         minor_node_to_idx = minor_node_to_idx_bc.value
@@ -735,6 +740,25 @@ def make_caan_udf(super_nodes_dict_bc, minor_node_to_idx_bc, minor_feats_arr_bc,
                 opt   = torch.optim.Adam(model.parameters(), lr=lr, weight_decay=5e-4)
                 crit  = nn.CrossEntropyLoss()
 
+            # Warm-start weights load
+            if base_weights_bc is not None and model_type == 'sage':
+                try:
+                    model.load_state_dict(base_weights_bc.value)
+                except Exception:
+                    pass
+
+            # Embedding Regularization setup
+            valid_emb_mask = None
+            if base_embeddings_bc is not None and base_node_map_bc is not None:
+                try:
+                    global_node_map = base_node_map_bc.value
+                    emb_idx = [global_node_map.get(int(nid), -1) for nid in local_ids]
+                    emb_idx_clean = [idx if idx != -1 else 0 for idx in emb_idx]
+                    global_emb_t = torch.tensor(base_embeddings_bc.value[emb_idx_clean], dtype=torch.float32)
+                    valid_emb_mask = torch.tensor([idx != -1 for idx in emb_idx], dtype=torch.bool)
+                except Exception:
+                    pass
+
             model.train()
             for _ in range(num_epochs):
                 if model_type == 'clusterscl':
@@ -742,6 +766,17 @@ def make_caan_udf(super_nodes_dict_bc, minor_node_to_idx_bc, minor_feats_arr_bc,
                     z1, proj1, logits1 = model.get_embeddings_and_logits(feat_t, pyg_edge_index)
                     z2, proj2, logits2 = model.get_embeddings_and_logits(feat_t, pyg_edge_index)
                     loss_ce = crit(logits1[train_m], lbl_t[train_m])
+                    
+                    # Apply regularization if applicable
+                    if valid_emb_mask is not None and valid_emb_mask.sum() > 0:
+                        try:
+                            local_emb, _, _ = model.get_embeddings_and_logits(feat_t, pyg_edge_index)
+                            local_emb_slice = local_emb[:n_local]
+                            loss_reg = F.mse_loss(local_emb_slice[valid_emb_mask], global_emb_t[valid_emb_mask])
+                            loss_ce = loss_ce + 0.1 * loss_reg
+                        except Exception:
+                            pass
+
                     if train_m.sum() >= 2:
                         loss_ce.backward(retain_graph=True)
                         n_tr = train_m.sum().item()
@@ -764,11 +799,33 @@ def make_caan_udf(super_nodes_dict_bc, minor_node_to_idx_bc, minor_feats_arr_bc,
                     opt.zero_grad()
                     logits = model(feat_t, pyg_edge_index)
                     loss   = crit(logits[train_m], lbl_t[train_m])
+                    
+                    # Apply regularization if applicable
+                    if valid_emb_mask is not None and valid_emb_mask.sum() > 0:
+                        try:
+                            local_emb = model.enc(feat_t, pyg_edge_index)
+                            local_emb_slice = local_emb[:n_local]
+                            loss_reg = F.mse_loss(local_emb_slice[valid_emb_mask], global_emb_t[valid_emb_mask])
+                            loss = loss + 0.1 * loss_reg
+                        except Exception:
+                            pass
+
                     loss.backward()
                     opt.step()
                 else:
                     logits = model(g, feat_t)
                     loss   = crit(logits[train_m], lbl_t[train_m])
+                    
+                    # Apply regularization if applicable
+                    if valid_emb_mask is not None and valid_emb_mask.sum() > 0:
+                        try:
+                            local_emb = model.encode(g, feat_t)
+                            local_emb_slice = local_emb[:n_local]
+                            loss_reg = F.mse_loss(local_emb_slice[valid_emb_mask], global_emb_t[valid_emb_mask])
+                            loss = loss + 0.1 * loss_reg
+                        except Exception:
+                            pass
+
                     opt.zero_grad(); loss.backward(); opt.step()
             node_train_time = time.time() - t_node_start
             
@@ -878,7 +935,16 @@ def make_caan_udf(super_nodes_dict_bc, minor_node_to_idx_bc, minor_feats_arr_bc,
             'link_train_time_s': 0.0,
             'peak_mem_mb':   peak_mem / 1e6,
         }])
-    return _train_gnn_community_caan
+        
+    def _train_gnn_bin_caan(pdf):
+        import pandas as pd
+        results = []
+        for comm_id, group_pdf in pdf.groupby('community_id'):
+            res_row = _train_gnn_community_caan_single(group_pdf)
+            results.append(res_row)
+        return pd.concat(results, ignore_index=True)
+        
+    return _train_gnn_bin_caan
 
 def run_phase3b(spark, sc, datasets, algorithms, use_global_mapping,
                 dataset_cfg, gcn_cfg, get_paths_fn, timing, results, **kwargs):
@@ -1104,6 +1170,96 @@ def run_phase3b(spark, sc, datasets, algorithms, use_global_mapping,
                 print(f"  tag={p_alg['tag']}")
                 print(f"{'='*60}")
                 
+                # 1. Driver-side warmup training (GraphSAGE base weights and embeddings)
+                base_weights_bc = None
+                base_embeddings_bc = None
+                base_node_map_bc = None
+                
+                try:
+                    import torch
+                    import torch.nn as nn
+                    import numpy as np
+                    import dgl
+                    
+                    print("  [Driver Warmstart] Extracting largest community for driver-side pre-training...")
+                    comms_node_counts = training_df_base.groupBy('community_id').count().toPandas()
+                    largest_comm_id = int(comms_node_counts.sort_values(by='count', ascending=False)['community_id'].iloc[0])
+                    large_comm_pdf = training_df_base.filter(F.col('community_id') == largest_comm_id).toPandas()
+                    
+                    in_feats = len(large_comm_pdf['features'].iloc[0])
+                    num_classes = int(cfg['num_classes'])
+                    hidden_dim = int(gcn_cfg['hidden_dim'])
+                    
+                    # Map nodes
+                    all_nodes = large_comm_pdf['id'].values
+                    n_nodes = len(all_nodes)
+                    node_map = {int(n): i for i, n in enumerate(all_nodes)}
+                    
+                    exploded = large_comm_pdf[['id', 'neighbors']].explode('neighbors').dropna()
+                    if len(exploded) > 0:
+                        exploded['neighbors'] = exploded['neighbors'].astype(np.int64)
+                        exploded = exploded[exploded['neighbors'].isin(node_map)]
+                        src_l = exploded['id'].map(node_map).values.astype(np.int64)
+                        dst_l = exploded['neighbors'].map(node_map).values.astype(np.int64)
+                    else:
+                        src_l = np.array([], dtype=np.int64)
+                        dst_l = np.array([], dtype=np.int64)
+                        
+                    g_large = dgl.graph((src_l, dst_l), num_nodes=n_nodes)
+                    g_large = dgl.add_self_loop(g_large)
+                    
+                    feat_arr = np.stack(large_comm_pdf['features'].values).astype(np.float32)
+                    feat_norms = np.linalg.norm(feat_arr, axis=1, keepdims=True)
+                    feat_arr = feat_arr / np.where(feat_norms > 0, feat_norms, 1.0)
+                    feat_t = torch.tensor(feat_arr, dtype=torch.float32)
+                    
+                    lbl_arr = np.array([int(v) if not pd.isna(v) else -1 for v in large_comm_pdf['label'].values], dtype=np.int64)
+                    lbl_t = torch.tensor(lbl_arr, dtype=torch.long)
+                    
+                    splits = list(large_comm_pdf['split'].values)
+                    train_m = torch.tensor([s == 'train' for s in splits], dtype=torch.bool)
+                    
+                    class DriverGraphSAGE(nn.Module):
+                        def __init__(self, in_f, h, nc):
+                            super().__init__()
+                            import dgl.nn as dglnn
+                            self.c1 = dglnn.SAGEConv(in_f, h, 'mean')
+                            self.c2 = dglnn.SAGEConv(h,    h, 'mean')
+                            self.fc = nn.Linear(h, nc)
+                            self.dr = nn.Dropout(float(gcn_cfg['dropout']))
+                        def forward(self, g, x):
+                            x = torch.relu(self.c1(g, x)); x = self.dr(x)
+                            x = torch.relu(self.c2(g, x))
+                            return self.fc(x)
+                        def encode(self, g, x):
+                            x = torch.relu(self.c1(g, x)); x = self.dr(x)
+                            return torch.relu(self.c2(g, x))
+                            
+                    base_model = DriverGraphSAGE(in_feats, hidden_dim, num_classes)
+                    opt = torch.optim.Adam(base_model.parameters(), lr=float(gcn_cfg['lr']))
+                    crit = nn.CrossEntropyLoss()
+                    
+                    base_model.train()
+                    for _ in range(5):
+                        opt.zero_grad()
+                        logits = base_model(g_large, feat_t)
+                        if train_m.sum() > 0:
+                            loss = crit(logits[train_m], lbl_t[train_m])
+                            loss.backward()
+                            opt.step()
+                            
+                    base_model.eval()
+                    with torch.no_grad():
+                        global_embeddings = base_model.encode(g_large, feat_t).numpy()
+                        
+                    # Broadcast state dict and embeddings
+                    base_weights_bc = sc.broadcast(base_model.state_dict())
+                    base_embeddings_bc = sc.broadcast(global_embeddings)
+                    base_node_map_bc = sc.broadcast(node_map)
+                    print(f"  ✓ Driver-side base model trained successfully on Comm {largest_comm_id} ({n_nodes:,} nodes).")
+                except Exception as base_err:
+                    print(f"  Warning: Skipped warm-start driver pre-training: {base_err}")
+
                 minor_df = _train_minor_global_caan(
                     dataset=dataset,
                     gcn_cfg=gcn_cfg,
@@ -1113,7 +1269,20 @@ def run_phase3b(spark, sc, datasets, algorithms, use_global_mapping,
                     task_type=task_type
                 )
                 
-                training_df = (training_df_base
+                # 2. Driver-side Community Binning
+                comms_node_counts = training_df_base.groupBy('community_id').count().toPandas()
+                comms_node_counts = comms_node_counts.sort_values(by='count', ascending=False).reset_index(drop=True)
+                
+                bin_size = 50
+                num_bins = int(np.ceil(len(comms_node_counts) / float(bin_size)))
+                if num_bins < 1:
+                    num_bins = 1
+                comms_node_counts['bin_id'] = [i % num_bins for i in range(len(comms_node_counts))]
+                
+                bin_mapping_df = spark.createDataFrame(comms_node_counts[['community_id', 'bin_id']])
+                training_df_bin = training_df_base.join(bin_mapping_df, on='community_id', how='left')
+
+                training_df = (training_df_bin
                     .withColumn('_num_classes', F.lit(int(cfg['num_classes'])))
                     .withColumn('_hidden',      F.lit(int(gcn_cfg['hidden_dim'])))
                     .withColumn('_epochs',      F.lit(int(gcn_cfg['num_epochs'])))
@@ -1131,12 +1300,15 @@ def run_phase3b(spark, sc, datasets, algorithms, use_global_mapping,
                     minor_ids_arr_bc=minor_ids_arr_bc,
                     caan_adj_bc=caan_adj_bc,
                     node_to_comm_bc=node_to_comm_bc,
-                    major_comms_bc=major_comms_bc
+                    major_comms_bc=major_comms_bc,
+                    base_weights_bc=base_weights_bc,
+                    base_embeddings_bc=base_embeddings_bc,
+                    base_node_map_bc=base_node_map_bc
                 )
                 
                 sc.setJobDescription(f'phase3b_{dataset}_{alg}_{model_type}')
                 major_results = (training_df
-                                 .groupBy('community_id')
+                                 .groupBy('bin_id')
                                  .applyInPandas(caan_udf, schema=result_schema))
                 major_pd = major_results.toPandas()
                 sc.setJobDescription('')
