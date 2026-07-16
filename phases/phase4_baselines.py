@@ -23,6 +23,7 @@ def run_phase4(spark, sc, datasets, dataset_cfg, baseline_cfg, get_paths_fn,
     from torch_geometric.utils import coalesce, add_remaining_self_loops, negative_sampling
     import torch_geometric.transforms as T
     from torch_geometric.data import Data
+    from torch_geometric.loader import NeighborLoader
 
     for dataset in datasets:
         p   = get_paths_fn(dataset)
@@ -128,22 +129,40 @@ def run_phase4(spark, sc, datasets, dataset_cfg, baseline_cfg, get_paths_fn,
                 feat_t = torch.tensor(feats_np, dtype=torch.float32)
                 label_t = torch.tensor(labels_np, dtype=torch.long)
 
-                model.train()
+                # Initialize NeighborLoader to train in mini-batches
+                graph_pyg = Data(x=feat_t, edge_index=edge_index, y=label_t)
+                train_loader = NeighborLoader(
+                    graph_pyg,
+                    num_neighbors=baseline_cfg.get('fanout', [15, 10]),
+                    batch_size=baseline_cfg.get('batch', 1024),
+                    input_nodes=torch.tensor(train_mask),
+                    shuffle=True
+                )
+
                 for epoch in range(EPOCHS):
-                    opt.zero_grad()
-                    logits = model(feat_t, edge_index)
-                    loss = crit(logits, label_t)
-                    loss.backward()
-                    opt.step()
+                    model.train()
+                    total_loss = 0.0
+                    nb = 0
+                    for batch in train_loader:
+                        opt.zero_grad()
+                        logits = model(batch.x, batch.edge_index)
+                        loss = crit(logits[:batch.batch_size], batch.y[:batch.batch_size])
+                        loss.backward()
+                        opt.step()
+                        total_loss += loss.item()
+                        nb += 1
+                    if (epoch + 1) % 5 == 0 or epoch == EPOCHS - 1:
+                        print(f"    SAGE-BL Epoch {epoch+1:2d}/{EPOCHS} loss={total_loss/max(nb,1):.4f}")
                 node_train_time = time.time() - t_node_start
 
+                # Evaluate directly end-to-end (no downstream classifier)
                 model.eval()
                 with torch.no_grad():
-                    embed = model.enc.encode(feat_t, edge_index)
-                    embed_np = embed.cpu().numpy()
-                acc, correct, total_t, preds = run_downstream_classification(
-                    embed_np, labels_np, train_mask, val_mask, test_mask, NUM_CLASSES, num_epochs=EPOCHS
-                )
+                    logits = model(feat_t, edge_index)
+                    preds = logits.argmax(dim=1).cpu().numpy()
+                    correct = (preds[test_mask] == labels_np[test_mask]).sum()
+                    total_t = test_mask.sum()
+                    acc = correct / total_t if total_t > 0 else 0.0
 
             # ── Link Prediction Baseline ──────────────────────────────────────────
             if run_link and len(full_src) >= 5:
