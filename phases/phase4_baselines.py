@@ -168,19 +168,21 @@ def run_phase4(spark, sc, datasets, dataset_cfg, baseline_cfg, get_paths_fn,
                 del train_dl, sampler, train_nids
                 import gc; gc.collect()
 
-                # Evaluate directly end-to-end using full graph to save memory
+                # Evaluate using test DGLDataLoader with a safe batch size (256) to prevent OOM
+                test_nids = torch.where(torch.tensor(test_mask))[0]
+                test_dl = DGLDataLoader(g, test_nids, NeighborSampler(baseline_cfg.get('fanout', [15, 10])),
+                                        batch_size=256, shuffle=False, drop_last=False)
                 model.eval()
+                correct = 0
+                total_t = 0
                 with torch.no_grad():
-                    h = g.ndata['feat']
-                    h = model.conv1(g, h).relu()
-                    h = model.dropout(h)
-                    h = model.conv2(g, h)
-                    logits = model.fc(h)
-                    
-                    preds = logits[test_mask].argmax(dim=1).cpu().numpy()
-                    correct = (preds == labels_np[test_mask]).sum()
-                    total_t = test_mask.sum()
-                    acc = correct / total_t if total_t > 0 else 0.0
+                    for input_nodes, output_nodes, blocks in test_dl:
+                        x = blocks[0].srcdata['feat']
+                        labels = blocks[-1].dstdata['label']
+                        preds = model(blocks, x).argmax(dim=1)
+                        correct += (preds == labels).sum().item()
+                        total_t += len(labels)
+                acc = correct / total_t if total_t > 0 else 0.0
 
             # ── Link Prediction Baseline ──────────────────────────────────────────
             if run_link and len(full_src) >= 5:
