@@ -191,7 +191,14 @@ def run_phase4(spark, sc, datasets, dataset_cfg, baseline_cfg, get_paths_fn,
                 t_link_start = time.time()
                 torch.manual_seed(42 + run_idx)
 
-                edge_index = torch.stack([full_src, full_dst], dim=0)
+                # Downsample edges to prevent CPU RandomLinkSplit OOM on massive edge lists (e.g. products)
+                if len(full_src) > 5000000:
+                    print(f"    [Warning] Edge count is {len(full_src)}. Downsampling to 3M edges for memory-safe single-node Link Prediction split...")
+                    perm = torch.randperm(len(full_src))[:3000000]
+                    edge_index = torch.stack([full_src[perm], full_dst[perm]], dim=0)
+                else:
+                    edge_index = torch.stack([full_src, full_dst], dim=0)
+
                 feat_t = torch.tensor(feats_np, dtype=torch.float32)
                 graph_pyg = Data(x=feat_t, edge_index=edge_index)
 
