@@ -81,7 +81,7 @@ RUN_PHASE4D       = False       # ASAP Baseline
 RUN_PHASE4E       = False       # GAT Baseline
 RUN_PHASE4F       = False       # Graph Transformer Baseline
 RUN_PHASE4G       = False       # ClusterSCL Baseline
-RUN_PHASE4H       = True       # GATv2 Baseline
+RUN_PHASE4H       = False       # GATv2 Baseline
 
 # ── Infrastructure ─────────────────────────────────────────────────────────────
 S3_BUCKET         = 'us-east-1-s3-gnn'
