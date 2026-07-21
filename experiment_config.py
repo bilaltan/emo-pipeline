@@ -8,11 +8,14 @@
 EXPERIMENT_NAME   = 'ogbn-products'          # labels ALL S3 outputs; change per experiment run
 
 # ── Datasets ───────────────────────────────────────────────────────────────────
-# To add ogbn-arxiv: set RUN_PHASE0=True first to ingest it.
+# Available options:
+# Standard: 'WikiCS', 'Coauthor-Physics', 'Coauthor-CS', 'DeezerEurope', 'Foursquare'
+# 100M-scale: 'reddit', 'ogbn-products'
+# 1B-scale:   'ogbn-papers100M'
 DATASETS_TO_RUN = ['ogbn-products']
 
 # ── GNN Models to Run ─────────────────────────────────────────────────────────
-# Supported choices: 'sage', 'gat', 'gatv2', 'transformer', 'clusterscl'
+# Supported choices: 'sage', 'gat', 'gatv2', 'transformer', 'clusterscl', 'arma', 'asap'
 GNN_MODELS = ['sage', 'gatv2']
 
 # ── Phase 0: Delta Lake Ingestion ─────────────────────────────────────────────
@@ -25,6 +28,7 @@ FORCE_RERUN       = True   # Set to True to ignore all S3 checkpoints and rerun 
 USE_OGB_SPLITS    = True    # True = OGB official splits | False = stratified 60/20/20
 RANDOM_SEED       = 42
 N_BASELINE_RUNS   = 1          # number of runs per baseline for mean ± std
+
 
 # ── Phase 1: Community Detection ──────────────────────────────────────────────
 # All listed algorithms run independently. Results are NEVER mixed.

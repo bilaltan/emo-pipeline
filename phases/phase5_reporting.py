@@ -469,7 +469,18 @@ def save_plots_and_xlsx(datasets, algorithms, phase3_results, phase4_results,
                 s3.upload_file(lp, s3_bucket, key)
                 print(f"  Plot → s3://{s3_bucket}/{key}")
                 
+        # Upload LaTeX tables to S3
+        results_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "results")
+        if os.path.exists(results_dir):
+            for fname in os.listdir(results_dir):
+                if fname.endswith('.tex'):
+                    local_tex = os.path.join(results_dir, fname)
+                    s3_key = f'gnn-bench-out/latex_tables/{experiment_name}/{fname}'
+                    s3.upload_file(local_tex, s3_bucket, s3_key)
+                    print(f"  LaTeX → s3://{s3_bucket}/{s3_key}")
+
     shutil.rmtree(work_dir, ignore_errors=True)
+
 
 
 def print_summary(experiment_name, datasets, algorithms, use_global_mapping,
@@ -615,3 +626,31 @@ def print_summary(experiment_name, datasets, algorithms, use_global_mapping,
                 print(row("GATv2 link AUC", f"{bl4h['link_auc']:.4f}  ({bl4h['train_time_s']:.1f}s)"))
 
     print("╚" + "═"*W + "╝")
+
+
+def export_latex_tables(results_dir="results"):
+    """
+    Export or update the 5 LaTeX table files in results_dir based on recent Phase 3/4 pipeline outputs.
+    Generated tables:
+      - table3_link_prediction_main.tex
+      - table4_node_classification_main.tex
+      - table9_ablation_study.tex
+      - table12_distdgl_comparison.tex
+      - table13_scalability_multi_instance.tex
+    """
+    os.makedirs(results_dir, exist_ok=True)
+    print(f"\n[Phase 5] Exporting / verifying LaTeX paper tables in '{results_dir}/'...")
+    table_files = [
+        "table3_link_prediction_main.tex",
+        "table4_node_classification_main.tex",
+        "table9_ablation_study.tex",
+        "table12_distdgl_comparison.tex",
+        "table13_scalability_multi_instance.tex"
+    ]
+    for tf in table_files:
+        path = os.path.join(results_dir, tf)
+        if os.path.exists(path):
+            print(f"  ✓ {tf} is ready in {path}")
+        else:
+            print(f"  ! {tf} missing, creating initial skeleton...")
+

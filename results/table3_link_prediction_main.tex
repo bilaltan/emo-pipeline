@@ -1,0 +1,39 @@
+\begin{table*}[!t]
+\renewcommand{\arraystretch}{1.2}
+\caption{Performance Comparison on Link Prediction across Base Models and Datasets (including 100M and 1B scale graphs)}
+\label{table_lp_main}
+\centering
+\begin{tabular}{llccccrc}
+\toprule
+\textbf{Dataset} & \textbf{Scale} & \textbf{Base Model} & \textbf{Original AUC} & \textbf{Original Time (s)} & \textbf{EMO / ML-GRL AUC} & \textbf{EMO Time (s)} & \textbf{AUC Imp. (\%)} \\
+\midrule
+WikiCS & ~500K edges & GraphSAGE & 0.6517 $\pm$ 0.003 & 42s $\pm$ 1 & 0.7768 $\pm$ 0.001 & 29s $\pm$ 1 & +19.20\% \\
+WikiCS & ~500K edges & ARMA & 0.8634 $\pm$ 0.014 & 265s $\pm$ 3 & 0.9102 $\pm$ 0.000 & 34s $\pm$ 2 & +5.42\% \\
+WikiCS & ~500K edges & ASAP & 0.8773 $\pm$ 0.000 & 64s $\pm$ 8 & 0.9096 $\pm$ 0.001 & 33s $\pm$ 1 & +3.68\% \\
+\midrule
+Coauthor-Physics & ~4M edges & GraphSAGE & 0.6134 $\pm$ 0.012 & 306s $\pm$ 2 & 0.6549 $\pm$ 0.003 & 256s $\pm$ 4 & +6.77\% \\
+Coauthor-Physics & ~4M edges & ARMA & 0.7574 $\pm$ 0.029 & 581s $\pm$ 1 & 0.8589 $\pm$ 0.001 & 376s $\pm$ 20 & +13.40\% \\
+Coauthor-Physics & ~4M edges & ASAP & 0.7489 $\pm$ 0.005 & 654s $\pm$ 19 & 0.7960 $\pm$ 0.000 & 512s $\pm$ 17 & +6.29\% \\
+\midrule
+Coauthor-CS & ~2M edges & GraphSAGE & 0.6172 $\pm$ 0.005 & 132s $\pm$ 1 & 0.6935 $\pm$ 0.001 & 107s $\pm$ 5 & +12.36\% \\
+Coauthor-CS & ~2M edges & ARMA & 0.7442 $\pm$ 0.005 & 136s $\pm$ 4 & 0.8919 $\pm$ 0.001 & 108s $\pm$ 20 & +19.85\% \\
+Coauthor-CS & ~2M edges & ASAP & 0.7578 $\pm$ 0.005 & 135s $\pm$ 5 & 0.7935 $\pm$ 0.005 & 112s $\pm$ 14 & +4.71\% \\
+\midrule
+DeezerEurope & ~1M edges & GraphSAGE & 0.5136 $\pm$ 0.005 & 59s $\pm$ 0 & 0.5821 $\pm$ 0.003 & 22s $\pm$ 1 & +13.34\% \\
+DeezerEurope & ~1M edges & ARMA & 0.6575 $\pm$ 0.007 & 95s $\pm$ 3 & 0.7369 $\pm$ 0.002 & 68s $\pm$ 2 & +12.08\% \\
+DeezerEurope & ~1M edges & ASAP & 0.7920 $\pm$ 0.005 & 133s $\pm$ 6 & 0.8259 $\pm$ 0.001 & 69s $\pm$ 1 & +4.28\% \\
+\midrule
+Foursquare & ~3M edges & GraphSAGE & 0.6497 $\pm$ 0.014 & 141s $\pm$ 12 & 0.9589 $\pm$ 0.001 & 95s $\pm$ 6 & +47.59\% \\
+Foursquare & ~3M edges & ARMA & 0.8100 $\pm$ 0.013 & 312s $\pm$ 10 & 0.9673 $\pm$ 0.000 & 245s $\pm$ 13 & +19.42\% \\
+Foursquare & ~3M edges & ASAP & 0.8392 $\pm$ 0.002 & 291s $\pm$ 4 & 0.9399 $\pm$ 0.002 & 221s $\pm$ 23 & +12.00\% \\
+\midrule
+\textbf{Reddit (100M)} & \textbf{114M edges} & GraphSAGE & \emph{[Pending EMR]} & \emph{[Pending]} & \emph{[Pending EMR]} & \emph{[Pending]} & \emph{[Pending]} \\
+\textbf{Reddit (100M)} & \textbf{114M edges} & ARMA & \emph{[Pending EMR]} & \emph{[Pending]} & \emph{[Pending EMR]} & \emph{[Pending]} & \emph{[Pending]} \\
+\textbf{Reddit (100M)} & \textbf{114M edges} & ASAP & \emph{[Pending EMR]} & \emph{[Pending]} & \emph{[Pending EMR]} & \emph{[Pending]} & \emph{[Pending]} \\
+\midrule
+\textbf{Papers100M (1B)} & \textbf{1.6B edges} & GraphSAGE & \emph{[Pending EMR]} & \emph{[Pending]} & \emph{[Pending EMR]} & \emph{[Pending]} & \emph{[Pending]} \\
+\textbf{Papers100M (1B)} & \textbf{1.6B edges} & ARMA & \emph{[Pending EMR]} & \emph{[Pending]} & \emph{[Pending EMR]} & \emph{[Pending]} & \emph{[Pending]} \\
+\textbf{Papers100M (1B)} & \textbf{1.6B edges} & ASAP & \emph{[Pending EMR]} & \emph{[Pending]} & \emph{[Pending EMR]} & \emph{[Pending]} & \emph{[Pending]} \\
+\bottomrule
+\end{tabular}
+\end{table*}

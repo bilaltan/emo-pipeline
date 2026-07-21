@@ -1339,8 +1339,19 @@ def main():
         except Exception as copy_err:
             print(f"Warning: Could not copy Excel results on S3: {copy_err}")
             
+        # 3. Upload LaTeX tables directly to S3 under /latex_tables
+        results_dir = os.path.join(PROJECT_ROOT, "results")
+        if os.path.exists(results_dir):
+            for fname in os.listdir(results_dir):
+                if fname.endswith(".tex"):
+                    local_tex = os.path.join(results_dir, fname)
+                    s3_tex_key = f"gnn-bench-out/spark-results/{consolidated_folder}/latex_tables/{fname}"
+                    print(f"Uploading LaTeX table to: s3://{s3_bucket}/{s3_tex_key}")
+                    s3_client.upload_file(local_tex, s3_bucket, s3_tex_key)
+
     except Exception as upload_err:
-        print(f"Warning: Error uploading logs or excels to consolidated S3 folder: {upload_err}")
+        print(f"Warning: Error uploading logs, excels, or latex_tables to consolidated S3 folder: {upload_err}")
+
 
 if __name__ == "__main__":
     main()

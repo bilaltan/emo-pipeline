@@ -1,0 +1,35 @@
+\begin{table*}[!t]
+\renewcommand{\arraystretch}{1.2}
+\caption{Performance Comparison on Node Classification across Base Models and Datasets (including 100M and 1B scale graphs)}
+\label{table_nc_main}
+\centering
+\begin{tabular}{llccccrc}
+\toprule
+\textbf{Dataset} & \textbf{Scale} & \textbf{Base Model} & \textbf{Original Acc} & \textbf{Original Time (s)} & \textbf{EMO / ML-GRL Acc} & \textbf{EMO Time (s)} & \textbf{Acc Imp. (\%)} \\
+\midrule
+WikiCS & ~11K nodes & GAT & 0.6351 $\pm$ 0.007 & 56s $\pm$ 0 & 0.8129 $\pm$ 0.009 & 10s $\pm$ 1 & +28.00\% \\
+WikiCS & ~11K nodes & GraphTransformer & 0.5354 $\pm$ 0.028 & 45s $\pm$ 0 & 0.7544 $\pm$ 0.007 & 16s $\pm$ 2 & +40.90\% \\
+WikiCS & ~11K nodes & ClusterSCL & 0.8103 $\pm$ 0.000 & 51s $\pm$ 2 & 0.8374 $\pm$ 0.001 & 21s $\pm$ 1 & +3.34\% \\
+\midrule
+Coauthor-Physics & ~34K nodes & GAT & 0.7954 $\pm$ 0.008 & 118s $\pm$ 8 & 0.9411 $\pm$ 0.003 & 98s $\pm$ 12 & +18.32\% \\
+Coauthor-Physics & ~34K nodes & GraphTransformer & 0.9083 $\pm$ 0.004 & 508s $\pm$ 6 & 0.9457 $\pm$ 0.002 & 383s $\pm$ 8 & +4.12\% \\
+Coauthor-Physics & ~34K nodes & ClusterSCL & 0.9436 $\pm$ 0.000 & 922s $\pm$ 13 & 0.9644 $\pm$ 0.000 & 391s $\pm$ 17 & +2.20\% \\
+\midrule
+Coauthor-CS & ~18K nodes & GAT & 0.6161 $\pm$ 0.008 & 84s $\pm$ 4 & 0.8609 $\pm$ 0.005 & 78s $\pm$ 0 & +39.73\% \\
+Coauthor-CS & ~18K nodes & GraphTransformer & 0.7338 $\pm$ 0.006 & 225s $\pm$ 10 & 0.9040 $\pm$ 0.001 & 186s $\pm$ 5 & +23.20\% \\
+Coauthor-CS & ~18K nodes & ClusterSCL & 0.9438 $\pm$ 0.002 & 336s $\pm$ 2 & 0.9603 $\pm$ 0.000 & 111s $\pm$ 6 & +1.75\% \\
+\midrule
+DeezerEurope & ~28K nodes & GAT & 0.5498 $\pm$ 0.002 & 40s $\pm$ 0 & 0.6152 $\pm$ 0.002 & 35s $\pm$ 1 & +11.90\% \\
+DeezerEurope & ~28K nodes & GraphTransformer & 0.6022 $\pm$ 0.004 & 66s $\pm$ 2 & 0.6861 $\pm$ 0.005 & 58s $\pm$ 1 & +13.93\% \\
+DeezerEurope & ~28K nodes & ClusterSCL & 0.5725 $\pm$ 0.001 & 181s $\pm$ 4 & 0.5933 $\pm$ 0.001 & 49s $\pm$ 2 & +3.63\% \\
+\midrule
+\textbf{Reddit (100M)} & \textbf{232K nodes} & GAT & \emph{[Pending EMR]} & \emph{[Pending]} & \emph{[Pending EMR]} & \emph{[Pending]} & \emph{[Pending]} \\
+\textbf{Reddit (100M)} & \textbf{232K nodes} & GraphTransformer & \emph{[Pending EMR]} & \emph{[Pending]} & \emph{[Pending EMR]} & \emph{[Pending]} & \emph{[Pending]} \\
+\textbf{Reddit (100M)} & \textbf{232K nodes} & GraphSAGE-CAAN & \emph{[Pending EMR]} & \emph{[Pending]} & \emph{[Pending EMR]} & \emph{[Pending]} & \emph{[Pending]} \\
+\midrule
+\textbf{Papers100M (1B)} & \textbf{111M nodes} & GAT & \emph{[Pending EMR]} & \emph{[Pending]} & \emph{[Pending EMR]} & \emph{[Pending]} & \emph{[Pending]} \\
+\textbf{Papers100M (1B)} & \textbf{111M nodes} & GraphTransformer & \emph{[Pending EMR]} & \emph{[Pending]} & \emph{[Pending EMR]} & \emph{[Pending]} & \emph{[Pending]} \\
+\textbf{Papers100M (1B)} & \textbf{111M nodes} & GraphSAGE-CAAN & \emph{[Pending EMR]} & \emph{[Pending]} & \emph{[Pending EMR]} & \emph{[Pending]} & \emph{[Pending]} \\
+\bottomrule
+\end{tabular}
+\end{table*}
