@@ -52,5 +52,34 @@ def upload_latex_tables_and_results(run_id=None, s3_bucket=S3_BUCKET):
 
     print("=== Upload Complete ===")
 
+def upload_code_to_s3(s3_bucket=S3_BUCKET):
+    """
+    Uploads all local code files (experiment_config.py, phases/*.py, utils/*.py, runners/*.py)
+    to s3://{s3_bucket}/pipeline/ so EMR nodes execute the latest local code.
+    """
+    s3_client = boto3.client('s3')
+    print(f"=== Syncing Local Code to S3: s3://{s3_bucket}/pipeline/ ===")
+    
+    root_files = ['experiment_config.py', '__init__.py']
+    for rf in root_files:
+        local_f = os.path.join(PROJECT_ROOT, rf)
+        if os.path.exists(local_f):
+            s3_key = f"pipeline/{rf}"
+            s3_client.upload_file(local_f, s3_bucket, s3_key)
+            print(f"  ✓ Uploaded {rf} -> s3://{s3_bucket}/{s3_key}")
+            
+    for sub in ['phases', 'utils', 'runners']:
+        sub_dir = os.path.join(PROJECT_ROOT, sub)
+        if os.path.exists(sub_dir):
+            for fname in os.listdir(sub_dir):
+                if fname.endswith('.py'):
+                    local_f = os.path.join(sub_dir, fname)
+                    s3_key = f"pipeline/{sub}/{fname}"
+                    s3_client.upload_file(local_f, s3_bucket, s3_key)
+                    print(f"  ✓ Uploaded {sub}/{fname} -> s3://{s3_bucket}/{s3_key}")
+    print("=== Code Sync Complete ===")
+
 if __name__ == "__main__":
+    upload_code_to_s3()
     upload_latex_tables_and_results()
+

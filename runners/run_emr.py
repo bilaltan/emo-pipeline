@@ -730,9 +730,12 @@ def main():
     import boto3
     s3 = boto3.client('s3')
 
-    # Locate/Download the config
-    if args.local:
-        print("  ► LOADING PIPELINE AND CONFIG FROM LOCAL PATHS...")
+    # Locate local repo or download from S3
+    script_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    local_cfg = os.path.join(script_dir, "experiment_config.py")
+
+    if args.local or os.path.exists(local_cfg):
+        print("  ► LOADING PIPELINE AND CONFIG FROM LOCAL REPOSITORY PATHS...")
         # Clean up previous run leftovers in /tmp to avoid package/namespace conflicts
         for path in ['/tmp/pipeline', '/tmp/pipeline.zip', '/tmp/pipeline_stage', '/tmp/experiment_config.py']:
             if os.path.exists(path):
@@ -744,9 +747,7 @@ def main():
                 except Exception:
                     pass
 
-        script_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-        cfg_path = os.path.join(script_dir, "experiment_config.py")
-        shutil.copyfile(cfg_path, "/tmp/experiment_config.py")
+        shutil.copyfile(local_cfg, "/tmp/experiment_config.py")
         
         # Build staging directory /tmp/pipeline_stage/pipeline to match import namespace 'pipeline'
         os.makedirs('/tmp/pipeline_stage/pipeline', exist_ok=True)
@@ -764,9 +765,10 @@ def main():
         
         # Copy to /tmp/pipeline so driver can import it directly
         shutil.copytree('/tmp/pipeline_stage/pipeline', '/tmp/pipeline')
-        print("    ✓ Packed local pipeline folder to /tmp/pipeline.zip and copied to /tmp/pipeline")
+        print("    ✓ Packed local git repository code to /tmp/pipeline.zip and copied to /tmp/pipeline")
     else:
         print(f"  ► DOWNLOADING SCRIPTS FROM S3: s3://{args.s3_bucket}/{args.s3_prefix} ...")
+
         # Clean up previous run leftovers in /tmp to avoid package/namespace conflicts
         for path in ['/tmp/pipeline', '/tmp/pipeline.zip', '/tmp/pipeline_stage', '/tmp/experiment_config.py']:
             if os.path.exists(path):
