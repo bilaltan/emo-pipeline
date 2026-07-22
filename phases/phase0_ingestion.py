@@ -44,7 +44,155 @@ def run_phase0(spark, sc, datasets, run_phase0_flag, use_ogb_splits,
             timing[('phase0', dataset)] = elapsed
             continue
 
+        if dataset == 'ogbn-papers100M':
+            import zipfile, glob, urllib.request
+            import pandas as pd
+            import builtins
+            from unittest.mock import patch
+            from pyspark.sql.types import (StructType, StructField, LongType, IntegerType, ArrayType, FloatType, StringType)
+            
+            print(f"\n{'='*60}\n  PHASE 0 — Zero-RAM Direct Ingestion: {dataset}\n{'='*60}")
+            ogb_root = os.path.join(os.environ.get('TMPDIR', '/tmp'), 'ogb_data')
+            os.makedirs(ogb_root, exist_ok=True)
+            
+            # Find raw directory
+            raw_dir = None
+            for candidate in [
+                os.path.join(ogb_root, 'papers100M-bin', 'raw'),
+                os.path.join(ogb_root, 'ogbn_papers100M', 'raw'),
+                '/mnt/tmp/ogb_data/papers100M-bin/raw',
+                '/mnt/tmp/ogb_data/ogbn_papers100M/raw',
+                '/tmp/ogb_data/papers100M-bin/raw'
+            ]:
+                if os.path.exists(candidate) and os.path.exists(os.path.join(candidate, 'node-feat.npy')):
+                    raw_dir = candidate
+                    break
+            
+            if raw_dir is None:
+                zip_path = None
+                for cand_zip in [
+                    os.path.join(ogb_root, 'papers100M-bin.zip'),
+                    '/mnt/tmp/ogb_data/papers100M-bin.zip',
+                    '/tmp/ogb_data/papers100M-bin.zip'
+                ]:
+                    if os.path.exists(cand_zip) and os.path.getsize(cand_zip) > 10_000_000_000:
+                        zip_path = cand_zip
+                        break
+                
+                if zip_path is None:
+                    url = 'http://snap.stanford.edu/ogb/data/nodeproppred/papers100M-bin.zip'
+                    zip_path = os.path.join(ogb_root, 'papers100M-bin.zip')
+                    print(f"  Downloading ogbn-papers100M archive from {url}...")
+                    urllib.request.urlretrieve(url, zip_path)
+                
+                print(f"  Extracting raw files from {zip_path}...")
+                extract_target = os.path.join(ogb_root, 'papers100M-bin')
+                with zipfile.ZipFile(zip_path, 'r') as zf:
+                    zf.extractall(extract_target)
+                raw_dir = os.path.join(extract_target, 'raw')
+                if not os.path.exists(raw_dir):
+                    raw_dir = os.path.join(extract_target, 'papers100M-bin', 'raw')
+
+            print(f"  ✓ Raw data directory located at: {raw_dir}")
+            feat_file = os.path.join(raw_dir, 'node-feat.npy')
+            label_file = os.path.join(raw_dir, 'node-label.npy')
+            
+            # Memory-mapped array loading (0 MB driver RAM)
+            node_feat = np.load(feat_file, mmap_mode='r')
+            lbl = np.load(label_file, mmap_mode='r').flatten()
+            n_nodes = node_feat.shape[0]
+            feat_dim = node_feat.shape[1] if len(node_feat.shape) > 1 else 1
+            print(f"  Nodes: {n_nodes:,} | Feature dimension: {feat_dim}")
+            
+            # 1. Stream Nodes to Delta Lake
+            ns = StructType([StructField('id', LongType(), False),
+                             StructField('label', IntegerType(), True),
+                             StructField('features', ArrayType(FloatType()), True)])
+            CHUNK = 10000
+            print(f"  Streaming nodes to S3 Delta Lake in chunks of {CHUNK:,} nodes...")
+            for s in range(0, n_nodes, CHUNK):
+                e = min(s + CHUNK, n_nodes)
+                lbl_chunk = np.nan_to_num(lbl[s:e], nan=-1).astype(np.int32)
+                pdf_nodes = pd.DataFrame({
+                    'id': np.arange(s, e, dtype=np.int64),
+                    'label': lbl_chunk,
+                    'features': node_feat[s:e].tolist()
+                })
+                df_node = spark.createDataFrame(pdf_nodes, schema=ns)
+                df_node.coalesce(1).write.format('delta').mode('overwrite' if s == 0 else 'append').save(p['original_nodes'])
+                df_node.coalesce(1).write.format('delta').mode('overwrite' if s == 0 else 'append').save(p['nodes'])
+            print(f"  ✓ Nodes written to Delta Lake.")
+            
+            # 2. Stream Original Edges
+            es_orig = StructType([StructField('src', LongType(), False),
+                                  StructField('dst', LongType(), False)])
+            edge_csv_gz = os.path.join(raw_dir, 'edge.csv.gz')
+            edge_npy = os.path.join(raw_dir, 'edge_index.npy')
+            
+            print(f"  Streaming original edges to S3 Delta Lake...")
+            if os.path.exists(edge_npy):
+                ei = np.load(edge_npy, mmap_mode='r')
+                src_r, dst_r = ei[0], ei[1]
+                ECHUNK = 10_000_000
+                for s in range(0, len(src_r), ECHUNK):
+                    e = min(s + ECHUNK, len(src_r))
+                    pdf_e = pd.DataFrame({'src': src_r[s:e].astype(np.int64), 'dst': dst_r[s:e].astype(np.int64)})
+                    df_e = spark.createDataFrame(pdf_e, schema=es_orig)
+                    df_e.coalesce(1).write.format('delta').mode('overwrite' if s == 0 else 'append').save(p['original_edges'])
+            elif os.path.exists(edge_csv_gz):
+                for i, chunk_df in enumerate(pd.read_csv(edge_csv_gz, compression='gzip', header=None, names=['src', 'dst'], chunksize=10_000_000)):
+                    df_e = spark.createDataFrame(chunk_df.astype(np.int64), schema=es_orig)
+                    df_e.coalesce(1).write.format('delta').mode('overwrite' if i == 0 else 'append').save(p['original_edges'])
+            print(f"  ✓ Original edges written to Delta Lake.")
+
+            # 3. Distributed Deduplicating & Symmetrizing Edges in PySpark (Zero Driver RAM)
+            print("  Symmetrizing and deduplicating 1.6B edges in PySpark across YARN workers...")
+            orig_df = spark.read.format('delta').load(p['original_edges'])
+            rev_df = orig_df.selectExpr("dst as src", "src as dst")
+            sym_df = orig_df.union(rev_df).filter("src != dst").dropDuplicates(["src", "dst"])
+            sym_df.write.format('delta').mode('overwrite').save(p['edges'])
+            print(f"  ✓ Undirected edges written to Delta Lake.")
+
+            # 4. Stream Masks
+            ms = StructType([StructField('id', LongType(), False),
+                             StructField('split', StringType(), True)])
+            split_dir = os.path.join(raw_dir, 'split', 'paper-split-structure', 'time')
+            if use_ogb_splits and os.path.exists(os.path.join(split_dir, 'train.csv.gz')):
+                train_df = pd.read_csv(os.path.join(split_dir, 'train.csv.gz'), header=None, names=['id'])
+                valid_df = pd.read_csv(os.path.join(split_dir, 'valid.csv.gz'), header=None, names=['id'])
+                test_df  = pd.read_csv(os.path.join(split_dir, 'test.csv.gz'), header=None, names=['id'])
+                train_df['split'] = 'train'
+                valid_df['split'] = 'valid'
+                test_df['split']  = 'test'
+                mask_df = pd.concat([train_df, valid_df, test_df], ignore_index=True)
+            else:
+                rng = np.random.default_rng(random_seed)
+                perm = rng.permutation(n_nodes)
+                n_tr, n_va = int(.6 * n_nodes), int(.2 * n_nodes)
+                mask_df = pd.DataFrame({
+                    'id': perm.astype(np.int64),
+                    'split': (['train'] * n_tr + ['valid'] * n_va + ['test'] * (n_nodes - n_tr - n_va))
+                })
+            spark.createDataFrame(mask_df, schema=ms).coalesce(1).write.format('delta').mode('overwrite').save(p['masks'])
+            print(f"  ✓ Masks written to Delta Lake.")
+
+            # Compact & Vacuum
+            print(f"  Compacting Delta tables for {dataset}...")
+            spark.conf.set("spark.databricks.delta.retentionDurationCheck.enabled", "false")
+            for table_key in ['original_nodes', 'original_edges', 'nodes', 'edges', 'masks']:
+                try:
+                    spark.sql(f"OPTIMIZE '{p[table_key]}'")
+                    spark.sql(f"VACUUM '{p[table_key]}' RETAIN 0 HOURS")
+                except Exception as ex:
+                    print(f"    ⚠ Warning vacuuming {p[table_key]}: {ex}")
+            
+            elapsed = time.time() - t_total
+            timing[('phase0', dataset)] = elapsed
+            print(f"  ✓ {dataset} ingested successfully in {elapsed:.1f}s!")
+            continue
+
         if dataset in ('reddit', 'flickr', 'wikics', 'coauthor-cs', 'coauthor-physics', 'deezereurope'):
+
             if dataset == 'reddit':
                 from dgl.data import RedditDataset
                 ds = RedditDataset(self_loop=False)
