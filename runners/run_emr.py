@@ -1340,8 +1340,10 @@ def main():
             print(f"Warning: Could not copy Excel results on S3: {copy_err}")
             
         # 3. Upload LaTeX tables directly to S3 under /latex_tables
-        results_dir = os.path.join(PROJECT_ROOT, "results")
+        project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        results_dir = os.path.join(project_root, "results")
         if os.path.exists(results_dir):
+
             for fname in os.listdir(results_dir):
                 if fname.endswith(".tex"):
                     local_tex = os.path.join(results_dir, fname)

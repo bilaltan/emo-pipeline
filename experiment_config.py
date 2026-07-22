@@ -5,25 +5,25 @@
 #      python upload_to_s3.py
 # ══════════════════════════════════════════════════════════════════════════════
 
-EXPERIMENT_NAME   = 'ogbn-products'          # labels ALL S3 outputs; change per experiment run
+EXPERIMENT_NAME   = 'reddit'          # labels ALL S3 outputs; change per experiment run
 
 # ── Datasets ───────────────────────────────────────────────────────────────────
 # Available options:
 # Standard: 'WikiCS', 'Coauthor-Physics', 'Coauthor-CS', 'DeezerEurope', 'Foursquare'
 # 100M-scale: 'reddit', 'ogbn-products'
 # 1B-scale:   'ogbn-papers100M'
-DATASETS_TO_RUN = ['ogbn-products']
+DATASETS_TO_RUN = ['reddit']
 
 # ── GNN Models to Run ─────────────────────────────────────────────────────────
 # Supported choices: 'sage', 'gat', 'gatv2', 'transformer', 'clusterscl', 'arma', 'asap'
-GNN_MODELS = ['sage', 'gatv2']
+GNN_MODELS = ['sage']
 
 # ── Phase 0: Delta Lake Ingestion ─────────────────────────────────────────────
 # True  = re-download OGB dataset and overwrite Delta tables.
 #         REQUIRED when using a dataset for the first time.
 # False = skip (Delta tables already exist).
-RUN_PHASE0        = False
-FORCE_REINGEST    = False   # Set to True to force overwrite even if tables already exist
+RUN_PHASE0        = True
+FORCE_REINGEST    = True   # Set to True to force overwrite even if tables already exist
 FORCE_RERUN       = True   # Set to True to ignore all S3 checkpoints and rerun the pipeline
 USE_OGB_SPLITS    = True    # True = OGB official splits | False = stratified 60/20/20
 RANDOM_SEED       = 42
@@ -55,7 +55,7 @@ GCN_HIDDEN_DIM    = 256
 GCN_NUM_EPOCHS    = 10
 GCN_LR            = 0.001
 GCN_DROPOUT       = 0.5
-RUN_PHASE3B       = False              # Phase 3b: CaaN Global Graph GNN Training
+RUN_PHASE3B       = True              # Phase 3b: CaaN Global Graph GNN Training
 
 # ── New Advanced Features ──────────────────────────────────────────────────────
 # Tiny community handling: 'drop' (ignore them), 'misc' (group them all into community_id = -1)
