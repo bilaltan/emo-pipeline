@@ -156,13 +156,14 @@ def run_phase0(spark, sc, datasets, run_phase0_flag, use_ogb_splits,
                 n_tr, n_va = int(.6 * n_nodes), int(.2 * n_nodes)
                 train_idx = perm[:n_tr]
                 valid_idx = perm[n_tr:n_tr+n_va]
-                test_idx = perm[n_tr+n_va:]
+        else:
             # Download OGB
             from ogb.nodeproppred import NodePropPredDataset
             print(f"  ► Downloading & loading OGB dataset '{dataset}' (progress shown below)...")
             ogb_root = os.path.join(os.environ.get('TMPDIR', '/tmp'), 'ogb_data')
             with patch.object(builtins, 'input', lambda _: 'y'):
                 ogb_ds = NodePropPredDataset(name=dataset, root=ogb_root)
+
 
             graph, labels = ogb_ds[0]
 
