@@ -5,14 +5,14 @@
 #      python upload_to_s3.py
 # ══════════════════════════════════════════════════════════════════════════════
 
-EXPERIMENT_NAME   = 'reddit'          # labels ALL S3 outputs; change per experiment run
+EXPERIMENT_NAME   = 'ogbn-papers100M'          # labels ALL S3 outputs; change per experiment run
 
 # ── Datasets ───────────────────────────────────────────────────────────────────
 # Available options:
 # Standard: 'WikiCS', 'Coauthor-Physics', 'Coauthor-CS', 'DeezerEurope', 'Foursquare'
 # 100M-scale: 'reddit', 'ogbn-products'
 # 1B-scale:   'ogbn-papers100M'
-DATASETS_TO_RUN = ['reddit']
+DATASETS_TO_RUN = ['ogbn-papers100M']
 
 # ── GNN Models to Run ─────────────────────────────────────────────────────────
 # Supported choices: 'sage', 'gat', 'gatv2', 'transformer', 'clusterscl', 'arma', 'asap'
@@ -36,7 +36,7 @@ N_BASELINE_RUNS   = 1          # number of runs per baseline for mean ± std
 #   'louvain' = driver/igraph   (moderate quality, pulls graph to driver RAM)
 #   'igraph_lpa' = driver/igraph   (LPA using igraph)
 RUN_PHASE1         = True             # Set to False to skip community detection phase
-ALGORITHMS_TO_RUN  = ['lpa', 'louvain']
+ALGORITHMS_TO_RUN  = ['lpa']
 LPA_MAX_ITER       = 5
 RESOLUTION         = 1.0              # louvain / leiden resolution parameter
 MIN_COMMUNITY_SIZE = 100              # communities smaller than this are excluded

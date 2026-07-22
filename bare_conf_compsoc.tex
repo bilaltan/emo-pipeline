@@ -338,12 +338,22 @@
 % not capitalized unless they are the first or last word of the title.
 % Linebreaks \\ can be used within to get better formatting as desired.
 % Do not put math or special symbols in the title.
-\title{Towards Scalable and Efficient Graph Representation Learning with Modern Data Lakes}
+\title{EMO: Orchestrating Scalable and Efficient Graph Representation Learning over Transactional Data Lakes}
 
-\author{\IEEEauthorblockN{Bilal Tan\IEEEauthorrefmark{1}}
-\IEEEauthorblockA{\IEEEauthorrefmark{1}Department of Computer Science\\
-University of Illinois Chicago, Chicago, IL, USA\\
-Email: bilaltanw@gmail.com}}
+\author{\IEEEauthorblockN{Bilal Tan}
+\IEEEauthorblockA{Department of Computer Science\\
+Louisiana State University\\
+Baton Rouge, LA, USA\\
+Email: btan4@lsu.edu}
+\and
+\IEEEauthorblockN{Kisung Lee}
+\IEEEauthorblockA{Department of Computer Science\\
+Louisiana State University\\
+Baton Rouge, LA, USA\\
+Email: klee76@lsu.edu}}
+
+
+
 
 \maketitle
 
@@ -463,28 +473,39 @@ To ensure PyTorch and DGL are present in YARN containers without pre-imaging clu
 
 \section{Experimental Evaluation}
 \subsection{Experimental Setup \& Benchmark Datasets}
-We evaluate EMO's performance across standard benchmark datasets (WikiCS, Coauthor-Physics, Coauthor-CS, DeezerEurope, Foursquare) and massive-scale datasets: 100M-scale (\textbf{Reddit}) and 1B-scale (\textbf{Papers100M}). Base GNN models include GraphSAGE, ARMA, ASAP for link prediction and GAT, Graph Transformer, ClusterSCL, GraphSAGE-CAAN for node classification.
+We evaluate EMO's performance on commodity cloud infrastructure (5 AWS EMR worker nodes, 20 PySpark executors with 60 vCPUs total) across standard benchmark datasets (WikiCS, Coauthor-Physics, Coauthor-CS, DeezerEurope, Foursquare) and massive-scale real-world graphs: \textbf{ogbn-products} (2.45M nodes, 123.7M edges) and \textbf{reddit} (233K nodes, 114.6M edges, 602 feature dimensions). Base GNN architectures evaluated include GraphSAGE, GATv2, ARMA, ASAP, and GraphSAGE-CAAN.
 
 \subsection{Main Link Prediction \& Node Classification Performance}
-Tables~\ref{table_lp_main} and~\ref{table_nc_main} summarize the link prediction (AUC) and node classification (Accuracy) results across datasets and base models.
+Tables~\ref{table_lp_main} and~\ref{table_nc_main} report the link prediction (AUC) and node classification (Accuracy) results.
 
 \input{results/table3_link_prediction_main.tex}
 \input{results/table4_node_classification_main.tex}
 
+Empirical evaluations on \textbf{ogbn-products} and \textbf{reddit} demonstrate two major systems insights:
+\begin{itemize}
+    \item \textbf{Link Prediction Superiority}: On \textbf{reddit}, EMO with Louvain community partitioning achieves an outstanding link prediction AUC of \textbf{92.61\%}, significantly outperforming the full-graph GraphSAGE baseline (75.52\%, a +17.09\% boost) and DistDGL (74.03\%, a +18.58\% boost). Similarly, on \textbf{ogbn-products}, EMO's LPA-SAGE model achieves \textbf{85.29\% AUC}, outperforming DistDGL (82.16\%) and the full-graph baseline (75.61\%).
+    \item \textbf{CAAN Accuracy Recovery}: On \textbf{reddit}, raw decoupled community GNNs trained in isolation suffer from boundary isolation, dropping accuracy to 52.96\% (Louvain) and 72.74\% (LPA). Incorporating EMO's relational CAAN global super-node architecture recovers global macro-topology, skyrocketing accuracy to \textbf{92.73\%} for Louvain-CAAN (+39.77\% recovery!) and \textbf{89.11\%} for LPA-CAAN (+16.37\% recovery!), matching within 2\% of full-graph models while maintaining zero cross-worker training communication.
+\end{itemize}
+
 \subsection{Component-wise System Ablation Study}
-Table~\ref{table_ablation_main} isolates the performance impact of each subsystem in EMO: the Global Graph super-node topology (CaaN), Delta Lake S3 columnar layout, Arrow off-heap memory serialization, and 1-hop boundary node expansion.
+Table~\ref{table_ablation_main} isolates the performance impact of EMO's core subsystems on the \textbf{reddit} graph.
 
 \input{results/table9_ablation_study.tex}
 
+Without the Global Graph super-node topology (CaaN), isolated Louvain GNNs drop accuracy by \textbf{39.77\%} (from 92.73\% down to 52.96\%), validating that super-node centroid abstraction is indispensable for mitigating boundary degradation in power-law community graphs.
+
 \subsection{Fair Comparison with Distributed GRL Engine (DistDGL)}
-Table~\ref{table_distdgl_main} presents a fair comparative evaluation between EMO and DistDGL when both frameworks use identical partition counts ($K$) and cluster hardware. EMO achieves up to a 19.04\% higher accuracy while reducing network communication by over 97\%.
+Table~\ref{table_distdgl_main} presents a fair comparative evaluation between EMO and DistDGL under identical partition bounds ($K$) and cluster resources.
 
 \input{results/table12_distdgl_comparison.tex}
 
+On \textbf{reddit}, EMO's Louvain-CAAN GNN model completes training in \textbf{208.2s}, outperforming DistDGL's 250.6s runtime while eliminating 28.66 GB of parameter server memory overhead and cross-node network traffic. On \textbf{ogbn-products}, EMO delivers superior link prediction accuracy (85.29\% vs DistDGL's 82.16\%) with zero cross-worker communication.
+
 \subsection{Horizontal Scalability \& Multi-Instance Efficiency}
-Table~\ref{table_scalability_main} evaluates the strong scaling behavior of EMO as the number of cluster worker instances increases from 1 to 32 (4 to 128 vCPUs), demonstrating consistent speedups on 100M and 1B scale graphs.
+Table~\ref{table_scalability_main} reports cluster resource allocation and execution phase runtimes on 5 AWS EMR worker nodes (20 PySpark executors).
 
 \input{results/table13_scalability_multi_instance.tex}
+
 
 \section{Discussion \& Future Database Extensions}
 \subsection{Incremental Time-Travel GRL}

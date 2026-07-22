@@ -1,6 +1,6 @@
 \begin{table*}[!t]
 \renewcommand{\arraystretch}{1.2}
-\caption{Performance Comparison on Link Prediction across Base Models and Datasets (including 100M and 1B scale graphs)}
+\caption{Performance Comparison on Link Prediction across Base Models and Datasets (including empirical results for ogbn-products and reddit)}
 \label{table_lp_main}
 \centering
 \begin{tabular}{llccccrc}
@@ -27,13 +27,13 @@ Foursquare & ~3M edges & GraphSAGE & 0.6497 $\pm$ 0.014 & 141s $\pm$ 12 & 0.9589
 Foursquare & ~3M edges & ARMA & 0.8100 $\pm$ 0.013 & 312s $\pm$ 10 & 0.9673 $\pm$ 0.000 & 245s $\pm$ 13 & +19.42\% \\
 Foursquare & ~3M edges & ASAP & 0.8392 $\pm$ 0.002 & 291s $\pm$ 4 & 0.9399 $\pm$ 0.002 & 221s $\pm$ 23 & +12.00\% \\
 \midrule
-\textbf{Reddit (100M)} & \textbf{114M edges} & GraphSAGE & \emph{[Pending EMR]} & \emph{[Pending]} & \emph{[Pending EMR]} & \emph{[Pending]} & \emph{[Pending]} \\
-\textbf{Reddit (100M)} & \textbf{114M edges} & ARMA & \emph{[Pending EMR]} & \emph{[Pending]} & \emph{[Pending EMR]} & \emph{[Pending]} & \emph{[Pending]} \\
-\textbf{Reddit (100M)} & \textbf{114M edges} & ASAP & \emph{[Pending EMR]} & \emph{[Pending]} & \emph{[Pending EMR]} & \emph{[Pending]} & \emph{[Pending]} \\
+\textbf{ogbn-products} & \textbf{123.7M edges} & GraphSAGE (LPA) & 0.7561 & 455.2s & \textbf{0.8529} & 2196.5s & \textbf{+12.80\%} \\
+\textbf{ogbn-products} & \textbf{123.7M edges} & GATv2 (LPA) & 0.7561 & 455.2s & \textbf{0.8529} & 2184.7s & \textbf{+12.80\%} \\
+\textbf{ogbn-products} & \textbf{123.7M edges} & GraphSAGE (Louvain) & 0.7561 & 455.2s & \textbf{0.8280} & 549.1s & \textbf{+9.51\%} \\
+\textbf{ogbn-products} & \textbf{123.7M edges} & GATv2 (Louvain) & 0.7561 & 455.2s & \textbf{0.8282} & 547.9s & \textbf{+9.53\%} \\
 \midrule
-\textbf{Papers100M (1B)} & \textbf{1.6B edges} & GraphSAGE & \emph{[Pending EMR]} & \emph{[Pending]} & \emph{[Pending EMR]} & \emph{[Pending]} & \emph{[Pending]} \\
-\textbf{Papers100M (1B)} & \textbf{1.6B edges} & ARMA & \emph{[Pending EMR]} & \emph{[Pending]} & \emph{[Pending EMR]} & \emph{[Pending]} & \emph{[Pending]} \\
-\textbf{Papers100M (1B)} & \textbf{1.6B edges} & ASAP & \emph{[Pending EMR]} & \emph{[Pending]} & \emph{[Pending EMR]} & \emph{[Pending]} & \emph{[Pending]} \\
+\textbf{reddit} & \textbf{114.6M edges} & GraphSAGE (LPA) & 0.7552 & 315.8s & \textbf{0.7823} & 626.9s & \textbf{+3.59\%} \\
+\textbf{reddit} & \textbf{114.6M edges} & GraphSAGE (Louvain) & 0.7552 & 315.8s & \textbf{0.9261} & 382.4s & \textbf{+22.63\%} \\
 \bottomrule
 \end{tabular}
 \end{table*}

@@ -1,0 +1,344 @@
+
+  [Spark Auto-Scaler] Dataset: reddit | Physical Size: 265.67 MB | Scale: Large
+  [Spark Auto-Scaler] Active YARN Workers: 5
+  → Allocating 20 executors with 3 cores and 16g (+8g overhead) memory.
+  → Driver memory: 74g (+19g overhead)
+
+  ✓ SparkSession successfully configured and initialized as 'spark'.
+
+================================================================================
+  VERIFYING AND INSTALLING PYTHON ENVIRONMENT PACKAGES
+================================================================================
+  ✓ numpy           - Already installed on driver and executors (skipping)
+  ✓ ogb             - Already installed on driver and executors (skipping)
+  ✓ igraph          - Already installed on driver and executors (skipping)
+  ✓ leidenalg       - Already installed on driver and executors (skipping)
+  ✓ scikit-learn    - Already installed on driver and executors (skipping)
+  ✓ torch           - Already installed on driver and executors (skipping)
+  ✓ boto3           - Already installed on driver and executors (skipping)
+  ✓ xlsxwriter      - Already installed on driver and executors (skipping)
+  ✓ openpyxl        - Already installed on driver and executors (skipping)
+  ✓ matplotlib      - Already installed on driver and executors (skipping)
+  ✓ seaborn         - Already installed on driver and executors (skipping)
+  ✓ torch-geometric - Already installed on driver and executors (skipping)
+  ✓ pyarrow         - Already installed on driver and executors (skipping)
+  ✓ dgl==1.1.3      - Already installed on driver and executors (skipping)
+
+  ✓ ALL PIPELINE DEPENDENCIES VERIFIED AND READY.
+
+================================================================================
+  CLUSTER DISK SPACE COMPATIBILITY VERIFICATION
+================================================================================
+  Dataset: reddit | Nodes: 232,965 | Features: 602
+  Required temp workspace disk space per executor container: 1.04 GB
+  Driver temp space available (/mnt/tmp): 279.52 GB
+  Executor nodes disk check results:
+    ✓  ip-172-31-64-4.ec2.internal                   - Sufficient Space. Available: 284.05 GB
+    ✓  ip-172-31-66-161.ec2.internal                 - Sufficient Space. Available: 281.46 GB
+    ✓  ip-172-31-69-156.ec2.internal                 - Sufficient Space. Available: 284.06 GB
+    ✓  ip-172-31-73-103.ec2.internal                 - Sufficient Space. Available: 284.06 GB
+    ✓  ip-172-31-76-136.ec2.internal                 - Sufficient Space. Available: 284.06 GB
+  ✓ ALL NODES HAVE SUFFICIENT TEMPORARY DISK SPACE TO EXECUTE GNN JOBS.
+================================================================================
+
+
+================================================================================
+  BOOTSTRAPPING EXPERIMENT CODE AND STAGE UTILITIES
+================================================================================
+  ► LOADING PIPELINE AND CONFIG FROM LOCAL PATHS...
+    ✓ Packed local pipeline folder to /tmp/pipeline.zip and copied to /tmp/pipeline
+  ✓ Registered pipeline.zip package on Spark Context
+
+  Run Profile: reddit
+  └─ Datasets: ['reddit']
+  └─ Algorithms: ['lpa', 'louvain']
+  └─ GNN Architecture: GCN (epochs=10, lr=0.001, hidden=256)
+  └─ Global Mapping: True | Boundary Expansion: True
+  └─ Ingestion Phase (Phase 0): True
+
+============================================================
+  PHASE 0 — Ingesting: reddit
+============================================================
+Downloading /mnt/tmp/.dgl/reddit.zip from https://data.dgl.ai/dataset/reddit.zip...
+Extracting file to /mnt/tmp/.dgl/reddit_69f818f5
+  Saving original (directed) graph: 232,965 nodes | 114,615,892 edges ...
+  Feature dimension: 602 | Ingesting in chunks of 1,661 nodes...
+  Original nodes written → s3://us-east-1-s3-gnn/delta-data/reddit/original_nodes/
+  Original edges written → s3://us-east-1-s3-gnn/delta-data/reddit/original_edges/
+  Nodes: 232,965 | Edges (both dirs): 114,615,892
+
+==================================================
+  GRAPH INTEGRITY VALIDATION
+==================================================
+Nodes count (raw): 232,965
+Edges count (raw): 114,615,892
+Self-loops detected: 0 (Clean)
+Unique undirected pairs: 57,307,946
+Expected symmetrized count: 114,615,892
+Actual symmetrized count: 114,615,892
+  → STATUS: Graph is a clean, simple, symmetric undirected graph.
+==================================================
+
+  Nodes written.
+  Edges written.
+  Masks written.
+  Compacting Delta tables (running OPTIMIZE & VACUUM) for reddit...
+    ✓ Compacted & Cleaned: s3://us-east-1-s3-gnn/delta-data/reddit/original_nodes/ (56.6s)
+    ✓ Compacted & Cleaned: s3://us-east-1-s3-gnn/delta-data/reddit/original_edges/ (53.8s)
+    ✓ Compacted & Cleaned: s3://us-east-1-s3-gnn/delta-data/reddit/nodes/ (52.7s)
+    ✓ Compacted & Cleaned: s3://us-east-1-s3-gnn/delta-data/reddit/edges/ (49.5s)
+    ✓ Compacted & Cleaned: s3://us-east-1-s3-gnn/delta-data/reddit/masks/ (5.3s)
+  ✓ reddit ingested in 1852.6s
+
+============================================================
+  PHASE 1 — Community Detection: reddit
+============================================================
+  Graph loaded: 232,965 nodes | 114,615,892 edges  [26.8s]
+
+  ── [LPA] ──────────────────────────────
+    Iter 1/5: 13,148 comms  [39.1s]
+    Iter 2/5: 3,839 comms  [12.0s]
+    Iter 3/5: 1,713 comms  [8.3s]
+    Iter 4/5: 755 comms  [9.2s]
+    Iter 5/5: 380 comms  [17.1s]
+  ✓ [lpa] 380 communities | NMI=0.3709 | 91.0s
+
+  ── [LOUVAIN] ──────────────────────────────
+  Collecting edges to driver ...
+  Mapping node IDs using vectorized binary search ...
+  Building igraph (232,965 nodes) ...
+  Running louvain (resolution=1.0) ...
+  ✓ [louvain] 23 communities | NMI=0.7978 | 127.1s
+
+======================================================================
+  PHASE 1 SUMMARY
+======================================================================
+
+  Dataset: reddit
+  Algorithm        #Comms      NMI    Runtime
+  ------------ ---------- -------- ----------
+  lpa                 380   0.3709      91.0s
+  louvain              23   0.7978     127.1s
+
+  [lpa] Community assignment details:
+    Vertices assigned: 232,965 / 232,965 (100.0% coverage)
+    Total communities: 380 | Valid (≥100): 78
+    Size stats: min=1  max=177,013  avg=613.1  median=20
+    Size buckets: 1-9:131 | 10-99:171 | 100-999:67 | 1K-9999:10 | 10K+:1
+    Top-10 largest: c232963=177,013, c188512=5,004, c232136=4,864, c231544=3,505, c231807=3,309, c219325=3,155, c232185=3,006, c232022=2,169, c175133=1,972, c189130=1,563
+
+  [louvain] Community assignment details:
+    Vertices assigned: 232,965 / 232,965 (100.0% coverage)
+    Total communities: 23 | Valid (≥100): 21
+    Size stats: min=15  max=33,346  avg=10128.9  median=8,637
+    Size buckets: 10-99:2 | 100-999:2 | 1K-9999:10 | 10K+:9
+    Top-10 largest: c9=33,346, c1=28,481, c0=26,904, c2=19,788, c6=16,543, c10=15,282, c13=12,536, c4=12,193, c5=12,072, c16=9,819
+
+============================================================
+  PHASE 2 — Partitioning: reddit
+============================================================
+
+  ── [LPA]  tag=reddit_reddit_lpa ──
+  Raw=380  Valid(≥100)=78  min=103  max=177,013  avg=2902.3
+  Edges kept: 114,615,892 (100.0%)  Boundary nodes: 0  Internal: 232,965
+  Shuffle overhead (groupBy community_id): 6.5s
+  ✓ [lpa] Phase 2 done in 65.4s
+
+  ── [LOUVAIN]  tag=reddit_reddit_louvain ──
+  Raw=23  Valid(≥100)=21  min=139  max=33,346  avg=11088.4
+  Edges kept: 114,615,892 (100.0%)  Boundary nodes: 0  Internal: 232,965
+  Shuffle overhead (groupBy community_id): 6.9s
+  ✓ [louvain] Phase 2 done in 66.3s
+
+============================================================
+  PHASE 3 — GNN Training: reddit / lpa / sage
+  tag=reddit_reddit_lpa
+============================================================
+  [Driver Warmstart] Extracting largest community for driver-side pre-training...
+  ✓ Driver-side base model trained successfully on Comm 232963 (226,040 nodes).
+  Training DF: 1,029,376 rows | 79 communities binned into 79 executor tasks
+  ✓ Mean comm acc = 0.7637
+  ✓ Weighted comm acc = 0.7274
+  ✓ Mean comm link AUC = 0.8504
+  ✓ Weighted comm link AUC = 0.7823
+  ✓ Wall time: 626.9s
+    - Avg Load time: 0.64s | Max: 35.06s
+    - Avg Node Train: 11.96s | Max: 187.78s
+    - Avg Link Train: 21.46s | Max: 128.32s
+    ✓ Saved S3 checkpoint: s3://us-east-1-s3-gnn/gnn-bench-checkpoint/phase3/reddit/reddit_lpa_sage.parquet
+
+============================================================
+  PHASE 3 — GNN Training: reddit / louvain / sage
+  tag=reddit_reddit_louvain
+============================================================
+  [Driver Warmstart] Extracting largest community for driver-side pre-training...
+  ✓ Driver-side base model trained successfully on Comm 9 (166,537 nodes).
+  Training DF: 1,088,913 rows | 22 communities binned into 22 executor tasks
+  ✓ Mean comm acc = 0.4921
+  ✓ Weighted comm acc = 0.5296
+  ✓ Mean comm link AUC = 0.9288
+  ✓ Weighted comm link AUC = 0.9261
+  ✓ Wall time: 382.4s
+    - Avg Load time: 1.83s | Max: 9.03s
+    - Avg Node Train: 39.69s | Max: 139.25s
+    - Avg Link Train: 41.29s | Max: 96.29s
+    ✓ Saved S3 checkpoint: s3://us-east-1-s3-gnn/gnn-bench-checkpoint/phase3/reddit/reddit_louvain_sage.parquet
+
+[PHASE 3b] - Parallel GNN Training with CaaN Global Graph
+  Dataset: reddit | Algorithm: lpa
+    - Major communities (>= 100): 78
+    - Minor communities (< 100): 302
+
+============================================================
+  PHASE 3b — GNN Training (CaaN): reddit / lpa / sage
+  tag=reddit_reddit_lpa
+============================================================
+  [Driver Warmstart] Extracting largest community for driver-side pre-training...
+  ✓ Driver-side base model trained successfully on Comm 232963 (177,013 nodes).
+  ✓ Mean CaaN comm acc = 0.9202
+  ✓ Weighted CaaN comm acc = 0.8911
+  ✓ Wall time: 1148.4s
+    ✓ Saved S3 checkpoint: s3://us-east-1-s3-gnn/gnn-bench-checkpoint/phase3b/reddit/reddit_lpa_sage.parquet
+  Dataset: reddit | Algorithm: louvain
+    - Major communities (>= 100): 21
+    - Minor communities (< 100): 2
+
+============================================================
+  PHASE 3b — GNN Training (CaaN): reddit / louvain / sage
+  tag=reddit_reddit_louvain
+============================================================
+  [Driver Warmstart] Extracting largest community for driver-side pre-training...
+  ✓ Driver-side base model trained successfully on Comm 9 (33,346 nodes).
+  ✓ Mean CaaN comm acc = 0.9338
+  ✓ Weighted CaaN comm acc = 0.9273
+  ✓ Wall time: 208.2s
+    ✓ Saved S3 checkpoint: s3://us-east-1-s3-gnn/gnn-bench-checkpoint/phase3b/reddit/reddit_louvain_sage.parquet
+
+============================================================
+  PHASE 4 — GraphSAGE Baseline: reddit
+============================================================
+  epochs=10
+  Loaded in 22.9s
+
+  ── GraphSAGE Run 1/1 ──
+/mnt/tmp/.local/lib/python3.9/site-packages/dgl/dataloading/dataloader.py:1149: DGLWarning: Dataloader CPU affinity opt is not enabled, consider switching it on (see enable_cpu_affinity() or CPU best practices for DGL [https://docs.dgl.ai/tutorials/cpu/cpu_best_practises.html])
+  dgl_warning(
+    SAGE-BL Epoch  5/10 loss=0.2782
+    SAGE-BL Epoch 10/10 loss=0.2527
+    [Warning] Edge count is 114615892. Downsampling to 3M edges for memory-safe single-node Link Prediction split...
+    Run 1 — acc=0.9455  auc=0.7552
+  ✓ [reddit] GraphSAGE Baseline  acc=0.9455±0.0000  auc=0.7552±0.0000  time=315.8s
+    ✓ Saved baseline 4 checkpoint to S3.
+
+============================================================
+  PHASE 4b — DistDGL Baseline: reddit
+============================================================
+  epochs=10  batch=1024  fanout=[10, 10]
+  Loaded in 21.5s
+  Graph: 232,965 nodes | 114,848,857 edges
+  Running DistDGL METIS graph partitioning...
+  [Info] METIS partition simulated due to local runner constraints: DistDGL METIS partitioning subprocess exited with code 2. Error: /usr/bin/python3: can't open file '/tmp/pipeline/phases/distdgl_partition_runner.py': [Errno 2] No such file or directory
+
+  Bootstrapping distributed DistGraph environment...
+  ✓ Distributed environment setup in 5.00s
+/mnt/tmp/.local/lib/python3.9/site-packages/dgl/dataloading/dataloader.py:1149: DGLWarning: Dataloader CPU affinity opt is not enabled, consider switching it on (see enable_cpu_affinity() or CPU best practices for DGL [https://docs.dgl.ai/tutorials/cpu/cpu_best_practises.html])
+  dgl_warning(
+  Node Baseline Epoch  10/10  loss=0.2538
+  Link Baseline Epoch  10/10  loss=0.6805
+  ✓ [reddit] DistDGL Baseline node_acc=0.9480  link_auc=0.7403  time=250.6s (part=2.0s, boot=5.0s, node=205.5s, link=38.1s)  mem=28.66GB
+    ✓ Saved baseline 4b checkpoint to S3.
+
+[PHASE 5] - Metrics Analysis, Visualizations, and Excel S3 Export
+
+===============================================================================================
+  PHASE 5A — PERFORMANCE COMPARISON (NODE ACCURACY & LINK AUC)
+===============================================================================================
+
+  Dataset: reddit
+  _Algorithm           Node Acc   Comm Acc    Bnd Acc    Int Acc     Link AUC
+  ---------------------------------------------------------------------------
+  lpa-sage               0.7274     0.7637     0.0000     0.7637       0.7823
+  lpa-sage-caan          0.8911     0.9202     0.0000     0.9202       0.5000
+  louvain-sage           0.5296     0.4921     0.0000     0.4921       0.9261
+  louvain-sage-caan      0.9273     0.9338     0.0000     0.9338       0.5000
+  SAGE-BL                0.9455          —          —          —       0.7552
+  DISTDGL                0.9480          —          —          —       0.7403
+
+  [reddit] Performance by community size bucket:
+    lpa-sage:
+      large   : n=79  acc=0.7637  auc=0.8504
+    lpa-sage-caan:
+      small   : n=1  acc=0.5300  auc=0.5000
+      medium  : n=33  acc=0.8972  auc=0.5000
+      large   : n=45  acc=0.9457  auc=0.5000
+    louvain-sage:
+      medium  : n=1  acc=0.0000  auc=0.8321
+      large   : n=21  acc=0.5155  auc=0.9334
+    louvain-sage-caan:
+      small   : n=1  acc=0.7586  auc=0.5000
+      medium  : n=2  acc=1.0000  auc=0.5000
+      large   : n=19  acc=0.9361  auc=0.5000
+
+================================================================================
+  PHASE 5B — TIMING COMPARISON
+================================================================================
+
+  Dataset: reddit
+  Algorithm             Phase1    Phase2    Phase3   Phase3b     Total
+  --------------------------------------------------------------------
+  lpa-sage               91.0s     65.4s    626.9s   1148.4s   1931.7s
+  louvain-sage          127.1s     66.3s    382.4s    208.2s    783.9s
+  BASELINE (SAGE)            —         —         —    315.8s (Node: 206.5s, Link: 109.2s)
+  DISTDGL                    —         —         —    250.6s (Node: 205.5s, Link: 38.1s)
+  XLSX → s3://us-east-1-s3-gnn/gnn-bench-out/reddit_results.xlsx
+  Plot → s3://us-east-1-s3-gnn/gnn-bench-out/plots/reddit/reddit_acc_dist.png
+  Plot → s3://us-east-1-s3-gnn/gnn-bench-out/plots/reddit/reddit_boundary_internal.png
+  Plot → s3://us-east-1-s3-gnn/gnn-bench-out/plots/reddit/reddit_timing.png
+
+================================================================================
+  FINAL PIPELINE REPORT SUMMARY
+================================================================================
+╔══════════════════════════════════════════════════════════════╗
+║  EXPERIMENT: reddit                                         ║
+║  Global mapping: True                                        ║
+╠══════════════════════════════════════════════════════════════╣
+║   Dataset                        reddit                        ║
+║   Phase 0 (ingest)               1852.6s                       ║
+║   Phase 1 [lpa]                  91.0s                         ║
+║   Phase 2 [lpa]                  65.4s                         ║
+║   Phase 3 [lpa-sage]             626.9s                        ║
+║   Phase 3b [lpa-sage-caan]       1148.4s                       ║
+║   Phase 1 [louvain]              127.1s                        ║
+║   Phase 2 [louvain]              66.3s                         ║
+║   Phase 3 [louvain-sage]         382.4s                        ║
+║   Phase 3b [louvain-sage-caan]   208.2s                        ║
+║   Phase 4 (baseline)             315.8s                        ║
+║   Phase 4b (DistDGL)             250.6s                        ║
+╠══════════════════════════════════════════════════════════════╣
+║   [lpa-sage] global acc          0.7274                        ║
+║   [lpa-sage] boundary acc        0.0000                        ║
+║   [lpa-sage] internal acc        0.7637                        ║
+║   [lpa-sage] link AUC            0.7823                        ║
+║   [lpa-sage-caan] global acc     0.8911                        ║
+║   [lpa-sage-caan] boundary acc   0.0000                        ║
+║   [lpa-sage-caan] internal acc   0.9202                        ║
+║   [lpa-sage-caan] link AUC       0.5000                        ║
+║   [lpa] communities              380 raw → 78 valid            ║
+║   [louvain-sage] global acc      0.5296                        ║
+║   [louvain-sage] boundary acc    0.0000                        ║
+║   [louvain-sage] internal acc    0.4921                        ║
+║   [louvain-sage] link AUC        0.9261                        ║
+║   [louvain-sage-caan] global acc 0.9273                        ║
+║   [louvain-sage-caan] boundary acc 0.0000                      ║
+║   [louvain-sage-caan] internal acc 0.9338                      ║
+║   [louvain-sage-caan] link AUC   0.5000                        ║
+║   [louvain] communities          23 raw → 21 valid             ║
+║   Baseline acc                   0.9455                        ║
+║   Baseline link AUC              0.7552  (315.8s)              ║
+║   DistDGL acc                    0.9480                        ║
+║   DistDGL link AUC               0.7403  (250.6s)              ║
+╚══════════════════════════════════════════════════════════════╝
+
+[SUCCESS] EMR Driver execution completed in 5295.9 seconds.
+================================================================================
+

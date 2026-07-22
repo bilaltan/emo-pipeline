@@ -1,22 +1,20 @@
 \begin{table*}[!t]
 \renewcommand{\arraystretch}{1.2}
-\caption{Ablation Study: Component-wise System Impact on Accuracy, Throughput, Memory, and I/O Latency}
+\caption{Ablation Study: System & Algorithmic Component Impact on Accuracy, Throughput, and Training Time (reddit dataset)}
 \label{table_ablation_main}
 \centering
 \begin{tabular}{lccccrc}
 \toprule
-\textbf{Configuration / Variant} & \textbf{Node Acc (\%)} & \textbf{Boundary Acc (\%)} & \textbf{Ingestion / Load Time (s)} & \textbf{GNN Train Time (s)} & \textbf{Total Time (s)} & \textbf{Peak Memory (GB)} \\
+\textbf{Configuration / Variant} & \textbf{Node Acc (\%)} & \textbf{Comm Acc (\%)} & \textbf{Ingestion Time (s)} & \textbf{Partition Time (s)} & \textbf{GNN Train Time (s)} & \textbf{Total Time (s)} \\
 \midrule
-\textbf{Full EMO Pipeline} & \textbf{83.74\%} & \textbf{81.50\%} & \textbf{12.4s} & \textbf{21.0s} & \textbf{33.4s} & \textbf{4.2 GB} \\
+\textbf{Full EMO Pipeline (Louvain-SAGE-CAAN)} & \textbf{92.73\%} & \textbf{93.38\%} & \textbf{1852.6s} & \textbf{66.3s} & \textbf{208.2s} & \textbf{2254.2s} \\
+\emph{EMO Pipeline (LPA-SAGE-CAAN)} & 89.11\% & 92.02\% & 1852.6s & 65.4s & 1148.4s & 3157.4s \\
 \midrule
-\emph{w/o Global Graph (CaaN Super-nodes)} & 78.10\% & 68.20\% & 12.1s & 19.5s & 31.6s & 3.8 GB \\
-\emph{w/o S3/Delta Lake Optimizations} & 83.74\% & 81.50\% & 64.8s & 21.0s & 85.8s & 8.5 GB \\
-\emph{w/o PyArrow Off-Heap UDFs} & 83.74\% & 81.50\% & 12.4s & 48.2s & 60.6s & 14.1 GB \\
-\emph{w/o 1-Hop Boundary Expansion} & 76.40\% & 62.10\% & 8.2s & 15.1s & 23.3s & 2.9 GB \\
+\emph{w/o Global Graph (Decoupled Louvain-SAGE)} & 52.96\% & 49.21\% & 1852.6s & 66.3s & 382.4s & 2428.4s \\
+\emph{w/o Global Graph (Decoupled LPA-SAGE)} & 72.74\% & 76.37\% & 1852.6s & 65.4s & 626.9s & 2635.9s \\
 \midrule
-\textbf{100M-Scale (Reddit) Full Pipeline} & \emph{[Pending EMR]} & \emph{[Pending EMR]} & \emph{[Pending EMR]} & \emph{[Pending EMR]} & \emph{[Pending]} & \emph{[Pending]} \\
-\emph{100M w/o Global Graph} & \emph{[Pending EMR]} & \emph{[Pending EMR]} & \emph{[Pending EMR]} & \emph{[Pending EMR]} & \emph{[Pending]} & \emph{[Pending]} \\
-\emph{100M w/o S3/Delta Optimizations} & \emph{[Pending EMR]} & \emph{[Pending EMR]} & \emph{[Pending EMR]} & \emph{[Pending EMR]} & \emph{[Pending]} & \emph{[Pending]} \\
+\emph{Full-Graph Baseline (GraphSAGE)} & 94.55\% & — & — & — & 315.8s & 315.8s \\
+\emph{Distributed GNN Engine (DistDGL)} & 94.80\% & — & — & 2.0s & 250.6s & 257.6s \\
 \bottomrule
 \end{tabular}
 \end{table*}

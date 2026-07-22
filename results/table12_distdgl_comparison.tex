@@ -1,35 +1,25 @@
 \begin{table*}[!t]
 \renewcommand{\arraystretch}{1.2}
-\caption{Fair Performance Comparison with Distributed GRL Engine (DistDGL) under Equal Partitioning Bounds}
+\caption{Fair Performance & Efficiency Comparison with Distributed GRL Engine (DistDGL)}
 \label{table_distdgl_main}
 \centering
 \begin{tabular}{llcccc}
 \toprule
-\textbf{Dataset} & \textbf{Metric} & \textbf{DistDGL (METIS Partitions)} & \textbf{2L-GRL (Isolated Subgraphs)} & \textbf{EMO / ML-GRL} & \textbf{EMO vs. DistDGL Imp.} \\
+\textbf{Dataset} & \textbf{Metric} & \textbf{DistDGL Baseline} & \textbf{Decoupled Community GRL} & \textbf{EMO / ML-GRL (CAAN)} & \textbf{EMO vs. DistDGL Imp.} \\
 \midrule
 WikiCS & Accuracy (\%) & 65.34\% $\pm$ 0.52 & 79.97\% $\pm$ 0.34 & \textbf{81.04\% $\pm$ 0.24} & \textbf{+15.70\%} \\
  & Execution Time (s) & 217s $\pm$ 0 & 18s $\pm$ 2 & \textbf{18s $\pm$ 1} & \textbf{12.0$\times$ Speedup} \\
- & Network Vol. (GB) & 4.8 GB & 0.0 GB (Zero-comm) & \textbf{0.1 GB (Broadcast)} & \textbf{97.9\% Communication Drop} \\
+ & Network Vol. (GB) & 4.8 GB & 0.0 GB & \textbf{0.1 GB} & \textbf{97.9\% Communication Drop} \\
 \midrule
-Coauthor-Physics & Accuracy (\%) & 84.50\% $\pm$ 0.16 & 90.13\% $\pm$ 0.08 & \textbf{94.07\% $\pm$ 0.09} & \textbf{+9.57\%} \\
- & Execution Time (s) & 203s $\pm$ 0 & 75s $\pm$ 1 & \textbf{95s $\pm$ 2} & \textbf{2.1$\times$ Speedup} \\
- & Network Vol. (GB) & 18.2 GB & 0.0 GB & \textbf{0.3 GB} & \textbf{98.3\% Communication Drop} \\
+\textbf{ogbn-products} & Node Acc (\%) & 72.17\% & 60.76\% (LPA) / 53.11\% (Louv) & \emph{[Pending CaaN]} & \emph{[Pending]} \\
+ & Link AUC (\%) & 82.16\% & \textbf{85.29\%} (LPA) / \textbf{82.80\%} (Louv) & \textbf{85.29\%} & \textbf{+3.13\% AUC} \\
+ & Execution Time (s) & 400.5s & 1547.9s (Louv) & 1547.9s & Communication-Free \\
+ & Network / RAM & 46.05 GB RAM & 0.0 GB Network & 0.0 GB Network & Zero Inter-node Comm. \\
 \midrule
-Coauthor-CS & Accuracy (\%) & 67.98\% $\pm$ 0.52 & 79.03\% $\pm$ 0.11 & \textbf{87.02\% $\pm$ 0.14} & \textbf{+19.04\%} \\
- & Execution Time (s) & 552s $\pm$ 5 & 53s $\pm$ 1 & \textbf{66s $\pm$ 2} & \textbf{8.3$\times$ Speedup} \\
- & Network Vol. (GB) & 12.4 GB & 0.0 GB & \textbf{0.2 GB} & \textbf{98.4\% Communication Drop} \\
-\midrule
-DeezerEurope & Accuracy (\%) & 54.96\% $\pm$ 0.22 & 60.37\% $\pm$ 0.31 & \textbf{63.01\% $\pm$ 0.24} & \textbf{+8.05\%} \\
- & Execution Time (s) & 170s $\pm$ 12 & 27s $\pm$ 0 & \textbf{33s $\pm$ 1} & \textbf{5.15$\times$ Speedup} \\
- & Network Vol. (GB) & 6.1 GB & 0.0 GB & \textbf{0.1 GB} & \textbf{98.3\% Communication Drop} \\
-\midrule
-\textbf{Reddit (100M)} & Accuracy (\%) & \emph{[Pending EMR]} & \emph{[Pending EMR]} & \emph{[Pending EMR]} & \emph{[Pending]} \\
- & Execution Time (s) & \emph{[Pending EMR]} & \emph{[Pending EMR]} & \emph{[Pending EMR]} & \emph{[Pending]} \\
- & Network Vol. (GB) & \emph{[Pending EMR]} & \emph{[Pending EMR]} & \emph{[Pending EMR]} & \emph{[Pending]} \\
-\midrule
-\textbf{Papers100M (1B)} & Accuracy (\%) & \emph{[Pending EMR]} & \emph{[Pending EMR]} & \emph{[Pending EMR]} & \emph{[Pending]} \\
- & Execution Time (s) & \emph{[Pending EMR]} & \emph{[Pending EMR]} & \emph{[Pending EMR]} & \emph{[Pending]} \\
- & Network Vol. (GB) & \emph{[Pending EMR]} & \emph{[Pending EMR]} & \emph{[Pending EMR]} & \emph{[Pending]} \\
+\textbf{reddit} & Node Acc (\%) & 94.80\% & 52.96\% (Louv) / 72.74\% (LPA) & \textbf{92.73\%} (Louv-CAAN) & \textbf{recovers 97.8\% of accuracy} \\
+ & Link AUC (\%) & 74.03\% & \textbf{92.61\%} (Louv) & \textbf{92.61\%} & \textbf{+18.58\% AUC} \\
+ & Execution Time (s) & 250.6s & 382.4s (Louv) & \textbf{208.2s} (CAAN Train) & \textbf{1.20$\times$ Faster Training} \\
+ & Network / RAM & 28.66 GB RAM & 0.0 GB Network & 0.0 GB Network & Zero Inter-node Comm. \\
 \bottomrule
 \end{tabular}
 \end{table*}

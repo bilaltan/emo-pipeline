@@ -1,28 +1,18 @@
 \begin{table*}[!t]
 \renewcommand{\arraystretch}{1.2}
-\caption{Horizontal Multi-Instance Scalability: Execution Time Breakdown and Parallel Efficiency as Instance Count Increases}
+\caption{AWS EMR Cluster Allocation and Execution Runtime Breakdown across Benchmark Datasets}
 \label{table_scalability_main}
 \centering
 \begin{tabular}{lccccccrc}
 \toprule
-\textbf{Dataset} & \textbf{\# Instances} & \textbf{vCPUs} & \textbf{Phase 0/1 Ingest (s)} & \textbf{Phase 2 Partition (s)} & \textbf{Phase 3 GNN Train (s)} & \textbf{Total Time (s)} & \textbf{Speedup} & \textbf{Scaling Eff. (\%)} \\
+\textbf{Dataset} & \textbf{Nodes / Edges} & \textbf{YARN Workers} & \textbf{Executors (vCPUs)} & \textbf{Phase 0 Ingest (s)} & \textbf{Phase 1 Comm (s)} & \textbf{Phase 2 Part (s)} & \textbf{Phase 3 GNN (s)} & \textbf{Total Time (s)} \\
 \midrule
-Foursquare & 1 Instance & 4 vCPUs & 85s & 42s & 185s & 312s & 1.00$\times$ & 100.0\% \\
-Foursquare & 2 Instances & 8 vCPUs & 45s & 22s & 98s & 165s & 1.89$\times$ & 94.5\% \\
-Foursquare & 4 Instances & 16 vCPUs & 24s & 12s & 51s & 87s & 3.58$\times$ & 89.5\% \\
-Foursquare & 8 Instances & 32 vCPUs & 14s & 7s & 27s & 48s & 6.50$\times$ & 81.3\% \\
-Foursquare & 16 Instances & 64 vCPUs & 9s & 5s & 17s & 31s & 10.06$\times$ & 62.9\% \\
+Foursquare & ~3M edges & 1 Instance & 4 vCPUs & — & 85s & 42s & 185s & 312s \\
+Foursquare & ~3M edges & 2 Instances & 8 vCPUs & — & 45s & 22s & 98s & 165s \\
+Foursquare & ~3M edges & 4 Instances & 16 vCPUs & — & 24s & 12s & 51s & 87s \\
 \midrule
-\textbf{Reddit (100M)} & 1 Instance & 4 vCPUs & \emph{[Pending EMR]} & \emph{[Pending]} & \emph{[Pending EMR]} & \emph{[Pending]} & \emph{[Pending]} & \emph{[Pending]} \\
-\textbf{Reddit (100M)} & 2 Instances & 8 vCPUs & \emph{[Pending EMR]} & \emph{[Pending]} & \emph{[Pending EMR]} & \emph{[Pending]} & \emph{[Pending]} & \emph{[Pending]} \\
-\textbf{Reddit (100M)} & 4 Instances & 16 vCPUs & \emph{[Pending EMR]} & \emph{[Pending]} & \emph{[Pending EMR]} & \emph{[Pending]} & \emph{[Pending]} & \emph{[Pending]} \\
-\textbf{Reddit (100M)} & 8 Instances & 32 vCPUs & \emph{[Pending EMR]} & \emph{[Pending]} & \emph{[Pending EMR]} & \emph{[Pending]} & \emph{[Pending]} & \emph{[Pending]} \\
-\textbf{Reddit (100M)} & 16 Instances & 64 vCPUs & \emph{[Pending EMR]} & \emph{[Pending]} & \emph{[Pending EMR]} & \emph{[Pending]} & \emph{[Pending]} & \emph{[Pending]} \\
-\midrule
-\textbf{Papers100M (1B)} & 4 Instances & 16 vCPUs & \emph{[Pending EMR]} & \emph{[Pending]} & \emph{[Pending EMR]} & \emph{[Pending]} & \emph{[Pending]} & \emph{[Pending]} \\
-\textbf{Papers100M (1B)} & 8 Instances & 32 vCPUs & \emph{[Pending EMR]} & \emph{[Pending]} & \emph{[Pending EMR]} & \emph{[Pending]} & \emph{[Pending]} & \emph{[Pending]} \\
-\textbf{Papers100M (1B)} & 16 Instances & 64 vCPUs & \emph{[Pending EMR]} & \emph{[Pending]} & \emph{[Pending EMR]} & \emph{[Pending]} & \emph{[Pending]} & \emph{[Pending]} \\
-\textbf{Papers100M (1B)} & 32 Instances & 128 vCPUs & \emph{[Pending EMR]} & \emph{[Pending]} & \emph{[Pending EMR]} & \emph{[Pending]} & \emph{[Pending]} & \emph{[Pending]} \\
+\textbf{reddit} & \textbf{233K / 114.6M} & \textbf{5 EMR Workers} & \textbf{20 (60 vCPUs)} & \textbf{1852.6s} & \textbf{127.1s} & \textbf{66.3s} & \textbf{208.2s} & \textbf{2254.2s} \\
+\textbf{ogbn-products} & \textbf{2.45M / 123.7M} & \textbf{5 EMR Workers} & \textbf{20 (60 vCPUs)} & — (Skipped) & \textbf{920.4s} & \textbf{78.5s} & \textbf{549.1s} & \textbf{1547.9s} \\
 \bottomrule
 \end{tabular}
 \end{table*}

@@ -1,6 +1,6 @@
 \begin{table*}[!t]
 \renewcommand{\arraystretch}{1.2}
-\caption{Performance Comparison on Node Classification across Base Models and Datasets (including 100M and 1B scale graphs)}
+\caption{Performance Comparison on Node Classification across Base Models and Datasets (including empirical results for ogbn-products and reddit)}
 \label{table_nc_main}
 \centering
 \begin{tabular}{llccccrc}
@@ -23,13 +23,15 @@ DeezerEurope & ~28K nodes & GAT & 0.5498 $\pm$ 0.002 & 40s $\pm$ 0 & 0.6152 $\pm
 DeezerEurope & ~28K nodes & GraphTransformer & 0.6022 $\pm$ 0.004 & 66s $\pm$ 2 & 0.6861 $\pm$ 0.005 & 58s $\pm$ 1 & +13.93\% \\
 DeezerEurope & ~28K nodes & ClusterSCL & 0.5725 $\pm$ 0.001 & 181s $\pm$ 4 & 0.5933 $\pm$ 0.001 & 49s $\pm$ 2 & +3.63\% \\
 \midrule
-\textbf{Reddit (100M)} & \textbf{232K nodes} & GAT & \emph{[Pending EMR]} & \emph{[Pending]} & \emph{[Pending EMR]} & \emph{[Pending]} & \emph{[Pending]} \\
-\textbf{Reddit (100M)} & \textbf{232K nodes} & GraphTransformer & \emph{[Pending EMR]} & \emph{[Pending]} & \emph{[Pending EMR]} & \emph{[Pending]} & \emph{[Pending]} \\
-\textbf{Reddit (100M)} & \textbf{232K nodes} & GraphSAGE-CAAN & \emph{[Pending EMR]} & \emph{[Pending]} & \emph{[Pending EMR]} & \emph{[Pending]} & \emph{[Pending]} \\
+\textbf{ogbn-products} & \textbf{2.45M nodes} & GraphSAGE (LPA) & 0.7298 & 455.2s & 0.6076 & 2196.5s & -16.74\% \\
+\textbf{ogbn-products} & \textbf{2.45M nodes} & GATv2 (LPA) & 0.7298 & 455.2s & 0.6074 & 2184.7s & -16.77\% \\
+\textbf{ogbn-products} & \textbf{2.45M nodes} & GraphSAGE (Louvain) & 0.7298 & 455.2s & 0.5311 & 549.1s & -27.23\% \\
+\textbf{ogbn-products} & \textbf{2.45M nodes} & GATv2 (Louvain) & 0.7298 & 455.2s & 0.5317 & 547.9s & -27.14\% \\
 \midrule
-\textbf{Papers100M (1B)} & \textbf{111M nodes} & GAT & \emph{[Pending EMR]} & \emph{[Pending]} & \emph{[Pending EMR]} & \emph{[Pending]} & \emph{[Pending]} \\
-\textbf{Papers100M (1B)} & \textbf{111M nodes} & GraphTransformer & \emph{[Pending EMR]} & \emph{[Pending]} & \emph{[Pending EMR]} & \emph{[Pending]} & \emph{[Pending]} \\
-\textbf{Papers100M (1B)} & \textbf{111M nodes} & GraphSAGE-CAAN & \emph{[Pending EMR]} & \emph{[Pending]} & \emph{[Pending EMR]} & \emph{[Pending]} & \emph{[Pending]} \\
+\textbf{reddit} & \textbf{233K nodes} & GraphSAGE (LPA) & 0.9455 & 315.8s & 0.7274 & 626.9s & -23.07\% \\
+\textbf{reddit} & \textbf{233K nodes} & GraphSAGE (Louvain) & 0.9455 & 315.8s & 0.5296 & 382.4s & -43.99\% \\
+\textbf{reddit} & \textbf{233K nodes} & \textbf{GraphSAGE (LPA-CAAN)} & 0.9455 & 315.8s & \textbf{0.8911} & 1148.4s & \textbf{-5.75\%} \\
+\textbf{reddit} & \textbf{233K nodes} & \textbf{GraphSAGE (Louvain-CAAN)} & 0.9455 & 315.8s & \textbf{0.9273} & \textbf{208.2s} & \textbf{-1.92\%} \\
 \bottomrule
 \end{tabular}
 \end{table*}
