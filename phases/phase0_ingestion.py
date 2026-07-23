@@ -257,25 +257,25 @@ def run_phase0(spark, sc, datasets, run_phase0_flag, use_ogb_splits,
             print(f"  Streaming original edges to S3 Delta Lake...")
             if edge_index_arr is not None:
                 src_r, dst_r = edge_index_arr[0], edge_index_arr[1]
-                ECHUNK = 10_000_000
+                ECHUNK = 2_500_000
                 for s in range(0, len(src_r), ECHUNK):
                     e = min(s + ECHUNK, len(src_r))
                     pdf_e = pd.DataFrame({'src': src_r[s:e].astype(np.int64), 'dst': dst_r[s:e].astype(np.int64)})
                     df_e = spark.createDataFrame(pdf_e, schema=es_orig)
-                    df_e.coalesce(1).write.format('delta').mode('overwrite' if s == 0 else 'append').save(p['original_edges'])
+                    df_e.write.format('delta').mode('overwrite' if s == 0 else 'append').save(p['original_edges'])
             elif os.path.exists(edge_npy):
                 ei = np.load(edge_npy, mmap_mode='r')
                 src_r, dst_r = ei[0], ei[1]
-                ECHUNK = 10_000_000
+                ECHUNK = 2_500_000
                 for s in range(0, len(src_r), ECHUNK):
                     e = min(s + ECHUNK, len(src_r))
                     pdf_e = pd.DataFrame({'src': src_r[s:e].astype(np.int64), 'dst': dst_r[s:e].astype(np.int64)})
                     df_e = spark.createDataFrame(pdf_e, schema=es_orig)
-                    df_e.coalesce(1).write.format('delta').mode('overwrite' if s == 0 else 'append').save(p['original_edges'])
+                    df_e.write.format('delta').mode('overwrite' if s == 0 else 'append').save(p['original_edges'])
             elif os.path.exists(edge_csv_gz):
-                for i, chunk_df in enumerate(pd.read_csv(edge_csv_gz, compression='gzip', header=None, names=['src', 'dst'], chunksize=10_000_000)):
+                for i, chunk_df in enumerate(pd.read_csv(edge_csv_gz, compression='gzip', header=None, names=['src', 'dst'], chunksize=2_500_000)):
                     df_e = spark.createDataFrame(chunk_df.astype(np.int64), schema=es_orig)
-                    df_e.coalesce(1).write.format('delta').mode('overwrite' if i == 0 else 'append').save(p['original_edges'])
+                    df_e.write.format('delta').mode('overwrite' if i == 0 else 'append').save(p['original_edges'])
             else:
                 raise FileNotFoundError(f"Could not find original edges file (edge_index array in data.npz, edge.csv.gz, or edge_index.npy) under {raw_dir}")
             print(f"  ✓ Original edges written to Delta Lake.")

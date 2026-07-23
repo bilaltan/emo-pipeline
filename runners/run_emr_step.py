@@ -66,6 +66,7 @@ spark = SparkSession.builder \
     .config("spark.driver.maxResultSize", "24g") \
     .config("spark.driver.cores", "4") \
     .config("spark.driver.memoryOverhead", "8g") \
+    .config("spark.rpc.message.maxSize", "512") \
     .config("spark.dynamicAllocation.enabled", "false") \
     .config("spark.executor.instances", "4") \
     .config("spark.executor.memory", "28g") \
