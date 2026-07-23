@@ -217,7 +217,7 @@ def run_phase0(spark, sc, datasets, run_phase0_flag, use_ogb_splits,
             ns = StructType([StructField('id', LongType(), False),
                              StructField('label', IntegerType(), True),
                              StructField('features', ArrayType(FloatType()), True)])
-            CHUNK = 10000
+            CHUNK = 200000
             print(f"  Streaming nodes to S3 Delta Lake in chunks of {CHUNK:,} nodes...")
             for s in range(0, n_nodes, CHUNK):
                 e = min(s + CHUNK, n_nodes)
@@ -228,9 +228,12 @@ def run_phase0(spark, sc, datasets, run_phase0_flag, use_ogb_splits,
                     'features': node_feat[s:e].tolist()
                 })
                 df_node = spark.createDataFrame(pdf_nodes, schema=ns)
-                df_node.coalesce(1).write.format('delta').mode('overwrite' if s == 0 else 'append').save(p['original_nodes'])
-                df_node.coalesce(1).write.format('delta').mode('overwrite' if s == 0 else 'append').save(p['nodes'])
-            print(f"  ✓ Nodes written to Delta Lake.")
+                df_node.write.format('delta').mode('overwrite' if s == 0 else 'append').save(p['original_nodes'])
+            print(f"  ✓ Original nodes written to Delta Lake.")
+
+            print(f"  Writing processed nodes Delta table via Spark distributed copy...")
+            spark.read.format('delta').load(p['original_nodes']).write.format('delta').mode('overwrite').save(p['nodes'])
+            print(f"  ✓ Processed nodes written to Delta Lake.")
             
             # 2. Stream Original Edges
             es_orig = StructType([StructField('src', LongType(), False),
