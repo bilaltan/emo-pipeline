@@ -86,16 +86,26 @@ def run_phase0(spark, sc, datasets, run_phase0_flag, use_ogb_splits,
                         continue
                     for root_path, dirs, files in os.walk(search_base):
                         for f in files:
-                            if f in ['node-feat.npy', 'node_feat.npy', 'node-feat.bin', 'node_feat.bin']:
+                            if f in ['data.npz', 'node-feat.npy', 'node_feat.npy', 'node-feat.bin', 'node_feat.bin']:
                                 f_file = os.path.join(root_path, f)
                                 r_dir = root_path
-                            elif f in ['node-label.npy', 'node_label.npy', 'node-label.bin', 'node_label.bin']:
+                            elif f in ['node-label.npz', 'node_label.npz', 'node-label.npy', 'node_label.npy', 'node-label.bin', 'node_label.bin']:
                                 l_file = os.path.join(root_path, f)
                         if f_file is not None:
                             break
                     if f_file is not None:
                         break
                 return f_file, l_file, r_dir
+
+            def locate_zip_archive(paths):
+                for search_base in paths:
+                    if not os.path.exists(search_base):
+                        continue
+                    for root_path, dirs, files in os.walk(search_base):
+                        for f in files:
+                            if f in ['papers100M-bin.zip', 'ogbn_papers100M.zip', 'papers100M.zip']:
+                                return os.path.join(root_path, f)
+                return None
 
             def purge_zip_archives(bases):
                 freed_b = 0
@@ -112,14 +122,16 @@ def run_phase0(spark, sc, datasets, run_phase0_flag, use_ogb_splits,
                                     os.remove(zf)
                                     freed_b += sz
                                     print(f"  ✓ Purged redundant zip archive: {zf} (freed {sz / (1024**3):.2f} GB)")
-                                except Exception as ex:
+                                except Exception:
                                     pass
                 return freed_b
 
             feat_file, label_file, raw_dir = locate_raw_files(search_paths)
 
             if feat_file is None:
-                # Find candidate base with maximum free disk space for download
+                zip_path = locate_zip_archive(search_paths)
+                
+                # Pick volume with maximum free disk space
                 best_base = candidate_bases[0]
                 best_free = 0
                 for b in candidate_bases:
@@ -133,47 +145,66 @@ def run_phase0(spark, sc, datasets, run_phase0_flag, use_ogb_splits,
                 
                 ogb_root = os.path.join(best_base, 'ogb_data')
                 os.makedirs(ogb_root, exist_ok=True)
-                print(f"  ► Raw dataset files not found. Initiating download to highest capacity volume: {ogb_root} ({best_free / (1024**3):.2f} GB free)...")
 
-                try:
-                    from ogb.nodeproppred import NodePropPredDataset
-                    with patch.object(builtins, 'input', lambda _: 'y'):
-                        try:
-                            # Patch dataset internal load methods so OGB downloads/extracts raw files without RAM OOM
-                            with patch.object(NodePropPredDataset, '_NodePropPredDataset__load', lambda self: None), \
-                                 patch.object(NodePropPredDataset, '__load_type_0', lambda self: None, create=True), \
-                                 patch.object(NodePropPredDataset, '__load_type_1', lambda self: None, create=True):
-                                NodePropPredDataset(name='ogbn-papers100M', root=ogb_root)
-                        except Exception as patch_ex:
-                            print(f"  [Notice] Standard OGB init patch fallback: {patch_ex}")
-                            from ogb.utils.url import download_url, extract_zip
-                            url = "http://snap.stanford.edu/ogb/data/nodeproppred/papers100M-bin.zip"
-                            zip_path = os.path.join(ogb_root, "papers100M-bin.zip")
-                            if not os.path.exists(zip_path):
-                                print(f"  Downloading ogbn-papers100M from {url} to {zip_path}...")
-                                download_url(url, ogb_root)
-                            extract_dir = os.path.join(ogb_root, "ogbn_papers100M")
-                            extract_zip(zip_path, extract_dir)
-                except Exception as dl_err:
-                    print(f"  ⚠ Automatic download attempt encounter: {dl_err}")
+                if zip_path is None or not os.path.exists(zip_path):
+                    url = "http://snap.stanford.edu/ogb/data/nodeproppred/papers100M-bin.zip"
+                    zip_path = os.path.join(ogb_root, "papers100M-bin.zip")
+                    print(f"  ► Downloading ogbn-papers100M from {url} to {zip_path} ({best_free / (1024**3):.2f} GB free)...")
+                    from ogb.utils.url import download_url
+                    download_url(url, ogb_root)
+
+                print(f"  ► Extracting raw binary archive {zip_path} into {ogb_root} ...")
+                with zipfile.ZipFile(zip_path, 'r') as zf:
+                    zf.extractall(ogb_root)
+                
+                # Immediately purge compressed zip to free ~56.2 GB disk space
+                purge_zip_archives(candidate_bases)
 
                 feat_file, label_file, raw_dir = locate_raw_files(search_paths)
 
             if feat_file is None:
                 raise FileNotFoundError(
-                    f"Could not find node-feat.npy in any scanned candidate directories: {candidate_bases}. "
-                    f"Please verify that 'ogbn-papers100M' raw files are downloaded and extracted into one of these candidate volumes."
+                    f"Could not find data.npz or node-feat.npy in any scanned candidate directories: {candidate_bases}. "
+                    f"Please verify that 'ogbn-papers100M' raw files are extracted into one of these candidate volumes."
                 )
 
             print(f"  ✓ Located node features file at: {feat_file}")
             
-            # Clean up extracted zip archives immediately to free ~57 GB of disk space
+            # Clean up extracted zip archives immediately to ensure maximum free disk space
             purge_zip_archives(candidate_bases)
             
-            # Memory-mapped array loading (0 MB driver RAM)
-            node_feat = np.load(feat_file, mmap_mode='r')
+            # Memory-mapped data loading (0 MB driver RAM)
+            edge_index_arr = None
+            if feat_file.endswith('.npz'):
+                print(f"  ► Loading memory-mapped numpy data archive: {feat_file}")
+                data_archive = np.load(feat_file, mmap_mode='r')
+                if 'node_feat' in data_archive:
+                    node_feat = data_archive['node_feat']
+                elif 'node-feat' in data_archive:
+                    node_feat = data_archive['node-feat']
+                else:
+                    node_feat = data_archive[data_archive.files[0]]
+
+                if 'edge_index' in data_archive:
+                    edge_index_arr = data_archive['edge_index']
+                elif 'edge-index' in data_archive:
+                    edge_index_arr = data_archive['edge-index']
+            else:
+                node_feat = np.load(feat_file, mmap_mode='r')
+
             if label_file and os.path.exists(label_file):
-                lbl = np.load(label_file, mmap_mode='r').flatten()
+                print(f"  ► Loading memory-mapped labels from: {label_file}")
+                if label_file.endswith('.npz'):
+                    lbl_archive = np.load(label_file, mmap_mode='r')
+                    if 'node_label' in lbl_archive:
+                        lbl = lbl_archive['node_label']
+                    elif 'node-label' in lbl_archive:
+                        lbl = lbl_archive['node-label']
+                    else:
+                        lbl = lbl_archive[lbl_archive.files[0]]
+                else:
+                    lbl = np.load(label_file, mmap_mode='r')
+                lbl = np.asarray(lbl).flatten()
             else:
                 lbl = np.zeros(node_feat.shape[0], dtype=np.int32)
 
@@ -208,7 +239,7 @@ def run_phase0(spark, sc, datasets, run_phase0_flag, use_ogb_splits,
             # Resilient edge file search
             edge_csv_gz = os.path.join(raw_dir, 'edge.csv.gz')
             edge_npy = os.path.join(raw_dir, 'edge_index.npy')
-            if not os.path.exists(edge_csv_gz) and not os.path.exists(edge_npy):
+            if edge_index_arr is None and not os.path.exists(edge_csv_gz) and not os.path.exists(edge_npy):
                 for r_path, _, files in os.walk(raw_dir):
                     for f in files:
                         if f in ['edge_index.npy', 'edge_idx.npy', 'edge-index.npy', 'edge-idx.npy']:
@@ -221,7 +252,15 @@ def run_phase0(spark, sc, datasets, run_phase0_flag, use_ogb_splits,
                         break
             
             print(f"  Streaming original edges to S3 Delta Lake...")
-            if os.path.exists(edge_npy):
+            if edge_index_arr is not None:
+                src_r, dst_r = edge_index_arr[0], edge_index_arr[1]
+                ECHUNK = 10_000_000
+                for s in range(0, len(src_r), ECHUNK):
+                    e = min(s + ECHUNK, len(src_r))
+                    pdf_e = pd.DataFrame({'src': src_r[s:e].astype(np.int64), 'dst': dst_r[s:e].astype(np.int64)})
+                    df_e = spark.createDataFrame(pdf_e, schema=es_orig)
+                    df_e.coalesce(1).write.format('delta').mode('overwrite' if s == 0 else 'append').save(p['original_edges'])
+            elif os.path.exists(edge_npy):
                 ei = np.load(edge_npy, mmap_mode='r')
                 src_r, dst_r = ei[0], ei[1]
                 ECHUNK = 10_000_000
@@ -235,7 +274,7 @@ def run_phase0(spark, sc, datasets, run_phase0_flag, use_ogb_splits,
                     df_e = spark.createDataFrame(chunk_df.astype(np.int64), schema=es_orig)
                     df_e.coalesce(1).write.format('delta').mode('overwrite' if i == 0 else 'append').save(p['original_edges'])
             else:
-                raise FileNotFoundError(f"Could not find original edges file (edge.csv.gz or edge_index.npy) under {raw_dir}")
+                raise FileNotFoundError(f"Could not find original edges file (edge_index array in data.npz, edge.csv.gz, or edge_index.npy) under {raw_dir}")
             print(f"  ✓ Original edges written to Delta Lake.")
 
             # 3. Distributed Deduplicating & Symmetrizing Edges in PySpark (Zero Driver RAM)
