@@ -45,41 +45,130 @@ def run_phase0(spark, sc, datasets, run_phase0_flag, use_ogb_splits,
             continue
 
         if dataset == 'ogbn-papers100M':
-            import zipfile, glob, urllib.request
+            import zipfile, glob, urllib.request, shutil
             import pandas as pd
             import builtins
             from unittest.mock import patch
             from pyspark.sql.types import (StructType, StructField, LongType, IntegerType, ArrayType, FloatType, StringType)
             
             print(f"\n{'='*60}\n  PHASE 0 — Zero-RAM Direct Ingestion: {dataset}\n{'='*60}")
-            ogb_root = os.path.join(os.environ.get('TMPDIR', '/tmp'), 'ogb_data')
-            os.makedirs(ogb_root, exist_ok=True)
             
-            print(f"  ► Locating extracted raw files in {ogb_root} ...")
-            feat_file = None
-            label_file = None
-            raw_dir = None
+            # Discover all candidate writable mounts and search paths
+            candidate_bases = [
+                '/mnt/tmp', '/mnt/spark', '/mnt/var/tmp',
+                '/tmp', '/var/tmp',
+                '/mnt1/tmp', '/mnt1/spark', '/mnt1/var/tmp',
+                '/mnt2/tmp', '/mnt2/spark', '/mnt2/var/tmp',
+                os.environ.get('TMPDIR', '/tmp'),
+                os.environ.get('TEMP', '/tmp'),
+                os.environ.get('TMP', '/tmp'),
+                os.path.expanduser('~')
+            ]
+            candidate_bases = list(dict.fromkeys([b for b in candidate_bases if b and os.path.exists(b)]))
+            
+            search_paths = []
+            for b in candidate_bases:
+                search_paths.extend([
+                    b,
+                    os.path.join(b, 'ogb_data'),
+                    os.path.join(b, 'ogbn_papers100M'),
+                    os.path.join(b, 'papers100M'),
+                    os.path.join(b, 'papers100M-bin'),
+                    os.path.join(b, '.dgl')
+                ])
+            search_paths = list(dict.fromkeys(search_paths))
+            print(f"  ► Scanning candidate storage volumes across {len(candidate_bases)} mounts for existing raw dataset files...")
 
-            search_paths = [ogb_root, '/mnt/tmp/ogb_data', '/tmp/ogb_data']
-            for search_base in search_paths:
-                if not os.path.exists(search_base):
-                    continue
-                for root_path, dirs, files in os.walk(search_base):
-                    for f in files:
-                        if f in ['node-feat.npy', 'node_feat.npy', 'node-feat.bin', 'node_feat.bin']:
-                            feat_file = os.path.join(root_path, f)
-                            raw_dir = root_path
-                        elif f in ['node-label.npy', 'node_label.npy', 'node-label.bin', 'node_label.bin']:
-                            label_file = os.path.join(root_path, f)
-                    if feat_file is not None:
+            def locate_raw_files(paths):
+                f_file, l_file, r_dir = None, None, None
+                for search_base in paths:
+                    if not os.path.exists(search_base):
+                        continue
+                    for root_path, dirs, files in os.walk(search_base):
+                        for f in files:
+                            if f in ['node-feat.npy', 'node_feat.npy', 'node-feat.bin', 'node_feat.bin']:
+                                f_file = os.path.join(root_path, f)
+                                r_dir = root_path
+                            elif f in ['node-label.npy', 'node_label.npy', 'node-label.bin', 'node_label.bin']:
+                                l_file = os.path.join(root_path, f)
+                        if f_file is not None:
+                            break
+                    if f_file is not None:
                         break
-                if feat_file is not None:
-                    break
+                return f_file, l_file, r_dir
+
+            def purge_zip_archives(bases):
+                freed_b = 0
+                zip_names = ['papers100M-bin.zip', 'ogbn_papers100M.zip', 'papers100M.zip', 'raw.zip', 'deezer_europe.zip', 'reddit.zip']
+                for b in bases:
+                    if not os.path.exists(b):
+                        continue
+                    for root_path, dirs, files in os.walk(b):
+                        for f in files:
+                            if f in zip_names or (f.endswith('.zip') and ('papers' in f.lower() or 'ogb' in f.lower())):
+                                zf = os.path.join(root_path, f)
+                                try:
+                                    sz = os.path.getsize(zf)
+                                    os.remove(zf)
+                                    freed_b += sz
+                                    print(f"  ✓ Purged redundant zip archive: {zf} (freed {sz / (1024**3):.2f} GB)")
+                                except Exception as ex:
+                                    pass
+                return freed_b
+
+            feat_file, label_file, raw_dir = locate_raw_files(search_paths)
 
             if feat_file is None:
-                raise FileNotFoundError(f"Could not find node-feat.npy in {search_paths}. Please check extracted directory.")
+                # Find candidate base with maximum free disk space for download
+                best_base = candidate_bases[0]
+                best_free = 0
+                for b in candidate_bases:
+                    try:
+                        free_b = shutil.disk_usage(b).free
+                        if free_b > best_free:
+                            best_free = free_b
+                            best_base = b
+                    except Exception:
+                        pass
+                
+                ogb_root = os.path.join(best_base, 'ogb_data')
+                os.makedirs(ogb_root, exist_ok=True)
+                print(f"  ► Raw dataset files not found. Initiating download to highest capacity volume: {ogb_root} ({best_free / (1024**3):.2f} GB free)...")
+
+                try:
+                    from ogb.nodeproppred import NodePropPredDataset
+                    with patch.object(builtins, 'input', lambda _: 'y'):
+                        try:
+                            # Patch dataset internal load methods so OGB downloads/extracts raw files without RAM OOM
+                            with patch.object(NodePropPredDataset, '_NodePropPredDataset__load', lambda self: None), \
+                                 patch.object(NodePropPredDataset, '__load_type_0', lambda self: None, create=True), \
+                                 patch.object(NodePropPredDataset, '__load_type_1', lambda self: None, create=True):
+                                NodePropPredDataset(name='ogbn-papers100M', root=ogb_root)
+                        except Exception as patch_ex:
+                            print(f"  [Notice] Standard OGB init patch fallback: {patch_ex}")
+                            from ogb.utils.url import download_url, extract_zip
+                            url = "http://snap.stanford.edu/ogb/data/nodeproppred/papers100M-bin.zip"
+                            zip_path = os.path.join(ogb_root, "papers100M-bin.zip")
+                            if not os.path.exists(zip_path):
+                                print(f"  Downloading ogbn-papers100M from {url} to {zip_path}...")
+                                download_url(url, ogb_root)
+                            extract_dir = os.path.join(ogb_root, "ogbn_papers100M")
+                            extract_zip(zip_path, extract_dir)
+                except Exception as dl_err:
+                    print(f"  ⚠ Automatic download attempt encounter: {dl_err}")
+
+                feat_file, label_file, raw_dir = locate_raw_files(search_paths)
+
+            if feat_file is None:
+                raise FileNotFoundError(
+                    f"Could not find node-feat.npy in any scanned candidate directories: {candidate_bases}. "
+                    f"Please verify that 'ogbn-papers100M' raw files are downloaded and extracted into one of these candidate volumes."
+                )
 
             print(f"  ✓ Located node features file at: {feat_file}")
+            
+            # Clean up extracted zip archives immediately to free ~57 GB of disk space
+            purge_zip_archives(candidate_bases)
             
             # Memory-mapped array loading (0 MB driver RAM)
             node_feat = np.load(feat_file, mmap_mode='r')
@@ -115,8 +204,21 @@ def run_phase0(spark, sc, datasets, run_phase0_flag, use_ogb_splits,
             # 2. Stream Original Edges
             es_orig = StructType([StructField('src', LongType(), False),
                                   StructField('dst', LongType(), False)])
+            
+            # Resilient edge file search
             edge_csv_gz = os.path.join(raw_dir, 'edge.csv.gz')
             edge_npy = os.path.join(raw_dir, 'edge_index.npy')
+            if not os.path.exists(edge_csv_gz) and not os.path.exists(edge_npy):
+                for r_path, _, files in os.walk(raw_dir):
+                    for f in files:
+                        if f in ['edge_index.npy', 'edge_idx.npy', 'edge-index.npy', 'edge-idx.npy']:
+                            edge_npy = os.path.join(r_path, f)
+                            break
+                        elif f in ['edge.csv.gz', 'edges.csv.gz']:
+                            edge_csv_gz = os.path.join(r_path, f)
+                            break
+                    if os.path.exists(edge_npy) or os.path.exists(edge_csv_gz):
+                        break
             
             print(f"  Streaming original edges to S3 Delta Lake...")
             if os.path.exists(edge_npy):
@@ -132,6 +234,8 @@ def run_phase0(spark, sc, datasets, run_phase0_flag, use_ogb_splits,
                 for i, chunk_df in enumerate(pd.read_csv(edge_csv_gz, compression='gzip', header=None, names=['src', 'dst'], chunksize=10_000_000)):
                     df_e = spark.createDataFrame(chunk_df.astype(np.int64), schema=es_orig)
                     df_e.coalesce(1).write.format('delta').mode('overwrite' if i == 0 else 'append').save(p['original_edges'])
+            else:
+                raise FileNotFoundError(f"Could not find original edges file (edge.csv.gz or edge_index.npy) under {raw_dir}")
             print(f"  ✓ Original edges written to Delta Lake.")
 
             # 3. Distributed Deduplicating & Symmetrizing Edges in PySpark (Zero Driver RAM)
@@ -145,11 +249,24 @@ def run_phase0(spark, sc, datasets, run_phase0_flag, use_ogb_splits,
             # 4. Stream Masks
             ms = StructType([StructField('id', LongType(), False),
                              StructField('split', StringType(), True)])
-            split_dir = os.path.join(raw_dir, 'split', 'paper-split-structure', 'time')
-            if use_ogb_splits and os.path.exists(os.path.join(split_dir, 'train.csv.gz')):
-                train_df = pd.read_csv(os.path.join(split_dir, 'train.csv.gz'), header=None, names=['id'])
-                valid_df = pd.read_csv(os.path.join(split_dir, 'valid.csv.gz'), header=None, names=['id'])
-                test_df  = pd.read_csv(os.path.join(split_dir, 'test.csv.gz'), header=None, names=['id'])
+            
+            # Resilient split discovery
+            train_path = os.path.join(raw_dir, 'split', 'paper-split-structure', 'time', 'train.csv.gz')
+            valid_path = os.path.join(raw_dir, 'split', 'paper-split-structure', 'time', 'valid.csv.gz')
+            test_path  = os.path.join(raw_dir, 'split', 'paper-split-structure', 'time', 'test.csv.gz')
+            
+            if not os.path.exists(train_path):
+                for r_path, _, files in os.walk(raw_dir):
+                    if 'train.csv.gz' in files:
+                        train_path = os.path.join(r_path, 'train.csv.gz')
+                        valid_path = os.path.join(r_path, 'valid.csv.gz')
+                        test_path  = os.path.join(r_path, 'test.csv.gz')
+                        break
+
+            if use_ogb_splits and os.path.exists(train_path):
+                train_df = pd.read_csv(train_path, header=None, names=['id'])
+                valid_df = pd.read_csv(valid_path, header=None, names=['id'])
+                test_df  = pd.read_csv(test_path, header=None, names=['id'])
                 train_df['split'] = 'train'
                 valid_df['split'] = 'valid'
                 test_df['split']  = 'test'
@@ -451,35 +568,58 @@ def run_phase0(spark, sc, datasets, run_phase0_flag, use_ogb_splits,
             except Exception as e:
                 print(f"    ⚠ Warning: Could not optimize/vacuum {table_path}: {e}")
 
-        # Clean up local raw downloaded files
+        # Clean up local raw downloaded files across ALL candidate storage volumes
         import shutil
-        if dataset in ('reddit', 'flickr', 'wikics', 'coauthor-cs', 'coauthor-physics', 'deezereurope'):
-            dgl_dir = os.environ.get('DGL_DOWNLOAD_DIR', '/tmp/.dgl')
-            ds_dir = os.path.join(dgl_dir, dataset)
-            if os.path.exists(ds_dir):
-                print(f"  Cleaning up local DGL cache for {dataset} at {ds_dir}...")
-                shutil.rmtree(ds_dir, ignore_errors=True)
-            if dataset == 'deezereurope' and os.path.exists('deezer_europe_extracted'):
-                print("  Cleaning up extracted DeezerEurope folder...")
-                shutil.rmtree('deezer_europe_extracted', ignore_errors=True)
-        else:
-            normalized = dataset.replace('-', '_')
-            if dataset.startswith('ogbn-'):
-                normalized = dataset[5:].replace('-', '_')
+        print(f"  Sweeping and purging raw dataset caches for '{dataset}' across all candidate volumes...")
+        clean_candidates = [
+            '/mnt/tmp', '/mnt/spark', '/mnt/var/tmp',
+            '/tmp', '/var/tmp',
+            '/mnt1/tmp', '/mnt1/spark', '/mnt1/var/tmp',
+            '/mnt2/tmp', '/mnt2/spark', '/mnt2/var/tmp',
+            os.environ.get('TMPDIR', '/tmp'),
+            os.environ.get('DGL_DOWNLOAD_DIR', '/tmp/.dgl'),
+            os.path.expanduser('~')
+        ]
+        clean_candidates = list(dict.fromkeys([c for c in clean_candidates if c and os.path.exists(c)]))
+        
+        normalized = dataset.replace('-', '_')
+        folder_names = [dataset, normalized]
+        if dataset.startswith('ogbn-'):
+            folder_names.append(dataset[5:].replace('-', '_'))
+
+        for base_c in clean_candidates:
+            # Purge DGL caches
+            dgl_ds = os.path.join(base_c, '.dgl', dataset)
+            if os.path.exists(dgl_ds):
+                shutil.rmtree(dgl_ds, ignore_errors=True)
+                print(f"    ✓ Purged DGL cache at: {dgl_ds}")
             
-            ogb_dir = os.path.join(os.environ.get('TMPDIR', '/tmp'), 'ogb_data')
-            for folder in [normalized, dataset]:
-                ds_dir = os.path.join(ogb_dir, folder)
-                if os.path.exists(ds_dir):
-                    print(f"  Cleaning up local OGB cache for {dataset} at {ds_dir}...")
-                    shutil.rmtree(ds_dir, ignore_errors=True)
-            
-            if os.path.exists('/tmp/ogb_data'):
-                for folder in [normalized, dataset]:
-                    ds_dir = os.path.join('/tmp/ogb_data', folder)
-                    if os.path.exists(ds_dir):
-                        print(f"  Cleaning up local fallback OGB cache for {dataset} at {ds_dir}...")
-                        shutil.rmtree(ds_dir, ignore_errors=True)
+            # Purge OGB caches & raw subfolders
+            for folder in folder_names:
+                for sub in ['', 'ogb_data', 'raw']:
+                    target_dir = os.path.join(base_c, sub, folder) if sub else os.path.join(base_c, folder)
+                    if os.path.exists(target_dir):
+                        shutil.rmtree(target_dir, ignore_errors=True)
+                        print(f"    ✓ Purged raw cache at: {target_dir}")
+
+            # Purge extracted Deezer Europe directory if present
+            de_dir = os.path.join(base_c, 'deezer_europe_extracted')
+            if os.path.exists(de_dir):
+                shutil.rmtree(de_dir, ignore_errors=True)
+                print(f"    ✓ Purged Deezer Europe cache at: {de_dir}")
+
+        # Purge remaining dataset zip files in candidate volumes
+        zip_names = ['papers100M-bin.zip', 'ogbn_papers100M.zip', 'papers100M.zip', 'raw.zip', 'deezer_europe.zip', 'reddit.zip']
+        for base_c in clean_candidates:
+            for root_path, dirs, files in os.walk(base_c):
+                for f in files:
+                    if f in zip_names or (f.endswith('.zip') and ('papers' in f.lower() or 'ogb' in f.lower())):
+                        zf = os.path.join(root_path, f)
+                        try:
+                            os.remove(zf)
+                            print(f"    ✓ Purged leftover zip archive: {zf}")
+                        except Exception:
+                            pass
 
         elapsed = time.time() - t_total
         timing[('phase0', dataset)] = elapsed

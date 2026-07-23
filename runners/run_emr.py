@@ -29,7 +29,7 @@ class TeeStream(object):
 candidates = [
     '/mnt/tmp', '/mnt1/tmp', '/mnt2/tmp',
     '/mnt/spark', '/mnt1/spark', '/mnt2/spark',
-    '/mnt/var/tmp', '/mnt1/var/tmp',
+    '/mnt/var/tmp', '/mnt1/var/tmp', '/mnt2/var/tmp',
     '/tmp', '/var/tmp'
 ]
 
