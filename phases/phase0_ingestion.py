@@ -55,54 +55,43 @@ def run_phase0(spark, sc, datasets, run_phase0_flag, use_ogb_splits,
             ogb_root = os.path.join(os.environ.get('TMPDIR', '/tmp'), 'ogb_data')
             os.makedirs(ogb_root, exist_ok=True)
             
-            # Find raw directory
+            print(f"  ► Locating extracted raw files in {ogb_root} ...")
+            feat_file = None
+            label_file = None
             raw_dir = None
-            for candidate in [
-                os.path.join(ogb_root, 'papers100M-bin', 'raw'),
-                os.path.join(ogb_root, 'ogbn_papers100M', 'raw'),
-                '/mnt/tmp/ogb_data/papers100M-bin/raw',
-                '/mnt/tmp/ogb_data/ogbn_papers100M/raw',
-                '/tmp/ogb_data/papers100M-bin/raw'
-            ]:
-                if os.path.exists(candidate) and os.path.exists(os.path.join(candidate, 'node-feat.npy')):
-                    raw_dir = candidate
-                    break
-            
-            if raw_dir is None:
-                zip_path = None
-                for cand_zip in [
-                    os.path.join(ogb_root, 'papers100M-bin.zip'),
-                    '/mnt/tmp/ogb_data/papers100M-bin.zip',
-                    '/tmp/ogb_data/papers100M-bin.zip'
-                ]:
-                    if os.path.exists(cand_zip) and os.path.getsize(cand_zip) > 10_000_000_000:
-                        zip_path = cand_zip
-                        break
-                
-                if zip_path is None:
-                    url = 'http://snap.stanford.edu/ogb/data/nodeproppred/papers100M-bin.zip'
-                    zip_path = os.path.join(ogb_root, 'papers100M-bin.zip')
-                    print(f"  Downloading ogbn-papers100M archive from {url}...")
-                    urllib.request.urlretrieve(url, zip_path)
-                
-                print(f"  Extracting raw files from {zip_path}...")
-                extract_target = os.path.join(ogb_root, 'papers100M-bin')
-                with zipfile.ZipFile(zip_path, 'r') as zf:
-                    zf.extractall(extract_target)
-                raw_dir = os.path.join(extract_target, 'raw')
-                if not os.path.exists(raw_dir):
-                    raw_dir = os.path.join(extract_target, 'papers100M-bin', 'raw')
 
-            print(f"  ✓ Raw data directory located at: {raw_dir}")
-            feat_file = os.path.join(raw_dir, 'node-feat.npy')
-            label_file = os.path.join(raw_dir, 'node-label.npy')
+            search_paths = [ogb_root, '/mnt/tmp/ogb_data', '/tmp/ogb_data']
+            for search_base in search_paths:
+                if not os.path.exists(search_base):
+                    continue
+                for root_path, dirs, files in os.walk(search_base):
+                    for f in files:
+                        if f in ['node-feat.npy', 'node_feat.npy', 'node-feat.bin', 'node_feat.bin']:
+                            feat_file = os.path.join(root_path, f)
+                            raw_dir = root_path
+                        elif f in ['node-label.npy', 'node_label.npy', 'node-label.bin', 'node_label.bin']:
+                            label_file = os.path.join(root_path, f)
+                    if feat_file is not None:
+                        break
+                if feat_file is not None:
+                    break
+
+            if feat_file is None:
+                raise FileNotFoundError(f"Could not find node-feat.npy in {search_paths}. Please check extracted directory.")
+
+            print(f"  ✓ Located node features file at: {feat_file}")
             
             # Memory-mapped array loading (0 MB driver RAM)
             node_feat = np.load(feat_file, mmap_mode='r')
-            lbl = np.load(label_file, mmap_mode='r').flatten()
+            if label_file and os.path.exists(label_file):
+                lbl = np.load(label_file, mmap_mode='r').flatten()
+            else:
+                lbl = np.zeros(node_feat.shape[0], dtype=np.int32)
+
             n_nodes = node_feat.shape[0]
             feat_dim = node_feat.shape[1] if len(node_feat.shape) > 1 else 1
             print(f"  Nodes: {n_nodes:,} | Feature dimension: {feat_dim}")
+
             
             # 1. Stream Nodes to Delta Lake
             ns = StructType([StructField('id', LongType(), False),
