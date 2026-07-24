@@ -1,0 +1,1893 @@
+	at java.base/jdk.internal.reflect.DelegatingMethodAccessorImpl.invoke(DelegatingMethodAccessorImpl.java:43)
+	at java.base/java.lang.reflect.Method.invoke(Method.java:569)
+	at py4j.reflection.MethodInvoker.invoke(MethodInvoker.java:244)
+	at py4j.reflection.ReflectionEngine.invoke(ReflectionEngine.java:374)
+	at py4j.Gateway.invoke(Gateway.java:282)
+	at py4j.commands.AbstractCommand.invokeMethod(AbstractCommand.java:132)
+	at py4j.commands.CallCommand.execute(CallCommand.java:79)
+	at py4j.ClientServerConnection.waitForCommands(ClientServerConnection.java:182)
+	at py4j.ClientServerConnection.run(ClientServerConnection.java:106)
+	at java.base/java.lang.Thread.run(Thread.java:840)
+Caused by: org.apache.spark.SparkException: Job 413 cancelled because SparkContext was shut down
+	at org.apache.spark.scheduler.DAGScheduler.$anonfun$cleanUpAfterSchedulerStop$1(DAGScheduler.scala:1349)
+	at org.apache.spark.scheduler.DAGScheduler.$anonfun$cleanUpAfterSchedulerStop$1$adapted(DAGScheduler.scala:1347)
+	at scala.collection.mutable.HashSet.foreach(HashSet.scala:79)
+	at org.apache.spark.scheduler.DAGScheduler.cleanUpAfterSchedulerStop(DAGScheduler.scala:1347)
+	at org.apache.spark.scheduler.DAGSchedulerEventProcessLoop.onStop(DAGScheduler.scala:3608)
+	at org.apache.spark.util.EventLoop.stop(EventLoop.scala:84)
+	at org.apache.spark.scheduler.DAGScheduler.$anonfun$stop$3(DAGScheduler.scala:3485)
+	at org.apache.spark.util.Utils$.tryLogNonFatalError(Utils.scala:1377)
+	at org.apache.spark.scheduler.DAGScheduler.stop(DAGScheduler.scala:3485)
+	at org.apache.spark.SparkContext.$anonfun$stop$12(SparkContext.scala:2370)
+	at org.apache.spark.util.Utils$.tryLogNonFatalError(Utils.scala:1377)
+	at org.apache.spark.SparkContext.stop(SparkContext.scala:2370)
+	at org.apache.spark.SparkContext.stop(SparkContext.scala:2323)
+	at org.apache.spark.scheduler.cluster.YarnClientSchedulerBackend$MonitorThread.run(YarnClientSchedulerBackend.scala:136)
+	at org.apache.spark.sql.execution.adaptive.AdaptiveExecutor.checkNoFailures(AdaptiveExecutor.scala:175)
+	at org.apache.spark.sql.execution.adaptive.AdaptiveExecutor.doRun(AdaptiveExecutor.scala:97)
+	at org.apache.spark.sql.execution.adaptive.AdaptiveExecutor.tryRunningAndGetFuture(AdaptiveExecutor.scala:75)
+	at org.apache.spark.sql.execution.adaptive.AdaptiveExecutor.execute(AdaptiveExecutor.scala:59)
+	at org.apache.spark.sql.execution.adaptive.AdaptiveSparkPlanExec.$anonfun$getFinalPhysicalPlan$1(AdaptiveSparkPlanExec.scala:304)
+	at org.apache.spark.sql.SparkSession.withActive(SparkSession.scala:996)
+	at org.apache.spark.sql.execution.adaptive.AdaptiveSparkPlanExec.getFinalPhysicalPlan(AdaptiveSparkPlanExec.scala:303)
+	at org.apache.spark.sql.execution.adaptive.AdaptiveSparkPlanExec.withFinalPlanUpdate(AdaptiveSparkPlanExec.scala:610)
+	at org.apache.spark.sql.execution.adaptive.AdaptiveSparkPlanExec.doExecute(AdaptiveSparkPlanExec.scala:596)
+	at org.apache.spark.sql.execution.SparkPlan.$anonfun$execute$1(SparkPlan.scala:228)
+	at org.apache.spark.sql.execution.SparkPlan.$anonfun$executeQuery$1(SparkPlan.scala:305)
+	at org.apache.spark.rdd.RDDOperationScope$.withScope(RDDOperationScope.scala:152)
+	at org.apache.spark.sql.execution.SparkPlan.executeQuery(SparkPlan.scala:280)
+	at org.apache.spark.sql.execution.SparkPlan.execute(SparkPlan.scala:224)
+	at org.apache.spark.sql.Dataset.toArrowBatchRdd(Dataset.scala:4456)
+	at org.apache.spark.sql.Dataset.$anonfun$collectAsArrowToPython$5(Dataset.scala:4335)
+	at scala.runtime.java8.JFunction0$mcV$sp.apply(JFunction0$mcV$sp.java:23)
+	at org.apache.spark.util.SparkErrorUtils.tryWithSafeFinally(SparkErrorUtils.scala:64)
+	at org.apache.spark.util.SparkErrorUtils.tryWithSafeFinally$(SparkErrorUtils.scala:61)
+	at org.apache.spark.util.Utils$.tryWithSafeFinally(Utils.scala:96)
+	at org.apache.spark.sql.Dataset.$anonfun$collectAsArrowToPython$2(Dataset.scala:4340)
+	at org.apache.spark.sql.Dataset.$anonfun$collectAsArrowToPython$2$adapted(Dataset.scala:4316)
+	at org.apache.spark.sql.Dataset.$anonfun$withAction$2(Dataset.scala:4392)
+	at org.apache.spark.sql.execution.QueryExecution$.withInternalError(QueryExecution.scala:748)
+	at org.apache.spark.sql.Dataset.$anonfun$withAction$1(Dataset.scala:4390)
+	at org.apache.spark.sql.catalyst.QueryPlanningTracker$.withTracker(QueryPlanningTracker.scala:108)
+	at org.apache.spark.sql.execution.SQLExecution$.withTracker(SQLExecution.scala:391)
+	at org.apache.spark.sql.execution.SQLExecution$.executeQuery$1(SQLExecution.scala:159)
+	at org.apache.spark.sql.execution.SQLExecution$.$anonfun$withNewExecutionId$11(SQLExecution.scala:227)
+	at org.apache.spark.sql.catalyst.QueryPlanningTracker$.withTracker(QueryPlanningTracker.scala:108)
+	at org.apache.spark.sql.execution.SQLExecution$.withTracker(SQLExecution.scala:391)
+	at org.apache.spark.sql.execution.SQLExecution$.$anonfun$withNewExecutionId$10(SQLExecution.scala:227)
+	at org.apache.spark.sql.execution.SQLExecution$.withSQLConfPropagated(SQLExecution.scala:412)
+	at org.apache.spark.sql.execution.SQLExecution$.$anonfun$withNewExecutionId$1(SQLExecution.scala:226)
+	at org.apache.spark.sql.SparkSession.withActive(SparkSession.scala:996)
+	at org.apache.spark.sql.execution.SQLExecution$.withNewExecutionId(SQLExecution.scala:84)
+	at org.apache.spark.sql.execution.SQLExecution$.withNewExecutionId(SQLExecution.scala:75)
+	at org.apache.spark.sql.Dataset.withAction(Dataset.scala:4390)
+	at org.apache.spark.sql.Dataset.$anonfun$collectAsArrowToPython$1(Dataset.scala:4316)
+	at org.apache.spark.sql.Dataset.$anonfun$collectAsArrowToPython$1$adapted(Dataset.scala:4315)
+	at org.apache.spark.security.SocketAuthServer$.$anonfun$serveToStream$2(SocketAuthServer.scala:140)
+	at scala.runtime.java8.JFunction0$mcV$sp.apply(JFunction0$mcV$sp.java:23)
+	at org.apache.spark.util.SparkErrorUtils.tryWithSafeFinally(SparkErrorUtils.scala:64)
+	at org.apache.spark.util.SparkErrorUtils.tryWithSafeFinally$(SparkErrorUtils.scala:61)
+	at org.apache.spark.util.Utils$.tryWithSafeFinally(Utils.scala:96)
+	at org.apache.spark.security.SocketAuthServer$.$anonfun$serveToStream$1(SocketAuthServer.scala:142)
+	at org.apache.spark.security.SocketAuthServer$.$anonfun$serveToStream$1$adapted(SocketAuthServer.scala:137)
+	at org.apache.spark.security.SocketFuncServer.handleConnection(SocketAuthServer.scala:114)
+	at org.apache.spark.security.SocketFuncServer.handleConnection(SocketAuthServer.scala:108)
+	at org.apache.spark.security.SocketAuthServer$$anon$1.$anonfun$run$4(SocketAuthServer.scala:69)
+	at scala.util.Try$.apply(Try.scala:213)
+	at org.apache.spark.security.SocketAuthServer$$anon$1.run(SocketAuthServer.scala:69)
+
+[hadoop@ip-172-31-74-63 emo-pipeline]$
+[hadoop@ip-172-31-74-63 emo-pipeline]$
+[hadoop@ip-172-31-74-63 emo-pipeline]$
+[hadoop@ip-172-31-74-63 emo-pipeline]$ tmux capture-pane -pS - -E - > history.txt
+[hadoop@ip-172-31-74-63 emo-pipeline]$ ls
+__init__.py                      emo_paper_overleaf.zip    implementation_plan.md        pipeline             scratch_extracted_pages.txt
+__pycache__                      emr_setup.sh              paper_results_reference.json  results              upload_to_s3.py
+bare_conf_compsoc.tex            experiment_config.py      paper_results_reference.md    results_summary.txt  utils
+bare_conf_compsoc_save_this.tex  extracted_tables_raw.txt  papers                        runners
+conference_fit_analysis.md       history.txt               phases                        scratch
+[hadoop@ip-172-31-74-63 emo-pipeline]$ cat history.txt
+	at io.netty.channel.AbstractChannel$AbstractUnsafe.safeSetFailure(AbstractChannel.java:999) [emr-spark-goodies-3.21.0.jar:3.21.0]
+	at io.netty.channel.AbstractChannel$AbstractUnsafe.write(AbstractChannel.java:860) [emr-spark-goodies-3.21.0.jar:3.21.0]
+	at io.netty.channel.DefaultChannelPipeline$HeadContext.write(DefaultChannelPipeline.java:1367) [emr-spark-goodies-3.21.0.jar:3.21.0]
+	at io.netty.channel.AbstractChannelHandlerContext.invokeWrite0(AbstractChannelHandlerContext.java:877) [emr-spark-goodies-3.21.0.jar:3.21.0
+]
+	at io.netty.channel.AbstractChannelHandlerContext.invokeWriteAndFlush(AbstractChannelHandlerContext.java:940) [emr-spark-goodies-3.21.0.jar
+:3.21.0]
+	at io.netty.channel.AbstractChannelHandlerContext$WriteTask.run(AbstractChannelHandlerContext.java:1247) [emr-spark-goodies-3.21.0.jar:3.21
+.0]
+	at io.netty.util.concurrent.AbstractEventExecutor.runTask(AbstractEventExecutor.java:173) [emr-spark-goodies-3.21.0.jar:3.21.0]
+	at io.netty.util.concurrent.AbstractEventExecutor.safeExecute(AbstractEventExecutor.java:166) [emr-spark-goodies-3.21.0.jar:3.21.0]
+	at io.netty.util.concurrent.SingleThreadEventExecutor.runAllTasks(SingleThreadEventExecutor.java:470) [emr-spark-goodies-3.21.0.jar:3.21.0]
+	at io.netty.channel.nio.NioEventLoop.run(NioEventLoop.java:569) [emr-spark-goodies-3.21.0.jar:3.21.0]
+	at io.netty.util.concurrent.SingleThreadEventExecutor$4.run(SingleThreadEventExecutor.java:997) [emr-spark-goodies-3.21.0.jar:3.21.0]
+	at io.netty.util.internal.ThreadExecutorMap$2.run(ThreadExecutorMap.java:74) [emr-spark-goodies-3.21.0.jar:3.21.0]
+	at io.netty.util.concurrent.FastThreadLocalRunnable.run(FastThreadLocalRunnable.java:30) [emr-spark-goodies-3.21.0.jar:3.21.0]
+	at java.lang.Thread.run(Thread.java:840) [?:?]
+Caused by: io.netty.channel.StacklessClosedChannelException
+	at io.netty.channel.AbstractChannel$AbstractUnsafe.write(Object, ChannelPromise)(Unknown Source) ~[emr-spark-goodies-3.21.0.jar:3.21.0]
+26/07/24 07:05:29 WARN BlockManagerMasterEndpoint: No more replicas available for rdd_66_48 !
+26/07/24 07:05:29 ERROR YarnScheduler: Lost executor 34 on ip-172-31-71-39.ec2.internal: Executor Process Lost
+26/07/24 07:05:29 WARN BlockManagerMasterEndpoint: No more replicas available for rdd_1099_36 !
+26/07/24 07:05:29 WARN TaskSetManager: Lost task 6.0 in stage 1512.0 (TID 120503) (ip-172-31-71-39.ec2.internal executor 34): ExecutorLostFailure (executo
+r 34 exited caused by one of the running tasks) Reason: Executor Process Lost
+26/07/24 07:05:29 WARN BlockManagerMasterEndpoint: No more replicas available for rdd_62_48 !
+26/07/24 07:05:29 WARN TaskSetManager: Lost task 41.0 in stage 1512.0 (TID 120538) (ip-172-31-71-39.ec2.internal executor 34): ExecutorLostFailure (execut
+or 34 exited caused by one of the running tasks) Reason: Executor Process Lost
+26/07/24 07:05:29 WARN TaskSetManager: Lost task 76.0 in stage 1512.0 (TID 120573) (ip-172-31-71-39.ec2.internal executor 34): ExecutorLostFailure (execut
+or 34 exited caused by one of the running tasks) Reason: Executor Process Lost
+26/07/24 07:05:29 WARN TaskSetManager: Lost task 111.0 in stage 1512.0 (TID 120608) (ip-172-31-71-39.ec2.internal executor 34): ExecutorLostFailure (execu
+tor 34 exited caused by one of the running tasks) Reason: Executor Process Lost
+26/07/24 07:05:29 WARN BlockManagerMasterEndpoint: No more replicas available for rdd_238_12 !
+26/07/24 07:05:29 WARN BlockManagerMasterEndpoint: No more replicas available for rdd_234_26 !
+26/07/24 07:05:29 WARN BlockManagerMasterEndpoint: No more replicas available for rdd_1099_8 !
+26/07/24 07:05:29 WARN BlockManagerMasterEndpoint: No more replicas available for rdd_238_40 !
+26/07/24 07:05:29 WARN BlockManagerMasterEndpoint: No more replicas available for rdd_238_26 !
+26/07/24 07:05:29 WARN BlockManagerMasterEndpoint: No more replicas available for rdd_1146_22 !
+26/07/24 07:05:29 WARN BlockManagerMasterEndpoint: No more replicas available for rdd_234_12 !
+26/07/24 07:05:29 WARN BlockManagerMasterEndpoint: No more replicas available for rdd_234_40 !
+26/07/24 07:05:29 WARN BlockManagerMasterEndpoint: No more replicas available for rdd_1146_36 !
+26/07/24 07:05:29 WARN BlockManagerMasterEndpoint: No more replicas available for rdd_1146_8 !
+26/07/24 07:05:29 ERROR TransportClient: Failed to send RPC RPC 7423085525117262317 to /172.31.71.39:34110: io.netty.channel.StacklessClosedChannelExcepti
+on
+io.netty.channel.StacklessClosedChannelException: null
+	at io.netty.channel.AbstractChannel$AbstractUnsafe.write(Object, ChannelPromise)(Unknown Source) ~[emr-spark-goodies-3.21.0.jar:3.21.0]
+26/07/24 07:05:29 WARN BlockManagerMasterEndpoint: No more replicas available for rdd_158_30 !
+26/07/24 07:05:29 WARN BlockManagerMasterEndpoint: No more replicas available for rdd_1099_31 !
+26/07/24 07:05:29 WARN BlockManagerMasterEndpoint: No more replicas available for rdd_238_7 !
+26/07/24 07:05:29 WARN BlockManagerMasterEndpoint: No more replicas available for rdd_234_35 !
+26/07/24 07:05:29 WARN YarnSchedulerBackend$YarnSchedulerEndpoint: Attempted to get executor loss reason for executor id 20 at RPC address 172.31.71.39:34
+206, but got no response. Marking as agent lost.
+java.io.IOException: Failed to send RPC RPC 7423085525117262317 to /172.31.71.39:34110: io.netty.channel.StacklessClosedChannelException
+	at org.apache.spark.network.client.TransportClient$RpcChannelListener.handleFailure(TransportClient.java:443) [spark-network-common_2.12-3.
+5.6-amzn-1.jar:3.5.6-amzn-1]
+	at org.apache.spark.network.client.TransportClient$StdChannelListener.operationComplete(TransportClient.java:420) [spark-network-common_2.1
+2-3.5.6-amzn-1.jar:3.5.6-amzn-1]
+	at io.netty.util.concurrent.DefaultPromise.notifyListener0(DefaultPromise.java:590) [emr-spark-goodies-3.21.0.jar:3.21.0]
+	at io.netty.util.concurrent.DefaultPromise.notifyListenersNow(DefaultPromise.java:557) [emr-spark-goodies-3.21.0.jar:3.21.0]
+	at io.netty.util.concurrent.DefaultPromise.notifyListeners(DefaultPromise.java:492) [emr-spark-goodies-3.21.0.jar:3.21.0]
+	at io.netty.util.concurrent.DefaultPromise.setValue0(DefaultPromise.java:636) [emr-spark-goodies-3.21.0.jar:3.21.0]
+	at io.netty.util.concurrent.DefaultPromise.setFailure0(DefaultPromise.java:629) [emr-spark-goodies-3.21.0.jar:3.21.0]
+	at io.netty.util.concurrent.DefaultPromise.tryFailure(DefaultPromise.java:118) [emr-spark-goodies-3.21.0.jar:3.21.0]
+	at io.netty.channel.AbstractChannel$AbstractUnsafe.safeSetFailure(AbstractChannel.java:999) [emr-spark-goodies-3.21.0.jar:3.21.0]
+	at io.netty.channel.AbstractChannel$AbstractUnsafe.write(AbstractChannel.java:860) [emr-spark-goodies-3.21.0.jar:3.21.0]
+	at io.netty.channel.DefaultChannelPipeline$HeadContext.write(DefaultChannelPipeline.java:1367) [emr-spark-goodies-3.21.0.jar:3.21.0]
+	at io.netty.channel.AbstractChannelHandlerContext.invokeWrite0(AbstractChannelHandlerContext.java:877) [emr-spark-goodies-3.21.0.jar:3.21.0
+]
+	at io.netty.channel.AbstractChannelHandlerContext.invokeWriteAndFlush(AbstractChannelHandlerContext.java:940) [emr-spark-goodies-3.21.0.jar
+:3.21.0]
+	at io.netty.channel.AbstractChannelHandlerContext$WriteTask.run(AbstractChannelHandlerContext.java:1247) [emr-spark-goodies-3.21.0.jar:3.21
+.0]
+	at io.netty.util.concurrent.AbstractEventExecutor.runTask(AbstractEventExecutor.java:173) [emr-spark-goodies-3.21.0.jar:3.21.0]
+	at io.netty.util.concurrent.AbstractEventExecutor.safeExecute(AbstractEventExecutor.java:166) [emr-spark-goodies-3.21.0.jar:3.21.0]
+	at io.netty.util.concurrent.SingleThreadEventExecutor.runAllTasks(SingleThreadEventExecutor.java:470) [emr-spark-goodies-3.21.0.jar:3.21.0]
+	at io.netty.channel.nio.NioEventLoop.run(NioEventLoop.java:569) [emr-spark-goodies-3.21.0.jar:3.21.0]
+	at io.netty.util.concurrent.SingleThreadEventExecutor$4.run(SingleThreadEventExecutor.java:997) [emr-spark-goodies-3.21.0.jar:3.21.0]
+	at io.netty.util.internal.ThreadExecutorMap$2.run(ThreadExecutorMap.java:74) [emr-spark-goodies-3.21.0.jar:3.21.0]
+	at io.netty.util.concurrent.FastThreadLocalRunnable.run(FastThreadLocalRunnable.java:30) [emr-spark-goodies-3.21.0.jar:3.21.0]
+	at java.lang.Thread.run(Thread.java:840) [?:?]
+Caused by: io.netty.channel.StacklessClosedChannelException
+	at io.netty.channel.AbstractChannel$AbstractUnsafe.write(Object, ChannelPromise)(Unknown Source) ~[emr-spark-goodies-3.21.0.jar:3.21.0]
+26/07/24 07:05:29 WARN BlockManagerMasterEndpoint: No more replicas available for rdd_1099_3 !
+26/07/24 07:05:29 WARN BlockManagerMasterEndpoint: No more replicas available for rdd_238_49 !
+26/07/24 07:05:29 ERROR YarnScheduler: Lost executor 20 on ip-172-31-71-39.ec2.internal: Executor Process Lost
+26/07/24 07:05:29 WARN BlockManagerMasterEndpoint: No more replicas available for rdd_1146_31 !
+26/07/24 07:05:29 WARN TaskSetManager: Lost task 99.0 in stage 1512.0 (TID 120596) (ip-172-31-71-39.ec2.internal executor 20): ExecutorLostFailure (execut
+or 20 exited caused by one of the running tasks) Reason: Executor Process Lost
+26/07/24 07:05:29 WARN TaskSetManager: Lost task 134.0 in stage 1512.0 (TID 120631) (ip-172-31-71-39.ec2.internal executor 20): ExecutorLostFailure (execu
+tor 20 exited caused by one of the running tasks) Reason: Executor Process Lost
+26/07/24 07:05:29 WARN TaskSetManager: Lost task 29.0 in stage 1512.0 (TID 120526) (ip-172-31-71-39.ec2.internal executor 20): ExecutorLostFailure (execut
+or 20 exited caused by one of the running tasks) Reason: Executor Process Lost
+26/07/24 07:05:29 WARN BlockManagerMasterEndpoint: No more replicas available for rdd_234_21 !
+26/07/24 07:05:29 WARN TaskSetManager: Lost task 64.0 in stage 1512.0 (TID 120561) (ip-172-31-71-39.ec2.internal executor 20): ExecutorLostFailure (execut
+or 20 exited caused by one of the running tasks) Reason: Executor Process Lost
+26/07/24 07:05:29 WARN BlockManagerMasterEndpoint: No more replicas available for rdd_238_21 !
+26/07/24 07:05:29 WARN BlockManagerMasterEndpoint: No more replicas available for rdd_62_28 !
+26/07/24 07:05:29 WARN BlockManagerMasterEndpoint: No more replicas available for rdd_1146_3 !
+26/07/24 07:05:29 WARN BlockManagerMasterEndpoint: No more replicas available for rdd_1146_45 !
+26/07/24 07:05:29 WARN BlockManagerMasterEndpoint: No more replicas available for rdd_234_7 !
+26/07/24 07:05:29 WARN BlockManagerMasterEndpoint: No more replicas available for rdd_1099_45 !
+26/07/24 07:05:29 WARN BlockManagerMasterEndpoint: No more replicas available for rdd_234_49 !
+26/07/24 07:05:29 WARN BlockManagerMasterEndpoint: No more replicas available for rdd_66_28 !
+26/07/24 07:05:29 WARN BlockManagerMasterEndpoint: No more replicas available for rdd_154_30 !
+26/07/24 07:05:29 WARN BlockManagerMasterEndpoint: No more replicas available for rdd_1099_17 !
+26/07/24 07:05:29 WARN BlockManagerMasterEndpoint: No more replicas available for rdd_1146_17 !
+26/07/24 07:05:29 WARN BlockManagerMasterEndpoint: No more replicas available for rdd_238_35 !
+26/07/24 07:05:29 WARN BlockManagerMasterEndpoint: No more replicas available for rdd_1099_5 !
+26/07/24 07:05:29 ERROR TransportClient: Failed to send RPC RPC 4979145418965517831 to /172.31.71.39:34110: io.netty.channel.StacklessClosedChannelExcepti
+on
+io.netty.channel.StacklessClosedChannelException: null
+	at io.netty.channel.AbstractChannel$AbstractUnsafe.write(Object, ChannelPromise)(Unknown Source) ~[emr-spark-goodies-3.21.0.jar:3.21.0]
+26/07/24 07:05:29 WARN BlockManagerMasterEndpoint: No more replicas available for rdd_1146_5 !
+26/07/24 07:05:29 WARN BlockManagerMasterEndpoint: No more replicas available for rdd_1099_47 !
+26/07/24 07:05:29 WARN BlockManagerMasterEndpoint: No more replicas available for rdd_1146_33 !
+26/07/24 07:05:29 WARN BlockManagerMasterEndpoint: No more replicas available for rdd_238_39 !
+26/07/24 07:05:29 WARN BlockManagerMasterEndpoint: No more replicas available for rdd_234_11 !
+26/07/24 07:05:29 WARN BlockManagerMasterEndpoint: No more replicas available for rdd_158_44 !
+26/07/24 07:05:29 WARN YarnSchedulerBackend$YarnSchedulerEndpoint: Attempted to get executor loss reason for executor id 17 at RPC address 172.31.71.39:34
+226, but got no response. Marking as agent lost.
+java.io.IOException: Failed to send RPC RPC 4979145418965517831 to /172.31.71.39:34110: io.netty.channel.StacklessClosedChannelException
+	at org.apache.spark.network.client.TransportClient$RpcChannelListener.handleFailure(TransportClient.java:443) [spark-network-common_2.12-3.
+5.6-amzn-1.jar:3.5.6-amzn-1]
+	at org.apache.spark.network.client.TransportClient$StdChannelListener.operationComplete(TransportClient.java:420) [spark-network-common_2.1
+2-3.5.6-amzn-1.jar:3.5.6-amzn-1]
+	at io.netty.util.concurrent.DefaultPromise.notifyListener0(DefaultPromise.java:590) [emr-spark-goodies-3.21.0.jar:3.21.0]
+	at io.netty.util.concurrent.DefaultPromise.notifyListenersNow(DefaultPromise.java:557) [emr-spark-goodies-3.21.0.jar:3.21.0]
+	at io.netty.util.concurrent.DefaultPromise.notifyListeners(DefaultPromise.java:492) [emr-spark-goodies-3.21.0.jar:3.21.0]
+	at io.netty.util.concurrent.DefaultPromise.setValue0(DefaultPromise.java:636) [emr-spark-goodies-3.21.0.jar:3.21.0]
+	at io.netty.util.concurrent.DefaultPromise.setFailure0(DefaultPromise.java:629) [emr-spark-goodies-3.21.0.jar:3.21.0]
+	at io.netty.util.concurrent.DefaultPromise.tryFailure(DefaultPromise.java:118) [emr-spark-goodies-3.21.0.jar:3.21.0]
+	at io.netty.channel.AbstractChannel$AbstractUnsafe.safeSetFailure(AbstractChannel.java:999) [emr-spark-goodies-3.21.0.jar:3.21.0]
+	at io.netty.channel.AbstractChannel$AbstractUnsafe.write(AbstractChannel.java:860) [emr-spark-goodies-3.21.0.jar:3.21.0]
+	at io.netty.channel.DefaultChannelPipeline$HeadContext.write(DefaultChannelPipeline.java:1367) [emr-spark-goodies-3.21.0.jar:3.21.0]
+	at io.netty.channel.AbstractChannelHandlerContext.invokeWrite0(AbstractChannelHandlerContext.java:877) [emr-spark-goodies-3.21.0.jar:3.21.0
+]
+	at io.netty.channel.AbstractChannelHandlerContext.invokeWriteAndFlush(AbstractChannelHandlerContext.java:940) [emr-spark-goodies-3.21.0.jar
+:3.21.0]
+	at io.netty.channel.AbstractChannelHandlerContext$WriteTask.run(AbstractChannelHandlerContext.java:1247) [emr-spark-goodies-3.21.0.jar:3.21
+.0]
+	at io.netty.util.concurrent.AbstractEventExecutor.runTask(AbstractEventExecutor.java:173) [emr-spark-goodies-3.21.0.jar:3.21.0]
+	at io.netty.util.concurrent.AbstractEventExecutor.safeExecute(AbstractEventExecutor.java:166) [emr-spark-goodies-3.21.0.jar:3.21.0]
+	at io.netty.util.concurrent.SingleThreadEventExecutor.runAllTasks(SingleThreadEventExecutor.java:470) [emr-spark-goodies-3.21.0.jar:3.21.0]
+	at io.netty.channel.nio.NioEventLoop.run(NioEventLoop.java:569) [emr-spark-goodies-3.21.0.jar:3.21.0]
+	at io.netty.util.concurrent.SingleThreadEventExecutor$4.run(SingleThreadEventExecutor.java:997) [emr-spark-goodies-3.21.0.jar:3.21.0]
+	at io.netty.util.internal.ThreadExecutorMap$2.run(ThreadExecutorMap.java:74) [emr-spark-goodies-3.21.0.jar:3.21.0]
+	at io.netty.util.concurrent.FastThreadLocalRunnable.run(FastThreadLocalRunnable.java:30) [emr-spark-goodies-3.21.0.jar:3.21.0]
+	at java.lang.Thread.run(Thread.java:840) [?:?]
+Caused by: io.netty.channel.StacklessClosedChannelException
+	at io.netty.channel.AbstractChannel$AbstractUnsafe.write(Object, ChannelPromise)(Unknown Source) ~[emr-spark-goodies-3.21.0.jar:3.21.0]
+26/07/24 07:05:29 WARN BlockManagerMasterEndpoint: No more replicas available for rdd_1146_19 !
+26/07/24 07:05:29 WARN BlockManagerMasterEndpoint: No more replicas available for rdd_1146_47 !
+26/07/24 07:05:29 ERROR YarnScheduler: Lost executor 17 on ip-172-31-71-39.ec2.internal: Executor Process Lost
+26/07/24 07:05:29 WARN BlockManagerMasterEndpoint: No more replicas available for rdd_66_37 !
+26/07/24 07:05:29 WARN TaskSetManager: Lost task 81.0 in stage 1512.0 (TID 120578) (ip-172-31-71-39.ec2.internal executor 17): ExecutorLostFailure (execut
+or 17 exited caused by one of the running tasks) Reason: Executor Process Lost
+26/07/24 07:05:29 WARN TaskSetManager: Lost task 116.0 in stage 1512.0 (TID 120613) (ip-172-31-71-39.ec2.internal executor 17): ExecutorLostFailure (execu
+tor 17 exited caused by one of the running tasks) Reason: Executor Process Lost
+26/07/24 07:05:29 WARN BlockManagerMasterEndpoint: No more replicas available for rdd_234_25 !
+26/07/24 07:05:29 WARN TaskSetManager: Lost task 11.0 in stage 1512.0 (TID 120508) (ip-172-31-71-39.ec2.internal executor 17): ExecutorLostFailure (execut
+or 17 exited caused by one of the running tasks) Reason: Executor Process Lost
+26/07/24 07:05:29 WARN BlockManagerMasterEndpoint: No more replicas available for rdd_1099_19 !
+26/07/24 07:05:29 WARN TaskSetManager: Lost task 46.0 in stage 1512.0 (TID 120543) (ip-172-31-71-39.ec2.internal executor 17): ExecutorLostFailure (execut
+or 17 exited caused by one of the running tasks) Reason: Executor Process Lost
+26/07/24 07:05:29 WARN BlockManagerMasterEndpoint: No more replicas available for rdd_238_25 !
+26/07/24 07:05:29 WARN BlockManagerMasterEndpoint: No more replicas available for rdd_62_37 !
+26/07/24 07:05:29 WARN BlockManagerMasterEndpoint: No more replicas available for rdd_234_39 !
+26/07/24 07:05:29 WARN BlockManagerMasterEndpoint: No more replicas available for rdd_238_11 !
+26/07/24 07:05:29 WARN BlockManagerMasterEndpoint: No more replicas available for rdd_154_44 !
+26/07/24 07:05:29 WARN BlockManagerMasterEndpoint: No more replicas available for rdd_1099_33 !
+26/07/24 07:05:29 ERROR TransportClient: Failed to send RPC RPC 5022198300230498298 to /172.31.71.39:34110: io.netty.channel.StacklessClosedChannelExcepti
+on
+io.netty.channel.StacklessClosedChannelException: null
+	at io.netty.channel.AbstractChannel$AbstractUnsafe.write(Object, ChannelPromise)(Unknown Source) ~[emr-spark-goodies-3.21.0.jar:3.21.0]
+26/07/24 07:05:29 WARN BlockManagerMasterEndpoint: No more replicas available for rdd_108_0 !
+26/07/24 07:05:29 WARN BlockManagerMasterEndpoint: No more replicas available for rdd_192_28 !
+26/07/24 07:05:29 WARN YarnSchedulerBackend$YarnSchedulerEndpoint: Attempted to get executor loss reason for executor id 18 at RPC address 172.31.72.78:59
+802, but got no response. Marking as agent lost.
+java.io.IOException: Failed to send RPC RPC 5022198300230498298 to /172.31.71.39:34110: io.netty.channel.StacklessClosedChannelException
+	at org.apache.spark.network.client.TransportClient$RpcChannelListener.handleFailure(TransportClient.java:443) [spark-network-common_2.12-3.
+5.6-amzn-1.jar:3.5.6-amzn-1]
+	at org.apache.spark.network.client.TransportClient$StdChannelListener.operationComplete(TransportClient.java:420) [spark-network-common_2.1
+2-3.5.6-amzn-1.jar:3.5.6-amzn-1]
+	at io.netty.util.concurrent.DefaultPromise.notifyListener0(DefaultPromise.java:590) [emr-spark-goodies-3.21.0.jar:3.21.0]
+	at io.netty.util.concurrent.DefaultPromise.notifyListenersNow(DefaultPromise.java:557) [emr-spark-goodies-3.21.0.jar:3.21.0]
+	at io.netty.util.concurrent.DefaultPromise.notifyListeners(DefaultPromise.java:492) [emr-spark-goodies-3.21.0.jar:3.21.0]
+	at io.netty.util.concurrent.DefaultPromise.setValue0(DefaultPromise.java:636) [emr-spark-goodies-3.21.0.jar:3.21.0]
+	at io.netty.util.concurrent.DefaultPromise.setFailure0(DefaultPromise.java:629) [emr-spark-goodies-3.21.0.jar:3.21.0]
+	at io.netty.util.concurrent.DefaultPromise.tryFailure(DefaultPromise.java:118) [emr-spark-goodies-3.21.0.jar:3.21.0]
+	at io.netty.channel.AbstractChannel$AbstractUnsafe.safeSetFailure(AbstractChannel.java:999) [emr-spark-goodies-3.21.0.jar:3.21.0]
+	at io.netty.channel.AbstractChannel$AbstractUnsafe.write(AbstractChannel.java:860) [emr-spark-goodies-3.21.0.jar:3.21.0]
+	at io.netty.channel.DefaultChannelPipeline$HeadContext.write(DefaultChannelPipeline.java:1367) [emr-spark-goodies-3.21.0.jar:3.21.0]
+	at io.netty.channel.AbstractChannelHandlerContext.invokeWrite0(AbstractChannelHandlerContext.java:877) [emr-spark-goodies-3.21.0.jar:3.21.0
+]
+	at io.netty.channel.AbstractChannelHandlerContext.invokeWriteAndFlush(AbstractChannelHandlerContext.java:940) [emr-spark-goodies-3.21.0.jar
+:3.21.0]
+	at io.netty.channel.AbstractChannelHandlerContext$WriteTask.run(AbstractChannelHandlerContext.java:1247) [emr-spark-goodies-3.21.0.jar:3.21
+.0]
+	at io.netty.util.concurrent.AbstractEventExecutor.runTask(AbstractEventExecutor.java:173) [emr-spark-goodies-3.21.0.jar:3.21.0]
+	at io.netty.util.concurrent.AbstractEventExecutor.safeExecute(AbstractEventExecutor.java:166) [emr-spark-goodies-3.21.0.jar:3.21.0]
+	at io.netty.util.concurrent.SingleThreadEventExecutor.runAllTasks(SingleThreadEventExecutor.java:470) [emr-spark-goodies-3.21.0.jar:3.21.0]
+	at io.netty.channel.nio.NioEventLoop.run(NioEventLoop.java:569) [emr-spark-goodies-3.21.0.jar:3.21.0]
+	at io.netty.util.concurrent.SingleThreadEventExecutor$4.run(SingleThreadEventExecutor.java:997) [emr-spark-goodies-3.21.0.jar:3.21.0]
+	at io.netty.util.internal.ThreadExecutorMap$2.run(ThreadExecutorMap.java:74) [emr-spark-goodies-3.21.0.jar:3.21.0]
+	at io.netty.util.concurrent.FastThreadLocalRunnable.run(FastThreadLocalRunnable.java:30) [emr-spark-goodies-3.21.0.jar:3.21.0]
+	at java.lang.Thread.run(Thread.java:840) [?:?]
+Caused by: io.netty.channel.StacklessClosedChannelException
+	at io.netty.channel.AbstractChannel$AbstractUnsafe.write(Object, ChannelPromise)(Unknown Source) ~[emr-spark-goodies-3.21.0.jar:3.21.0]
+26/07/24 07:05:29 WARN BlockManagerMasterEndpoint: No more replicas available for rdd_108_14 !
+26/07/24 07:05:29 WARN BlockManagerMasterEndpoint: No more replicas available for rdd_112_42 !
+26/07/24 07:05:29 WARN BlockManagerMasterEndpoint: No more replicas available for rdd_192_0 !
+26/07/24 07:05:29 ERROR YarnScheduler: Lost executor 18 on ip-172-31-72-78.ec2.internal: Executor Process Lost
+26/07/24 07:05:29 WARN BlockManagerMasterEndpoint: No more replicas available for rdd_154_45 !
+26/07/24 07:05:29 WARN BlockManagerMasterEndpoint: No more replicas available for rdd_188_0 !
+26/07/24 07:05:29 WARN TaskSetManager: Lost task 101.0 in stage 1512.0 (TID 120598) (ip-172-31-72-78.ec2.internal executor 18): ExecutorLostFailure (execu
+tor 18 exited caused by one of the running tasks) Reason: Executor Process Lost
+26/07/24 07:05:29 WARN BlockManagerMasterEndpoint: No more replicas available for rdd_108_42 !
+26/07/24 07:05:29 WARN TaskSetManager: Lost task 136.0 in stage 1512.0 (TID 120633) (ip-172-31-72-78.ec2.internal executor 18): ExecutorLostFailure (execu
+tor 18 exited caused by one of the running tasks) Reason: Executor Process Lost
+26/07/24 07:05:29 WARN TaskSetManager: Lost task 31.0 in stage 1512.0 (TID 120528) (ip-172-31-72-78.ec2.internal executor 18): ExecutorLostFailure (execut
+or 18 exited caused by one of the running tasks) Reason: Executor Process Lost
+26/07/24 07:05:29 WARN BlockManagerMasterEndpoint: No more replicas available for rdd_188_28 !
+26/07/24 07:05:29 WARN TaskSetManager: Lost task 66.0 in stage 1512.0 (TID 120563) (ip-172-31-72-78.ec2.internal executor 18): ExecutorLostFailure (execut
+or 18 exited caused by one of the running tasks) Reason: Executor Process Lost
+26/07/24 07:05:29 WARN BlockManagerMasterEndpoint: No more replicas available for rdd_192_14 !
+26/07/24 07:05:29 WARN BlockManagerMasterEndpoint: No more replicas available for rdd_112_28 !
+26/07/24 07:05:29 WARN BlockManagerMasterEndpoint: No more replicas available for rdd_188_42 !
+26/07/24 07:05:29 WARN BlockManagerMasterEndpoint: No more replicas available for rdd_192_42 !
+26/07/24 07:05:29 WARN BlockManagerMasterEndpoint: No more replicas available for rdd_158_45 !
+26/07/24 07:05:29 WARN BlockManagerMasterEndpoint: No more replicas available for rdd_112_14 !
+26/07/24 07:05:29 WARN BlockManagerMasterEndpoint: No more replicas available for rdd_108_28 !
+26/07/24 07:05:29 WARN BlockManagerMasterEndpoint: No more replicas available for rdd_112_0 !
+26/07/24 07:05:29 WARN BlockManagerMasterEndpoint: No more replicas available for rdd_188_14 !
+26/07/24 07:05:29 ERROR TransportClient: Failed to send RPC RPC 8892946836405772482 to /172.31.71.39:34110: io.netty.channel.StacklessClosedChannelExcepti
+on
+io.netty.channel.StacklessClosedChannelException: null
+	at io.netty.channel.AbstractChannel$AbstractUnsafe.write(Object, ChannelPromise)(Unknown Source) ~[emr-spark-goodies-3.21.0.jar:3.21.0]
+26/07/24 07:05:29 WARN BlockManagerMasterEndpoint: No more replicas available for rdd_192_11 !
+26/07/24 07:05:29 WARN BlockManagerMasterEndpoint: No more replicas available for rdd_112_17 !
+26/07/24 07:05:29 WARN YarnSchedulerBackend$YarnSchedulerEndpoint: Attempted to get executor loss reason for executor id 7 at RPC address 172.31.72.78:598
+32, but got no response. Marking as agent lost.
+java.io.IOException: Failed to send RPC RPC 8892946836405772482 to /172.31.71.39:34110: io.netty.channel.StacklessClosedChannelException
+	at org.apache.spark.network.client.TransportClient$RpcChannelListener.handleFailure(TransportClient.java:443) [spark-network-common_2.12-3.
+5.6-amzn-1.jar:3.5.6-amzn-1]
+	at org.apache.spark.network.client.TransportClient$StdChannelListener.operationComplete(TransportClient.java:420) [spark-network-common_2.1
+2-3.5.6-amzn-1.jar:3.5.6-amzn-1]
+	at io.netty.util.concurrent.DefaultPromise.notifyListener0(DefaultPromise.java:590) [emr-spark-goodies-3.21.0.jar:3.21.0]
+	at io.netty.util.concurrent.DefaultPromise.notifyListenersNow(DefaultPromise.java:557) [emr-spark-goodies-3.21.0.jar:3.21.0]
+	at io.netty.util.concurrent.DefaultPromise.notifyListeners(DefaultPromise.java:492) [emr-spark-goodies-3.21.0.jar:3.21.0]
+	at io.netty.util.concurrent.DefaultPromise.setValue0(DefaultPromise.java:636) [emr-spark-goodies-3.21.0.jar:3.21.0]
+	at io.netty.util.concurrent.DefaultPromise.setFailure0(DefaultPromise.java:629) [emr-spark-goodies-3.21.0.jar:3.21.0]
+	at io.netty.util.concurrent.DefaultPromise.tryFailure(DefaultPromise.java:118) [emr-spark-goodies-3.21.0.jar:3.21.0]
+	at io.netty.channel.AbstractChannel$AbstractUnsafe.safeSetFailure(AbstractChannel.java:999) [emr-spark-goodies-3.21.0.jar:3.21.0]
+	at io.netty.channel.AbstractChannel$AbstractUnsafe.write(AbstractChannel.java:860) [emr-spark-goodies-3.21.0.jar:3.21.0]
+	at io.netty.channel.DefaultChannelPipeline$HeadContext.write(DefaultChannelPipeline.java:1367) [emr-spark-goodies-3.21.0.jar:3.21.0]
+	at io.netty.channel.AbstractChannelHandlerContext.invokeWrite0(AbstractChannelHandlerContext.java:877) [emr-spark-goodies-3.21.0.jar:3.21.0
+]
+	at io.netty.channel.AbstractChannelHandlerContext.invokeWriteAndFlush(AbstractChannelHandlerContext.java:940) [emr-spark-goodies-3.21.0.jar
+:3.21.0]
+	at io.netty.channel.AbstractChannelHandlerContext$WriteTask.run(AbstractChannelHandlerContext.java:1247) [emr-spark-goodies-3.21.0.jar:3.21
+.0]
+	at io.netty.util.concurrent.AbstractEventExecutor.runTask(AbstractEventExecutor.java:173) [emr-spark-goodies-3.21.0.jar:3.21.0]
+	at io.netty.util.concurrent.AbstractEventExecutor.safeExecute(AbstractEventExecutor.java:166) [emr-spark-goodies-3.21.0.jar:3.21.0]
+	at io.netty.util.concurrent.SingleThreadEventExecutor.runAllTasks(SingleThreadEventExecutor.java:470) [emr-spark-goodies-3.21.0.jar:3.21.0]
+	at io.netty.channel.nio.NioEventLoop.run(NioEventLoop.java:569) [emr-spark-goodies-3.21.0.jar:3.21.0]
+	at io.netty.util.concurrent.SingleThreadEventExecutor$4.run(SingleThreadEventExecutor.java:997) [emr-spark-goodies-3.21.0.jar:3.21.0]
+	at io.netty.util.internal.ThreadExecutorMap$2.run(ThreadExecutorMap.java:74) [emr-spark-goodies-3.21.0.jar:3.21.0]
+	at io.netty.util.concurrent.FastThreadLocalRunnable.run(FastThreadLocalRunnable.java:30) [emr-spark-goodies-3.21.0.jar:3.21.0]
+	at java.lang.Thread.run(Thread.java:840) [?:?]
+Caused by: io.netty.channel.StacklessClosedChannelException
+	at io.netty.channel.AbstractChannel$AbstractUnsafe.write(Object, ChannelPromise)(Unknown Source) ~[emr-spark-goodies-3.21.0.jar:3.21.0]
+26/07/24 07:05:29 WARN BlockManagerMasterEndpoint: No more replicas available for rdd_192_25 !
+26/07/24 07:05:29 WARN BlockManagerMasterEndpoint: No more replicas available for rdd_154_43 !
+26/07/24 07:05:29 ERROR YarnScheduler: Lost executor 7 on ip-172-31-72-78.ec2.internal: Executor Process Lost
+26/07/24 07:05:29 WARN TaskSetManager: Lost task 15.0 in stage 1512.0 (TID 120512) (ip-172-31-72-78.ec2.internal executor 7): ExecutorLostFailure (executo
+r 7 exited caused by one of the running tasks) Reason: Executor Process Lost
+26/07/24 07:05:29 WARN BlockManagerMasterEndpoint: No more replicas available for rdd_108_31 !
+26/07/24 07:05:29 WARN TaskSetManager: Lost task 50.0 in stage 1512.0 (TID 120547) (ip-172-31-72-78.ec2.internal executor 7): ExecutorLostFailure (executo
+r 7 exited caused by one of the running tasks) Reason: Executor Process Lost
+26/07/24 07:05:29 WARN TaskSetManager: Lost task 85.0 in stage 1512.0 (TID 120582) (ip-172-31-72-78.ec2.internal executor 7): ExecutorLostFailure (executo
+r 7 exited caused by one of the running tasks) Reason: Executor Process Lost
+26/07/24 07:05:29 WARN TaskSetManager: Lost task 120.0 in stage 1512.0 (TID 120617) (ip-172-31-72-78.ec2.internal executor 7): ExecutorLostFailure (execut
+or 7 exited caused by one of the running tasks) Reason: Executor Process Lost
+26/07/24 07:05:29 WARN BlockManagerMasterEndpoint: No more replicas available for rdd_108_17 !
+26/07/24 07:05:29 WARN BlockManagerMasterEndpoint: No more replicas available for rdd_112_45 !
+26/07/24 07:05:29 WARN BlockManagerMasterEndpoint: No more replicas available for rdd_188_39 !
+26/07/24 07:05:29 WARN BlockManagerMasterEndpoint: No more replicas available for rdd_108_45 !
+26/07/24 07:05:29 WARN BlockManagerMasterEndpoint: No more replicas available for rdd_112_3 !
+26/07/24 07:05:29 WARN BlockManagerMasterEndpoint: No more replicas available for rdd_188_25 !
+26/07/24 07:05:29 WARN BlockManagerMasterEndpoint: No more replicas available for rdd_112_31 !
+26/07/24 07:05:29 WARN BlockManagerMasterEndpoint: No more replicas available for rdd_192_39 !
+26/07/24 07:05:29 WARN BlockManagerMasterEndpoint: No more replicas available for rdd_188_11 !
+26/07/24 07:05:29 WARN BlockManagerMasterEndpoint: No more replicas available for rdd_66_39 !
+26/07/24 07:05:29 WARN BlockManagerMasterEndpoint: No more replicas available for rdd_62_39 !
+26/07/24 07:05:29 WARN BlockManagerMasterEndpoint: No more replicas available for rdd_108_3 !
+26/07/24 07:05:29 WARN BlockManagerMasterEndpoint: No more replicas available for rdd_158_43 !
+26/07/24 07:05:29 ERROR TransportClient: Failed to send RPC RPC 5850755572097960032 to /172.31.71.39:34110: io.netty.channel.StacklessClosedChannelExcepti
+on
+io.netty.channel.StacklessClosedChannelException: null
+	at io.netty.channel.AbstractChannel$AbstractUnsafe.write(Object, ChannelPromise)(Unknown Source) ~[emr-spark-goodies-3.21.0.jar:3.21.0]
+26/07/24 07:05:29 WARN BlockManagerMasterEndpoint: No more replicas available for rdd_112_46 !
+26/07/24 07:05:29 WARN BlockManagerMasterEndpoint: No more replicas available for rdd_112_18 !
+26/07/24 07:05:29 WARN YarnSchedulerBackend$YarnSchedulerEndpoint: Attempted to get executor loss reason for executor id 12 at RPC address 172.31.72.78:59
+812, but got no response. Marking as agent lost.
+java.io.IOException: Failed to send RPC RPC 5850755572097960032 to /172.31.71.39:34110: io.netty.channel.StacklessClosedChannelException
+	at org.apache.spark.network.client.TransportClient$RpcChannelListener.handleFailure(TransportClient.java:443) [spark-network-common_2.12-3.
+5.6-amzn-1.jar:3.5.6-amzn-1]
+	at org.apache.spark.network.client.TransportClient$StdChannelListener.operationComplete(TransportClient.java:420) [spark-network-common_2.1
+2-3.5.6-amzn-1.jar:3.5.6-amzn-1]
+	at io.netty.util.concurrent.DefaultPromise.notifyListener0(DefaultPromise.java:590) [emr-spark-goodies-3.21.0.jar:3.21.0]
+	at io.netty.util.concurrent.DefaultPromise.notifyListenersNow(DefaultPromise.java:557) [emr-spark-goodies-3.21.0.jar:3.21.0]
+	at io.netty.util.concurrent.DefaultPromise.notifyListeners(DefaultPromise.java:492) [emr-spark-goodies-3.21.0.jar:3.21.0]
+	at io.netty.util.concurrent.DefaultPromise.setValue0(DefaultPromise.java:636) [emr-spark-goodies-3.21.0.jar:3.21.0]
+	at io.netty.util.concurrent.DefaultPromise.setFailure0(DefaultPromise.java:629) [emr-spark-goodies-3.21.0.jar:3.21.0]
+	at io.netty.util.concurrent.DefaultPromise.tryFailure(DefaultPromise.java:118) [emr-spark-goodies-3.21.0.jar:3.21.0]
+	at io.netty.channel.AbstractChannel$AbstractUnsafe.safeSetFailure(AbstractChannel.java:999) [emr-spark-goodies-3.21.0.jar:3.21.0]
+	at io.netty.channel.AbstractChannel$AbstractUnsafe.write(AbstractChannel.java:860) [emr-spark-goodies-3.21.0.jar:3.21.0]
+	at io.netty.channel.DefaultChannelPipeline$HeadContext.write(DefaultChannelPipeline.java:1367) [emr-spark-goodies-3.21.0.jar:3.21.0]
+	at io.netty.channel.AbstractChannelHandlerContext.invokeWrite0(AbstractChannelHandlerContext.java:877) [emr-spark-goodies-3.21.0.jar:3.21.0
+]
+	at io.netty.channel.AbstractChannelHandlerContext.invokeWriteAndFlush(AbstractChannelHandlerContext.java:940) [emr-spark-goodies-3.21.0.jar
+:3.21.0]
+	at io.netty.channel.AbstractChannelHandlerContext$WriteTask.run(AbstractChannelHandlerContext.java:1247) [emr-spark-goodies-3.21.0.jar:3.21
+.0]
+	at io.netty.util.concurrent.AbstractEventExecutor.runTask(AbstractEventExecutor.java:173) [emr-spark-goodies-3.21.0.jar:3.21.0]
+	at io.netty.util.concurrent.AbstractEventExecutor.safeExecute(AbstractEventExecutor.java:166) [emr-spark-goodies-3.21.0.jar:3.21.0]
+	at io.netty.util.concurrent.SingleThreadEventExecutor.runAllTasks(SingleThreadEventExecutor.java:470) [emr-spark-goodies-3.21.0.jar:3.21.0]
+	at io.netty.channel.nio.NioEventLoop.run(NioEventLoop.java:569) [emr-spark-goodies-3.21.0.jar:3.21.0]
+	at io.netty.util.concurrent.SingleThreadEventExecutor$4.run(SingleThreadEventExecutor.java:997) [emr-spark-goodies-3.21.0.jar:3.21.0]
+	at io.netty.util.internal.ThreadExecutorMap$2.run(ThreadExecutorMap.java:74) [emr-spark-goodies-3.21.0.jar:3.21.0]
+	at io.netty.util.concurrent.FastThreadLocalRunnable.run(FastThreadLocalRunnable.java:30) [emr-spark-goodies-3.21.0.jar:3.21.0]
+	at java.lang.Thread.run(Thread.java:840) [?:?]
+Caused by: io.netty.channel.StacklessClosedChannelException
+	at io.netty.channel.AbstractChannel$AbstractUnsafe.write(Object, ChannelPromise)(Unknown Source) ~[emr-spark-goodies-3.21.0.jar:3.21.0]
+26/07/24 07:05:29 WARN BlockManagerMasterEndpoint: No more replicas available for rdd_188_6 !
+26/07/24 07:05:29 WARN BlockManagerMasterEndpoint: No more replicas available for rdd_192_48 !
+26/07/24 07:05:29 WARN BlockManagerMasterEndpoint: No more replicas available for rdd_192_34 !
+26/07/24 07:05:29 ERROR YarnScheduler: Lost executor 12 on ip-172-31-72-78.ec2.internal: Executor Process Lost
+26/07/24 07:05:29 WARN BlockManagerMasterEndpoint: No more replicas available for rdd_62_47 !
+26/07/24 07:05:29 WARN TaskSetManager: Lost task 78.0 in stage 1512.0 (TID 120575) (ip-172-31-72-78.ec2.internal executor 12): ExecutorLostFailure (execut
+or 12 exited caused by one of the running tasks) Reason: Executor Process Lost
+26/07/24 07:05:29 WARN BlockManagerMasterEndpoint: No more replicas available for rdd_112_32 !
+26/07/24 07:05:29 WARN TaskSetManager: Lost task 113.0 in stage 1512.0 (TID 120610) (ip-172-31-72-78.ec2.internal executor 12): ExecutorLostFailure (execu
+tor 12 exited caused by one of the running tasks) Reason: Executor Process Lost
+26/07/24 07:05:29 WARN BlockManagerMasterEndpoint: No more replicas available for rdd_192_20 !
+26/07/24 07:05:29 WARN TaskSetManager: Lost task 8.0 in stage 1512.0 (TID 120505) (ip-172-31-72-78.ec2.internal executor 12): ExecutorLostFailure (executo
+r 12 exited caused by one of the running tasks) Reason: Executor Process Lost
+26/07/24 07:05:29 WARN TaskSetManager: Lost task 43.0 in stage 1512.0 (TID 120540) (ip-172-31-72-78.ec2.internal executor 12): ExecutorLostFailure (execut
+or 12 exited caused by one of the running tasks) Reason: Executor Process Lost
+26/07/24 07:05:29 WARN BlockManagerMasterEndpoint: No more replicas available for rdd_188_20 !
+26/07/24 07:05:29 WARN BlockManagerMasterEndpoint: No more replicas available for rdd_108_46 !
+26/07/24 07:05:29 WARN BlockManagerMasterEndpoint: No more replicas available for rdd_158_40 !
+26/07/24 07:05:29 WARN BlockManagerMasterEndpoint: No more replicas available for rdd_108_18 !
+26/07/24 07:05:29 WARN BlockManagerMasterEndpoint: No more replicas available for rdd_112_4 !
+26/07/24 07:05:29 WARN BlockManagerMasterEndpoint: No more replicas available for rdd_192_6 !
+26/07/24 07:05:29 WARN BlockManagerMasterEndpoint: No more replicas available for rdd_66_47 !
+26/07/24 07:05:29 WARN BlockManagerMasterEndpoint: No more replicas available for rdd_188_48 !
+26/07/24 07:05:29 WARN BlockManagerMasterEndpoint: No more replicas available for rdd_188_34 !
+26/07/24 07:05:29 WARN BlockManagerMasterEndpoint: No more replicas available for rdd_108_32 !
+26/07/24 07:05:29 WARN BlockManagerMasterEndpoint: No more replicas available for rdd_154_40 !
+26/07/24 07:05:29 WARN BlockManagerMasterEndpoint: No more replicas available for rdd_108_4 !
+26/07/24 07:05:29 ERROR TransportClient: Failed to send RPC RPC 9198893323203154609 to /172.31.71.39:34110: io.netty.channel.StacklessClosedChannelExcepti
+on
+io.netty.channel.StacklessClosedChannelException: null
+	at io.netty.channel.AbstractChannel$AbstractUnsafe.write(Object, ChannelPromise)(Unknown Source) ~[emr-spark-goodies-3.21.0.jar:3.21.0]
+26/07/24 07:05:29 WARN BlockManagerMasterEndpoint: No more replicas available for rdd_108_35 !
+26/07/24 07:05:29 WARN BlockManagerMasterEndpoint: No more replicas available for rdd_112_21 !
+26/07/24 07:05:29 WARN YarnSchedulerBackend$YarnSchedulerEndpoint: Attempted to get executor loss reason for executor id 5 at RPC address 172.31.72.78:597
+94, but got no response. Marking as agent lost.
+java.io.IOException: Failed to send RPC RPC 9198893323203154609 to /172.31.71.39:34110: io.netty.channel.StacklessClosedChannelException
+	at org.apache.spark.network.client.TransportClient$RpcChannelListener.handleFailure(TransportClient.java:443) [spark-network-common_2.12-3.
+5.6-amzn-1.jar:3.5.6-amzn-1]
+	at org.apache.spark.network.client.TransportClient$StdChannelListener.operationComplete(TransportClient.java:420) [spark-network-common_2.1
+2-3.5.6-amzn-1.jar:3.5.6-amzn-1]
+	at io.netty.util.concurrent.DefaultPromise.notifyListener0(DefaultPromise.java:590) [emr-spark-goodies-3.21.0.jar:3.21.0]
+	at io.netty.util.concurrent.DefaultPromise.notifyListenersNow(DefaultPromise.java:557) [emr-spark-goodies-3.21.0.jar:3.21.0]
+	at io.netty.util.concurrent.DefaultPromise.notifyListeners(DefaultPromise.java:492) [emr-spark-goodies-3.21.0.jar:3.21.0]
+	at io.netty.util.concurrent.DefaultPromise.setValue0(DefaultPromise.java:636) [emr-spark-goodies-3.21.0.jar:3.21.0]
+	at io.netty.util.concurrent.DefaultPromise.setFailure0(DefaultPromise.java:629) [emr-spark-goodies-3.21.0.jar:3.21.0]
+	at io.netty.util.concurrent.DefaultPromise.tryFailure(DefaultPromise.java:118) [emr-spark-goodies-3.21.0.jar:3.21.0]
+	at io.netty.channel.AbstractChannel$AbstractUnsafe.safeSetFailure(AbstractChannel.java:999) [emr-spark-goodies-3.21.0.jar:3.21.0]
+	at io.netty.channel.AbstractChannel$AbstractUnsafe.write(AbstractChannel.java:860) [emr-spark-goodies-3.21.0.jar:3.21.0]
+	at io.netty.channel.DefaultChannelPipeline$HeadContext.write(DefaultChannelPipeline.java:1367) [emr-spark-goodies-3.21.0.jar:3.21.0]
+	at io.netty.channel.AbstractChannelHandlerContext.invokeWrite0(AbstractChannelHandlerContext.java:877) [emr-spark-goodies-3.21.0.jar:3.21.0
+]
+	at io.netty.channel.AbstractChannelHandlerContext.invokeWriteAndFlush(AbstractChannelHandlerContext.java:940) [emr-spark-goodies-3.21.0.jar
+:3.21.0]
+	at io.netty.channel.AbstractChannelHandlerContext$WriteTask.run(AbstractChannelHandlerContext.java:1247) [emr-spark-goodies-3.21.0.jar:3.21
+.0]
+	at io.netty.util.concurrent.AbstractEventExecutor.runTask(AbstractEventExecutor.java:173) [emr-spark-goodies-3.21.0.jar:3.21.0]
+	at io.netty.util.concurrent.AbstractEventExecutor.safeExecute(AbstractEventExecutor.java:166) [emr-spark-goodies-3.21.0.jar:3.21.0]
+	at io.netty.util.concurrent.SingleThreadEventExecutor.runAllTasks(SingleThreadEventExecutor.java:470) [emr-spark-goodies-3.21.0.jar:3.21.0]
+	at io.netty.channel.nio.NioEventLoop.run(NioEventLoop.java:569) [emr-spark-goodies-3.21.0.jar:3.21.0]
+	at io.netty.util.concurrent.SingleThreadEventExecutor$4.run(SingleThreadEventExecutor.java:997) [emr-spark-goodies-3.21.0.jar:3.21.0]
+	at io.netty.util.internal.ThreadExecutorMap$2.run(ThreadExecutorMap.java:74) [emr-spark-goodies-3.21.0.jar:3.21.0]
+	at io.netty.util.concurrent.FastThreadLocalRunnable.run(FastThreadLocalRunnable.java:30) [emr-spark-goodies-3.21.0.jar:3.21.0]
+	at java.lang.Thread.run(Thread.java:840) [?:?]
+Caused by: io.netty.channel.StacklessClosedChannelException
+	at io.netty.channel.AbstractChannel$AbstractUnsafe.write(Object, ChannelPromise)(Unknown Source) ~[emr-spark-goodies-3.21.0.jar:3.21.0]
+26/07/24 07:05:29 WARN BlockManagerMasterEndpoint: No more replicas available for rdd_62_44 !
+26/07/24 07:05:29 ERROR YarnScheduler: Lost executor 5 on ip-172-31-72-78.ec2.internal: Executor Process Lost
+26/07/24 07:05:29 WARN BlockManagerMasterEndpoint: No more replicas available for rdd_112_7 !
+26/07/24 07:05:29 WARN TaskSetManager: Lost task 87.0 in stage 1512.0 (TID 120584) (ip-172-31-72-78.ec2.internal executor 5): ExecutorLostFailure (executo
+r 5 exited caused by one of the running tasks) Reason: Executor Process Lost
+26/07/24 07:05:29 WARN BlockManagerMasterEndpoint: No more replicas available for rdd_66_44 !
+26/07/24 07:05:29 WARN BlockManagerMasterEndpoint: No more replicas available for rdd_188_31 !
+26/07/24 07:05:29 WARN TaskSetManager: Lost task 122.0 in stage 1512.0 (TID 120619) (ip-172-31-72-78.ec2.internal executor 5): ExecutorLostFailure (execut
+or 5 exited caused by one of the running tasks) Reason: Executor Process Lost
+26/07/24 07:05:29 WARN BlockManagerMasterEndpoint: No more replicas available for rdd_192_31 !
+26/07/24 07:05:29 WARN TaskSetManager: Lost task 17.0 in stage 1512.0 (TID 120514) (ip-172-31-72-78.ec2.internal executor 5): ExecutorLostFailure (executo
+r 5 exited caused by one of the running tasks) Reason: Executor Process Lost
+26/07/24 07:05:29 WARN TaskSetManager: Lost task 52.0 in stage 1512.0 (TID 120549) (ip-172-31-72-78.ec2.internal executor 5): ExecutorLostFailure (executo
+r 5 exited caused by one of the running tasks) Reason: Executor Process Lost
+26/07/24 07:05:29 WARN BlockManagerMasterEndpoint: No more replicas available for rdd_158_35 !
+26/07/24 07:05:29 WARN BlockManagerMasterEndpoint: No more replicas available for rdd_108_7 !
+26/07/24 07:05:29 WARN BlockManagerMasterEndpoint: No more replicas available for rdd_108_21 !
+26/07/24 07:05:29 WARN BlockManagerMasterEndpoint: No more replicas available for rdd_188_45 !
+26/07/24 07:05:29 WARN BlockManagerMasterEndpoint: No more replicas available for rdd_188_3 !
+26/07/24 07:05:29 WARN BlockManagerMasterEndpoint: No more replicas available for rdd_192_45 !
+26/07/24 07:05:29 WARN BlockManagerMasterEndpoint: No more replicas available for rdd_192_3 !
+26/07/24 07:05:29 WARN BlockManagerMasterEndpoint: No more replicas available for rdd_154_35 !
+26/07/24 07:05:29 WARN BlockManagerMasterEndpoint: No more replicas available for rdd_108_49 !
+26/07/24 07:05:29 WARN BlockManagerMasterEndpoint: No more replicas available for rdd_188_17 !
+26/07/24 07:05:29 WARN BlockManagerMasterEndpoint: No more replicas available for rdd_112_49 !
+26/07/24 07:05:29 WARN BlockManagerMasterEndpoint: No more replicas available for rdd_192_17 !
+26/07/24 07:05:29 WARN BlockManagerMasterEndpoint: No more replicas available for rdd_112_35 !
+26/07/24 07:05:29 ERROR TransportClient: Failed to send RPC RPC 6705223719700128418 to /172.31.71.39:34110: io.netty.channel.StacklessClosedChannelExcepti
+on
+io.netty.channel.StacklessClosedChannelException: null
+	at io.netty.channel.AbstractChannel$AbstractUnsafe.write(Object, ChannelPromise)(Unknown Source) ~[emr-spark-goodies-3.21.0.jar:3.21.0]
+26/07/24 07:05:29 WARN BlockManagerMasterEndpoint: No more replicas available for rdd_1735_23 !
+26/07/24 07:05:29 WARN BlockManagerMasterEndpoint: No more replicas available for rdd_234_2 !
+26/07/24 07:05:29 WARN YarnSchedulerBackend$YarnSchedulerEndpoint: Attempted to get executor loss reason for executor id 3 at RPC address 172.31.66.80:493
+70, but got no response. Marking as agent lost.
+java.io.IOException: Failed to send RPC RPC 6705223719700128418 to /172.31.71.39:34110: io.netty.channel.StacklessClosedChannelException
+	at org.apache.spark.network.client.TransportClient$RpcChannelListener.handleFailure(TransportClient.java:443) [spark-network-common_2.12-3.
+5.6-amzn-1.jar:3.5.6-amzn-1]
+	at org.apache.spark.network.client.TransportClient$StdChannelListener.operationComplete(TransportClient.java:420) [spark-network-common_2.1
+2-3.5.6-amzn-1.jar:3.5.6-amzn-1]
+	at io.netty.util.concurrent.DefaultPromise.notifyListener0(DefaultPromise.java:590) [emr-spark-goodies-3.21.0.jar:3.21.0]
+	at io.netty.util.concurrent.DefaultPromise.notifyListenersNow(DefaultPromise.java:557) [emr-spark-goodies-3.21.0.jar:3.21.0]
+	at io.netty.util.concurrent.DefaultPromise.notifyListeners(DefaultPromise.java:492) [emr-spark-goodies-3.21.0.jar:3.21.0]
+	at io.netty.util.concurrent.DefaultPromise.setValue0(DefaultPromise.java:636) [emr-spark-goodies-3.21.0.jar:3.21.0]
+	at io.netty.util.concurrent.DefaultPromise.setFailure0(DefaultPromise.java:629) [emr-spark-goodies-3.21.0.jar:3.21.0]
+	at io.netty.util.concurrent.DefaultPromise.tryFailure(DefaultPromise.java:118) [emr-spark-goodies-3.21.0.jar:3.21.0]
+	at io.netty.channel.AbstractChannel$AbstractUnsafe.safeSetFailure(AbstractChannel.java:999) [emr-spark-goodies-3.21.0.jar:3.21.0]
+	at io.netty.channel.AbstractChannel$AbstractUnsafe.write(AbstractChannel.java:860) [emr-spark-goodies-3.21.0.jar:3.21.0]
+	at io.netty.channel.DefaultChannelPipeline$HeadContext.write(DefaultChannelPipeline.java:1367) [emr-spark-goodies-3.21.0.jar:3.21.0]
+	at io.netty.channel.AbstractChannelHandlerContext.invokeWrite0(AbstractChannelHandlerContext.java:877) [emr-spark-goodies-3.21.0.jar:3.21.0
+]
+	at io.netty.channel.AbstractChannelHandlerContext.invokeWriteAndFlush(AbstractChannelHandlerContext.java:940) [emr-spark-goodies-3.21.0.jar
+:3.21.0]
+	at io.netty.channel.AbstractChannelHandlerContext$WriteTask.run(AbstractChannelHandlerContext.java:1247) [emr-spark-goodies-3.21.0.jar:3.21
+.0]
+	at io.netty.util.concurrent.AbstractEventExecutor.runTask(AbstractEventExecutor.java:173) [emr-spark-goodies-3.21.0.jar:3.21.0]
+	at io.netty.util.concurrent.AbstractEventExecutor.safeExecute(AbstractEventExecutor.java:166) [emr-spark-goodies-3.21.0.jar:3.21.0]
+	at io.netty.util.concurrent.SingleThreadEventExecutor.runAllTasks(SingleThreadEventExecutor.java:470) [emr-spark-goodies-3.21.0.jar:3.21.0]
+	at io.netty.channel.nio.NioEventLoop.run(NioEventLoop.java:569) [emr-spark-goodies-3.21.0.jar:3.21.0]
+	at io.netty.util.concurrent.SingleThreadEventExecutor$4.run(SingleThreadEventExecutor.java:997) [emr-spark-goodies-3.21.0.jar:3.21.0]
+	at io.netty.util.internal.ThreadExecutorMap$2.run(ThreadExecutorMap.java:74) [emr-spark-goodies-3.21.0.jar:3.21.0]
+	at io.netty.util.concurrent.FastThreadLocalRunnable.run(FastThreadLocalRunnable.java:30) [emr-spark-goodies-3.21.0.jar:3.21.0]
+	at java.lang.Thread.run(Thread.java:840) [?:?]
+Caused by: io.netty.channel.StacklessClosedChannelException
+	at io.netty.channel.AbstractChannel$AbstractUnsafe.write(Object, ChannelPromise)(Unknown Source) ~[emr-spark-goodies-3.21.0.jar:3.21.0]
+26/07/24 07:05:29 WARN BlockManagerMasterEndpoint: No more replicas available for rdd_238_44 !
+26/07/24 07:05:29 WARN BlockManagerMasterEndpoint: No more replicas available for rdd_1735_9 !
+26/07/24 07:05:29 WARN BlockManagerMasterEndpoint: No more replicas available for rdd_188_43 !
+26/07/24 07:05:29 ERROR YarnScheduler: Lost executor 3 on ip-172-31-66-80.ec2.internal: Executor Process Lost
+26/07/24 07:05:29 WARN BlockManagerMasterEndpoint: No more replicas available for rdd_1752_45 !
+26/07/24 07:05:29 WARN BlockManagerMasterEndpoint: No more replicas available for rdd_1099_28 !
+26/07/24 07:05:29 WARN TaskSetManager: Lost task 114.0 in stage 1512.0 (TID 120611) (ip-172-31-66-80.ec2.internal executor 3): ExecutorLostFailure (execut
+or 3 exited caused by one of the running tasks) Reason: Executor Process Lost
+26/07/24 07:05:29 WARN BlockManagerMasterEndpoint: No more replicas available for rdd_1752_17 !
+26/07/24 07:05:29 WARN TaskSetManager: Lost task 9.0 in stage 1512.0 (TID 120506) (ip-172-31-66-80.ec2.internal executor 3): ExecutorLostFailure (executor
+ 3 exited caused by one of the running tasks) Reason: Executor Process Lost
+26/07/24 07:05:29 WARN BlockManagerMasterEndpoint: No more replicas available for rdd_1099_42 !
+26/07/24 07:05:29 WARN TaskSetManager: Lost task 44.0 in stage 1512.0 (TID 120541) (ip-172-31-66-80.ec2.internal executor 3): ExecutorLostFailure (executo
+r 3 exited caused by one of the running tasks) Reason: Executor Process Lost
+26/07/24 07:05:29 WARN TaskSetManager: Lost task 79.0 in stage 1512.0 (TID 120576) (ip-172-31-66-80.ec2.internal executor 3): ExecutorLostFailure (executo
+r 3 exited caused by one of the running tasks) Reason: Executor Process Lost
+26/07/24 07:05:29 WARN BlockManagerMasterEndpoint: No more replicas available for rdd_66_35 !
+26/07/24 07:05:29 WARN BlockManagerMasterEndpoint: No more replicas available for rdd_192_29 !
+26/07/24 07:05:29 WARN BlockManagerMasterEndpoint: No more replicas available for rdd_188_29 !
+26/07/24 07:05:29 WARN BlockManagerMasterEndpoint: No more replicas available for rdd_188_1 !
+26/07/24 07:05:29 WARN BlockManagerMasterEndpoint: No more replicas available for rdd_234_44 !
+26/07/24 07:05:29 WARN BlockManagerMasterEndpoint: No more replicas available for rdd_1146_42 !
+26/07/24 07:05:29 WARN BlockManagerMasterEndpoint: No more replicas available for rdd_1099_14 !
+26/07/24 07:05:29 WARN BlockManagerMasterEndpoint: No more replicas available for rdd_1146_28 !
+26/07/24 07:05:29 WARN BlockManagerMasterEndpoint: No more replicas available for rdd_192_43 !
+26/07/24 07:05:29 WARN BlockManagerMasterEndpoint: No more replicas available for rdd_234_30 !
+26/07/24 07:05:29 WARN BlockManagerMasterEndpoint: No more replicas available for rdd_192_1 !
+26/07/24 07:05:29 WARN BlockManagerMasterEndpoint: No more replicas available for rdd_1099_0 !
+26/07/24 07:05:29 WARN BlockManagerMasterEndpoint: No more replicas available for rdd_1716_23 !
+26/07/24 07:05:29 WARN BlockManagerMasterEndpoint: No more replicas available for rdd_238_30 !
+26/07/24 07:05:29 WARN BlockManagerMasterEndpoint: No more replicas available for rdd_1146_0 !
+26/07/24 07:05:29 WARN BlockManagerMasterEndpoint: No more replicas available for rdd_1752_3 !
+26/07/24 07:05:29 WARN BlockManagerMasterEndpoint: No more replicas available for rdd_238_16 !
+26/07/24 07:05:29 WARN BlockManagerMasterEndpoint: No more replicas available for rdd_1748_45 !
+26/07/24 07:05:29 WARN BlockManagerMasterEndpoint: No more replicas available for rdd_234_16 !
+26/07/24 07:05:29 WARN BlockManagerMasterEndpoint: No more replicas available for rdd_1752_31 !
+26/07/24 07:05:29 WARN BlockManagerMasterEndpoint: No more replicas available for rdd_192_15 !
+26/07/24 07:05:29 WARN BlockManagerMasterEndpoint: No more replicas available for rdd_1716_37 !
+26/07/24 07:05:29 WARN BlockManagerMasterEndpoint: No more replicas available for rdd_1735_37 !
+26/07/24 07:05:29 WARN BlockManagerMasterEndpoint: No more replicas available for rdd_1146_14 !
+26/07/24 07:05:29 WARN BlockManagerMasterEndpoint: No more replicas available for rdd_188_15 !
+26/07/24 07:05:29 WARN BlockManagerMasterEndpoint: No more replicas available for rdd_1748_17 !
+26/07/24 07:05:29 WARN BlockManagerMasterEndpoint: No more replicas available for rdd_1716_9 !
+26/07/24 07:05:29 WARN BlockManagerMasterEndpoint: No more replicas available for rdd_62_35 !
+26/07/24 07:05:29 WARN BlockManagerMasterEndpoint: No more replicas available for rdd_238_2 !
+26/07/24 07:05:29 WARN BlockManagerMasterEndpoint: No more replicas available for rdd_1748_3 !
+26/07/24 07:05:29 WARN BlockManagerMasterEndpoint: No more replicas available for rdd_1748_31 !
+26/07/24 07:05:29 ERROR TransportClient: Failed to send RPC RPC 6537558844942403586 to /172.31.71.39:34110: io.netty.channel.StacklessClosedChannelExcepti
+on
+io.netty.channel.StacklessClosedChannelException: null
+	at io.netty.channel.AbstractChannel$AbstractUnsafe.write(Object, ChannelPromise)(Unknown Source) ~[emr-spark-goodies-3.21.0.jar:3.21.0]
+26/07/24 07:05:29 WARN BlockManagerMasterEndpoint: No more replicas available for rdd_108_23 !
+26/07/24 07:05:29 WARN BlockManagerMasterEndpoint: No more replicas available for rdd_188_18 !
+26/07/24 07:05:29 WARN YarnSchedulerBackend$YarnSchedulerEndpoint: Attempted to get executor loss reason for executor id 21 at RPC address 172.31.72.78:59
+776, but got no response. Marking as agent lost.
+java.io.IOException: Failed to send RPC RPC 6537558844942403586 to /172.31.71.39:34110: io.netty.channel.StacklessClosedChannelException
+	at org.apache.spark.network.client.TransportClient$RpcChannelListener.handleFailure(TransportClient.java:443) [spark-network-common_2.12-3.
+5.6-amzn-1.jar:3.5.6-amzn-1]
+	at org.apache.spark.network.client.TransportClient$StdChannelListener.operationComplete(TransportClient.java:420) [spark-network-common_2.1
+2-3.5.6-amzn-1.jar:3.5.6-amzn-1]
+	at io.netty.util.concurrent.DefaultPromise.notifyListener0(DefaultPromise.java:590) [emr-spark-goodies-3.21.0.jar:3.21.0]
+	at io.netty.util.concurrent.DefaultPromise.notifyListenersNow(DefaultPromise.java:557) [emr-spark-goodies-3.21.0.jar:3.21.0]
+	at io.netty.util.concurrent.DefaultPromise.notifyListeners(DefaultPromise.java:492) [emr-spark-goodies-3.21.0.jar:3.21.0]
+	at io.netty.util.concurrent.DefaultPromise.setValue0(DefaultPromise.java:636) [emr-spark-goodies-3.21.0.jar:3.21.0]
+	at io.netty.util.concurrent.DefaultPromise.setFailure0(DefaultPromise.java:629) [emr-spark-goodies-3.21.0.jar:3.21.0]
+	at io.netty.util.concurrent.DefaultPromise.tryFailure(DefaultPromise.java:118) [emr-spark-goodies-3.21.0.jar:3.21.0]
+	at io.netty.channel.AbstractChannel$AbstractUnsafe.safeSetFailure(AbstractChannel.java:999) [emr-spark-goodies-3.21.0.jar:3.21.0]
+	at io.netty.channel.AbstractChannel$AbstractUnsafe.write(AbstractChannel.java:860) [emr-spark-goodies-3.21.0.jar:3.21.0]
+	at io.netty.channel.DefaultChannelPipeline$HeadContext.write(DefaultChannelPipeline.java:1367) [emr-spark-goodies-3.21.0.jar:3.21.0]
+	at io.netty.channel.AbstractChannelHandlerContext.invokeWrite0(AbstractChannelHandlerContext.java:877) [emr-spark-goodies-3.21.0.jar:3.21.0
+]
+	at io.netty.channel.AbstractChannelHandlerContext.invokeWriteAndFlush(AbstractChannelHandlerContext.java:940) [emr-spark-goodies-3.21.0.jar
+:3.21.0]
+	at io.netty.channel.AbstractChannelHandlerContext$WriteTask.run(AbstractChannelHandlerContext.java:1247) [emr-spark-goodies-3.21.0.jar:3.21
+.0]
+	at io.netty.util.concurrent.AbstractEventExecutor.runTask(AbstractEventExecutor.java:173) [emr-spark-goodies-3.21.0.jar:3.21.0]
+	at io.netty.util.concurrent.AbstractEventExecutor.safeExecute(AbstractEventExecutor.java:166) [emr-spark-goodies-3.21.0.jar:3.21.0]
+	at io.netty.util.concurrent.SingleThreadEventExecutor.runAllTasks(SingleThreadEventExecutor.java:470) [emr-spark-goodies-3.21.0.jar:3.21.0]
+	at io.netty.channel.nio.NioEventLoop.run(NioEventLoop.java:569) [emr-spark-goodies-3.21.0.jar:3.21.0]
+	at io.netty.util.concurrent.SingleThreadEventExecutor$4.run(SingleThreadEventExecutor.java:997) [emr-spark-goodies-3.21.0.jar:3.21.0]
+	at io.netty.util.internal.ThreadExecutorMap$2.run(ThreadExecutorMap.java:74) [emr-spark-goodies-3.21.0.jar:3.21.0]
+	at io.netty.util.concurrent.FastThreadLocalRunnable.run(FastThreadLocalRunnable.java:30) [emr-spark-goodies-3.21.0.jar:3.21.0]
+	at java.lang.Thread.run(Thread.java:840) [?:?]
+Caused by: io.netty.channel.StacklessClosedChannelException
+	at io.netty.channel.AbstractChannel$AbstractUnsafe.write(Object, ChannelPromise)(Unknown Source) ~[emr-spark-goodies-3.21.0.jar:3.21.0]
+26/07/24 07:05:29 WARN BlockManagerMasterEndpoint: No more replicas available for rdd_188_4 !
+26/07/24 07:05:29 ERROR YarnScheduler: Lost executor 21 on ip-172-31-72-78.ec2.internal: Executor Process Lost
+26/07/24 07:05:29 WARN BlockManagerMasterEndpoint: No more replicas available for rdd_112_9 !
+26/07/24 07:05:29 WARN TaskSetManager: Lost task 69.0 in stage 1512.0 (TID 120566) (ip-172-31-72-78.ec2.internal executor 21): ExecutorLostFailure (execut
+or 21 exited caused by one of the running tasks) Reason: Executor Process Lost
+26/07/24 07:05:29 WARN TaskSetManager: Lost task 104.0 in stage 1512.0 (TID 120601) (ip-172-31-72-78.ec2.internal executor 21): ExecutorLostFailure (execu
+tor 21 exited caused by one of the running tasks) Reason: Executor Process Lost
+26/07/24 07:05:29 WARN TaskSetManager: Lost task 139.0 in stage 1512.0 (TID 120636) (ip-172-31-72-78.ec2.internal executor 21): ExecutorLostFailure (execu
+tor 21 exited caused by one of the running tasks) Reason: Executor Process Lost
+26/07/24 07:05:29 WARN TaskSetManager: Lost task 34.0 in stage 1512.0 (TID 120531) (ip-172-31-72-78.ec2.internal executor 21): ExecutorLostFailure (execut
+or 21 exited caused by one of the running tasks) Reason: Executor Process Lost
+26/07/24 07:05:29 WARN BlockManagerMasterEndpoint: No more replicas available for rdd_192_4 !
+26/07/24 07:05:29 WARN BlockManagerMasterEndpoint: No more replicas available for rdd_192_46 !
+26/07/24 07:05:29 WARN BlockManagerMasterEndpoint: No more replicas available for rdd_192_18 !
+26/07/24 07:05:29 WARN BlockManagerMasterEndpoint: No more replicas available for rdd_108_37 !
+26/07/24 07:05:29 WARN BlockManagerMasterEndpoint: No more replicas available for rdd_66_38 !
+26/07/24 07:05:29 WARN BlockManagerMasterEndpoint: No more replicas available for rdd_112_37 !
+26/07/24 07:05:29 WARN BlockManagerMasterEndpoint: No more replicas available for rdd_192_32 !
+26/07/24 07:05:29 WARN BlockManagerMasterEndpoint: No more replicas available for rdd_108_9 !
+26/07/24 07:05:29 WARN BlockManagerMasterEndpoint: No more replicas available for rdd_154_34 !
+26/07/24 07:05:29 WARN BlockManagerMasterEndpoint: No more replicas available for rdd_112_23 !
+26/07/24 07:05:29 WARN BlockManagerMasterEndpoint: No more replicas available for rdd_62_38 !
+26/07/24 07:05:29 WARN BlockManagerMasterEndpoint: No more replicas available for rdd_188_32 !
+26/07/24 07:05:29 WARN BlockManagerMasterEndpoint: No more replicas available for rdd_158_34 !
+26/07/24 07:05:29 WARN BlockManagerMasterEndpoint: No more replicas available for rdd_188_46 !
+26/07/24 07:07:14 ERROR TransportResponseHandler: Still have 14 requests outstanding when connection from /172.31.72.78:46360 is closed
+26/07/24 07:07:14 WARN YarnSchedulerBackend$YarnSchedulerEndpoint: Attempted to get executor loss reason for executor id 37 at RPC address 172.31.72.78:53
+810, but got no response. Marking as agent lost.
+java.io.IOException: Connection from /172.31.72.78:46360 closed
+	at org.apache.spark.network.client.TransportResponseHandler.channelInactive(TransportResponseHandler.java:147) [spark-network-common_2.12-3
+.5.6-amzn-1.jar:3.5.6-amzn-1]
+	at org.apache.spark.network.server.TransportChannelHandler.channelInactive(TransportChannelHandler.java:117) [spark-network-common_2.12-3.5
+.6-amzn-1.jar:3.5.6-amzn-1]
+	at io.netty.channel.AbstractChannelHandlerContext.invokeChannelInactive(AbstractChannelHandlerContext.java:305) [emr-spark-goodies-3.21.0.j
+ar:3.21.0]
+	at io.netty.channel.AbstractChannelHandlerContext.invokeChannelInactive(AbstractChannelHandlerContext.java:281) [emr-spark-goodies-3.21.0.j
+ar:3.21.0]
+	at io.netty.channel.AbstractChannelHandlerContext.fireChannelInactive(AbstractChannelHandlerContext.java:274) [emr-spark-goodies-3.21.0.jar
+:3.21.0]
+	at io.netty.channel.ChannelInboundHandlerAdapter.channelInactive(ChannelInboundHandlerAdapter.java:81) [emr-spark-goodies-3.21.0.jar:3.21.0
+]
+	at io.netty.handler.timeout.IdleStateHandler.channelInactive(IdleStateHandler.java:277) [emr-spark-goodies-3.21.0.jar:3.21.0]
+	at io.netty.channel.AbstractChannelHandlerContext.invokeChannelInactive(AbstractChannelHandlerContext.java:303) [emr-spark-goodies-3.21.0.j
+ar:3.21.0]
+	at io.netty.channel.AbstractChannelHandlerContext.invokeChannelInactive(AbstractChannelHandlerContext.java:281) [emr-spark-goodies-3.21.0.j
+ar:3.21.0]
+	at io.netty.channel.AbstractChannelHandlerContext.fireChannelInactive(AbstractChannelHandlerContext.java:274) [emr-spark-goodies-3.21.0.jar
+:3.21.0]
+	at io.netty.channel.ChannelInboundHandlerAdapter.channelInactive(ChannelInboundHandlerAdapter.java:81) [emr-spark-goodies-3.21.0.jar:3.21.0
+]
+	at org.apache.spark.network.util.TransportFrameDecoder.channelInactive(TransportFrameDecoder.java:225) [spark-network-common_2.12-3.5.6-amz
+n-1.jar:3.5.6-amzn-1]
+	at io.netty.channel.AbstractChannelHandlerContext.invokeChannelInactive(AbstractChannelHandlerContext.java:305) [emr-spark-goodies-3.21.0.j
+ar:3.21.0]
+	at io.netty.channel.AbstractChannelHandlerContext.invokeChannelInactive(AbstractChannelHandlerContext.java:281) [emr-spark-goodies-3.21.0.j
+ar:3.21.0]
+	at io.netty.channel.AbstractChannelHandlerContext.fireChannelInactive(AbstractChannelHandlerContext.java:274) [emr-spark-goodies-3.21.0.jar
+:3.21.0]
+	at io.netty.channel.DefaultChannelPipeline$HeadContext.channelInactive(DefaultChannelPipeline.java:1405) [emr-spark-goodies-3.21.0.jar:3.21
+.0]
+	at io.netty.channel.AbstractChannelHandlerContext.invokeChannelInactive(AbstractChannelHandlerContext.java:301) [emr-spark-goodies-3.21.0.j
+ar:3.21.0]
+	at io.netty.channel.AbstractChannelHandlerContext.invokeChannelInactive(AbstractChannelHandlerContext.java:281) [emr-spark-goodies-3.21.0.j
+ar:3.21.0]
+	at io.netty.channel.DefaultChannelPipeline.fireChannelInactive(DefaultChannelPipeline.java:901) [emr-spark-goodies-3.21.0.jar:3.21.0]
+	at io.netty.channel.AbstractChannel$AbstractUnsafe$7.run(AbstractChannel.java:813) [emr-spark-goodies-3.21.0.jar:3.21.0]
+	at io.netty.util.concurrent.AbstractEventExecutor.runTask(AbstractEventExecutor.java:173) [emr-spark-goodies-3.21.0.jar:3.21.0]
+	at io.netty.util.concurrent.AbstractEventExecutor.safeExecute(AbstractEventExecutor.java:166) [emr-spark-goodies-3.21.0.jar:3.21.0]
+	at io.netty.util.concurrent.SingleThreadEventExecutor.runAllTasks(SingleThreadEventExecutor.java:470) [emr-spark-goodies-3.21.0.jar:3.21.0]
+	at io.netty.channel.nio.NioEventLoop.run(NioEventLoop.java:566) [emr-spark-goodies-3.21.0.jar:3.21.0]
+	at io.netty.util.concurrent.SingleThreadEventExecutor$4.run(SingleThreadEventExecutor.java:997) [emr-spark-goodies-3.21.0.jar:3.21.0]
+	at io.netty.util.internal.ThreadExecutorMap$2.run(ThreadExecutorMap.java:74) [emr-spark-goodies-3.21.0.jar:3.21.0]
+	at io.netty.util.concurrent.FastThreadLocalRunnable.run(FastThreadLocalRunnable.java:30) [emr-spark-goodies-3.21.0.jar:3.21.0]
+	at java.lang.Thread.run(Thread.java:840) [?:?]
+26/07/24 07:07:14 WARN YarnSchedulerBackend$YarnSchedulerEndpoint: Attempted to get executor loss reason for executor id 43 at RPC address 172.31.72.78:53
+828, but got no response. Marking as agent lost.
+java.io.IOException: Connection from /172.31.72.78:46360 closed
+	at org.apache.spark.network.client.TransportResponseHandler.channelInactive(TransportResponseHandler.java:147) [spark-network-common_2.12-3
+.5.6-amzn-1.jar:3.5.6-amzn-1]
+	at org.apache.spark.network.server.TransportChannelHandler.channelInactive(TransportChannelHandler.java:117) [spark-network-common_2.12-3.5
+.6-amzn-1.jar:3.5.6-amzn-1]
+	at io.netty.channel.AbstractChannelHandlerContext.invokeChannelInactive(AbstractChannelHandlerContext.java:305) [emr-spark-goodies-3.21.0.j
+ar:3.21.0]
+	at io.netty.channel.AbstractChannelHandlerContext.invokeChannelInactive(AbstractChannelHandlerContext.java:281) [emr-spark-goodies-3.21.0.j
+ar:3.21.0]
+	at io.netty.channel.AbstractChannelHandlerContext.fireChannelInactive(AbstractChannelHandlerContext.java:274) [emr-spark-goodies-3.21.0.jar
+:3.21.0]
+	at io.netty.channel.ChannelInboundHandlerAdapter.channelInactive(ChannelInboundHandlerAdapter.java:81) [emr-spark-goodies-3.21.0.jar:3.21.0
+]
+	at io.netty.handler.timeout.IdleStateHandler.channelInactive(IdleStateHandler.java:277) [emr-spark-goodies-3.21.0.jar:3.21.0]
+	at io.netty.channel.AbstractChannelHandlerContext.invokeChannelInactive(AbstractChannelHandlerContext.java:303) [emr-spark-goodies-3.21.0.j
+ar:3.21.0]
+	at io.netty.channel.AbstractChannelHandlerContext.invokeChannelInactive(AbstractChannelHandlerContext.java:281) [emr-spark-goodies-3.21.0.j
+ar:3.21.0]
+	at io.netty.channel.AbstractChannelHandlerContext.fireChannelInactive(AbstractChannelHandlerContext.java:274) [emr-spark-goodies-3.21.0.jar
+:3.21.0]
+	at io.netty.channel.ChannelInboundHandlerAdapter.channelInactive(ChannelInboundHandlerAdapter.java:81) [emr-spark-goodies-3.21.0.jar:3.21.0
+]
+	at org.apache.spark.network.util.TransportFrameDecoder.channelInactive(TransportFrameDecoder.java:225) [spark-network-common_2.12-3.5.6-amz
+n-1.jar:3.5.6-amzn-1]
+	at io.netty.channel.AbstractChannelHandlerContext.invokeChannelInactive(AbstractChannelHandlerContext.java:305) [emr-spark-goodies-3.21.0.j
+ar:3.21.0]
+	at io.netty.channel.AbstractChannelHandlerContext.invokeChannelInactive(AbstractChannelHandlerContext.java:281) [emr-spark-goodies-3.21.0.j
+ar:3.21.0]
+	at io.netty.channel.AbstractChannelHandlerContext.fireChannelInactive(AbstractChannelHandlerContext.java:274) [emr-spark-goodies-3.21.0.jar
+:3.21.0]
+	at io.netty.channel.DefaultChannelPipeline$HeadContext.channelInactive(DefaultChannelPipeline.java:1405) [emr-spark-goodies-3.21.0.jar:3.21
+.0]
+	at io.netty.channel.AbstractChannelHandlerContext.invokeChannelInactive(AbstractChannelHandlerContext.java:301) [emr-spark-goodies-3.21.0.j
+ar:3.21.0]
+	at io.netty.channel.AbstractChannelHandlerContext.invokeChannelInactive(AbstractChannelHandlerContext.java:281) [emr-spark-goodies-3.21.0.j
+ar:3.21.0]
+	at io.netty.channel.DefaultChannelPipeline.fireChannelInactive(DefaultChannelPipeline.java:901) [emr-spark-goodies-3.21.0.jar:3.21.0]
+	at io.netty.channel.AbstractChannel$AbstractUnsafe$7.run(AbstractChannel.java:813) [emr-spark-goodies-3.21.0.jar:3.21.0]
+	at io.netty.util.concurrent.AbstractEventExecutor.runTask(AbstractEventExecutor.java:173) [emr-spark-goodies-3.21.0.jar:3.21.0]
+	at io.netty.util.concurrent.AbstractEventExecutor.safeExecute(AbstractEventExecutor.java:166) [emr-spark-goodies-3.21.0.jar:3.21.0]
+	at io.netty.util.concurrent.SingleThreadEventExecutor.runAllTasks(SingleThreadEventExecutor.java:470) [emr-spark-goodies-3.21.0.jar:3.21.0]
+	at io.netty.channel.nio.NioEventLoop.run(NioEventLoop.java:566) [emr-spark-goodies-3.21.0.jar:3.21.0]
+	at io.netty.util.concurrent.SingleThreadEventExecutor$4.run(SingleThreadEventExecutor.java:997) [emr-spark-goodies-3.21.0.jar:3.21.0]
+	at io.netty.util.internal.ThreadExecutorMap$2.run(ThreadExecutorMap.java:74) [emr-spark-goodies-3.21.0.jar:3.21.0]
+	at io.netty.util.concurrent.FastThreadLocalRunnable.run(FastThreadLocalRunnable.java:30) [emr-spark-goodies-3.21.0.jar:3.21.0]
+	at java.lang.Thread.run(Thread.java:840) [?:?]
+26/07/24 07:07:14 ERROR YarnScheduler: Lost executor 37 on ip-172-31-72-78.ec2.internal: Executor Process Lost
+26/07/24 07:07:14 WARN YarnSchedulerBackend$YarnSchedulerEndpoint: Attempted to get executor loss reason for executor id 47 at RPC address 172.31.66.80:43
+694, but got no response. Marking as agent lost.
+java.io.IOException: Connection from /172.31.72.78:46360 closed
+	at org.apache.spark.network.client.TransportResponseHandler.channelInactive(TransportResponseHandler.java:147) [spark-network-common_2.12-3
+.5.6-amzn-1.jar:3.5.6-amzn-1]
+	at org.apache.spark.network.server.TransportChannelHandler.channelInactive(TransportChannelHandler.java:117) [spark-network-common_2.12-3.5
+.6-amzn-1.jar:3.5.6-amzn-1]
+	at io.netty.channel.AbstractChannelHandlerContext.invokeChannelInactive(AbstractChannelHandlerContext.java:305) [emr-spark-goodies-3.21.0.j
+ar:3.21.0]
+	at io.netty.channel.AbstractChannelHandlerContext.invokeChannelInactive(AbstractChannelHandlerContext.java:281) [emr-spark-goodies-3.21.0.j
+ar:3.21.0]
+	at io.netty.channel.AbstractChannelHandlerContext.fireChannelInactive(AbstractChannelHandlerContext.java:274) [emr-spark-goodies-3.21.0.jar
+:3.21.0]
+	at io.netty.channel.ChannelInboundHandlerAdapter.channelInactive(ChannelInboundHandlerAdapter.java:81) [emr-spark-goodies-3.21.0.jar:3.21.0
+]
+	at io.netty.handler.timeout.IdleStateHandler.channelInactive(IdleStateHandler.java:277) [emr-spark-goodies-3.21.0.jar:3.21.0]
+	at io.netty.channel.AbstractChannelHandlerContext.invokeChannelInactive(AbstractChannelHandlerContext.java:303) [emr-spark-goodies-3.21.0.j
+ar:3.21.0]
+	at io.netty.channel.AbstractChannelHandlerContext.invokeChannelInactive(AbstractChannelHandlerContext.java:281) [emr-spark-goodies-3.21.0.j
+ar:3.21.0]
+	at io.netty.channel.AbstractChannelHandlerContext.fireChannelInactive(AbstractChannelHandlerContext.java:274) [emr-spark-goodies-3.21.0.jar
+:3.21.0]
+	at io.netty.channel.ChannelInboundHandlerAdapter.channelInactive(ChannelInboundHandlerAdapter.java:81) [emr-spark-goodies-3.21.0.jar:3.21.0
+]
+	at org.apache.spark.network.util.TransportFrameDecoder.channelInactive(TransportFrameDecoder.java:225) [spark-network-common_2.12-3.5.6-amz
+n-1.jar:3.5.6-amzn-1]
+	at io.netty.channel.AbstractChannelHandlerContext.invokeChannelInactive(AbstractChannelHandlerContext.java:305) [emr-spark-goodies-3.21.0.j
+ar:3.21.0]
+	at io.netty.channel.AbstractChannelHandlerContext.invokeChannelInactive(AbstractChannelHandlerContext.java:281) [emr-spark-goodies-3.21.0.j
+ar:3.21.0]
+	at io.netty.channel.AbstractChannelHandlerContext.fireChannelInactive(AbstractChannelHandlerContext.java:274) [emr-spark-goodies-3.21.0.jar
+:3.21.0]
+	at io.netty.channel.DefaultChannelPipeline$HeadContext.channelInactive(DefaultChannelPipeline.java:1405) [emr-spark-goodies-3.21.0.jar:3.21
+.0]
+	at io.netty.channel.AbstractChannelHandlerContext.invokeChannelInactive(AbstractChannelHandlerContext.java:301) [emr-spark-goodies-3.21.0.j
+ar:3.21.0]
+	at io.netty.channel.AbstractChannelHandlerContext.invokeChannelInactive(AbstractChannelHandlerContext.java:281) [emr-spark-goodies-3.21.0.j
+ar:3.21.0]
+	at io.netty.channel.DefaultChannelPipeline.fireChannelInactive(DefaultChannelPipeline.java:901) [emr-spark-goodies-3.21.0.jar:3.21.0]
+	at io.netty.channel.AbstractChannel$AbstractUnsafe$7.run(AbstractChannel.java:813) [emr-spark-goodies-3.21.0.jar:3.21.0]
+	at io.netty.util.concurrent.AbstractEventExecutor.runTask(AbstractEventExecutor.java:173) [emr-spark-goodies-3.21.0.jar:3.21.0]
+	at io.netty.util.concurrent.AbstractEventExecutor.safeExecute(AbstractEventExecutor.java:166) [emr-spark-goodies-3.21.0.jar:3.21.0]
+	at io.netty.util.concurrent.SingleThreadEventExecutor.runAllTasks(SingleThreadEventExecutor.java:470) [emr-spark-goodies-3.21.0.jar:3.21.0]
+	at io.netty.channel.nio.NioEventLoop.run(NioEventLoop.java:566) [emr-spark-goodies-3.21.0.jar:3.21.0]
+	at io.netty.util.concurrent.SingleThreadEventExecutor$4.run(SingleThreadEventExecutor.java:997) [emr-spark-goodies-3.21.0.jar:3.21.0]
+	at io.netty.util.internal.ThreadExecutorMap$2.run(ThreadExecutorMap.java:74) [emr-spark-goodies-3.21.0.jar:3.21.0]
+	at io.netty.util.concurrent.FastThreadLocalRunnable.run(FastThreadLocalRunnable.java:30) [emr-spark-goodies-3.21.0.jar:3.21.0]
+	at java.lang.Thread.run(Thread.java:840) [?:?]
+26/07/24 07:07:14 WARN TaskSetManager: Lost task 81.1 in stage 1512.0 (TID 120664) (ip-172-31-72-78.ec2.internal executor 37): ExecutorLostFailure (execut
+or 37 exited caused by one of the running tasks) Reason: Executor Process Lost
+26/07/24 07:07:14 WARN TaskSetManager: Lost task 46.1 in stage 1512.0 (TID 120661) (ip-172-31-72-78.ec2.internal executor 37): ExecutorLostFailure (execut
+or 37 exited caused by one of the running tasks) Reason: Executor Process Lost
+26/07/24 07:07:14 WARN TaskSetManager: Lost task 116.1 in stage 1512.0 (TID 120663) (ip-172-31-72-78.ec2.internal executor 37): ExecutorLostFailure (execu
+tor 37 exited caused by one of the running tasks) Reason: Executor Process Lost
+26/07/24 07:07:14 WARN YarnSchedulerBackend$YarnSchedulerEndpoint: Attempted to get executor loss reason for executor id 48 at RPC address 172.31.72.78:53
+812, but got no response. Marking as agent lost.
+java.io.IOException: Connection from /172.31.72.78:46360 closed
+	at org.apache.spark.network.client.TransportResponseHandler.channelInactive(TransportResponseHandler.java:147) [spark-network-common_2.12-3
+.5.6-amzn-1.jar:3.5.6-amzn-1]
+	at org.apache.spark.network.server.TransportChannelHandler.channelInactive(TransportChannelHandler.java:117) [spark-network-common_2.12-3.5
+.6-amzn-1.jar:3.5.6-amzn-1]
+	at io.netty.channel.AbstractChannelHandlerContext.invokeChannelInactive(AbstractChannelHandlerContext.java:305) [emr-spark-goodies-3.21.0.j
+ar:3.21.0]
+	at io.netty.channel.AbstractChannelHandlerContext.invokeChannelInactive(AbstractChannelHandlerContext.java:281) [emr-spark-goodies-3.21.0.j
+ar:3.21.0]
+	at io.netty.channel.AbstractChannelHandlerContext.fireChannelInactive(AbstractChannelHandlerContext.java:274) [emr-spark-goodies-3.21.0.jar
+:3.21.0]
+	at io.netty.channel.ChannelInboundHandlerAdapter.channelInactive(ChannelInboundHandlerAdapter.java:81) [emr-spark-goodies-3.21.0.jar:3.21.0
+]
+	at io.netty.handler.timeout.IdleStateHandler.channelInactive(IdleStateHandler.java:277) [emr-spark-goodies-3.21.0.jar:3.21.0]
+	at io.netty.channel.AbstractChannelHandlerContext.invokeChannelInactive(AbstractChannelHandlerContext.java:303) [emr-spark-goodies-3.21.0.j
+ar:3.21.0]
+	at io.netty.channel.AbstractChannelHandlerContext.invokeChannelInactive(AbstractChannelHandlerContext.java:281) [emr-spark-goodies-3.21.0.j
+ar:3.21.0]
+	at io.netty.channel.AbstractChannelHandlerContext.fireChannelInactive(AbstractChannelHandlerContext.java:274) [emr-spark-goodies-3.21.0.jar
+:3.21.0]
+	at io.netty.channel.ChannelInboundHandlerAdapter.channelInactive(ChannelInboundHandlerAdapter.java:81) [emr-spark-goodies-3.21.0.jar:3.21.0
+]
+	at org.apache.spark.network.util.TransportFrameDecoder.channelInactive(TransportFrameDecoder.java:225) [spark-network-common_2.12-3.5.6-amz
+n-1.jar:3.5.6-amzn-1]
+	at io.netty.channel.AbstractChannelHandlerContext.invokeChannelInactive(AbstractChannelHandlerContext.java:305) [emr-spark-goodies-3.21.0.j
+ar:3.21.0]
+	at io.netty.channel.AbstractChannelHandlerContext.invokeChannelInactive(AbstractChannelHandlerContext.java:281) [emr-spark-goodies-3.21.0.j
+ar:3.21.0]
+	at io.netty.channel.AbstractChannelHandlerContext.fireChannelInactive(AbstractChannelHandlerContext.java:274) [emr-spark-goodies-3.21.0.jar
+:3.21.0]
+	at io.netty.channel.DefaultChannelPipeline$HeadContext.channelInactive(DefaultChannelPipeline.java:1405) [emr-spark-goodies-3.21.0.jar:3.21
+.0]
+	at io.netty.channel.AbstractChannelHandlerContext.invokeChannelInactive(AbstractChannelHandlerContext.java:301) [emr-spark-goodies-3.21.0.j
+ar:3.21.0]
+	at io.netty.channel.AbstractChannelHandlerContext.invokeChannelInactive(AbstractChannelHandlerContext.java:281) [emr-spark-goodies-3.21.0.j
+ar:3.21.0]
+	at io.netty.channel.DefaultChannelPipeline.fireChannelInactive(DefaultChannelPipeline.java:901) [emr-spark-goodies-3.21.0.jar:3.21.0]
+	at io.netty.channel.AbstractChannel$AbstractUnsafe$7.run(AbstractChannel.java:813) [emr-spark-goodies-3.21.0.jar:3.21.0]
+	at io.netty.util.concurrent.AbstractEventExecutor.runTask(AbstractEventExecutor.java:173) [emr-spark-goodies-3.21.0.jar:3.21.0]
+	at io.netty.util.concurrent.AbstractEventExecutor.safeExecute(AbstractEventExecutor.java:166) [emr-spark-goodies-3.21.0.jar:3.21.0]
+	at io.netty.util.concurrent.SingleThreadEventExecutor.runAllTasks(SingleThreadEventExecutor.java:470) [emr-spark-goodies-3.21.0.jar:3.21.0]
+	at io.netty.channel.nio.NioEventLoop.run(NioEventLoop.java:566) [emr-spark-goodies-3.21.0.jar:3.21.0]
+	at io.netty.util.concurrent.SingleThreadEventExecutor$4.run(SingleThreadEventExecutor.java:997) [emr-spark-goodies-3.21.0.jar:3.21.0]
+	at io.netty.util.internal.ThreadExecutorMap$2.run(ThreadExecutorMap.java:74) [emr-spark-goodies-3.21.0.jar:3.21.0]
+	at io.netty.util.concurrent.FastThreadLocalRunnable.run(FastThreadLocalRunnable.java:30) [emr-spark-goodies-3.21.0.jar:3.21.0]
+	at java.lang.Thread.run(Thread.java:840) [?:?]
+26/07/24 07:07:14 WARN TaskSetManager: Lost task 11.1 in stage 1512.0 (TID 120662) (ip-172-31-72-78.ec2.internal executor 37): ExecutorLostFailure (execut
+or 37 exited caused by one of the running tasks) Reason: Executor Process Lost
+26/07/24 07:07:14 WARN YarnSchedulerBackend$YarnSchedulerEndpoint: Attempted to get executor loss reason for executor id 36 at RPC address 172.31.66.80:43
+646, but got no response. Marking as agent lost.
+java.io.IOException: Connection from /172.31.72.78:46360 closed
+	at org.apache.spark.network.client.TransportResponseHandler.channelInactive(TransportResponseHandler.java:147) [spark-network-common_2.12-3
+.5.6-amzn-1.jar:3.5.6-amzn-1]
+	at org.apache.spark.network.server.TransportChannelHandler.channelInactive(TransportChannelHandler.java:117) [spark-network-common_2.12-3.5
+.6-amzn-1.jar:3.5.6-amzn-1]
+	at io.netty.channel.AbstractChannelHandlerContext.invokeChannelInactive(AbstractChannelHandlerContext.java:305) [emr-spark-goodies-3.21.0.j
+ar:3.21.0]
+	at io.netty.channel.AbstractChannelHandlerContext.invokeChannelInactive(AbstractChannelHandlerContext.java:281) [emr-spark-goodies-3.21.0.j
+ar:3.21.0]
+	at io.netty.channel.AbstractChannelHandlerContext.fireChannelInactive(AbstractChannelHandlerContext.java:274) [emr-spark-goodies-3.21.0.jar
+:3.21.0]
+	at io.netty.channel.ChannelInboundHandlerAdapter.channelInactive(ChannelInboundHandlerAdapter.java:81) [emr-spark-goodies-3.21.0.jar:3.21.0
+]
+	at io.netty.handler.timeout.IdleStateHandler.channelInactive(IdleStateHandler.java:277) [emr-spark-goodies-3.21.0.jar:3.21.0]
+	at io.netty.channel.AbstractChannelHandlerContext.invokeChannelInactive(AbstractChannelHandlerContext.java:303) [emr-spark-goodies-3.21.0.j
+ar:3.21.0]
+	at io.netty.channel.AbstractChannelHandlerContext.invokeChannelInactive(AbstractChannelHandlerContext.java:281) [emr-spark-goodies-3.21.0.j
+ar:3.21.0]
+	at io.netty.channel.AbstractChannelHandlerContext.fireChannelInactive(AbstractChannelHandlerContext.java:274) [emr-spark-goodies-3.21.0.jar
+:3.21.0]
+	at io.netty.channel.ChannelInboundHandlerAdapter.channelInactive(ChannelInboundHandlerAdapter.java:81) [emr-spark-goodies-3.21.0.jar:3.21.0
+]
+	at org.apache.spark.network.util.TransportFrameDecoder.channelInactive(TransportFrameDecoder.java:225) [spark-network-common_2.12-3.5.6-amz
+n-1.jar:3.5.6-amzn-1]
+	at io.netty.channel.AbstractChannelHandlerContext.invokeChannelInactive(AbstractChannelHandlerContext.java:305) [emr-spark-goodies-3.21.0.j
+ar:3.21.0]
+	at io.netty.channel.AbstractChannelHandlerContext.invokeChannelInactive(AbstractChannelHandlerContext.java:281) [emr-spark-goodies-3.21.0.j
+ar:3.21.0]
+	at io.netty.channel.AbstractChannelHandlerContext.fireChannelInactive(AbstractChannelHandlerContext.java:274) [emr-spark-goodies-3.21.0.jar
+:3.21.0]
+	at io.netty.channel.DefaultChannelPipeline$HeadContext.channelInactive(DefaultChannelPipeline.java:1405) [emr-spark-goodies-3.21.0.jar:3.21
+.0]
+	at io.netty.channel.AbstractChannelHandlerContext.invokeChannelInactive(AbstractChannelHandlerContext.java:301) [emr-spark-goodies-3.21.0.j
+ar:3.21.0]
+	at io.netty.channel.AbstractChannelHandlerContext.invokeChannelInactive(AbstractChannelHandlerContext.java:281) [emr-spark-goodies-3.21.0.j
+ar:3.21.0]
+	at io.netty.channel.DefaultChannelPipeline.fireChannelInactive(DefaultChannelPipeline.java:901) [emr-spark-goodies-3.21.0.jar:3.21.0]
+	at io.netty.channel.AbstractChannel$AbstractUnsafe$7.run(AbstractChannel.java:813) [emr-spark-goodies-3.21.0.jar:3.21.0]
+	at io.netty.util.concurrent.AbstractEventExecutor.runTask(AbstractEventExecutor.java:173) [emr-spark-goodies-3.21.0.jar:3.21.0]
+	at io.netty.util.concurrent.AbstractEventExecutor.safeExecute(AbstractEventExecutor.java:166) [emr-spark-goodies-3.21.0.jar:3.21.0]
+	at io.netty.util.concurrent.SingleThreadEventExecutor.runAllTasks(SingleThreadEventExecutor.java:470) [emr-spark-goodies-3.21.0.jar:3.21.0]
+	at io.netty.channel.nio.NioEventLoop.run(NioEventLoop.java:566) [emr-spark-goodies-3.21.0.jar:3.21.0]
+	at io.netty.util.concurrent.SingleThreadEventExecutor$4.run(SingleThreadEventExecutor.java:997) [emr-spark-goodies-3.21.0.jar:3.21.0]
+	at io.netty.util.internal.ThreadExecutorMap$2.run(ThreadExecutorMap.java:74) [emr-spark-goodies-3.21.0.jar:3.21.0]
+	at io.netty.util.concurrent.FastThreadLocalRunnable.run(FastThreadLocalRunnable.java:30) [emr-spark-goodies-3.21.0.jar:3.21.0]
+	at java.lang.Thread.run(Thread.java:840) [?:?]
+26/07/24 07:07:14 ERROR YarnScheduler: Lost executor 43 on ip-172-31-72-78.ec2.internal: Executor Process Lost
+26/07/24 07:07:14 WARN TaskSetManager: Lost task 31.1 in stage 1512.0 (TID 120658) (ip-172-31-72-78.ec2.internal executor 43): ExecutorLostFailure (execut
+or 43 exited caused by one of the running tasks) Reason: Executor Process Lost
+26/07/24 07:07:14 WARN YarnSchedulerBackend$YarnSchedulerEndpoint: Attempted to get executor loss reason for executor id 38 at RPC address 172.31.66.80:43
+662, but got no response. Marking as agent lost.
+java.io.IOException: Connection from /172.31.72.78:46360 closed
+	at org.apache.spark.network.client.TransportResponseHandler.channelInactive(TransportResponseHandler.java:147) [spark-network-common_2.12-3
+.5.6-amzn-1.jar:3.5.6-amzn-1]
+	at org.apache.spark.network.server.TransportChannelHandler.channelInactive(TransportChannelHandler.java:117) [spark-network-common_2.12-3.5
+.6-amzn-1.jar:3.5.6-amzn-1]
+	at io.netty.channel.AbstractChannelHandlerContext.invokeChannelInactive(AbstractChannelHandlerContext.java:305) [emr-spark-goodies-3.21.0.j
+ar:3.21.0]
+	at io.netty.channel.AbstractChannelHandlerContext.invokeChannelInactive(AbstractChannelHandlerContext.java:281) [emr-spark-goodies-3.21.0.j
+ar:3.21.0]
+	at io.netty.channel.AbstractChannelHandlerContext.fireChannelInactive(AbstractChannelHandlerContext.java:274) [emr-spark-goodies-3.21.0.jar
+:3.21.0]
+	at io.netty.channel.ChannelInboundHandlerAdapter.channelInactive(ChannelInboundHandlerAdapter.java:81) [emr-spark-goodies-3.21.0.jar:3.21.0
+]
+	at io.netty.handler.timeout.IdleStateHandler.channelInactive(IdleStateHandler.java:277) [emr-spark-goodies-3.21.0.jar:3.21.0]
+	at io.netty.channel.AbstractChannelHandlerContext.invokeChannelInactive(AbstractChannelHandlerContext.java:303) [emr-spark-goodies-3.21.0.j
+ar:3.21.0]
+	at io.netty.channel.AbstractChannelHandlerContext.invokeChannelInactive(AbstractChannelHandlerContext.java:281) [emr-spark-goodies-3.21.0.j
+ar:3.21.0]
+	at io.netty.channel.AbstractChannelHandlerContext.fireChannelInactive(AbstractChannelHandlerContext.java:274) [emr-spark-goodies-3.21.0.jar
+:3.21.0]
+	at io.netty.channel.ChannelInboundHandlerAdapter.channelInactive(ChannelInboundHandlerAdapter.java:81) [emr-spark-goodies-3.21.0.jar:3.21.0
+]
+	at org.apache.spark.network.util.TransportFrameDecoder.channelInactive(TransportFrameDecoder.java:225) [spark-network-common_2.12-3.5.6-amz
+n-1.jar:3.5.6-amzn-1]
+	at io.netty.channel.AbstractChannelHandlerContext.invokeChannelInactive(AbstractChannelHandlerContext.java:305) [emr-spark-goodies-3.21.0.j
+ar:3.21.0]
+	at io.netty.channel.AbstractChannelHandlerContext.invokeChannelInactive(AbstractChannelHandlerContext.java:281) [emr-spark-goodies-3.21.0.j
+ar:3.21.0]
+	at io.netty.channel.AbstractChannelHandlerContext.fireChannelInactive(AbstractChannelHandlerContext.java:274) [emr-spark-goodies-3.21.0.jar
+:3.21.0]
+	at io.netty.channel.DefaultChannelPipeline$HeadContext.channelInactive(DefaultChannelPipeline.java:1405) [emr-spark-goodies-3.21.0.jar:3.21
+.0]
+	at io.netty.channel.AbstractChannelHandlerContext.invokeChannelInactive(AbstractChannelHandlerContext.java:301) [emr-spark-goodies-3.21.0.j
+ar:3.21.0]
+	at io.netty.channel.AbstractChannelHandlerContext.invokeChannelInactive(AbstractChannelHandlerContext.java:281) [emr-spark-goodies-3.21.0.j
+ar:3.21.0]
+	at io.netty.channel.DefaultChannelPipeline.fireChannelInactive(DefaultChannelPipeline.java:901) [emr-spark-goodies-3.21.0.jar:3.21.0]
+	at io.netty.channel.AbstractChannel$AbstractUnsafe$7.run(AbstractChannel.java:813) [emr-spark-goodies-3.21.0.jar:3.21.0]
+	at io.netty.util.concurrent.AbstractEventExecutor.runTask(AbstractEventExecutor.java:173) [emr-spark-goodies-3.21.0.jar:3.21.0]
+	at io.netty.util.concurrent.AbstractEventExecutor.safeExecute(AbstractEventExecutor.java:166) [emr-spark-goodies-3.21.0.jar:3.21.0]
+	at io.netty.util.concurrent.SingleThreadEventExecutor.runAllTasks(SingleThreadEventExecutor.java:470) [emr-spark-goodies-3.21.0.jar:3.21.0]
+	at io.netty.channel.nio.NioEventLoop.run(NioEventLoop.java:566) [emr-spark-goodies-3.21.0.jar:3.21.0]
+	at io.netty.util.concurrent.SingleThreadEventExecutor$4.run(SingleThreadEventExecutor.java:997) [emr-spark-goodies-3.21.0.jar:3.21.0]
+	at io.netty.util.internal.ThreadExecutorMap$2.run(ThreadExecutorMap.java:74) [emr-spark-goodies-3.21.0.jar:3.21.0]
+	at io.netty.util.concurrent.FastThreadLocalRunnable.run(FastThreadLocalRunnable.java:30) [emr-spark-goodies-3.21.0.jar:3.21.0]
+	at java.lang.Thread.run(Thread.java:840) [?:?]
+26/07/24 07:07:14 WARN TaskSetManager: Lost task 101.1 in stage 1512.0 (TID 120660) (ip-172-31-72-78.ec2.internal executor 43): ExecutorLostFailure (execu
+tor 43 exited caused by one of the running tasks) Reason: Executor Process Lost
+26/07/24 07:07:14 WARN TaskSetManager: Lost task 66.1 in stage 1512.0 (TID 120657) (ip-172-31-72-78.ec2.internal executor 43): ExecutorLostFailure (execut
+or 43 exited caused by one of the running tasks) Reason: Executor Process Lost
+26/07/24 07:07:14 WARN TaskSetManager: Lost task 136.1 in stage 1512.0 (TID 120659) (ip-172-31-72-78.ec2.internal executor 43): ExecutorLostFailure (execu
+tor 43 exited caused by one of the running tasks) Reason: Executor Process Lost
+26/07/24 07:07:14 WARN YarnSchedulerBackend$YarnSchedulerEndpoint: Attempted to get executor loss reason for executor id 41 at RPC address 172.31.72.78:53
+798, but got no response. Marking as agent lost.
+java.io.IOException: Connection from /172.31.72.78:46360 closed
+	at org.apache.spark.network.client.TransportResponseHandler.channelInactive(TransportResponseHandler.java:147) [spark-network-common_2.12-3
+.5.6-amzn-1.jar:3.5.6-amzn-1]
+	at org.apache.spark.network.server.TransportChannelHandler.channelInactive(TransportChannelHandler.java:117) [spark-network-common_2.12-3.5
+.6-amzn-1.jar:3.5.6-amzn-1]
+	at io.netty.channel.AbstractChannelHandlerContext.invokeChannelInactive(AbstractChannelHandlerContext.java:305) [emr-spark-goodies-3.21.0.j
+ar:3.21.0]
+	at io.netty.channel.AbstractChannelHandlerContext.invokeChannelInactive(AbstractChannelHandlerContext.java:281) [emr-spark-goodies-3.21.0.j
+ar:3.21.0]
+	at io.netty.channel.AbstractChannelHandlerContext.fireChannelInactive(AbstractChannelHandlerContext.java:274) [emr-spark-goodies-3.21.0.jar
+:3.21.0]
+	at io.netty.channel.ChannelInboundHandlerAdapter.channelInactive(ChannelInboundHandlerAdapter.java:81) [emr-spark-goodies-3.21.0.jar:3.21.0
+]
+	at io.netty.handler.timeout.IdleStateHandler.channelInactive(IdleStateHandler.java:277) [emr-spark-goodies-3.21.0.jar:3.21.0]
+	at io.netty.channel.AbstractChannelHandlerContext.invokeChannelInactive(AbstractChannelHandlerContext.java:303) [emr-spark-goodies-3.21.0.j
+ar:3.21.0]
+	at io.netty.channel.AbstractChannelHandlerContext.invokeChannelInactive(AbstractChannelHandlerContext.java:281) [emr-spark-goodies-3.21.0.j
+ar:3.21.0]
+	at io.netty.channel.AbstractChannelHandlerContext.fireChannelInactive(AbstractChannelHandlerContext.java:274) [emr-spark-goodies-3.21.0.jar
+:3.21.0]
+	at io.netty.channel.ChannelInboundHandlerAdapter.channelInactive(ChannelInboundHandlerAdapter.java:81) [emr-spark-goodies-3.21.0.jar:3.21.0
+]
+	at org.apache.spark.network.util.TransportFrameDecoder.channelInactive(TransportFrameDecoder.java:225) [spark-network-common_2.12-3.5.6-amz
+n-1.jar:3.5.6-amzn-1]
+	at io.netty.channel.AbstractChannelHandlerContext.invokeChannelInactive(AbstractChannelHandlerContext.java:305) [emr-spark-goodies-3.21.0.j
+ar:3.21.0]
+	at io.netty.channel.AbstractChannelHandlerContext.invokeChannelInactive(AbstractChannelHandlerContext.java:281) [emr-spark-goodies-3.21.0.j
+ar:3.21.0]
+	at io.netty.channel.AbstractChannelHandlerContext.fireChannelInactive(AbstractChannelHandlerContext.java:274) [emr-spark-goodies-3.21.0.jar
+:3.21.0]
+	at io.netty.channel.DefaultChannelPipeline$HeadContext.channelInactive(DefaultChannelPipeline.java:1405) [emr-spark-goodies-3.21.0.jar:3.21
+.0]
+	at io.netty.channel.AbstractChannelHandlerContext.invokeChannelInactive(AbstractChannelHandlerContext.java:301) [emr-spark-goodies-3.21.0.j
+ar:3.21.0]
+	at io.netty.channel.AbstractChannelHandlerContext.invokeChannelInactive(AbstractChannelHandlerContext.java:281) [emr-spark-goodies-3.21.0.j
+ar:3.21.0]
+	at io.netty.channel.DefaultChannelPipeline.fireChannelInactive(DefaultChannelPipeline.java:901) [emr-spark-goodies-3.21.0.jar:3.21.0]
+	at io.netty.channel.AbstractChannel$AbstractUnsafe$7.run(AbstractChannel.java:813) [emr-spark-goodies-3.21.0.jar:3.21.0]
+	at io.netty.util.concurrent.AbstractEventExecutor.runTask(AbstractEventExecutor.java:173) [emr-spark-goodies-3.21.0.jar:3.21.0]
+	at io.netty.util.concurrent.AbstractEventExecutor.safeExecute(AbstractEventExecutor.java:166) [emr-spark-goodies-3.21.0.jar:3.21.0]
+	at io.netty.util.concurrent.SingleThreadEventExecutor.runAllTasks(SingleThreadEventExecutor.java:470) [emr-spark-goodies-3.21.0.jar:3.21.0]
+	at io.netty.channel.nio.NioEventLoop.run(NioEventLoop.java:566) [emr-spark-goodies-3.21.0.jar:3.21.0]
+	at io.netty.util.concurrent.SingleThreadEventExecutor$4.run(SingleThreadEventExecutor.java:997) [emr-spark-goodies-3.21.0.jar:3.21.0]
+	at io.netty.util.internal.ThreadExecutorMap$2.run(ThreadExecutorMap.java:74) [emr-spark-goodies-3.21.0.jar:3.21.0]
+	at io.netty.util.concurrent.FastThreadLocalRunnable.run(FastThreadLocalRunnable.java:30) [emr-spark-goodies-3.21.0.jar:3.21.0]
+	at java.lang.Thread.run(Thread.java:840) [?:?]
+26/07/24 07:07:14 ERROR YarnScheduler: Lost executor 47 on ip-172-31-66-80.ec2.internal: Executor Process Lost
+26/07/24 07:07:14 WARN TaskSetManager: Lost task 121.1 in stage 1512.0 (TID 120682) (ip-172-31-66-80.ec2.internal executor 47): ExecutorLostFailure (execu
+tor 47 exited caused by one of the running tasks) Reason: Executor Process Lost
+26/07/24 07:07:14 WARN YarnSchedulerBackend$YarnSchedulerEndpoint: Attempted to get executor loss reason for executor id 42 at RPC address 172.31.66.80:43
+668, but got no response. Marking as agent lost.
+java.io.IOException: Connection from /172.31.72.78:46360 closed
+	at org.apache.spark.network.client.TransportResponseHandler.channelInactive(TransportResponseHandler.java:147) [spark-network-common_2.12-3
+.5.6-amzn-1.jar:3.5.6-amzn-1]
+	at org.apache.spark.network.server.TransportChannelHandler.channelInactive(TransportChannelHandler.java:117) [spark-network-common_2.12-3.5
+.6-amzn-1.jar:3.5.6-amzn-1]
+	at io.netty.channel.AbstractChannelHandlerContext.invokeChannelInactive(AbstractChannelHandlerContext.java:305) [emr-spark-goodies-3.21.0.j
+ar:3.21.0]
+	at io.netty.channel.AbstractChannelHandlerContext.invokeChannelInactive(AbstractChannelHandlerContext.java:281) [emr-spark-goodies-3.21.0.j
+ar:3.21.0]
+	at io.netty.channel.AbstractChannelHandlerContext.fireChannelInactive(AbstractChannelHandlerContext.java:274) [emr-spark-goodies-3.21.0.jar
+:3.21.0]
+	at io.netty.channel.ChannelInboundHandlerAdapter.channelInactive(ChannelInboundHandlerAdapter.java:81) [emr-spark-goodies-3.21.0.jar:3.21.0
+]
+	at io.netty.handler.timeout.IdleStateHandler.channelInactive(IdleStateHandler.java:277) [emr-spark-goodies-3.21.0.jar:3.21.0]
+	at io.netty.channel.AbstractChannelHandlerContext.invokeChannelInactive(AbstractChannelHandlerContext.java:303) [emr-spark-goodies-3.21.0.j
+ar:3.21.0]
+	at io.netty.channel.AbstractChannelHandlerContext.invokeChannelInactive(AbstractChannelHandlerContext.java:281) [emr-spark-goodies-3.21.0.j
+ar:3.21.0]
+	at io.netty.channel.AbstractChannelHandlerContext.fireChannelInactive(AbstractChannelHandlerContext.java:274) [emr-spark-goodies-3.21.0.jar
+:3.21.0]
+	at io.netty.channel.ChannelInboundHandlerAdapter.channelInactive(ChannelInboundHandlerAdapter.java:81) [emr-spark-goodies-3.21.0.jar:3.21.0
+]
+	at org.apache.spark.network.util.TransportFrameDecoder.channelInactive(TransportFrameDecoder.java:225) [spark-network-common_2.12-3.5.6-amz
+n-1.jar:3.5.6-amzn-1]
+	at io.netty.channel.AbstractChannelHandlerContext.invokeChannelInactive(AbstractChannelHandlerContext.java:305) [emr-spark-goodies-3.21.0.j
+ar:3.21.0]
+	at io.netty.channel.AbstractChannelHandlerContext.invokeChannelInactive(AbstractChannelHandlerContext.java:281) [emr-spark-goodies-3.21.0.j
+ar:3.21.0]
+	at io.netty.channel.AbstractChannelHandlerContext.fireChannelInactive(AbstractChannelHandlerContext.java:274) [emr-spark-goodies-3.21.0.jar
+:3.21.0]
+	at io.netty.channel.DefaultChannelPipeline$HeadContext.channelInactive(DefaultChannelPipeline.java:1405) [emr-spark-goodies-3.21.0.jar:3.21
+.0]
+	at io.netty.channel.AbstractChannelHandlerContext.invokeChannelInactive(AbstractChannelHandlerContext.java:301) [emr-spark-goodies-3.21.0.j
+ar:3.21.0]
+	at io.netty.channel.AbstractChannelHandlerContext.invokeChannelInactive(AbstractChannelHandlerContext.java:281) [emr-spark-goodies-3.21.0.j
+ar:3.21.0]
+	at io.netty.channel.DefaultChannelPipeline.fireChannelInactive(DefaultChannelPipeline.java:901) [emr-spark-goodies-3.21.0.jar:3.21.0]
+	at io.netty.channel.AbstractChannel$AbstractUnsafe$7.run(AbstractChannel.java:813) [emr-spark-goodies-3.21.0.jar:3.21.0]
+	at io.netty.util.concurrent.AbstractEventExecutor.runTask(AbstractEventExecutor.java:173) [emr-spark-goodies-3.21.0.jar:3.21.0]
+	at io.netty.util.concurrent.AbstractEventExecutor.safeExecute(AbstractEventExecutor.java:166) [emr-spark-goodies-3.21.0.jar:3.21.0]
+	at io.netty.util.concurrent.SingleThreadEventExecutor.runAllTasks(SingleThreadEventExecutor.java:470) [emr-spark-goodies-3.21.0.jar:3.21.0]
+	at io.netty.channel.nio.NioEventLoop.run(NioEventLoop.java:566) [emr-spark-goodies-3.21.0.jar:3.21.0]
+	at io.netty.util.concurrent.SingleThreadEventExecutor$4.run(SingleThreadEventExecutor.java:997) [emr-spark-goodies-3.21.0.jar:3.21.0]
+	at io.netty.util.internal.ThreadExecutorMap$2.run(ThreadExecutorMap.java:74) [emr-spark-goodies-3.21.0.jar:3.21.0]
+	at io.netty.util.concurrent.FastThreadLocalRunnable.run(FastThreadLocalRunnable.java:30) [emr-spark-goodies-3.21.0.jar:3.21.0]
+	at java.lang.Thread.run(Thread.java:840) [?:?]
+26/07/24 07:07:14 WARN TaskSetManager: Lost task 16.1 in stage 1512.0 (TID 120681) (ip-172-31-66-80.ec2.internal executor 47): ExecutorLostFailure (execut
+or 47 exited caused by one of the running tasks) Reason: Executor Process Lost
+26/07/24 07:07:14 WARN TaskSetManager: Lost task 51.1 in stage 1512.0 (TID 120684) (ip-172-31-66-80.ec2.internal executor 47): ExecutorLostFailure (execut
+or 47 exited caused by one of the running tasks) Reason: Executor Process Lost
+26/07/24 07:07:14 WARN TaskSetManager: Lost task 86.1 in stage 1512.0 (TID 120683) (ip-172-31-66-80.ec2.internal executor 47): ExecutorLostFailure (execut
+or 47 exited caused by one of the running tasks) Reason: Executor Process Lost
+26/07/24 07:07:14 WARN YarnSchedulerBackend$YarnSchedulerEndpoint: Attempted to get executor loss reason for executor id 39 at RPC address 172.31.72.78:53
+816, but got no response. Marking as agent lost.
+java.io.IOException: Connection from /172.31.72.78:46360 closed
+	at org.apache.spark.network.client.TransportResponseHandler.channelInactive(TransportResponseHandler.java:147) [spark-network-common_2.12-3
+.5.6-amzn-1.jar:3.5.6-amzn-1]
+	at org.apache.spark.network.server.TransportChannelHandler.channelInactive(TransportChannelHandler.java:117) [spark-network-common_2.12-3.5
+.6-amzn-1.jar:3.5.6-amzn-1]
+	at io.netty.channel.AbstractChannelHandlerContext.invokeChannelInactive(AbstractChannelHandlerContext.java:305) [emr-spark-goodies-3.21.0.j
+ar:3.21.0]
+	at io.netty.channel.AbstractChannelHandlerContext.invokeChannelInactive(AbstractChannelHandlerContext.java:281) [emr-spark-goodies-3.21.0.j
+ar:3.21.0]
+	at io.netty.channel.AbstractChannelHandlerContext.fireChannelInactive(AbstractChannelHandlerContext.java:274) [emr-spark-goodies-3.21.0.jar
+:3.21.0]
+	at io.netty.channel.ChannelInboundHandlerAdapter.channelInactive(ChannelInboundHandlerAdapter.java:81) [emr-spark-goodies-3.21.0.jar:3.21.0
+]
+	at io.netty.handler.timeout.IdleStateHandler.channelInactive(IdleStateHandler.java:277) [emr-spark-goodies-3.21.0.jar:3.21.0]
+	at io.netty.channel.AbstractChannelHandlerContext.invokeChannelInactive(AbstractChannelHandlerContext.java:303) [emr-spark-goodies-3.21.0.j
+ar:3.21.0]
+	at io.netty.channel.AbstractChannelHandlerContext.invokeChannelInactive(AbstractChannelHandlerContext.java:281) [emr-spark-goodies-3.21.0.j
+ar:3.21.0]
+	at io.netty.channel.AbstractChannelHandlerContext.fireChannelInactive(AbstractChannelHandlerContext.java:274) [emr-spark-goodies-3.21.0.jar
+:3.21.0]
+	at io.netty.channel.ChannelInboundHandlerAdapter.channelInactive(ChannelInboundHandlerAdapter.java:81) [emr-spark-goodies-3.21.0.jar:3.21.0
+]
+	at org.apache.spark.network.util.TransportFrameDecoder.channelInactive(TransportFrameDecoder.java:225) [spark-network-common_2.12-3.5.6-amz
+n-1.jar:3.5.6-amzn-1]
+	at io.netty.channel.AbstractChannelHandlerContext.invokeChannelInactive(AbstractChannelHandlerContext.java:305) [emr-spark-goodies-3.21.0.j
+ar:3.21.0]
+	at io.netty.channel.AbstractChannelHandlerContext.invokeChannelInactive(AbstractChannelHandlerContext.java:281) [emr-spark-goodies-3.21.0.j
+ar:3.21.0]
+	at io.netty.channel.AbstractChannelHandlerContext.fireChannelInactive(AbstractChannelHandlerContext.java:274) [emr-spark-goodies-3.21.0.jar
+:3.21.0]
+	at io.netty.channel.DefaultChannelPipeline$HeadContext.channelInactive(DefaultChannelPipeline.java:1405) [emr-spark-goodies-3.21.0.jar:3.21
+.0]
+	at io.netty.channel.AbstractChannelHandlerContext.invokeChannelInactive(AbstractChannelHandlerContext.java:301) [emr-spark-goodies-3.21.0.j
+ar:3.21.0]
+	at io.netty.channel.AbstractChannelHandlerContext.invokeChannelInactive(AbstractChannelHandlerContext.java:281) [emr-spark-goodies-3.21.0.j
+ar:3.21.0]
+	at io.netty.channel.DefaultChannelPipeline.fireChannelInactive(DefaultChannelPipeline.java:901) [emr-spark-goodies-3.21.0.jar:3.21.0]
+	at io.netty.channel.AbstractChannel$AbstractUnsafe$7.run(AbstractChannel.java:813) [emr-spark-goodies-3.21.0.jar:3.21.0]
+	at io.netty.util.concurrent.AbstractEventExecutor.runTask(AbstractEventExecutor.java:173) [emr-spark-goodies-3.21.0.jar:3.21.0]
+	at io.netty.util.concurrent.AbstractEventExecutor.safeExecute(AbstractEventExecutor.java:166) [emr-spark-goodies-3.21.0.jar:3.21.0]
+	at io.netty.util.concurrent.SingleThreadEventExecutor.runAllTasks(SingleThreadEventExecutor.java:470) [emr-spark-goodies-3.21.0.jar:3.21.0]
+	at io.netty.channel.nio.NioEventLoop.run(NioEventLoop.java:566) [emr-spark-goodies-3.21.0.jar:3.21.0]
+	at io.netty.util.concurrent.SingleThreadEventExecutor$4.run(SingleThreadEventExecutor.java:997) [emr-spark-goodies-3.21.0.jar:3.21.0]
+	at io.netty.util.internal.ThreadExecutorMap$2.run(ThreadExecutorMap.java:74) [emr-spark-goodies-3.21.0.jar:3.21.0]
+	at io.netty.util.concurrent.FastThreadLocalRunnable.run(FastThreadLocalRunnable.java:30) [emr-spark-goodies-3.21.0.jar:3.21.0]
+	at java.lang.Thread.run(Thread.java:840) [?:?]
+26/07/24 07:07:14 ERROR YarnScheduler: Lost executor 48 on ip-172-31-72-78.ec2.internal: Executor Process Lost
+26/07/24 07:07:14 WARN TaskSetManager: Lost task 15.1 in stage 1512.0 (TID 120656) (ip-172-31-72-78.ec2.internal executor 48): ExecutorLostFailure (execut
+or 48 exited caused by one of the running tasks) Reason: Executor Process Lost
+26/07/24 07:07:14 WARN TaskSetManager: Lost task 50.1 in stage 1512.0 (TID 120655) (ip-172-31-72-78.ec2.internal executor 48): ExecutorLostFailure (execut
+or 48 exited caused by one of the running tasks) Reason: Executor Process Lost
+26/07/24 07:07:14 WARN YarnSchedulerBackend$YarnSchedulerEndpoint: Attempted to get executor loss reason for executor id 49 at RPC address 172.31.72.78:53
+830, but got no response. Marking as agent lost.
+java.io.IOException: Connection from /172.31.72.78:46360 closed
+	at org.apache.spark.network.client.TransportResponseHandler.channelInactive(TransportResponseHandler.java:147) [spark-network-common_2.12-3
+.5.6-amzn-1.jar:3.5.6-amzn-1]
+	at org.apache.spark.network.server.TransportChannelHandler.channelInactive(TransportChannelHandler.java:117) [spark-network-common_2.12-3.5
+.6-amzn-1.jar:3.5.6-amzn-1]
+	at io.netty.channel.AbstractChannelHandlerContext.invokeChannelInactive(AbstractChannelHandlerContext.java:305) [emr-spark-goodies-3.21.0.j
+ar:3.21.0]
+	at io.netty.channel.AbstractChannelHandlerContext.invokeChannelInactive(AbstractChannelHandlerContext.java:281) [emr-spark-goodies-3.21.0.j
+ar:3.21.0]
+	at io.netty.channel.AbstractChannelHandlerContext.fireChannelInactive(AbstractChannelHandlerContext.java:274) [emr-spark-goodies-3.21.0.jar
+:3.21.0]
+	at io.netty.channel.ChannelInboundHandlerAdapter.channelInactive(ChannelInboundHandlerAdapter.java:81) [emr-spark-goodies-3.21.0.jar:3.21.0
+]
+	at io.netty.handler.timeout.IdleStateHandler.channelInactive(IdleStateHandler.java:277) [emr-spark-goodies-3.21.0.jar:3.21.0]
+	at io.netty.channel.AbstractChannelHandlerContext.invokeChannelInactive(AbstractChannelHandlerContext.java:303) [emr-spark-goodies-3.21.0.j
+ar:3.21.0]
+	at io.netty.channel.AbstractChannelHandlerContext.invokeChannelInactive(AbstractChannelHandlerContext.java:281) [emr-spark-goodies-3.21.0.j
+ar:3.21.0]
+	at io.netty.channel.AbstractChannelHandlerContext.fireChannelInactive(AbstractChannelHandlerContext.java:274) [emr-spark-goodies-3.21.0.jar
+:3.21.0]
+	at io.netty.channel.ChannelInboundHandlerAdapter.channelInactive(ChannelInboundHandlerAdapter.java:81) [emr-spark-goodies-3.21.0.jar:3.21.0
+]
+	at org.apache.spark.network.util.TransportFrameDecoder.channelInactive(TransportFrameDecoder.java:225) [spark-network-common_2.12-3.5.6-amz
+n-1.jar:3.5.6-amzn-1]
+	at io.netty.channel.AbstractChannelHandlerContext.invokeChannelInactive(AbstractChannelHandlerContext.java:305) [emr-spark-goodies-3.21.0.j
+ar:3.21.0]
+	at io.netty.channel.AbstractChannelHandlerContext.invokeChannelInactive(AbstractChannelHandlerContext.java:281) [emr-spark-goodies-3.21.0.j
+ar:3.21.0]
+	at io.netty.channel.AbstractChannelHandlerContext.fireChannelInactive(AbstractChannelHandlerContext.java:274) [emr-spark-goodies-3.21.0.jar
+:3.21.0]
+	at io.netty.channel.DefaultChannelPipeline$HeadContext.channelInactive(DefaultChannelPipeline.java:1405) [emr-spark-goodies-3.21.0.jar:3.21
+.0]
+	at io.netty.channel.AbstractChannelHandlerContext.invokeChannelInactive(AbstractChannelHandlerContext.java:301) [emr-spark-goodies-3.21.0.j
+ar:3.21.0]
+	at io.netty.channel.AbstractChannelHandlerContext.invokeChannelInactive(AbstractChannelHandlerContext.java:281) [emr-spark-goodies-3.21.0.j
+ar:3.21.0]
+	at io.netty.channel.DefaultChannelPipeline.fireChannelInactive(DefaultChannelPipeline.java:901) [emr-spark-goodies-3.21.0.jar:3.21.0]
+	at io.netty.channel.AbstractChannel$AbstractUnsafe$7.run(AbstractChannel.java:813) [emr-spark-goodies-3.21.0.jar:3.21.0]
+	at io.netty.util.concurrent.AbstractEventExecutor.runTask(AbstractEventExecutor.java:173) [emr-spark-goodies-3.21.0.jar:3.21.0]
+	at io.netty.util.concurrent.AbstractEventExecutor.safeExecute(AbstractEventExecutor.java:166) [emr-spark-goodies-3.21.0.jar:3.21.0]
+	at io.netty.util.concurrent.SingleThreadEventExecutor.runAllTasks(SingleThreadEventExecutor.java:470) [emr-spark-goodies-3.21.0.jar:3.21.0]
+	at io.netty.channel.nio.NioEventLoop.run(NioEventLoop.java:566) [emr-spark-goodies-3.21.0.jar:3.21.0]
+	at io.netty.util.concurrent.SingleThreadEventExecutor$4.run(SingleThreadEventExecutor.java:997) [emr-spark-goodies-3.21.0.jar:3.21.0]
+	at io.netty.util.internal.ThreadExecutorMap$2.run(ThreadExecutorMap.java:74) [emr-spark-goodies-3.21.0.jar:3.21.0]
+	at io.netty.util.concurrent.FastThreadLocalRunnable.run(FastThreadLocalRunnable.java:30) [emr-spark-goodies-3.21.0.jar:3.21.0]
+	at java.lang.Thread.run(Thread.java:840) [?:?]
+26/07/24 07:07:14 WARN TaskSetManager: Lost task 85.1 in stage 1512.0 (TID 120654) (ip-172-31-72-78.ec2.internal executor 48): ExecutorLostFailure (execut
+or 48 exited caused by one of the running tasks) Reason: Executor Process Lost
+26/07/24 07:07:14 WARN YarnSchedulerBackend$YarnSchedulerEndpoint: Attempted to get executor loss reason for executor id 44 at RPC address 172.31.66.80:43
+636, but got no response. Marking as agent lost.
+java.io.IOException: Connection from /172.31.72.78:46360 closed
+	at org.apache.spark.network.client.TransportResponseHandler.channelInactive(TransportResponseHandler.java:147) [spark-network-common_2.12-3
+.5.6-amzn-1.jar:3.5.6-amzn-1]
+	at org.apache.spark.network.server.TransportChannelHandler.channelInactive(TransportChannelHandler.java:117) [spark-network-common_2.12-3.5
+.6-amzn-1.jar:3.5.6-amzn-1]
+	at io.netty.channel.AbstractChannelHandlerContext.invokeChannelInactive(AbstractChannelHandlerContext.java:305) [emr-spark-goodies-3.21.0.j
+ar:3.21.0]
+	at io.netty.channel.AbstractChannelHandlerContext.invokeChannelInactive(AbstractChannelHandlerContext.java:281) [emr-spark-goodies-3.21.0.j
+ar:3.21.0]
+	at io.netty.channel.AbstractChannelHandlerContext.fireChannelInactive(AbstractChannelHandlerContext.java:274) [emr-spark-goodies-3.21.0.jar
+:3.21.0]
+	at io.netty.channel.ChannelInboundHandlerAdapter.channelInactive(ChannelInboundHandlerAdapter.java:81) [emr-spark-goodies-3.21.0.jar:3.21.0
+]
+	at io.netty.handler.timeout.IdleStateHandler.channelInactive(IdleStateHandler.java:277) [emr-spark-goodies-3.21.0.jar:3.21.0]
+	at io.netty.channel.AbstractChannelHandlerContext.invokeChannelInactive(AbstractChannelHandlerContext.java:303) [emr-spark-goodies-3.21.0.j
+ar:3.21.0]
+	at io.netty.channel.AbstractChannelHandlerContext.invokeChannelInactive(AbstractChannelHandlerContext.java:281) [emr-spark-goodies-3.21.0.j
+ar:3.21.0]
+	at io.netty.channel.AbstractChannelHandlerContext.fireChannelInactive(AbstractChannelHandlerContext.java:274) [emr-spark-goodies-3.21.0.jar
+:3.21.0]
+	at io.netty.channel.ChannelInboundHandlerAdapter.channelInactive(ChannelInboundHandlerAdapter.java:81) [emr-spark-goodies-3.21.0.jar:3.21.0
+]
+	at org.apache.spark.network.util.TransportFrameDecoder.channelInactive(TransportFrameDecoder.java:225) [spark-network-common_2.12-3.5.6-amz
+n-1.jar:3.5.6-amzn-1]
+	at io.netty.channel.AbstractChannelHandlerContext.invokeChannelInactive(AbstractChannelHandlerContext.java:305) [emr-spark-goodies-3.21.0.j
+ar:3.21.0]
+	at io.netty.channel.AbstractChannelHandlerContext.invokeChannelInactive(AbstractChannelHandlerContext.java:281) [emr-spark-goodies-3.21.0.j
+ar:3.21.0]
+	at io.netty.channel.AbstractChannelHandlerContext.fireChannelInactive(AbstractChannelHandlerContext.java:274) [emr-spark-goodies-3.21.0.jar
+:3.21.0]
+	at io.netty.channel.DefaultChannelPipeline$HeadContext.channelInactive(DefaultChannelPipeline.java:1405) [emr-spark-goodies-3.21.0.jar:3.21
+.0]
+	at io.netty.channel.AbstractChannelHandlerContext.invokeChannelInactive(AbstractChannelHandlerContext.java:301) [emr-spark-goodies-3.21.0.j
+ar:3.21.0]
+	at io.netty.channel.AbstractChannelHandlerContext.invokeChannelInactive(AbstractChannelHandlerContext.java:281) [emr-spark-goodies-3.21.0.j
+ar:3.21.0]
+	at io.netty.channel.DefaultChannelPipeline.fireChannelInactive(DefaultChannelPipeline.java:901) [emr-spark-goodies-3.21.0.jar:3.21.0]
+	at io.netty.channel.AbstractChannel$AbstractUnsafe$7.run(AbstractChannel.java:813) [emr-spark-goodies-3.21.0.jar:3.21.0]
+	at io.netty.util.concurrent.AbstractEventExecutor.runTask(AbstractEventExecutor.java:173) [emr-spark-goodies-3.21.0.jar:3.21.0]
+	at io.netty.util.concurrent.AbstractEventExecutor.safeExecute(AbstractEventExecutor.java:166) [emr-spark-goodies-3.21.0.jar:3.21.0]
+	at io.netty.util.concurrent.SingleThreadEventExecutor.runAllTasks(SingleThreadEventExecutor.java:470) [emr-spark-goodies-3.21.0.jar:3.21.0]
+	at io.netty.channel.nio.NioEventLoop.run(NioEventLoop.java:566) [emr-spark-goodies-3.21.0.jar:3.21.0]
+	at io.netty.util.concurrent.SingleThreadEventExecutor$4.run(SingleThreadEventExecutor.java:997) [emr-spark-goodies-3.21.0.jar:3.21.0]
+	at io.netty.util.internal.ThreadExecutorMap$2.run(ThreadExecutorMap.java:74) [emr-spark-goodies-3.21.0.jar:3.21.0]
+	at io.netty.util.concurrent.FastThreadLocalRunnable.run(FastThreadLocalRunnable.java:30) [emr-spark-goodies-3.21.0.jar:3.21.0]
+	at java.lang.Thread.run(Thread.java:840) [?:?]
+26/07/24 07:07:14 WARN TaskSetManager: Lost task 120.1 in stage 1512.0 (TID 120653) (ip-172-31-72-78.ec2.internal executor 48): ExecutorLostFailure (execu
+tor 48 exited caused by one of the running tasks) Reason: Executor Process Lost
+26/07/24 07:07:14 ERROR YarnScheduler: Lost executor 36 on ip-172-31-66-80.ec2.internal: Executor Process Lost
+26/07/24 07:07:14 WARN YarnSchedulerBackend$YarnSchedulerEndpoint: Attempted to get executor loss reason for executor id 46 at RPC address 172.31.72.78:53
+840, but got no response. Marking as agent lost.
+java.io.IOException: Connection from /172.31.72.78:46360 closed
+	at org.apache.spark.network.client.TransportResponseHandler.channelInactive(TransportResponseHandler.java:147) [spark-network-common_2.12-3
+.5.6-amzn-1.jar:3.5.6-amzn-1]
+	at org.apache.spark.network.server.TransportChannelHandler.channelInactive(TransportChannelHandler.java:117) [spark-network-common_2.12-3.5
+.6-amzn-1.jar:3.5.6-amzn-1]
+	at io.netty.channel.AbstractChannelHandlerContext.invokeChannelInactive(AbstractChannelHandlerContext.java:305) [emr-spark-goodies-3.21.0.j
+ar:3.21.0]
+	at io.netty.channel.AbstractChannelHandlerContext.invokeChannelInactive(AbstractChannelHandlerContext.java:281) [emr-spark-goodies-3.21.0.j
+ar:3.21.0]
+	at io.netty.channel.AbstractChannelHandlerContext.fireChannelInactive(AbstractChannelHandlerContext.java:274) [emr-spark-goodies-3.21.0.jar
+:3.21.0]
+	at io.netty.channel.ChannelInboundHandlerAdapter.channelInactive(ChannelInboundHandlerAdapter.java:81) [emr-spark-goodies-3.21.0.jar:3.21.0
+]
+	at io.netty.handler.timeout.IdleStateHandler.channelInactive(IdleStateHandler.java:277) [emr-spark-goodies-3.21.0.jar:3.21.0]
+	at io.netty.channel.AbstractChannelHandlerContext.invokeChannelInactive(AbstractChannelHandlerContext.java:303) [emr-spark-goodies-3.21.0.j
+ar:3.21.0]
+	at io.netty.channel.AbstractChannelHandlerContext.invokeChannelInactive(AbstractChannelHandlerContext.java:281) [emr-spark-goodies-3.21.0.j
+ar:3.21.0]
+	at io.netty.channel.AbstractChannelHandlerContext.fireChannelInactive(AbstractChannelHandlerContext.java:274) [emr-spark-goodies-3.21.0.jar
+:3.21.0]
+	at io.netty.channel.ChannelInboundHandlerAdapter.channelInactive(ChannelInboundHandlerAdapter.java:81) [emr-spark-goodies-3.21.0.jar:3.21.0
+]
+	at org.apache.spark.network.util.TransportFrameDecoder.channelInactive(TransportFrameDecoder.java:225) [spark-network-common_2.12-3.5.6-amz
+n-1.jar:3.5.6-amzn-1]
+	at io.netty.channel.AbstractChannelHandlerContext.invokeChannelInactive(AbstractChannelHandlerContext.java:305) [emr-spark-goodies-3.21.0.j
+ar:3.21.0]
+	at io.netty.channel.AbstractChannelHandlerContext.invokeChannelInactive(AbstractChannelHandlerContext.java:281) [emr-spark-goodies-3.21.0.j
+ar:3.21.0]
+	at io.netty.channel.AbstractChannelHandlerContext.fireChannelInactive(AbstractChannelHandlerContext.java:274) [emr-spark-goodies-3.21.0.jar
+:3.21.0]
+	at io.netty.channel.DefaultChannelPipeline$HeadContext.channelInactive(DefaultChannelPipeline.java:1405) [emr-spark-goodies-3.21.0.jar:3.21
+.0]
+	at io.netty.channel.AbstractChannelHandlerContext.invokeChannelInactive(AbstractChannelHandlerContext.java:301) [emr-spark-goodies-3.21.0.j
+ar:3.21.0]
+	at io.netty.channel.AbstractChannelHandlerContext.invokeChannelInactive(AbstractChannelHandlerContext.java:281) [emr-spark-goodies-3.21.0.j
+ar:3.21.0]
+	at io.netty.channel.DefaultChannelPipeline.fireChannelInactive(DefaultChannelPipeline.java:901) [emr-spark-goodies-3.21.0.jar:3.21.0]
+	at io.netty.channel.AbstractChannel$AbstractUnsafe$7.run(AbstractChannel.java:813) [emr-spark-goodies-3.21.0.jar:3.21.0]
+	at io.netty.util.concurrent.AbstractEventExecutor.runTask(AbstractEventExecutor.java:173) [emr-spark-goodies-3.21.0.jar:3.21.0]
+	at io.netty.util.concurrent.AbstractEventExecutor.safeExecute(AbstractEventExecutor.java:166) [emr-spark-goodies-3.21.0.jar:3.21.0]
+	at io.netty.util.concurrent.SingleThreadEventExecutor.runAllTasks(SingleThreadEventExecutor.java:470) [emr-spark-goodies-3.21.0.jar:3.21.0]
+	at io.netty.channel.nio.NioEventLoop.run(NioEventLoop.java:566) [emr-spark-goodies-3.21.0.jar:3.21.0]
+	at io.netty.util.concurrent.SingleThreadEventExecutor$4.run(SingleThreadEventExecutor.java:997) [emr-spark-goodies-3.21.0.jar:3.21.0]
+	at io.netty.util.internal.ThreadExecutorMap$2.run(ThreadExecutorMap.java:74) [emr-spark-goodies-3.21.0.jar:3.21.0]
+	at io.netty.util.concurrent.FastThreadLocalRunnable.run(FastThreadLocalRunnable.java:30) [emr-spark-goodies-3.21.0.jar:3.21.0]
+	at java.lang.Thread.run(Thread.java:840) [?:?]
+26/07/24 07:07:14 WARN TaskSetManager: Lost task 76.1 in stage 1512.0 (TID 120670) (ip-172-31-66-80.ec2.internal executor 36): ExecutorLostFailure (execut
+or 36 exited caused by one of the running tasks) Reason: Executor Process Lost
+26/07/24 07:07:14 WARN TaskSetManager: Lost task 111.1 in stage 1512.0 (TID 120669) (ip-172-31-66-80.ec2.internal executor 36): ExecutorLostFailure (execu
+tor 36 exited caused by one of the running tasks) Reason: Executor Process Lost
+26/07/24 07:07:14 WARN TaskSetManager: Lost task 6.1 in stage 1512.0 (TID 120672) (ip-172-31-66-80.ec2.internal executor 36): ExecutorLostFailure (executo
+r 36 exited caused by one of the running tasks) Reason: Executor Process Lost
+26/07/24 07:07:14 WARN YarnSchedulerBackend$YarnSchedulerEndpoint: Attempted to get executor loss reason for executor id 45 at RPC address 172.31.66.80:43
+682, but got no response. Marking as agent lost.
+java.io.IOException: Connection from /172.31.72.78:46360 closed
+	at org.apache.spark.network.client.TransportResponseHandler.channelInactive(TransportResponseHandler.java:147) [spark-network-common_2.12-3
+.5.6-amzn-1.jar:3.5.6-amzn-1]
+	at org.apache.spark.network.server.TransportChannelHandler.channelInactive(TransportChannelHandler.java:117) [spark-network-common_2.12-3.5
+.6-amzn-1.jar:3.5.6-amzn-1]
+	at io.netty.channel.AbstractChannelHandlerContext.invokeChannelInactive(AbstractChannelHandlerContext.java:305) [emr-spark-goodies-3.21.0.j
+ar:3.21.0]
+	at io.netty.channel.AbstractChannelHandlerContext.invokeChannelInactive(AbstractChannelHandlerContext.java:281) [emr-spark-goodies-3.21.0.j
+ar:3.21.0]
+	at io.netty.channel.AbstractChannelHandlerContext.fireChannelInactive(AbstractChannelHandlerContext.java:274) [emr-spark-goodies-3.21.0.jar
+:3.21.0]
+	at io.netty.channel.ChannelInboundHandlerAdapter.channelInactive(ChannelInboundHandlerAdapter.java:81) [emr-spark-goodies-3.21.0.jar:3.21.0
+]
+	at io.netty.handler.timeout.IdleStateHandler.channelInactive(IdleStateHandler.java:277) [emr-spark-goodies-3.21.0.jar:3.21.0]
+	at io.netty.channel.AbstractChannelHandlerContext.invokeChannelInactive(AbstractChannelHandlerContext.java:303) [emr-spark-goodies-3.21.0.j
+ar:3.21.0]
+	at io.netty.channel.AbstractChannelHandlerContext.invokeChannelInactive(AbstractChannelHandlerContext.java:281) [emr-spark-goodies-3.21.0.j
+ar:3.21.0]
+	at io.netty.channel.AbstractChannelHandlerContext.fireChannelInactive(AbstractChannelHandlerContext.java:274) [emr-spark-goodies-3.21.0.jar
+:3.21.0]
+	at io.netty.channel.ChannelInboundHandlerAdapter.channelInactive(ChannelInboundHandlerAdapter.java:81) [emr-spark-goodies-3.21.0.jar:3.21.0
+]
+	at org.apache.spark.network.util.TransportFrameDecoder.channelInactive(TransportFrameDecoder.java:225) [spark-network-common_2.12-3.5.6-amz
+n-1.jar:3.5.6-amzn-1]
+	at io.netty.channel.AbstractChannelHandlerContext.invokeChannelInactive(AbstractChannelHandlerContext.java:305) [emr-spark-goodies-3.21.0.j
+ar:3.21.0]
+	at io.netty.channel.AbstractChannelHandlerContext.invokeChannelInactive(AbstractChannelHandlerContext.java:281) [emr-spark-goodies-3.21.0.j
+ar:3.21.0]
+	at io.netty.channel.AbstractChannelHandlerContext.fireChannelInactive(AbstractChannelHandlerContext.java:274) [emr-spark-goodies-3.21.0.jar
+:3.21.0]
+	at io.netty.channel.DefaultChannelPipeline$HeadContext.channelInactive(DefaultChannelPipeline.java:1405) [emr-spark-goodies-3.21.0.jar:3.21
+.0]
+	at io.netty.channel.AbstractChannelHandlerContext.invokeChannelInactive(AbstractChannelHandlerContext.java:301) [emr-spark-goodies-3.21.0.j
+ar:3.21.0]
+	at io.netty.channel.AbstractChannelHandlerContext.invokeChannelInactive(AbstractChannelHandlerContext.java:281) [emr-spark-goodies-3.21.0.j
+ar:3.21.0]
+	at io.netty.channel.DefaultChannelPipeline.fireChannelInactive(DefaultChannelPipeline.java:901) [emr-spark-goodies-3.21.0.jar:3.21.0]
+	at io.netty.channel.AbstractChannel$AbstractUnsafe$7.run(AbstractChannel.java:813) [emr-spark-goodies-3.21.0.jar:3.21.0]
+	at io.netty.util.concurrent.AbstractEventExecutor.runTask(AbstractEventExecutor.java:173) [emr-spark-goodies-3.21.0.jar:3.21.0]
+	at io.netty.util.concurrent.AbstractEventExecutor.safeExecute(AbstractEventExecutor.java:166) [emr-spark-goodies-3.21.0.jar:3.21.0]
+	at io.netty.util.concurrent.SingleThreadEventExecutor.runAllTasks(SingleThreadEventExecutor.java:470) [emr-spark-goodies-3.21.0.jar:3.21.0]
+	at io.netty.channel.nio.NioEventLoop.run(NioEventLoop.java:566) [emr-spark-goodies-3.21.0.jar:3.21.0]
+	at io.netty.util.concurrent.SingleThreadEventExecutor$4.run(SingleThreadEventExecutor.java:997) [emr-spark-goodies-3.21.0.jar:3.21.0]
+	at io.netty.util.internal.ThreadExecutorMap$2.run(ThreadExecutorMap.java:74) [emr-spark-goodies-3.21.0.jar:3.21.0]
+	at io.netty.util.concurrent.FastThreadLocalRunnable.run(FastThreadLocalRunnable.java:30) [emr-spark-goodies-3.21.0.jar:3.21.0]
+	at java.lang.Thread.run(Thread.java:840) [?:?]
+26/07/24 07:07:14 WARN TaskSetManager: Lost task 41.1 in stage 1512.0 (TID 120671) (ip-172-31-66-80.ec2.internal executor 36): ExecutorLostFailure (execut
+or 36 exited caused by one of the running tasks) Reason: Executor Process Lost
+26/07/24 07:07:14 ERROR YarnScheduler: Lost executor 38 on ip-172-31-66-80.ec2.internal: Executor Process Lost
+26/07/24 07:07:14 WARN YarnSchedulerBackend$YarnSchedulerEndpoint: Attempted to get executor loss reason for executor id 40 at RPC address 172.31.66.80:43
+702, but got no response. Marking as agent lost.
+java.io.IOException: Connection from /172.31.72.78:46360 closed
+	at org.apache.spark.network.client.TransportResponseHandler.channelInactive(TransportResponseHandler.java:147) [spark-network-common_2.12-3
+.5.6-amzn-1.jar:3.5.6-amzn-1]
+	at org.apache.spark.network.server.TransportChannelHandler.channelInactive(TransportChannelHandler.java:117) [spark-network-common_2.12-3.5
+.6-amzn-1.jar:3.5.6-amzn-1]
+	at io.netty.channel.AbstractChannelHandlerContext.invokeChannelInactive(AbstractChannelHandlerContext.java:305) [emr-spark-goodies-3.21.0.j
+ar:3.21.0]
+	at io.netty.channel.AbstractChannelHandlerContext.invokeChannelInactive(AbstractChannelHandlerContext.java:281) [emr-spark-goodies-3.21.0.j
+ar:3.21.0]
+	at io.netty.channel.AbstractChannelHandlerContext.fireChannelInactive(AbstractChannelHandlerContext.java:274) [emr-spark-goodies-3.21.0.jar
+:3.21.0]
+	at io.netty.channel.ChannelInboundHandlerAdapter.channelInactive(ChannelInboundHandlerAdapter.java:81) [emr-spark-goodies-3.21.0.jar:3.21.0
+]
+	at io.netty.handler.timeout.IdleStateHandler.channelInactive(IdleStateHandler.java:277) [emr-spark-goodies-3.21.0.jar:3.21.0]
+	at io.netty.channel.AbstractChannelHandlerContext.invokeChannelInactive(AbstractChannelHandlerContext.java:303) [emr-spark-goodies-3.21.0.j
+ar:3.21.0]
+	at io.netty.channel.AbstractChannelHandlerContext.invokeChannelInactive(AbstractChannelHandlerContext.java:281) [emr-spark-goodies-3.21.0.j
+ar:3.21.0]
+	at io.netty.channel.AbstractChannelHandlerContext.fireChannelInactive(AbstractChannelHandlerContext.java:274) [emr-spark-goodies-3.21.0.jar
+:3.21.0]
+	at io.netty.channel.ChannelInboundHandlerAdapter.channelInactive(ChannelInboundHandlerAdapter.java:81) [emr-spark-goodies-3.21.0.jar:3.21.0
+]
+	at org.apache.spark.network.util.TransportFrameDecoder.channelInactive(TransportFrameDecoder.java:225) [spark-network-common_2.12-3.5.6-amz
+n-1.jar:3.5.6-amzn-1]
+	at io.netty.channel.AbstractChannelHandlerContext.invokeChannelInactive(AbstractChannelHandlerContext.java:305) [emr-spark-goodies-3.21.0.j
+ar:3.21.0]
+	at io.netty.channel.AbstractChannelHandlerContext.invokeChannelInactive(AbstractChannelHandlerContext.java:281) [emr-spark-goodies-3.21.0.j
+ar:3.21.0]
+	at io.netty.channel.AbstractChannelHandlerContext.fireChannelInactive(AbstractChannelHandlerContext.java:274) [emr-spark-goodies-3.21.0.jar
+:3.21.0]
+	at io.netty.channel.DefaultChannelPipeline$HeadContext.channelInactive(DefaultChannelPipeline.java:1405) [emr-spark-goodies-3.21.0.jar:3.21
+.0]
+	at io.netty.channel.AbstractChannelHandlerContext.invokeChannelInactive(AbstractChannelHandlerContext.java:301) [emr-spark-goodies-3.21.0.j
+ar:3.21.0]
+	at io.netty.channel.AbstractChannelHandlerContext.invokeChannelInactive(AbstractChannelHandlerContext.java:281) [emr-spark-goodies-3.21.0.j
+ar:3.21.0]
+	at io.netty.channel.DefaultChannelPipeline.fireChannelInactive(DefaultChannelPipeline.java:901) [emr-spark-goodies-3.21.0.jar:3.21.0]
+	at io.netty.channel.AbstractChannel$AbstractUnsafe$7.run(AbstractChannel.java:813) [emr-spark-goodies-3.21.0.jar:3.21.0]
+	at io.netty.util.concurrent.AbstractEventExecutor.runTask(AbstractEventExecutor.java:173) [emr-spark-goodies-3.21.0.jar:3.21.0]
+	at io.netty.util.concurrent.AbstractEventExecutor.safeExecute(AbstractEventExecutor.java:166) [emr-spark-goodies-3.21.0.jar:3.21.0]
+	at io.netty.util.concurrent.SingleThreadEventExecutor.runAllTasks(SingleThreadEventExecutor.java:470) [emr-spark-goodies-3.21.0.jar:3.21.0]
+	at io.netty.channel.nio.NioEventLoop.run(NioEventLoop.java:566) [emr-spark-goodies-3.21.0.jar:3.21.0]
+	at io.netty.util.concurrent.SingleThreadEventExecutor$4.run(SingleThreadEventExecutor.java:997) [emr-spark-goodies-3.21.0.jar:3.21.0]
+	at io.netty.util.internal.ThreadExecutorMap$2.run(ThreadExecutorMap.java:74) [emr-spark-goodies-3.21.0.jar:3.21.0]
+	at io.netty.util.concurrent.FastThreadLocalRunnable.run(FastThreadLocalRunnable.java:30) [emr-spark-goodies-3.21.0.jar:3.21.0]
+	at java.lang.Thread.run(Thread.java:840) [?:?]
+26/07/24 07:07:14 WARN TaskSetManager: Lost task 89.1 in stage 1512.0 (TID 120691) (ip-172-31-66-80.ec2.internal executor 38): ExecutorLostFailure (execut
+or 38 exited caused by one of the running tasks) Reason: Executor Process Lost
+26/07/24 07:07:14 WARN TaskSetManager: Lost task 124.1 in stage 1512.0 (TID 120690) (ip-172-31-66-80.ec2.internal executor 38): ExecutorLostFailure (execu
+tor 38 exited caused by one of the running tasks) Reason: Executor Process Lost
+26/07/24 07:07:14 WARN TaskSetManager: Lost task 54.1 in stage 1512.0 (TID 120692) (ip-172-31-66-80.ec2.internal executor 38): ExecutorLostFailure (execut
+or 38 exited caused by one of the running tasks) Reason: Executor Process Lost
+26/07/24 07:07:14 WARN TaskSetManager: Lost task 19.1 in stage 1512.0 (TID 120689) (ip-172-31-66-80.ec2.internal executor 38): ExecutorLostFailure (execut
+or 38 exited caused by one of the running tasks) Reason: Executor Process Lost
+26/07/24 07:07:14 ERROR YarnScheduler: Lost executor 41 on ip-172-31-72-78.ec2.internal: Executor Process Lost
+26/07/24 07:07:14 WARN TaskSetManager: Lost task 122.1 in stage 1512.0 (TID 120647) (ip-172-31-72-78.ec2.internal executor 41): ExecutorLostFailure (execu
+tor 41 exited caused by one of the running tasks) Reason: Executor Process Lost
+26/07/24 07:07:14 WARN TaskSetManager: Lost task 17.1 in stage 1512.0 (TID 120646) (ip-172-31-72-78.ec2.internal executor 41): ExecutorLostFailure (execut
+or 41 exited caused by one of the running tasks) Reason: Executor Process Lost
+26/07/24 07:07:14 WARN TaskSetManager: Lost task 52.1 in stage 1512.0 (TID 120645) (ip-172-31-72-78.ec2.internal executor 41): ExecutorLostFailure (execut
+or 41 exited caused by one of the running tasks) Reason: Executor Process Lost
+26/07/24 07:07:14 WARN TaskSetManager: Lost task 87.1 in stage 1512.0 (TID 120648) (ip-172-31-72-78.ec2.internal executor 41): ExecutorLostFailure (execut
+or 41 exited caused by one of the running tasks) Reason: Executor Process Lost
+26/07/24 07:07:14 ERROR YarnScheduler: Lost executor 42 on ip-172-31-66-80.ec2.internal: Executor Process Lost
+26/07/24 07:07:14 WARN TaskSetManager: Lost task 97.1 in stage 1512.0 (TID 120673) (ip-172-31-66-80.ec2.internal executor 42): ExecutorLostFailure (execut
+or 42 exited caused by one of the running tasks) Reason: Executor Process Lost
+26/07/24 07:07:14 WARN TaskSetManager: Lost task 132.1 in stage 1512.0 (TID 120676) (ip-172-31-66-80.ec2.internal executor 42): ExecutorLostFailure (execu
+tor 42 exited caused by one of the running tasks) Reason: Executor Process Lost
+26/07/24 07:07:14 WARN TaskSetManager: Lost task 27.1 in stage 1512.0 (TID 120675) (ip-172-31-66-80.ec2.internal executor 42): ExecutorLostFailure (execut
+or 42 exited caused by one of the running tasks) Reason: Executor Process Lost
+26/07/24 07:07:14 WARN TaskSetManager: Lost task 62.1 in stage 1512.0 (TID 120674) (ip-172-31-66-80.ec2.internal executor 42): ExecutorLostFailure (execut
+or 42 exited caused by one of the running tasks) Reason: Executor Process Lost
+26/07/24 07:07:14 ERROR YarnScheduler: Lost executor 39 on ip-172-31-72-78.ec2.internal: Executor Process Lost
+26/07/24 07:07:14 WARN TaskSetManager: Lost task 139.1 in stage 1512.0 (TID 120638) (ip-172-31-72-78.ec2.internal executor 39): ExecutorLostFailure (execu
+tor 39 exited caused by one of the running tasks) Reason: Executor Process Lost
+26/07/24 07:07:14 WARN TaskSetManager: Lost task 34.1 in stage 1512.0 (TID 120637) (ip-172-31-72-78.ec2.internal executor 39): ExecutorLostFailure (execut
+or 39 exited caused by one of the running tasks) Reason: Executor Process Lost
+26/07/24 07:07:14 WARN TaskSetManager: Lost task 69.1 in stage 1512.0 (TID 120640) (ip-172-31-72-78.ec2.internal executor 39): ExecutorLostFailure (execut
+or 39 exited caused by one of the running tasks) Reason: Executor Process Lost
+26/07/24 07:07:14 WARN TaskSetManager: Lost task 104.1 in stage 1512.0 (TID 120639) (ip-172-31-72-78.ec2.internal executor 39): ExecutorLostFailure (execu
+tor 39 exited caused by one of the running tasks) Reason: Executor Process Lost
+26/07/24 07:07:14 ERROR YarnScheduler: Lost executor 49 on ip-172-31-72-78.ec2.internal: Executor Process Lost
+26/07/24 07:07:14 WARN TaskSetManager: Lost task 43.1 in stage 1512.0 (TID 120649) (ip-172-31-72-78.ec2.internal executor 49): ExecutorLostFailure (execut
+or 49 exited caused by one of the running tasks) Reason: Executor Process Lost
+26/07/24 07:07:14 WARN TaskSetManager: Lost task 78.1 in stage 1512.0 (TID 120652) (ip-172-31-72-78.ec2.internal executor 49): ExecutorLostFailure (execut
+or 49 exited caused by one of the running tasks) Reason: Executor Process Lost
+26/07/24 07:07:14 WARN TaskSetManager: Lost task 113.1 in stage 1512.0 (TID 120651) (ip-172-31-72-78.ec2.internal executor 49): ExecutorLostFailure (execu
+tor 49 exited caused by one of the running tasks) Reason: Executor Process Lost
+26/07/24 07:07:14 WARN TaskSetManager: Lost task 8.1 in stage 1512.0 (TID 120650) (ip-172-31-72-78.ec2.internal executor 49): ExecutorLostFailure (executo
+r 49 exited caused by one of the running tasks) Reason: Executor Process Lost
+26/07/24 07:07:14 ERROR YarnScheduler: Lost executor 44 on ip-172-31-66-80.ec2.internal: Executor Process Lost
+26/07/24 07:07:14 WARN TaskSetManager: Lost task 64.1 in stage 1512.0 (TID 120665) (ip-172-31-66-80.ec2.internal executor 44): ExecutorLostFailure (execut
+or 44 exited caused by one of the running tasks) Reason: Executor Process Lost
+26/07/24 07:07:14 WARN TaskSetManager: Lost task 134.1 in stage 1512.0 (TID 120667) (ip-172-31-66-80.ec2.internal executor 44): ExecutorLostFailure (execu
+tor 44 exited caused by one of the running tasks) Reason: Executor Process Lost
+26/07/24 07:07:14 WARN TaskSetManager: Lost task 29.1 in stage 1512.0 (TID 120666) (ip-172-31-66-80.ec2.internal executor 44): ExecutorLostFailure (execut
+or 44 exited caused by one of the running tasks) Reason: Executor Process Lost
+26/07/24 07:07:14 WARN TaskSetManager: Lost task 99.1 in stage 1512.0 (TID 120668) (ip-172-31-66-80.ec2.internal executor 44): ExecutorLostFailure (execut
+or 44 exited caused by one of the running tasks) Reason: Executor Process Lost
+26/07/24 07:07:14 ERROR YarnScheduler: Lost executor 46 on ip-172-31-72-78.ec2.internal: Executor Process Lost
+26/07/24 07:07:14 WARN TaskSetManager: Lost task 117.1 in stage 1512.0 (TID 120693) (ip-172-31-72-78.ec2.internal executor 46): ExecutorLostFailure (execu
+tor 46 exited caused by one of the running tasks) Reason: Executor Process Lost
+26/07/24 07:07:14 WARN TaskSetManager: Lost task 44.1 in stage 1512.0 (TID 120642) (ip-172-31-72-78.ec2.internal executor 46): ExecutorLostFailure (execut
+or 46 exited caused by one of the running tasks) Reason: Executor Process Lost
+26/07/24 07:07:14 WARN TaskSetManager: Lost task 79.1 in stage 1512.0 (TID 120641) (ip-172-31-72-78.ec2.internal executor 46): ExecutorLostFailure (execut
+or 46 exited caused by one of the running tasks) Reason: Executor Process Lost
+26/07/24 07:07:14 WARN TaskSetManager: Lost task 114.1 in stage 1512.0 (TID 120644) (ip-172-31-72-78.ec2.internal executor 46): ExecutorLostFailure (execu
+tor 46 exited caused by one of the running tasks) Reason: Executor Process Lost
+26/07/24 07:07:14 ERROR YarnScheduler: Lost executor 45 on ip-172-31-66-80.ec2.internal: Executor Process Lost
+26/07/24 07:07:14 WARN TaskSetManager: Lost task 105.1 in stage 1512.0 (TID 120688) (ip-172-31-66-80.ec2.internal executor 45): ExecutorLostFailure (execu
+tor 45 exited caused by one of the running tasks) Reason: Executor Process Lost
+26/07/24 07:07:14 WARN TaskSetManager: Lost task 70.1 in stage 1512.0 (TID 120685) (ip-172-31-66-80.ec2.internal executor 45): ExecutorLostFailure (execut
+or 45 exited caused by one of the running tasks) Reason: Executor Process Lost
+26/07/24 07:07:14 WARN TaskSetManager: Lost task 0.1 in stage 1512.0 (TID 120687) (ip-172-31-66-80.ec2.internal executor 45): ExecutorLostFailure (executo
+r 45 exited caused by one of the running tasks) Reason: Executor Process Lost
+26/07/24 07:07:14 WARN TaskSetManager: Lost task 35.1 in stage 1512.0 (TID 120686) (ip-172-31-66-80.ec2.internal executor 45): ExecutorLostFailure (execut
+or 45 exited caused by one of the running tasks) Reason: Executor Process Lost
+26/07/24 07:07:14 ERROR YarnScheduler: Lost executor 40 on ip-172-31-66-80.ec2.internal: Executor Process Lost
+26/07/24 07:07:14 WARN TaskSetManager: Lost task 56.1 in stage 1512.0 (TID 120679) (ip-172-31-66-80.ec2.internal executor 40): ExecutorLostFailure (execut
+or 40 exited caused by one of the running tasks) Reason: Executor Process Lost
+26/07/24 07:07:14 WARN TaskSetManager: Lost task 91.1 in stage 1512.0 (TID 120678) (ip-172-31-66-80.ec2.internal executor 40): ExecutorLostFailure (execut
+or 40 exited caused by one of the running tasks) Reason: Executor Process Lost
+26/07/24 07:07:14 WARN TaskSetManager: Lost task 126.1 in stage 1512.0 (TID 120677) (ip-172-31-66-80.ec2.internal executor 40): ExecutorLostFailure (execu
+tor 40 exited caused by one of the running tasks) Reason: Executor Process Lost
+26/07/24 07:07:14 WARN TaskSetManager: Lost task 21.1 in stage 1512.0 (TID 120680) (ip-172-31-66-80.ec2.internal executor 40): ExecutorLostFailure (execut
+or 40 exited caused by one of the running tasks) Reason: Executor Process Lost
+26/07/24 07:07:19 ERROR YarnClientSchedulerBackend: YARN application has exited unexpectedly with state FAILED! Check the YARN application logs for more d
+etails.
+26/07/24 07:07:19 ERROR YarnClientSchedulerBackend: Diagnostics message: Uncaught exception: java.io.FileNotFoundException: File does not exist: hdfs://ip
+-172-31-74-63.ec2.internal:8020/user/hadoop/.sparkStaging/application_1784869422000_0002/__spark_conf__.zip
+	at org.apache.hadoop.hdfs.DistributedFileSystem$29.doCall(DistributedFileSystem.java:1839)
+	at org.apache.hadoop.hdfs.DistributedFileSystem$29.doCall(DistributedFileSystem.java:1832)
+	at org.apache.hadoop.fs.FileSystemLinkResolver.resolve(FileSystemLinkResolver.java:81)
+	at org.apache.hadoop.hdfs.DistributedFileSystem.getFileStatus(DistributedFileSystem.java:1847)
+	at org.apache.spark.deploy.yarn.ApplicationMaster.$anonfun$prepareLocalResources$4(ApplicationMaster.scala:185)
+	at org.apache.spark.deploy.yarn.ApplicationMaster.$anonfun$prepareLocalResources$4$adapted(ApplicationMaster.scala:182)
+	at scala.Option.foreach(Option.scala:407)
+	at org.apache.spark.deploy.yarn.ApplicationMaster.prepareLocalResources(ApplicationMaster.scala:182)
+	at org.apache.spark.deploy.yarn.ApplicationMaster.createAllocator(ApplicationMaster.scala:460)
+	at org.apache.spark.deploy.yarn.ApplicationMaster.runExecutorLauncher(ApplicationMaster.scala:578)
+	at org.apache.spark.deploy.yarn.ApplicationMaster.run(ApplicationMaster.scala:272)
+	at org.apache.spark.deploy.yarn.ApplicationMaster$$anon$3.run(ApplicationMaster.scala:973)
+	at org.apache.spark.deploy.yarn.ApplicationMaster$$anon$3.run(ApplicationMaster.scala:972)
+	at java.base/java.security.AccessController.doPrivileged(AccessController.java:712)
+	at java.base/javax.security.auth.Subject.doAs(Subject.java:439)
+	at org.apache.hadoop.security.UserGroupInformation.doAs(UserGroupInformation.java:1953)
+	at org.apache.spark.deploy.yarn.ApplicationMaster$.main(ApplicationMaster.scala:972)
+	at org.apache.spark.deploy.yarn.ExecutorLauncher$.main(ApplicationMaster.scala:1004)
+	at org.apache.spark.deploy.yarn.ExecutorLauncher.main(ApplicationMaster.scala)
+
+26/07/24 07:07:19 ERROR TransportClient: Failed to send RPC RPC 7908531351548847417 to /172.31.72.78:46360: io.netty.channel.StacklessClosedChannelExcepti
+on
+io.netty.channel.StacklessClosedChannelException: null
+	at io.netty.channel.AbstractChannel$AbstractUnsafe.write(Object, ChannelPromise)(Unknown Source) ~[emr-spark-goodies-3.21.0.jar:3.21.0]
+26/07/24 07:07:19 ERROR YarnSchedulerBackend$YarnSchedulerEndpoint: Sending RequestExecutors(Map(),Map(),Map(),Set()) to AM was unsuccessful
+java.io.IOException: Failed to send RPC RPC 7908531351548847417 to /172.31.72.78:46360: io.netty.channel.StacklessClosedChannelException
+	at org.apache.spark.network.client.TransportClient$RpcChannelListener.handleFailure(TransportClient.java:443) ~[spark-network-common_2.12-3
+.5.6-amzn-1.jar:3.5.6-amzn-1]
+	at org.apache.spark.network.client.TransportClient$StdChannelListener.operationComplete(TransportClient.java:420) ~[spark-network-common_2.
+12-3.5.6-amzn-1.jar:3.5.6-amzn-1]
+	at io.netty.util.concurrent.DefaultPromise.notifyListener0(DefaultPromise.java:590) ~[emr-spark-goodies-3.21.0.jar:3.21.0]
+	at io.netty.util.concurrent.DefaultPromise.notifyListenersNow(DefaultPromise.java:557) ~[emr-spark-goodies-3.21.0.jar:3.21.0]
+	at io.netty.util.concurrent.DefaultPromise.notifyListeners(DefaultPromise.java:492) ~[emr-spark-goodies-3.21.0.jar:3.21.0]
+	at io.netty.util.concurrent.DefaultPromise.setValue0(DefaultPromise.java:636) ~[emr-spark-goodies-3.21.0.jar:3.21.0]
+	at io.netty.util.concurrent.DefaultPromise.setFailure0(DefaultPromise.java:629) ~[emr-spark-goodies-3.21.0.jar:3.21.0]
+	at io.netty.util.concurrent.DefaultPromise.tryFailure(DefaultPromise.java:118) ~[emr-spark-goodies-3.21.0.jar:3.21.0]
+	at io.netty.channel.AbstractChannel$AbstractUnsafe.safeSetFailure(AbstractChannel.java:999) ~[emr-spark-goodies-3.21.0.jar:3.21.0]
+	at io.netty.channel.AbstractChannel$AbstractUnsafe.write(AbstractChannel.java:860) ~[emr-spark-goodies-3.21.0.jar:3.21.0]
+	at io.netty.channel.DefaultChannelPipeline$HeadContext.write(DefaultChannelPipeline.java:1367) ~[emr-spark-goodies-3.21.0.jar:3.21.0]
+	at io.netty.channel.AbstractChannelHandlerContext.invokeWrite0(AbstractChannelHandlerContext.java:877) ~[emr-spark-goodies-3.21.0.jar:3.21.
+0]
+	at io.netty.channel.AbstractChannelHandlerContext.invokeWriteAndFlush(AbstractChannelHandlerContext.java:940) ~[emr-spark-goodies-3.21.0.ja
+r:3.21.0]
+	at io.netty.channel.AbstractChannelHandlerContext$WriteTask.run(AbstractChannelHandlerContext.java:1247) ~[emr-spark-goodies-3.21.0.jar:3.2
+1.0]
+	at io.netty.util.concurrent.AbstractEventExecutor.runTask(AbstractEventExecutor.java:173) ~[emr-spark-goodies-3.21.0.jar:3.21.0]
+	at io.netty.util.concurrent.AbstractEventExecutor.safeExecute(AbstractEventExecutor.java:166) ~[emr-spark-goodies-3.21.0.jar:3.21.0]
+	at io.netty.util.concurrent.SingleThreadEventExecutor.runAllTasks(SingleThreadEventExecutor.java:470) ~[emr-spark-goodies-3.21.0.jar:3.21.0
+]
+	at io.netty.channel.nio.NioEventLoop.run(NioEventLoop.java:569) ~[emr-spark-goodies-3.21.0.jar:3.21.0]
+	at io.netty.util.concurrent.SingleThreadEventExecutor$4.run(SingleThreadEventExecutor.java:997) ~[emr-spark-goodies-3.21.0.jar:3.21.0]
+	at io.netty.util.internal.ThreadExecutorMap$2.run(ThreadExecutorMap.java:74) ~[emr-spark-goodies-3.21.0.jar:3.21.0]
+	at io.netty.util.concurrent.FastThreadLocalRunnable.run(FastThreadLocalRunnable.java:30) ~[emr-spark-goodies-3.21.0.jar:3.21.0]
+	at java.lang.Thread.run(Thread.java:840) [?:?]
+Caused by: io.netty.channel.StacklessClosedChannelException
+	at io.netty.channel.AbstractChannel$AbstractUnsafe.write(Object, ChannelPromise)(Unknown Source) ~[emr-spark-goodies-3.21.0.jar:3.21.0]
+26/07/24 07:07:19 ERROR Utils: Uncaught exception in thread YARN application state monitor
+org.apache.spark.SparkException: Exception thrown in awaitResult:
+	at org.apache.spark.util.SparkThreadUtils$.awaitResult(SparkThreadUtils.scala:56) ~[spark-common-utils_2.12-3.5.6-amzn-1.jar:3.5.6-amzn-1]
+	at org.apache.spark.util.ThreadUtils$.awaitResult(ThreadUtils.scala:310) ~[spark-core_2.12-3.5.6-amzn-1.jar:3.5.6-amzn-1]
+	at org.apache.spark.rpc.RpcTimeout.awaitResult(RpcTimeout.scala:75) ~[spark-core_2.12-3.5.6-amzn-1.jar:3.5.6-amzn-1]
+	at org.apache.spark.scheduler.cluster.CoarseGrainedSchedulerBackend.requestTotalExecutors(CoarseGrainedSchedulerBackend.scala:896) ~[spark-
+core_2.12-3.5.6-amzn-1.jar:3.5.6-amzn-1]
+	at org.apache.spark.scheduler.cluster.YarnSchedulerBackend.stop(YarnSchedulerBackend.scala:202) ~[spark-yarn_2.12-3.5.6-amzn-1.jar:3.5.6-am
+zn-1]
+	at org.apache.spark.scheduler.cluster.YarnClientSchedulerBackend.stop(YarnClientSchedulerBackend.scala:189) ~[spark-yarn_2.12-3.5.6-amzn-1.
+jar:3.5.6-amzn-1]
+	at org.apache.spark.scheduler.TaskSchedulerImpl.$anonfun$stop$2(TaskSchedulerImpl.scala:992) ~[spark-core_2.12-3.5.6-amzn-1.jar:3.5.6-amzn-
+1]
+	at org.apache.spark.util.Utils$.tryLogNonFatalError(Utils.scala:1377) ~[spark-core_2.12-3.5.6-amzn-1.jar:3.5.6-amzn-1]
+	at org.apache.spark.scheduler.TaskSchedulerImpl.stop(TaskSchedulerImpl.scala:992) ~[spark-core_2.12-3.5.6-amzn-1.jar:3.5.6-amzn-1]
+	at org.apache.spark.scheduler.DAGScheduler.$anonfun$stop$4(DAGScheduler.scala:3488) ~[spark-core_2.12-3.5.6-amzn-1.jar:3.5.6-amzn-1]
+	at org.apache.spark.util.Utils$.tryLogNonFatalError(Utils.scala:1377) ~[spark-core_2.12-3.5.6-amzn-1.jar:3.5.6-amzn-1]
+	at org.apache.spark.scheduler.DAGScheduler.stop(DAGScheduler.scala:3488) ~[spark-core_2.12-3.5.6-amzn-1.jar:3.5.6-amzn-1]
+	at org.apache.spark.SparkContext.$anonfun$stop$12(SparkContext.scala:2370) ~[spark-core_2.12-3.5.6-amzn-1.jar:3.5.6-amzn-1]
+	at org.apache.spark.util.Utils$.tryLogNonFatalError(Utils.scala:1377) [spark-core_2.12-3.5.6-amzn-1.jar:3.5.6-amzn-1]
+	at org.apache.spark.SparkContext.stop(SparkContext.scala:2370) [spark-core_2.12-3.5.6-amzn-1.jar:3.5.6-amzn-1]
+	at org.apache.spark.SparkContext.stop(SparkContext.scala:2323) [spark-core_2.12-3.5.6-amzn-1.jar:3.5.6-amzn-1]
+	at org.apache.spark.scheduler.cluster.YarnClientSchedulerBackend$MonitorThread.run(YarnClientSchedulerBackend.scala:136) [spark-yarn_2.12-3
+.5.6-amzn-1.jar:3.5.6-amzn-1]
+Caused by: java.io.IOException: Failed to send RPC RPC 7908531351548847417 to /172.31.72.78:46360: io.netty.channel.StacklessClosedChannelException
+	at org.apache.spark.network.client.TransportClient$RpcChannelListener.handleFailure(TransportClient.java:443) ~[spark-network-common_2.12-3
+.5.6-amzn-1.jar:3.5.6-amzn-1]
+	at org.apache.spark.network.client.TransportClient$StdChannelListener.operationComplete(TransportClient.java:420) ~[spark-network-common_2.
+12-3.5.6-amzn-1.jar:3.5.6-amzn-1]
+	at io.netty.util.concurrent.DefaultPromise.notifyListener0(DefaultPromise.java:590) ~[emr-spark-goodies-3.21.0.jar:3.21.0]
+	at io.netty.util.concurrent.DefaultPromise.notifyListenersNow(DefaultPromise.java:557) ~[emr-spark-goodies-3.21.0.jar:3.21.0]
+	at io.netty.util.concurrent.DefaultPromise.notifyListeners(DefaultPromise.java:492) ~[emr-spark-goodies-3.21.0.jar:3.21.0]
+	at io.netty.util.concurrent.DefaultPromise.setValue0(DefaultPromise.java:636) ~[emr-spark-goodies-3.21.0.jar:3.21.0]
+	at io.netty.util.concurrent.DefaultPromise.setFailure0(DefaultPromise.java:629) ~[emr-spark-goodies-3.21.0.jar:3.21.0]
+	at io.netty.util.concurrent.DefaultPromise.tryFailure(DefaultPromise.java:118) ~[emr-spark-goodies-3.21.0.jar:3.21.0]
+	at io.netty.channel.AbstractChannel$AbstractUnsafe.safeSetFailure(AbstractChannel.java:999) ~[emr-spark-goodies-3.21.0.jar:3.21.0]
+	at io.netty.channel.AbstractChannel$AbstractUnsafe.write(AbstractChannel.java:860) ~[emr-spark-goodies-3.21.0.jar:3.21.0]
+	at io.netty.channel.DefaultChannelPipeline$HeadContext.write(DefaultChannelPipeline.java:1367) ~[emr-spark-goodies-3.21.0.jar:3.21.0]
+	at io.netty.channel.AbstractChannelHandlerContext.invokeWrite0(AbstractChannelHandlerContext.java:877) ~[emr-spark-goodies-3.21.0.jar:3.21.
+0]
+	at io.netty.channel.AbstractChannelHandlerContext.invokeWriteAndFlush(AbstractChannelHandlerContext.java:940) ~[emr-spark-goodies-3.21.0.ja
+r:3.21.0]
+	at io.netty.channel.AbstractChannelHandlerContext$WriteTask.run(AbstractChannelHandlerContext.java:1247) ~[emr-spark-goodies-3.21.0.jar:3.2
+1.0]
+	at io.netty.util.concurrent.AbstractEventExecutor.runTask(AbstractEventExecutor.java:173) ~[emr-spark-goodies-3.21.0.jar:3.21.0]
+	at io.netty.util.concurrent.AbstractEventExecutor.safeExecute(AbstractEventExecutor.java:166) ~[emr-spark-goodies-3.21.0.jar:3.21.0]
+	at io.netty.util.concurrent.SingleThreadEventExecutor.runAllTasks(SingleThreadEventExecutor.java:470) ~[emr-spark-goodies-3.21.0.jar:3.21.0
+]
+	at io.netty.channel.nio.NioEventLoop.run(NioEventLoop.java:569) ~[emr-spark-goodies-3.21.0.jar:3.21.0]
+	at io.netty.util.concurrent.SingleThreadEventExecutor$4.run(SingleThreadEventExecutor.java:997) ~[emr-spark-goodies-3.21.0.jar:3.21.0]
+	at io.netty.util.internal.ThreadExecutorMap$2.run(ThreadExecutorMap.java:74) ~[emr-spark-goodies-3.21.0.jar:3.21.0]
+	at io.netty.util.concurrent.FastThreadLocalRunnable.run(FastThreadLocalRunnable.java:30) ~[emr-spark-goodies-3.21.0.jar:3.21.0]
+	at java.lang.Thread.run(Thread.java:840) ~[?:?]
+Caused by: io.netty.channel.StacklessClosedChannelException
+	at io.netty.channel.AbstractChannel$AbstractUnsafe.write(Object, ChannelPromise)(Unknown Source) ~[emr-spark-goodies-3.21.0.jar:3.21.0]
+/usr/lib/spark/python/pyspark/sql/pandas/conversion.py:198: UserWarning: toPandas attempted Arrow optimization because 'spark.sql.execution.arrow.pyspark.
+enabled' is set to true, but has reached the error below and can not continue. Note that 'spark.sql.execution.arrow.pyspark.fallback.enabled' does not hav
+e an effect on failures in the middle of computation.
+  An error occurred while calling o1430.getResult.
+: org.apache.spark.SparkException: Exception thrown in awaitResult:
+	at org.apache.spark.util.SparkThreadUtils$.awaitResult(SparkThreadUtils.scala:56)
+	at org.apache.spark.util.ThreadUtils$.awaitResult(ThreadUtils.scala:310)
+	at org.apache.spark.security.SocketAuthServer.getResult(SocketAuthServer.scala:98)
+	at org.apache.spark.security.SocketAuthServer.getResult(SocketAuthServer.scala:94)
+	at java.base/jdk.internal.reflect.NativeMethodAccessorImpl.invoke0(Native Method)
+	at java.base/jdk.internal.reflect.NativeMethodAccessorImpl.invoke(NativeMethodAccessorImpl.java:77)
+	at java.base/jdk.internal.reflect.DelegatingMethodAccessorImpl.invoke(DelegatingMethodAccessorImpl.java:43)
+	at java.base/java.lang.reflect.Method.invoke(Method.java:569)
+	at py4j.reflection.MethodInvoker.invoke(MethodInvoker.java:244)
+	at py4j.reflection.ReflectionEngine.invoke(ReflectionEngine.java:374)
+	at py4j.Gateway.invoke(Gateway.java:282)
+	at py4j.commands.AbstractCommand.invokeMethod(AbstractCommand.java:132)
+	at py4j.commands.CallCommand.execute(CallCommand.java:79)
+	at py4j.ClientServerConnection.waitForCommands(ClientServerConnection.java:182)
+	at py4j.ClientServerConnection.run(ClientServerConnection.java:106)
+	at java.base/java.lang.Thread.run(Thread.java:840)
+Caused by: org.apache.spark.SparkException: Job 413 cancelled because SparkContext was shut down
+	at org.apache.spark.scheduler.DAGScheduler.$anonfun$cleanUpAfterSchedulerStop$1(DAGScheduler.scala:1349)
+	at org.apache.spark.scheduler.DAGScheduler.$anonfun$cleanUpAfterSchedulerStop$1$adapted(DAGScheduler.scala:1347)
+	at scala.collection.mutable.HashSet.foreach(HashSet.scala:79)
+	at org.apache.spark.scheduler.DAGScheduler.cleanUpAfterSchedulerStop(DAGScheduler.scala:1347)
+	at org.apache.spark.scheduler.DAGSchedulerEventProcessLoop.onStop(DAGScheduler.scala:3608)
+	at org.apache.spark.util.EventLoop.stop(EventLoop.scala:84)
+	at org.apache.spark.scheduler.DAGScheduler.$anonfun$stop$3(DAGScheduler.scala:3485)
+	at org.apache.spark.util.Utils$.tryLogNonFatalError(Utils.scala:1377)
+	at org.apache.spark.scheduler.DAGScheduler.stop(DAGScheduler.scala:3485)
+	at org.apache.spark.SparkContext.$anonfun$stop$12(SparkContext.scala:2370)
+	at org.apache.spark.util.Utils$.tryLogNonFatalError(Utils.scala:1377)
+	at org.apache.spark.SparkContext.stop(SparkContext.scala:2370)
+	at org.apache.spark.SparkContext.stop(SparkContext.scala:2323)
+	at org.apache.spark.scheduler.cluster.YarnClientSchedulerBackend$MonitorThread.run(YarnClientSchedulerBackend.scala:136)
+	at org.apache.spark.sql.execution.adaptive.AdaptiveExecutor.checkNoFailures(AdaptiveExecutor.scala:175)
+	at org.apache.spark.sql.execution.adaptive.AdaptiveExecutor.doRun(AdaptiveExecutor.scala:97)
+	at org.apache.spark.sql.execution.adaptive.AdaptiveExecutor.tryRunningAndGetFuture(AdaptiveExecutor.scala:75)
+	at org.apache.spark.sql.execution.adaptive.AdaptiveExecutor.execute(AdaptiveExecutor.scala:59)
+	at org.apache.spark.sql.execution.adaptive.AdaptiveSparkPlanExec.$anonfun$getFinalPhysicalPlan$1(AdaptiveSparkPlanExec.scala:304)
+	at org.apache.spark.sql.SparkSession.withActive(SparkSession.scala:996)
+	at org.apache.spark.sql.execution.adaptive.AdaptiveSparkPlanExec.getFinalPhysicalPlan(AdaptiveSparkPlanExec.scala:303)
+	at org.apache.spark.sql.execution.adaptive.AdaptiveSparkPlanExec.withFinalPlanUpdate(AdaptiveSparkPlanExec.scala:610)
+	at org.apache.spark.sql.execution.adaptive.AdaptiveSparkPlanExec.doExecute(AdaptiveSparkPlanExec.scala:596)
+	at org.apache.spark.sql.execution.SparkPlan.$anonfun$execute$1(SparkPlan.scala:228)
+	at org.apache.spark.sql.execution.SparkPlan.$anonfun$executeQuery$1(SparkPlan.scala:305)
+	at org.apache.spark.rdd.RDDOperationScope$.withScope(RDDOperationScope.scala:152)
+	at org.apache.spark.sql.execution.SparkPlan.executeQuery(SparkPlan.scala:280)
+	at org.apache.spark.sql.execution.SparkPlan.execute(SparkPlan.scala:224)
+	at org.apache.spark.sql.Dataset.toArrowBatchRdd(Dataset.scala:4456)
+	at org.apache.spark.sql.Dataset.$anonfun$collectAsArrowToPython$5(Dataset.scala:4335)
+	at scala.runtime.java8.JFunction0$mcV$sp.apply(JFunction0$mcV$sp.java:23)
+	at org.apache.spark.util.SparkErrorUtils.tryWithSafeFinally(SparkErrorUtils.scala:64)
+	at org.apache.spark.util.SparkErrorUtils.tryWithSafeFinally$(SparkErrorUtils.scala:61)
+	at org.apache.spark.util.Utils$.tryWithSafeFinally(Utils.scala:96)
+	at org.apache.spark.sql.Dataset.$anonfun$collectAsArrowToPython$2(Dataset.scala:4340)
+	at org.apache.spark.sql.Dataset.$anonfun$collectAsArrowToPython$2$adapted(Dataset.scala:4316)
+	at org.apache.spark.sql.Dataset.$anonfun$withAction$2(Dataset.scala:4392)
+	at org.apache.spark.sql.execution.QueryExecution$.withInternalError(QueryExecution.scala:748)
+	at org.apache.spark.sql.Dataset.$anonfun$withAction$1(Dataset.scala:4390)
+	at org.apache.spark.sql.catalyst.QueryPlanningTracker$.withTracker(QueryPlanningTracker.scala:108)
+	at org.apache.spark.sql.execution.SQLExecution$.withTracker(SQLExecution.scala:391)
+	at org.apache.spark.sql.execution.SQLExecution$.executeQuery$1(SQLExecution.scala:159)
+	at org.apache.spark.sql.execution.SQLExecution$.$anonfun$withNewExecutionId$11(SQLExecution.scala:227)
+	at org.apache.spark.sql.catalyst.QueryPlanningTracker$.withTracker(QueryPlanningTracker.scala:108)
+	at org.apache.spark.sql.execution.SQLExecution$.withTracker(SQLExecution.scala:391)
+	at org.apache.spark.sql.execution.SQLExecution$.$anonfun$withNewExecutionId$10(SQLExecution.scala:227)
+	at org.apache.spark.sql.execution.SQLExecution$.withSQLConfPropagated(SQLExecution.scala:412)
+	at org.apache.spark.sql.execution.SQLExecution$.$anonfun$withNewExecutionId$1(SQLExecution.scala:226)
+	at org.apache.spark.sql.SparkSession.withActive(SparkSession.scala:996)
+	at org.apache.spark.sql.execution.SQLExecution$.withNewExecutionId(SQLExecution.scala:84)
+	at org.apache.spark.sql.execution.SQLExecution$.withNewExecutionId(SQLExecution.scala:75)
+	at org.apache.spark.sql.Dataset.withAction(Dataset.scala:4390)
+	at org.apache.spark.sql.Dataset.$anonfun$collectAsArrowToPython$1(Dataset.scala:4316)
+	at org.apache.spark.sql.Dataset.$anonfun$collectAsArrowToPython$1$adapted(Dataset.scala:4315)
+	at org.apache.spark.security.SocketAuthServer$.$anonfun$serveToStream$2(SocketAuthServer.scala:140)
+	at scala.runtime.java8.JFunction0$mcV$sp.apply(JFunction0$mcV$sp.java:23)
+	at org.apache.spark.util.SparkErrorUtils.tryWithSafeFinally(SparkErrorUtils.scala:64)
+	at org.apache.spark.util.SparkErrorUtils.tryWithSafeFinally$(SparkErrorUtils.scala:61)
+	at org.apache.spark.util.Utils$.tryWithSafeFinally(Utils.scala:96)
+	at org.apache.spark.security.SocketAuthServer$.$anonfun$serveToStream$1(SocketAuthServer.scala:142)
+	at org.apache.spark.security.SocketAuthServer$.$anonfun$serveToStream$1$adapted(SocketAuthServer.scala:137)
+	at org.apache.spark.security.SocketFuncServer.handleConnection(SocketAuthServer.scala:114)
+	at org.apache.spark.security.SocketFuncServer.handleConnection(SocketAuthServer.scala:108)
+	at org.apache.spark.security.SocketAuthServer$$anon$1.$anonfun$run$4(SocketAuthServer.scala:69)
+	at scala.util.Try$.apply(Try.scala:213)
+	at org.apache.spark.security.SocketAuthServer$$anon$1.run(SocketAuthServer.scala:69)
+
+  warn(msg)
+Traceback (most recent call last):
+  File "/home/hadoop/emo-pipeline/runners/run_emr.py", line 1364, in <module>
+    main()
+  File "/home/hadoop/emo-pipeline/runners/run_emr.py", line 1009, in main
+    run_phase3(
+  File "/tmp/pipeline/phases/phase3_training.py", line 941, in run_phase3
+    comm_pd = comm_results.toPandas()
+  File "/usr/lib/spark/python/pyspark/sql/pandas/conversion.py", line 131, in toPandas
+    batches = self._collect_as_arrow(split_batches=self_destruct)
+  File "/usr/lib/spark/python/pyspark/sql/pandas/conversion.py", line 284, in _collect_as_arrow
+    jsocket_auth_server.getResult()
+  File "/usr/lib/spark/python/lib/py4j-0.10.9.7-src.zip/py4j/java_gateway.py", line 1322, in __call__
+  File "/usr/lib/spark/python/pyspark/errors/exceptions/captured.py", line 179, in deco
+    return f(*a, **kw)
+  File "/usr/lib/spark/python/lib/py4j-0.10.9.7-src.zip/py4j/protocol.py", line 326, in get_return_value
+py4j.protocol.Py4JJavaError: An error occurred while calling o1430.getResult.
+: org.apache.spark.SparkException: Exception thrown in awaitResult:
+	at org.apache.spark.util.SparkThreadUtils$.awaitResult(SparkThreadUtils.scala:56)
+	at org.apache.spark.util.ThreadUtils$.awaitResult(ThreadUtils.scala:310)
+	at org.apache.spark.security.SocketAuthServer.getResult(SocketAuthServer.scala:98)
+	at org.apache.spark.security.SocketAuthServer.getResult(SocketAuthServer.scala:94)
+	at java.base/jdk.internal.reflect.NativeMethodAccessorImpl.invoke0(Native Method)
+	at java.base/jdk.internal.reflect.NativeMethodAccessorImpl.invoke(NativeMethodAccessorImpl.java:77)
+	at java.base/jdk.internal.reflect.DelegatingMethodAccessorImpl.invoke(DelegatingMethodAccessorImpl.java:43)
+	at java.base/java.lang.reflect.Method.invoke(Method.java:569)
+	at py4j.reflection.MethodInvoker.invoke(MethodInvoker.java:244)
+	at py4j.reflection.ReflectionEngine.invoke(ReflectionEngine.java:374)
+	at py4j.Gateway.invoke(Gateway.java:282)
+	at py4j.commands.AbstractCommand.invokeMethod(AbstractCommand.java:132)
+	at py4j.commands.CallCommand.execute(CallCommand.java:79)
+	at py4j.ClientServerConnection.waitForCommands(ClientServerConnection.java:182)
+	at py4j.ClientServerConnection.run(ClientServerConnection.java:106)
+	at java.base/java.lang.Thread.run(Thread.java:840)
+Caused by: org.apache.spark.SparkException: Job 413 cancelled because SparkContext was shut down
+	at org.apache.spark.scheduler.DAGScheduler.$anonfun$cleanUpAfterSchedulerStop$1(DAGScheduler.scala:1349)
+	at org.apache.spark.scheduler.DAGScheduler.$anonfun$cleanUpAfterSchedulerStop$1$adapted(DAGScheduler.scala:1347)
+	at scala.collection.mutable.HashSet.foreach(HashSet.scala:79)
+	at org.apache.spark.scheduler.DAGScheduler.cleanUpAfterSchedulerStop(DAGScheduler.scala:1347)
+	at org.apache.spark.scheduler.DAGSchedulerEventProcessLoop.onStop(DAGScheduler.scala:3608)
+	at org.apache.spark.util.EventLoop.stop(EventLoop.scala:84)
+	at org.apache.spark.scheduler.DAGScheduler.$anonfun$stop$3(DAGScheduler.scala:3485)
+	at org.apache.spark.util.Utils$.tryLogNonFatalError(Utils.scala:1377)
+	at org.apache.spark.scheduler.DAGScheduler.stop(DAGScheduler.scala:3485)
+	at org.apache.spark.SparkContext.$anonfun$stop$12(SparkContext.scala:2370)
+	at org.apache.spark.util.Utils$.tryLogNonFatalError(Utils.scala:1377)
+	at org.apache.spark.SparkContext.stop(SparkContext.scala:2370)
+	at org.apache.spark.SparkContext.stop(SparkContext.scala:2323)
+	at org.apache.spark.scheduler.cluster.YarnClientSchedulerBackend$MonitorThread.run(YarnClientSchedulerBackend.scala:136)
+	at org.apache.spark.sql.execution.adaptive.AdaptiveExecutor.checkNoFailures(AdaptiveExecutor.scala:175)
+	at org.apache.spark.sql.execution.adaptive.AdaptiveExecutor.doRun(AdaptiveExecutor.scala:97)
+	at org.apache.spark.sql.execution.adaptive.AdaptiveExecutor.tryRunningAndGetFuture(AdaptiveExecutor.scala:75)
+	at org.apache.spark.sql.execution.adaptive.AdaptiveExecutor.execute(AdaptiveExecutor.scala:59)
+	at org.apache.spark.sql.execution.adaptive.AdaptiveSparkPlanExec.$anonfun$getFinalPhysicalPlan$1(AdaptiveSparkPlanExec.scala:304)
+	at org.apache.spark.sql.SparkSession.withActive(SparkSession.scala:996)
+	at org.apache.spark.sql.execution.adaptive.AdaptiveSparkPlanExec.getFinalPhysicalPlan(AdaptiveSparkPlanExec.scala:303)
+	at org.apache.spark.sql.execution.adaptive.AdaptiveSparkPlanExec.withFinalPlanUpdate(AdaptiveSparkPlanExec.scala:610)
+	at org.apache.spark.sql.execution.adaptive.AdaptiveSparkPlanExec.doExecute(AdaptiveSparkPlanExec.scala:596)
+	at org.apache.spark.sql.execution.SparkPlan.$anonfun$execute$1(SparkPlan.scala:228)
+	at org.apache.spark.sql.execution.SparkPlan.$anonfun$executeQuery$1(SparkPlan.scala:305)
+	at org.apache.spark.rdd.RDDOperationScope$.withScope(RDDOperationScope.scala:152)
+	at org.apache.spark.sql.execution.SparkPlan.executeQuery(SparkPlan.scala:280)
+	at org.apache.spark.sql.execution.SparkPlan.execute(SparkPlan.scala:224)
+	at org.apache.spark.sql.Dataset.toArrowBatchRdd(Dataset.scala:4456)
+	at org.apache.spark.sql.Dataset.$anonfun$collectAsArrowToPython$5(Dataset.scala:4335)
+	at scala.runtime.java8.JFunction0$mcV$sp.apply(JFunction0$mcV$sp.java:23)
+	at org.apache.spark.util.SparkErrorUtils.tryWithSafeFinally(SparkErrorUtils.scala:64)
+	at org.apache.spark.util.SparkErrorUtils.tryWithSafeFinally$(SparkErrorUtils.scala:61)
+	at org.apache.spark.util.Utils$.tryWithSafeFinally(Utils.scala:96)
+	at org.apache.spark.sql.Dataset.$anonfun$collectAsArrowToPython$2(Dataset.scala:4340)
+	at org.apache.spark.sql.Dataset.$anonfun$collectAsArrowToPython$2$adapted(Dataset.scala:4316)
+	at org.apache.spark.sql.Dataset.$anonfun$withAction$2(Dataset.scala:4392)
+	at org.apache.spark.sql.execution.QueryExecution$.withInternalError(QueryExecution.scala:748)
+	at org.apache.spark.sql.Dataset.$anonfun$withAction$1(Dataset.scala:4390)
+	at org.apache.spark.sql.catalyst.QueryPlanningTracker$.withTracker(QueryPlanningTracker.scala:108)
+	at org.apache.spark.sql.execution.SQLExecution$.withTracker(SQLExecution.scala:391)
+	at org.apache.spark.sql.execution.SQLExecution$.executeQuery$1(SQLExecution.scala:159)
+	at org.apache.spark.sql.execution.SQLExecution$.$anonfun$withNewExecutionId$11(SQLExecution.scala:227)
+	at org.apache.spark.sql.catalyst.QueryPlanningTracker$.withTracker(QueryPlanningTracker.scala:108)
+	at org.apache.spark.sql.execution.SQLExecution$.withTracker(SQLExecution.scala:391)
+	at org.apache.spark.sql.execution.SQLExecution$.$anonfun$withNewExecutionId$10(SQLExecution.scala:227)
+	at org.apache.spark.sql.execution.SQLExecution$.withSQLConfPropagated(SQLExecution.scala:412)
+	at org.apache.spark.sql.execution.SQLExecution$.$anonfun$withNewExecutionId$1(SQLExecution.scala:226)
+	at org.apache.spark.sql.SparkSession.withActive(SparkSession.scala:996)
+	at org.apache.spark.sql.execution.SQLExecution$.withNewExecutionId(SQLExecution.scala:84)
+	at org.apache.spark.sql.execution.SQLExecution$.withNewExecutionId(SQLExecution.scala:75)
+	at org.apache.spark.sql.Dataset.withAction(Dataset.scala:4390)
+	at org.apache.spark.sql.Dataset.$anonfun$collectAsArrowToPython$1(Dataset.scala:4316)
+	at org.apache.spark.sql.Dataset.$anonfun$collectAsArrowToPython$1$adapted(Dataset.scala:4315)
+	at org.apache.spark.security.SocketAuthServer$.$anonfun$serveToStream$2(SocketAuthServer.scala:140)
+	at scala.runtime.java8.JFunction0$mcV$sp.apply(JFunction0$mcV$sp.java:23)
+	at org.apache.spark.util.SparkErrorUtils.tryWithSafeFinally(SparkErrorUtils.scala:64)
+	at org.apache.spark.util.SparkErrorUtils.tryWithSafeFinally$(SparkErrorUtils.scala:61)
+	at org.apache.spark.util.Utils$.tryWithSafeFinally(Utils.scala:96)
+	at org.apache.spark.security.SocketAuthServer$.$anonfun$serveToStream$1(SocketAuthServer.scala:142)
+	at org.apache.spark.security.SocketAuthServer$.$anonfun$serveToStream$1$adapted(SocketAuthServer.scala:137)
+	at org.apache.spark.security.SocketFuncServer.handleConnection(SocketAuthServer.scala:114)
+	at org.apache.spark.security.SocketFuncServer.handleConnection(SocketAuthServer.scala:108)
+	at org.apache.spark.security.SocketAuthServer$$anon$1.$anonfun$run$4(SocketAuthServer.scala:69)
+	at scala.util.Try$.apply(Try.scala:213)
+	at org.apache.spark.security.SocketAuthServer$$anon$1.run(SocketAuthServer.scala:69)
+
+[hadoop@ip-172-31-74-63 emo-pipeline]$
+[hadoop@ip-172-31-74-63 emo-pipeline]$
+[hadoop@ip-172-31-74-63 emo-pipeline]$
+[hadoop@ip-172-31-74-63 emo-pipeline]$ tmux capture-pane -pS - -E - > history.txt
+
+[hadoop@ip-172-31-74-63 emo-pipeline]$
+[hadoop@ip-172-31-74-63 emo-pipeline]$
+[hadoop@ip-172-31-74-63 emo-pipeline]$
+[hadoop@ip-172-31-74-63 emo-pipeline]$
+[hadoop@ip-172-31-74-63 emo-pipeline]$
+[hadoop@ip-172-31-74-63 emo-pipeline]$
+[hadoop@ip-172-31-74-63 emo-pipeline]$
+[hadoop@ip-172-31-74-63 emo-pipeline]$ git add .
+[hadoop@ip-172-31-74-63 emo-pipeline]$ git commit -m 'session'
+Author identity unknown
+
+*** Please tell me who you are.
+
+Run
+
+  git config --global user.email "you@example.com"
+  git config --global user.name "Your Name"
+
+to set your account's default identity.
+Omit --global to set the identity only in this repository.
+
+fatal: empty ident name (for <hadoop@ip-172-31-74-63.ec2.internal>) not allowed
+[hadoop@ip-172-31-74-63 emo-pipeline]$   git config --global user.email "you@example.com"
+[hadoop@ip-172-31-74-63 emo-pipeline]$   git config --global user.name "Your Name"
+[hadoop@ip-172-31-74-63 emo-pipeline]$
+[hadoop@ip-172-31-74-63 emo-pipeline]$
+[hadoop@ip-172-31-74-63 emo-pipeline]$ git commit -m 'session'
+[main aae87a8] session
+ 1 file changed, 1683 insertions(+)
+ create mode 100644 history.txt
+[hadoop@ip-172-31-74-63 emo-pipeline]$ git push
+Username for 'https://github.com': bilaltan
+Password for 'https://bilaltan@github.com':
+To https://github.com/bilaltan/emo-pipeline.git
+ ! [rejected]        main -> main (fetch first)
+error: failed to push some refs to 'https://github.com/bilaltan/emo-pipeline.git'
+hint: Updates were rejected because the remote contains work that you do not
+hint: have locally. This is usually caused by another repository pushing to
+hint: the same ref. If you want to integrate the remote changes, use
+hint: 'git pull' before pushing again.
+hint: See the 'Note about fast-forwards' in 'git push --help' for details.
+[hadoop@ip-172-31-74-63 emo-pipeline]$ git pull
+remote: Enumerating objects: 17, done.
+remote: Counting objects: 100% (17/17), done.
+remote: Compressing objects: 100% (3/3), done.
+remote: Total 10 (delta 7), reused 10 (delta 7), pack-reused 0 (from 0)
+Unpacking objects: 100% (10/10), 63.92 KiB | 6.39 MiB/s, done.
+From https://github.com/bilaltan/emo-pipeline
+   539a46c..fd72bc4  main       -> origin/main
+hint: You have divergent branches and need to specify how to reconcile them.
+hint: You can do so by running one of the following commands sometime before
+hint: your next pull:
+hint:
+hint:   git config pull.rebase false  # merge
+hint:   git config pull.rebase true   # rebase
+hint:   git config pull.ff only       # fast-forward only
+hint:
+hint: You can replace "git config" with "git config --global" to set a default
+hint: preference for all repositories. You can also pass --rebase, --no-rebase,
+hint: or --ff-only on the command line to override the configured default per
+hint: invocation.
+fatal: Need to specify how to reconcile divergent branches.
+[hadoop@ip-172-31-74-63 emo-pipeline]$ git push
+Username for 'https://github.com': bilaltan
+Password for 'https://bilaltan@github.com':
+To https://github.com/bilaltan/emo-pipeline.git
+ ! [rejected]        main -> main (non-fast-forward)
+error: failed to push some refs to 'https://github.com/bilaltan/emo-pipeline.git'
+hint: Updates were rejected because the tip of your current branch is behind
+hint: its remote counterpart. If you want to integrate the remote changes,
+hint: use 'git pull' before pushing again.
+hint: See the 'Note about fast-forwards' in 'git push --help' for details.
+[hadoop@ip-172-31-74-63 emo-pipeline]$ git pull
+hint: You have divergent branches and need to specify how to reconcile them.
+hint: You can do so by running one of the following commands sometime before
+hint: your next pull:
+hint:
+hint:   git config pull.rebase false  # merge
+hint:   git config pull.rebase true   # rebase
+hint:   git config pull.ff only       # fast-forward only
+hint:
+hint: You can replace "git config" with "git config --global" to set a default
+hint: preference for all repositories. You can also pass --rebase, --no-rebase,
+hint: or --ff-only on the command line to override the configured default per
+hint: invocation.
+fatal: Need to specify how to reconcile divergent branches.
+[hadoop@ip-172-31-74-63 emo-pipeline]$ git pull --force
+hint: You have divergent branches and need to specify how to reconcile them.
+hint: You can do so by running one of the following commands sometime before
+hint: your next pull:
+hint:
+hint:   git config pull.rebase false  # merge
+hint:   git config pull.rebase true   # rebase
+hint:   git config pull.ff only       # fast-forward only
+hint:
+hint: You can replace "git config" with "git config --global" to set a default
+hint: preference for all repositories. You can also pass --rebase, --no-rebase,
+hint: or --ff-only on the command line to override the configured default per
+hint: invocation.
+fatal: Need to specify how to reconcile divergent branches.
+[hadoop@ip-172-31-74-63 emo-pipeline]$ git fetch origin
+[hadoop@ip-172-31-74-63 emo-pipeline]$ git reset --hard origin/main
+HEAD is now at fd72bc4 feat: optimize Spark memory and broadcasting for large-scale graph processing across training and community detection phases
+[hadoop@ip-172-31-74-63 emo-pipeline]$
+[hadoop@ip-172-31-74-63 emo-pipeline]$
+[hadoop@ip-172-31-74-63 emo-pipeline]$ git pull
+Already up to date.
+[hadoop@ip-172-31-74-63 emo-pipeline]$
+[hadoop@ip-172-31-74-63 emo-pipeline]$
+[hadoop@ip-172-31-74-63 emo-pipeline]$ ls
+__init__.py                      conference_fit_analysis.md  extracted_tables_raw.txt      papers    results_summary.txt          upload_to_s3.py
+__pycache__                      emo_paper_overleaf.zip      implementation_plan.md        phases    runners                      utils
+bare_conf_compsoc.tex            emr_setup.sh                paper_results_reference.json  pipeline  scratch
+bare_conf_compsoc_save_this.tex  experiment_config.py        paper_results_reference.md    results   scratch_extracted_pages.txt
+[hadoop@ip-172-31-74-63 emo-pipeline]$ tmux a
+sessions should be nested with care, unset $TMUX to force
+[hadoop@ip-172-31-74-63 emo-pipeline]$
+[hadoop@ip-172-31-74-63 emo-pipeline]$
+[hadoop@ip-172-31-74-63 emo-pipeline]$
+[hadoop@ip-172-31-74-63 emo-pipeline]$ tmux capture-pane -pS - -E - > history.txt
+
