@@ -90,19 +90,26 @@ def _train_gnn_community_single(pdf, base_weights_bc=None, base_embeddings_bc=No
     if base_weights_bc is not None and model_type == 'sage':
         num_epochs = max(5, num_epochs)
 
-    # Map nodes correctly
-    all_nodes = pdf['id'].values
+    # Fast C-vectorized node mapping
+    all_nodes = pdf['id'].values.astype(np.int64)
     n_nodes   = len(all_nodes)
-    node_map  = {int(n): i for i, n in enumerate(all_nodes)}
+    sorted_ids = np.sort(all_nodes)
+    sort_idx   = np.argsort(all_nodes)
     
-    # Process edge lists
+    # Fast exploded edge mapping in compiled C
     exploded = pdf[['id', 'neighbors']].explode('neighbors').dropna()
-    
     if len(exploded) > 0:
-        exploded['neighbors'] = exploded['neighbors'].astype(np.int64)
-        exploded = exploded[exploded['neighbors'].isin(node_map)]
-        src_l = exploded['id'].map(node_map).values.astype(np.int64)
-        dst_l = exploded['neighbors'].map(node_map).values.astype(np.int64)
+        src_arr = exploded['id'].values.astype(np.int64)
+        dst_arr = exploded['neighbors'].values.astype(np.int64)
+        
+        idx_src = np.searchsorted(sorted_ids, src_arr)
+        idx_dst = np.searchsorted(sorted_ids, dst_arr)
+        
+        valid = (idx_src < n_nodes) & (sorted_ids[np.minimum(idx_src, n_nodes - 1)] == src_arr) & \
+                (idx_dst < n_nodes) & (sorted_ids[np.minimum(idx_dst, n_nodes - 1)] == dst_arr)
+                
+        src_l = sort_idx[idx_src[valid]].astype(np.int64)
+        dst_l = sort_idx[idx_dst[valid]].astype(np.int64)
     else:
         src_l = np.array([], dtype=np.int64)
         dst_l = np.array([], dtype=np.int64)
