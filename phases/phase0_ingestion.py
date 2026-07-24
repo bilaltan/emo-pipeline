@@ -212,117 +212,146 @@ def run_phase0(spark, sc, datasets, run_phase0_flag, use_ogb_splits,
             feat_dim = node_feat.shape[1] if len(node_feat.shape) > 1 else 1
             print(f"  Nodes: {n_nodes:,} | Feature dimension: {feat_dim}")
 
-            
             # 1. Stream Nodes to Delta Lake
-            ns = StructType([StructField('id', LongType(), False),
-                             StructField('label', IntegerType(), True),
-                             StructField('features', ArrayType(FloatType()), True)])
-            CHUNK = 200000
-            print(f"  Streaming nodes to S3 Delta Lake in chunks of {CHUNK:,} nodes...")
-            for s in range(0, n_nodes, CHUNK):
-                e = min(s + CHUNK, n_nodes)
-                lbl_chunk = np.nan_to_num(lbl[s:e], nan=-1).astype(np.int32)
-                pdf_nodes = pd.DataFrame({
-                    'id': np.arange(s, e, dtype=np.int64),
-                    'label': lbl_chunk,
-                    'features': node_feat[s:e].tolist()
-                })
-                df_node = spark.createDataFrame(pdf_nodes, schema=ns)
-                df_node.write.format('delta').mode('overwrite' if s == 0 else 'append').save(p['original_nodes'])
-            print(f"  ✓ Original nodes written to Delta Lake.")
-
-            print(f"  Writing processed nodes Delta table via Spark distributed copy...")
-            spark.read.format('delta').load(p['original_nodes']).write.format('delta').mode('overwrite').save(p['nodes'])
-            print(f"  ✓ Processed nodes written to Delta Lake.")
-            
-            # 2. Stream Original Edges
-            es_orig = StructType([StructField('src', LongType(), False),
-                                  StructField('dst', LongType(), False)])
-            
-            # Resilient edge file search
-            edge_csv_gz = os.path.join(raw_dir, 'edge.csv.gz')
-            edge_npy = os.path.join(raw_dir, 'edge_index.npy')
-            if edge_index_arr is None and not os.path.exists(edge_csv_gz) and not os.path.exists(edge_npy):
-                for r_path, _, files in os.walk(raw_dir):
-                    for f in files:
-                        if f in ['edge_index.npy', 'edge_idx.npy', 'edge-index.npy', 'edge-idx.npy']:
-                            edge_npy = os.path.join(r_path, f)
-                            break
-                        elif f in ['edge.csv.gz', 'edges.csv.gz']:
-                            edge_csv_gz = os.path.join(r_path, f)
-                            break
-                    if os.path.exists(edge_npy) or os.path.exists(edge_csv_gz):
-                        break
-            
-            print(f"  Streaming original edges to S3 Delta Lake...")
-            if edge_index_arr is not None:
-                src_r, dst_r = edge_index_arr[0], edge_index_arr[1]
-                ECHUNK = 2_500_000
-                for s in range(0, len(src_r), ECHUNK):
-                    e = min(s + ECHUNK, len(src_r))
-                    pdf_e = pd.DataFrame({'src': src_r[s:e].astype(np.int64), 'dst': dst_r[s:e].astype(np.int64)})
-                    df_e = spark.createDataFrame(pdf_e, schema=es_orig)
-                    df_e.write.format('delta').mode('overwrite' if s == 0 else 'append').save(p['original_edges'])
-            elif os.path.exists(edge_npy):
-                ei = np.load(edge_npy, mmap_mode='r')
-                src_r, dst_r = ei[0], ei[1]
-                ECHUNK = 2_500_000
-                for s in range(0, len(src_r), ECHUNK):
-                    e = min(s + ECHUNK, len(src_r))
-                    pdf_e = pd.DataFrame({'src': src_r[s:e].astype(np.int64), 'dst': dst_r[s:e].astype(np.int64)})
-                    df_e = spark.createDataFrame(pdf_e, schema=es_orig)
-                    df_e.write.format('delta').mode('overwrite' if s == 0 else 'append').save(p['original_edges'])
-            elif os.path.exists(edge_csv_gz):
-                for i, chunk_df in enumerate(pd.read_csv(edge_csv_gz, compression='gzip', header=None, names=['src', 'dst'], chunksize=2_500_000)):
-                    df_e = spark.createDataFrame(chunk_df.astype(np.int64), schema=es_orig)
-                    df_e.write.format('delta').mode('overwrite' if i == 0 else 'append').save(p['original_edges'])
+            if _delta_exists(spark, p['original_nodes']) and _delta_exists(spark, p['nodes']):
+                print("  ✓ Nodes Delta tables ('original_nodes' and 'nodes') already exist — skipping node streaming.")
             else:
-                raise FileNotFoundError(f"Could not find original edges file (edge_index array in data.npz, edge.csv.gz, or edge_index.npy) under {raw_dir}")
-            print(f"  ✓ Original edges written to Delta Lake.")
+                ns = StructType([StructField('id', LongType(), False),
+                                 StructField('label', IntegerType(), True),
+                                 StructField('features', ArrayType(FloatType()), True)])
+                CHUNK = 200000
+                print(f"  Streaming nodes to S3 Delta Lake in chunks of {CHUNK:,} nodes...")
+                for s in range(0, n_nodes, CHUNK):
+                    e = min(s + CHUNK, n_nodes)
+                    lbl_chunk = np.nan_to_num(lbl[s:e], nan=-1).astype(np.int32)
+                    pdf_nodes = pd.DataFrame({
+                        'id': np.arange(s, e, dtype=np.int64),
+                        'label': lbl_chunk,
+                        'features': node_feat[s:e].tolist()
+                    })
+                    df_node = spark.createDataFrame(pdf_nodes, schema=ns)
+                    df_node.write.format('delta').mode('overwrite' if s == 0 else 'append').save(p['original_nodes'])
+                print(f"  ✓ Original nodes written to Delta Lake.")
 
-            # 3. Distributed Deduplicating & Symmetrizing Edges in PySpark (Zero Driver RAM)
-            print("  Symmetrizing and deduplicating 1.6B edges in PySpark across YARN workers...")
-            orig_df = spark.read.format('delta').load(p['original_edges'])
-            rev_df = orig_df.selectExpr("dst as src", "src as dst")
-            sym_df = orig_df.union(rev_df).filter("src != dst").dropDuplicates(["src", "dst"])
-            sym_df.write.format('delta').mode('overwrite').save(p['edges'])
-            print(f"  ✓ Undirected edges written to Delta Lake.")
+                print(f"  Writing processed nodes Delta table via Spark distributed copy...")
+                spark.read.format('delta').load(p['original_nodes']).write.format('delta').mode('overwrite').save(p['nodes'])
+                print(f"  ✓ Processed nodes written to Delta Lake.")
+            
+            # 2. Stream Original Edges & Symmetrize
+            if _delta_exists(spark, p['original_edges']) and _delta_exists(spark, p['edges']):
+                print("  ✓ Edges Delta tables ('original_edges' and 'edges') already exist — skipping 1.6B edge streaming & symmetrization.")
+            else:
+                es_orig = StructType([StructField('src', LongType(), False),
+                                      StructField('dst', LongType(), False)])
+                
+                # Resilient edge file search
+                edge_csv_gz = os.path.join(raw_dir, 'edge.csv.gz')
+                edge_npy = os.path.join(raw_dir, 'edge_index.npy')
+                if edge_index_arr is None and not os.path.exists(edge_csv_gz) and not os.path.exists(edge_npy):
+                    for r_path, _, files in os.walk(raw_dir):
+                        for f in files:
+                            if f in ['edge_index.npy', 'edge_idx.npy', 'edge-index.npy', 'edge-idx.npy']:
+                                edge_npy = os.path.join(r_path, f)
+                                break
+                            elif f in ['edge.csv.gz', 'edges.csv.gz']:
+                                edge_csv_gz = os.path.join(r_path, f)
+                                break
+                        if os.path.exists(edge_npy) or os.path.exists(edge_csv_gz):
+                            break
+                
+                print(f"  Streaming original edges to S3 Delta Lake...")
+                if edge_index_arr is not None:
+                    print(f"  ► Reading 1.61B edge indices (12.9 GB array) from data archive into memory...")
+                    t_edge_read = time.time()
+                    src_r = edge_index_arr[0]
+                    dst_r = edge_index_arr[1]
+                    print(f"  ✓ Edge indices loaded in {time.time() - t_edge_read:.1f}s. Total edges: {len(src_r):,}")
+                    
+                    ECHUNK = 2_500_000
+                    total_echunks = (len(src_r) + ECHUNK - 1) // ECHUNK
+                    print(f"  ► Writing {len(src_r):,} edges to S3 Delta Lake in {total_echunks} chunks ({ECHUNK:,} edges/chunk)...")
+                    for s in range(0, len(src_r), ECHUNK):
+                        e = min(s + ECHUNK, len(src_r))
+                        if (s // ECHUNK) % 50 == 0 or e == len(src_r):
+                            print(f"    - Edge Chunk {s // ECHUNK + 1}/{total_echunks} ({(s / len(src_r))*100:.1f}%)...")
+                        src_c = src_r[s:e] if src_r[s:e].dtype == np.int64 else src_r[s:e].astype(np.int64)
+                        dst_c = dst_r[s:e] if dst_r[s:e].dtype == np.int64 else dst_r[s:e].astype(np.int64)
+                        pdf_e = pd.DataFrame({'src': src_c, 'dst': dst_c})
+                        df_e = spark.createDataFrame(pdf_e, schema=es_orig)
+                        df_e.write.format('delta').mode('overwrite' if s == 0 else 'append').save(p['original_edges'])
+                elif os.path.exists(edge_npy):
+                    ei = np.load(edge_npy, mmap_mode='r')
+                    src_r, dst_r = ei[0], ei[1]
+                    ECHUNK = 2_500_000
+                    total_echunks = (len(src_r) + ECHUNK - 1) // ECHUNK
+                    for s in range(0, len(src_r), ECHUNK):
+                        e = min(s + ECHUNK, len(src_r))
+                        if (s // ECHUNK) % 50 == 0 or e == len(src_r):
+                            print(f"    - Edge Chunk {s // ECHUNK + 1}/{total_echunks} ({(s / len(src_r))*100:.1f}%)...")
+                        src_c = src_r[s:e] if src_r[s:e].dtype == np.int64 else src_r[s:e].astype(np.int64)
+                        dst_c = dst_r[s:e] if dst_r[s:e].dtype == np.int64 else dst_r[s:e].astype(np.int64)
+                        pdf_e = pd.DataFrame({'src': src_c, 'dst': dst_c})
+                        df_e = spark.createDataFrame(pdf_e, schema=es_orig)
+                        df_e.write.format('delta').mode('overwrite' if s == 0 else 'append').save(p['original_edges'])
+                elif os.path.exists(edge_csv_gz):
+                    for i, chunk_df in enumerate(pd.read_csv(edge_csv_gz, compression='gzip', header=None, names=['src', 'dst'], chunksize=2_500_000)):
+                        df_e = spark.createDataFrame(chunk_df.astype(np.int64), schema=es_orig)
+                        df_e.write.format('delta').mode('overwrite' if i == 0 else 'append').save(p['original_edges'])
+                else:
+                    raise FileNotFoundError(f"Could not find original edges file (edge_index array in data.npz, edge.csv.gz, or edge_index.npy) under {raw_dir}")
+                print(f"  ✓ Original edges written to Delta Lake.")
+
+                # 3. Distributed Deduplicating & Symmetrizing Edges in PySpark (Zero Driver RAM)
+                print("  Symmetrizing and deduplicating 1.6B edges in PySpark across YARN workers...")
+                orig_df = spark.read.format('delta').load(p['original_edges'])
+                rev_df = orig_df.selectExpr("dst as src", "src as dst")
+                sym_df = orig_df.union(rev_df).filter("src != dst").dropDuplicates(["src", "dst"])
+                sym_df.write.format('delta').mode('overwrite').save(p['edges'])
+                print(f"  ✓ Undirected edges written to Delta Lake.")
 
             # 4. Stream Masks
-            ms = StructType([StructField('id', LongType(), False),
-                             StructField('split', StringType(), True)])
-            
-            # Resilient split discovery
-            train_path = os.path.join(raw_dir, 'split', 'paper-split-structure', 'time', 'train.csv.gz')
-            valid_path = os.path.join(raw_dir, 'split', 'paper-split-structure', 'time', 'valid.csv.gz')
-            test_path  = os.path.join(raw_dir, 'split', 'paper-split-structure', 'time', 'test.csv.gz')
-            
-            if not os.path.exists(train_path):
-                for r_path, _, files in os.walk(raw_dir):
-                    if 'train.csv.gz' in files:
-                        train_path = os.path.join(r_path, 'train.csv.gz')
-                        valid_path = os.path.join(r_path, 'valid.csv.gz')
-                        test_path  = os.path.join(r_path, 'test.csv.gz')
-                        break
-
-            if use_ogb_splits and os.path.exists(train_path):
-                train_df = pd.read_csv(train_path, header=None, names=['id'])
-                valid_df = pd.read_csv(valid_path, header=None, names=['id'])
-                test_df  = pd.read_csv(test_path, header=None, names=['id'])
-                train_df['split'] = 'train'
-                valid_df['split'] = 'valid'
-                test_df['split']  = 'test'
-                mask_df = pd.concat([train_df, valid_df, test_df], ignore_index=True)
+            if _delta_exists(spark, p['masks']):
+                print("  ✓ Masks Delta table already exists — skipping mask generation.")
             else:
-                rng = np.random.default_rng(random_seed)
-                perm = rng.permutation(n_nodes)
-                n_tr, n_va = int(.6 * n_nodes), int(.2 * n_nodes)
-                mask_df = pd.DataFrame({
-                    'id': perm.astype(np.int64),
-                    'split': (['train'] * n_tr + ['valid'] * n_va + ['test'] * (n_nodes - n_tr - n_va))
-                })
-            spark.createDataFrame(mask_df, schema=ms).coalesce(1).write.format('delta').mode('overwrite').save(p['masks'])
-            print(f"  ✓ Masks written to Delta Lake.")
+                ms = StructType([StructField('id', LongType(), False),
+                                 StructField('split', StringType(), True)])
+                
+                # Resilient split discovery
+                train_path = os.path.join(raw_dir, 'split', 'paper-split-structure', 'time', 'train.csv.gz')
+                valid_path = os.path.join(raw_dir, 'split', 'paper-split-structure', 'time', 'valid.csv.gz')
+                test_path  = os.path.join(raw_dir, 'split', 'paper-split-structure', 'time', 'test.csv.gz')
+                
+                if not os.path.exists(train_path):
+                    for r_path, _, files in os.walk(raw_dir):
+                        if 'train.csv.gz' in files:
+                            train_path = os.path.join(r_path, 'train.csv.gz')
+                            valid_path = os.path.join(r_path, 'valid.csv.gz')
+                            test_path  = os.path.join(r_path, 'test.csv.gz')
+                            break
+
+                if use_ogb_splits and os.path.exists(train_path):
+                    train_df = pd.read_csv(train_path, header=None, names=['id'])
+                    valid_df = pd.read_csv(valid_path, header=None, names=['id'])
+                    test_df  = pd.read_csv(test_path, header=None, names=['id'])
+                    train_df['split'] = 'train'
+                    valid_df['split'] = 'valid'
+                    test_df['split']  = 'test'
+                    mask_df = pd.concat([train_df, valid_df, test_df], ignore_index=True)
+                else:
+                    rng = np.random.default_rng(random_seed)
+                    perm = rng.permutation(n_nodes)
+                    n_tr, n_va = int(.6 * n_nodes), int(.2 * n_nodes)
+                    mask_df = pd.DataFrame({
+                        'id': perm.astype(np.int64),
+                        'split': (['train'] * n_tr + ['valid'] * n_va + ['test'] * (n_nodes - n_tr - n_va))
+                    })
+                MCHUNK = 5_000_000
+                print(f"  Streaming masks to S3 Delta Lake in chunks of {MCHUNK:,}...")
+                for s in range(0, len(mask_df), MCHUNK):
+                    e = min(s + MCHUNK, len(mask_df))
+                    df_m = spark.createDataFrame(mask_df.iloc[s:e], schema=ms)
+                    df_m.write.format('delta').mode('overwrite' if s == 0 else 'append').save(p['masks'])
+                print(f"  ✓ Masks written to Delta Lake.")
 
             # Compact & Vacuum
             print(f"  Compacting Delta tables for {dataset}...")
@@ -593,8 +622,11 @@ def run_phase0(spark, sc, datasets, run_phase0_flag, use_ogb_splits,
                       ['test']  * (n_nodes - n_tr - n_va))
             pdf_masks = pd.DataFrame({'id': ids.astype(np.int64), 'split': splits})
             
-        spark.createDataFrame(pdf_masks, schema=ms)\
-             .coalesce(1).write.format('delta').mode('overwrite').save(p['masks'])
+        MCHUNK = 5_000_000
+        for s in range(0, len(pdf_masks), MCHUNK):
+            e = min(s + MCHUNK, len(pdf_masks))
+            df_m = spark.createDataFrame(pdf_masks.iloc[s:e], schema=ms)
+            df_m.write.format('delta').mode('overwrite' if s == 0 else 'append').save(p['masks'])
         print(f"  Masks written.")
 
         # Compact the Delta tables
