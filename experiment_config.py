@@ -23,8 +23,8 @@ GNN_MODELS = ['sage']
 #         REQUIRED when using a dataset for the first time.
 # False = skip (Delta tables already exist).
 RUN_PHASE0        = True
-FORCE_REINGEST    = True   # Set to True to force overwrite even if tables already exist
-FORCE_RERUN       = True   # Set to True to ignore all S3 checkpoints and rerun the pipeline
+FORCE_REINGEST    = False   # Set to False to use existing S3 Delta tables
+FORCE_RERUN       = False   # Set to False to use existing S3 checkpoints and skip completed phases
 USE_OGB_SPLITS    = True    # True = OGB official splits | False = stratified 60/20/20
 RANDOM_SEED       = 42
 N_BASELINE_RUNS   = 1          # number of runs per baseline for mean ± std
