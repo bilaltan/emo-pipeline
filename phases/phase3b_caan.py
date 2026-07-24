@@ -92,10 +92,10 @@ def _train_minor_global_caan(dataset, gcn_cfg, dataset_cfg, caan_components, mod
     n_nodes = len(node_map)
     n_edges = len(src_l_g)
     
-    # Masks (only for minor nodes!)
-    train_m = torch.tensor([s == 'train' and i >= len(super_ids) for i, s in enumerate(split_arr)], dtype=torch.bool)
-    val_m   = torch.tensor([s == 'valid' and i >= len(super_ids) for i, s in enumerate(split_arr)], dtype=torch.bool)
-    test_m  = torch.tensor([s == 'test'  and i >= len(super_ids) for i, s in enumerate(split_arr)], dtype=torch.bool)
+    has_lbl = torch.tensor(label_arr >= 0, dtype=torch.bool)
+    train_m = torch.tensor([s == 'train' and i >= len(super_ids) for i, s in enumerate(split_arr)], dtype=torch.bool) & has_lbl
+    val_m   = torch.tensor([s == 'valid' and i >= len(super_ids) for i, s in enumerate(split_arr)], dtype=torch.bool) & has_lbl
+    test_m  = torch.tensor([s == 'test'  and i >= len(super_ids) for i, s in enumerate(split_arr)], dtype=torch.bool) & has_lbl
     
     is_pyg = (model_type in ('gat', 'transformer', 'clusterscl'))
     if is_pyg:
@@ -1230,9 +1230,10 @@ def run_phase3b(spark, sc, datasets, algorithms, use_global_mapping,
                     
                     lbl_arr = np.array([int(v) if not pd.isna(v) else -1 for v in large_comm_pdf['label'].values], dtype=np.int64)
                     lbl_t = torch.tensor(lbl_arr, dtype=torch.long)
+                    has_lbl = torch.tensor(lbl_arr >= 0, dtype=torch.bool)
                     
                     splits = list(large_comm_pdf['split'].values)
-                    train_m = torch.tensor([s == 'train' for s in splits], dtype=torch.bool)
+                    train_m = torch.tensor([s == 'train' for s in splits], dtype=torch.bool) & has_lbl
                     
                     class DriverGraphSAGE(nn.Module):
                         def __init__(self, in_f, h, nc):

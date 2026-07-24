@@ -124,9 +124,10 @@ def _train_gnn_community_single(pdf, base_weights_bc=None, base_embeddings_bc=No
         src_l_g = src_l
         dst_l_g = dst_l
 
-    train_m = torch.tensor([s == 'train' for s in split_arr], dtype=torch.bool)
-    val_m   = torch.tensor([s == 'valid' for s in split_arr], dtype=torch.bool)
-    test_m  = torch.tensor([s == 'test'  for s in split_arr], dtype=torch.bool)
+    has_label = torch.tensor(label_arr >= 0, dtype=torch.bool)
+    train_m = torch.tensor([s == 'train' for s in split_arr], dtype=torch.bool) & has_label
+    val_m   = torch.tensor([s == 'valid' for s in split_arr], dtype=torch.bool) & has_label
+    test_m  = torch.tensor([s == 'test'  for s in split_arr], dtype=torch.bool) & has_label
     bnd_t = torch.tensor(bnd_arr, dtype=torch.bool)
 
     is_pyg = (model_type in ('gat', 'transformer', 'clusterscl'))
@@ -861,9 +862,10 @@ def run_phase3(spark, sc, datasets, algorithms, use_global_mapping,
                     
                     lbl_arr = np.array([int(v) if not pd.isna(v) else -1 for v in large_comm_pdf['label'].values], dtype=np.int64)
                     lbl_t = torch.tensor(lbl_arr, dtype=torch.long)
+                    has_lbl = torch.tensor(lbl_arr >= 0, dtype=torch.bool)
                     
                     splits = list(large_comm_pdf['split'].values)
-                    train_m = torch.tensor([s == 'train' for s in splits], dtype=torch.bool)
+                    train_m = torch.tensor([s == 'train' for s in splits], dtype=torch.bool) & has_lbl
                     
                     class DriverGraphSAGE(nn.Module):
                         def __init__(self, in_f, h, nc):
