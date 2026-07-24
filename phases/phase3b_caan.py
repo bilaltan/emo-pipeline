@@ -1182,10 +1182,24 @@ def run_phase3b(spark, sc, datasets, algorithms, use_global_mapping,
                     import torch.nn as nn
                     import dgl
                     
-                    print("  [Driver Warmstart] Extracting largest community for driver-side pre-training...")
+                    print("  [Driver Warmstart] Extracting representative community for driver-side pre-training...")
                     comms_node_counts = training_df_base.groupBy('community_id').count().toPandas()
-                    largest_comm_id = int(comms_node_counts.sort_values(by='count', ascending=False)['community_id'].iloc[0])
-                    large_comm_pdf = training_df_base.filter(F.col('community_id') == largest_comm_id).toPandas()
+                    comms_sorted = comms_node_counts.sort_values(by='count', ascending=False)
+                    
+                    valid_comms = comms_sorted[comms_sorted['count'] <= 100_000]
+                    if len(valid_comms) == 0:
+                        target_comm_row = comms_sorted.iloc[-1]
+                    else:
+                        target_comm_row = valid_comms.iloc[0]
+                        
+                    largest_comm_id = int(target_comm_row['community_id'])
+                    comm_count = int(target_comm_row['count'])
+                    
+                    if comm_count > 100_000:
+                        print(f"  [Driver Warmstart] Community size ({comm_count:,} nodes) exceeds driver RAM safety limit — sub-sampling 50,000 nodes...")
+                        large_comm_pdf = training_df_base.filter(F.col('community_id') == largest_comm_id).limit(50000).toPandas()
+                    else:
+                        large_comm_pdf = training_df_base.filter(F.col('community_id') == largest_comm_id).toPandas()
                     
                     in_feats = len(large_comm_pdf['features'].iloc[0])
                     num_classes = int(cfg['num_classes'])

@@ -265,16 +265,30 @@ def main():
         dataset_name = 'ogbn-arxiv'
     
     # 1. Query active YARN worker nodes
-    nodes_count = 2
+    nodes_count = 0
     try:
         import subprocess
         import re
         out = subprocess.check_output(['yarn', 'node', '-list'], stderr=subprocess.DEVNULL).decode('utf-8')
         nodes_count = len(re.findall(r'RUNNING', out))
-        if nodes_count == 0:
-            nodes_count = 2
     except Exception:
         pass
+
+    if nodes_count < 4:
+        # Check Hadoop configuration for configured worker nodes
+        for slaves_file in ['/etc/hadoop/conf/slaves', '/etc/hadoop/conf/workers']:
+            if os.path.exists(slaves_file):
+                try:
+                    with open(slaves_file, 'r') as sf:
+                        lines = [l.strip() for l in sf if l.strip() and not l.startswith('#')]
+                        if len(lines) > nodes_count:
+                            nodes_count = len(lines)
+                            break
+                except Exception:
+                    pass
+
+    if nodes_count == 0:
+        nodes_count = 4  # Default to 4 worker nodes for standard EMR cluster
 
     # 2. Dynamic graph scale detection from S3
     bucket_name = getattr(args, 's3_bucket', 'us-east-1-s3-gnn')
