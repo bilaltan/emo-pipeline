@@ -71,6 +71,11 @@ def _train_gnn_community_single(pdf, base_weights_bc=None, base_embeddings_bc=No
     import torch.nn.functional as F
     import dgl.nn as dglnn
 
+    try:
+        torch.set_num_threads(4)
+    except Exception:
+        pass
+
     t_start     = time.time()
     comm_id     = int(pdf['community_id'].iloc[0])
     num_classes = int(pdf['_num_classes'].iloc[0])
