@@ -409,7 +409,7 @@ def main():
         .config("spark.master", "yarn") \
         .config("spark.eventLog.enabled", "false") \
         .config("spark.driver.memory", driver_mem) \
-        .config("spark.driver.maxResultSize", "24g") \
+        .config("spark.driver.maxResultSize", "0") \
         .config("spark.driver.cores", driver_cores) \
         .config("spark.driver.memoryOverhead", driver_overhead) \
         .config("spark.rpc.message.maxSize", "512") \

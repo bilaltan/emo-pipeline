@@ -64,7 +64,7 @@ spark = SparkSession.builder \
     .config("spark.master", "yarn") \
     .config("spark.eventLog.enabled", "false") \
     .config("spark.driver.memory", "30g") \
-    .config("spark.driver.maxResultSize", "24g") \
+    .config("spark.driver.maxResultSize", "0") \
     .config("spark.driver.cores", "4") \
     .config("spark.driver.memoryOverhead", "8g") \
     .config("spark.rpc.message.maxSize", "512") \

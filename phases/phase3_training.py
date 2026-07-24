@@ -896,54 +896,85 @@ def run_phase3(spark, sc, datasets, algorithms, use_global_mapping,
                 except Exception as base_err:
                     print(f"  Warning: Skipped warm-start driver pre-training: {base_err}")
 
-                # 2. Driver-side Community Binning
+                # 2. Driver-side Community Binning / Direct Grouping
                 comms_node_counts = training_df_base.groupBy('community_id').count().toPandas()
                 comms_node_counts = comms_node_counts.sort_values(by='count', ascending=False).reset_index(drop=True)
-                
                 num_comms = len(comms_node_counts)
-                bin_size = 1 if num_comms <= 200 else 50
-                num_bins = int(np.ceil(num_comms / float(bin_size)))
-                if num_bins < 1:
-                    num_bins = 1
-                comms_node_counts['bin_id'] = [i % num_bins for i in range(len(comms_node_counts))]
                 
-                bin_mapping_df = spark.createDataFrame(comms_node_counts[['community_id', 'bin_id']])
-                training_df_bin = training_df_base.join(bin_mapping_df, on='community_id', how='left')
+                if num_comms > 200 or dataset == 'ogbn-papers100M':
+                    print(f"  Large graph detected ({num_comms:,} communities) — grouping directly by community_id for isolated task execution...")
+                    training_df = (training_df_base
+                        .withColumn('_num_classes', F.lit(int(cfg['num_classes'])))
+                        .withColumn('_hidden',      F.lit(int(gcn_cfg['hidden_dim'])))
+                        .withColumn('_epochs',      F.lit(int(gcn_cfg['num_epochs'])))
+                        .withColumn('_lr',          F.lit(float(gcn_cfg['lr'])))
+                        .withColumn('_dropout',     F.lit(float(gcn_cfg['dropout'])))
+                        .withColumn('_task_type',   F.lit(str(task_type)))
+                        .withColumn('_model_type',  F.lit(str(model_type))))
 
-                # Inject hyperparams as constant columns
-                training_df = (training_df_bin
-                    .withColumn('_num_classes', F.lit(int(cfg['num_classes'])))
-                    .withColumn('_hidden',      F.lit(int(gcn_cfg['hidden_dim'])))
-                    .withColumn('_epochs',      F.lit(int(gcn_cfg['num_epochs'])))
-                    .withColumn('_lr',          F.lit(float(gcn_cfg['lr'])))
-                    .withColumn('_dropout',     F.lit(float(gcn_cfg['dropout'])))
-                    .withColumn('_task_type',   F.lit(str(task_type)))
-                    .withColumn('_model_type',  F.lit(str(model_type))))
+                    n_rows  = training_df.count()
+                    n_comms = training_df.select('community_id').distinct().count()
+                    print(f"  Training DF: {n_rows:,} rows | {n_comms:,} isolated community tasks")
 
-                n_rows  = training_df.count()
-                n_comms = training_df.select('community_id').distinct().count()
-                print(f"  Training DF: {n_rows:,} rows | {n_comms:,} communities binned into {num_bins} executor tasks")
-
-                # Define local binned training wrapper closure
-                def _train_gnn_bin(pdf):
-                    import pandas as pd
-                    results = []
-                    for comm_id, group_pdf in pdf.groupby('community_id'):
+                    def _train_gnn_single_comm_wrapper(pdf):
+                        import pandas as pd
                         res_row = _train_gnn_community_single(
-                            group_pdf,
+                            pdf,
                             base_weights_bc=base_weights_bc,
                             base_embeddings_bc=base_embeddings_bc,
                             base_node_map_bc=base_node_map_bc
                         )
-                        results.append(res_row)
-                    return pd.concat(results, ignore_index=True)
+                        return res_row
 
-                sc.setJobDescription(f'phase3_{dataset}_{alg}_{model_type}')
-                comm_results = (training_df
-                                .groupBy('bin_id')
-                                .applyInPandas(_train_gnn_bin, schema=result_schema))
-                comm_pd = comm_results.toPandas()
-                sc.setJobDescription('')
+                    sc.setJobDescription(f'phase3_{dataset}_{alg}_{model_type}')
+                    comm_results = (training_df
+                                    .groupBy('community_id')
+                                    .applyInPandas(_train_gnn_single_comm_wrapper, schema=result_schema))
+                    comm_pd = comm_results.toPandas()
+                    sc.setJobDescription('')
+                else:
+                    bin_size = 50
+                    num_bins = int(np.ceil(num_comms / float(bin_size)))
+                    if num_bins < 1:
+                        num_bins = 1
+                    comms_node_counts['bin_id'] = [i % num_bins for i in range(len(comms_node_counts))]
+                    
+                    bin_mapping_df = spark.createDataFrame(comms_node_counts[['community_id', 'bin_id']])
+                    training_df_bin = training_df_base.join(bin_mapping_df, on='community_id', how='left')
+
+                    # Inject hyperparams as constant columns
+                    training_df = (training_df_bin
+                        .withColumn('_num_classes', F.lit(int(cfg['num_classes'])))
+                        .withColumn('_hidden',      F.lit(int(gcn_cfg['hidden_dim'])))
+                        .withColumn('_epochs',      F.lit(int(gcn_cfg['num_epochs'])))
+                        .withColumn('_lr',          F.lit(float(gcn_cfg['lr'])))
+                        .withColumn('_dropout',     F.lit(float(gcn_cfg['dropout'])))
+                        .withColumn('_task_type',   F.lit(str(task_type)))
+                        .withColumn('_model_type',  F.lit(str(model_type))))
+
+                    n_rows  = training_df.count()
+                    n_comms = training_df.select('community_id').distinct().count()
+                    print(f"  Training DF: {n_rows:,} rows | {n_comms:,} communities binned into {num_bins} executor tasks")
+
+                    def _train_gnn_bin(pdf):
+                        import pandas as pd
+                        results = []
+                        for comm_id, group_pdf in pdf.groupby('community_id'):
+                            res_row = _train_gnn_community_single(
+                                group_pdf,
+                                base_weights_bc=base_weights_bc,
+                                base_embeddings_bc=base_embeddings_bc,
+                                base_node_map_bc=base_node_map_bc
+                            )
+                            results.append(res_row)
+                        return pd.concat(results, ignore_index=True)
+
+                    sc.setJobDescription(f'phase3_{dataset}_{alg}_{model_type}')
+                    comm_results = (training_df
+                                    .groupBy('bin_id')
+                                    .applyInPandas(_train_gnn_bin, schema=result_schema))
+                    comm_pd = comm_results.toPandas()
+                    sc.setJobDescription('')
 
                 total_test_nodes = comm_pd['n_test'].sum()
                 weighted_comm_acc = (comm_pd['comm_test_acc'] * comm_pd['n_test']).sum() / total_test_nodes if total_test_nodes > 0 else 0.0
