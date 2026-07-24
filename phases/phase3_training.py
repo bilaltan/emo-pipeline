@@ -884,10 +884,14 @@ def run_phase3(spark, sc, datasets, algorithms, use_global_mapping,
                     with torch.no_grad():
                         global_embeddings = base_model.encode(g_large, feat_t).numpy()
                         
-                    # Broadcast state dict and embeddings
+                    # Broadcast state dict and embeddings safely
                     base_weights_bc = sc.broadcast(base_model.state_dict())
-                    base_embeddings_bc = sc.broadcast(global_embeddings)
-                    base_node_map_bc = sc.broadcast(node_map)
+                    if len(node_map) <= 5_000_000:
+                        base_embeddings_bc = sc.broadcast(global_embeddings)
+                        base_node_map_bc = sc.broadcast(node_map)
+                    else:
+                        base_embeddings_bc = None
+                        base_node_map_bc = None
                     print(f"  ✓ Driver-side base model trained successfully on Comm {largest_comm_id} ({n_nodes:,} nodes).")
                 except Exception as base_err:
                     print(f"  Warning: Skipped warm-start driver pre-training: {base_err}")

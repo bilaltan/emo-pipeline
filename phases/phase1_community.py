@@ -58,21 +58,31 @@ def run_phase1(spark, sc, datasets, algorithms, lpa_max_iter, resolution,
             # ── LPA ─────────────────────────────────────────────────────────
             if alg == 'lpa':
                 sc.setCheckpointDir(p['checkpoints'] + 'lpa/')
-                spark.conf.set("spark.sql.autoBroadcastJoinThreshold",
-                               str(256 * 1024 * 1024))
+                num_parts = 336 if n_nodes > 10_000_000 else 112
+                if n_nodes > 10_000_000:
+                    spark.conf.set("spark.sql.autoBroadcastJoinThreshold", "-1")
+                else:
+                    spark.conf.set("spark.sql.autoBroadcastJoinThreshold", str(256 * 1024 * 1024))
+                
                 curr = (nodes_df.select('id')
                         .withColumn('community_id', F.col('id'))
-                        .repartition(112).cache())
+                        .repartition(num_parts).cache())
                 curr.count()
                 for i in range(lpa_max_iter):
                     t_i = time.time()
-                    proposed = (edges_df
-                                .join(F.broadcast(curr
-                                      .withColumnRenamed('id', 'src')
-                                      .withColumnRenamed('community_id', 'src_comm')),
-                                      on='src', how='inner')
-                                .select(F.col('dst').alias('id'),
-                                        F.col('src_comm').alias('proposed_comm')))
+                    curr_rename = curr.withColumnRenamed('id', 'src').withColumnRenamed('community_id', 'src_comm')
+                    
+                    if n_nodes > 10_000_000:
+                        proposed = (edges_df
+                                    .join(curr_rename, on='src', how='inner')
+                                    .select(F.col('dst').alias('id'),
+                                            F.col('src_comm').alias('proposed_comm')))
+                    else:
+                        proposed = (edges_df
+                                    .join(F.broadcast(curr_rename), on='src', how='inner')
+                                    .select(F.col('dst').alias('id'),
+                                            F.col('src_comm').alias('proposed_comm')))
+                                            
                     freq = proposed.groupBy('id', 'proposed_comm').count()
                     from pyspark.sql.window import Window
                     from pyspark.sql.functions import row_number
@@ -87,10 +97,19 @@ def run_phase1(spark, sc, datasets, algorithms, lpa_max_iter, resolution,
                                             F.coalesce(F.col('new_comm'),
                                                        F.col('community_id')))
                                 .select('id', 'community_id')
-                                .repartition(112).cache())
-                    nc   = curr.select('community_id').distinct().count()
+                                .repartition(num_parts))
+                    
+                    if i % 2 == 1:
+                        curr = curr.localCheckpoint()
+                    else:
+                        curr = curr.cache()
+                        
+                    nc = curr.select('community_id').distinct().count()
                     print(f"    Iter {i+1}/{lpa_max_iter}: {nc:,} comms  [{time.time()-t_i:.1f}s]")
-                    old_curr.unpersist()
+                    try:
+                        old_curr.unpersist()
+                    except Exception:
+                        pass
                 communities_df = curr.cache()
 
             # ── Louvain / Leiden / igraph_lpa ─────────────────────────────────────────────
