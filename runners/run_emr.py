@@ -612,14 +612,15 @@ def main():
                 except Exception as e:
                     print(f"    ⚠ Failed to install {pkg} on driver: {e}")
 
-        # 2. Verify and install executor packages (once per node in parallel)
+        # 2. Verify and install executor packages
         executor_packages = [p for p in packages if p not in driver_only_packages]
 
-        def run_executor_node_install(iterator):
+        def run_executor_install(iterator):
             import socket
             import subprocess
             import sys
             import os
+            import time
             import importlib
 
             node_name = socket.gethostname()
@@ -641,56 +642,84 @@ def main():
             os.environ["TEMP"] = worker_tmp
             os.environ["TMP"] = worker_tmp
 
-            results = []
-            for pkg in executor_packages:
-                import_map = {
-                    'scikit-learn': 'sklearn',
-                    'torch-geometric': 'torch_geometric',
-                    'dgl==1.1.3': 'dgl'
-                }
-                import_name = import_map.get(pkg, pkg)
+            import_map = {
+                'scikit-learn': 'sklearn',
+                'torch-geometric': 'torch_geometric',
+                'dgl==1.1.3': 'dgl'
+            }
 
+            def check_all_imported():
+                for pkg in executor_packages:
+                    import_name = import_map.get(pkg, pkg)
+                    try:
+                        importlib.import_module(import_name)
+                    except Exception:
+                        return False
+                return True
+
+            # If already fully built on this node, exit immediately
+            if check_all_imported():
+                return [f"{node_name}: Success (Cached)"]
+
+            # Acquire node lock to install sequentially on this node
+            lock_dir = "/tmp/.local_sync_lock"
+            lock_acquired = False
+            for _ in range(300):
+                if check_all_imported():
+                    return [f"{node_name}: Success (Completed by other task)"]
                 try:
-                    importlib.import_module(import_name)
-                    results.append(f"{pkg}: OK")
-                    continue
+                    os.makedirs(lock_dir, exist_ok=False)
+                    lock_acquired = True
+                    break
+                except FileExistsError:
+                    time.sleep(2)
+
+            if not lock_acquired:
+                if check_all_imported():
+                    return [f"{node_name}: Success (Completed by other task)"]
+                return [f"{node_name}: Failed (Timeout waiting for sync lock)"]
+
+            # We hold the lock! Check and install missing packages sequentially
+            installed_pkgs = []
+            try:
+                for pkg in executor_packages:
+                    import_name = import_map.get(pkg, pkg)
+                    try:
+                        importlib.import_module(import_name)
+                        continue
+                    except Exception:
+                        pass
+
+                    cmd = [sys.executable, '-m', 'pip', 'install', '--user', '--quiet', '--no-cache-dir']
+                    if pkg.startswith('dgl'):
+                        cmd += [pkg, '-f', 'https://data.dgl.ai/wheels/repo.html']
+                    else:
+                        cmd += [pkg]
+
+                    subprocess.run(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=True)
+                    installed_pkgs.append(pkg)
+                return [f"{node_name}: Success (Installed: {installed_pkgs})"]
+            except Exception as e:
+                return [f"{node_name}: Failed ({e})"]
+            finally:
+                try:
+                    os.rmdir(lock_dir)
                 except Exception:
                     pass
 
-                cmd = [sys.executable, '-m', 'pip', 'install', '--user', '--quiet', '--no-cache-dir']
-                if pkg.startswith('dgl'):
-                    cmd += [pkg, '-f', 'https://data.dgl.ai/wheels/repo.html']
-                else:
-                    cmd += [pkg]
-
-                try:
-                    subprocess.run(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=True)
-                    results.append(f"{pkg}: Installed")
-                except Exception as e:
-                    results.append(f"{pkg}: Failed ({e})")
-
-            return [(node_name, results)]
-
         try:
             num_executors = int(spark.conf.get("spark.executor.instances", "4"))
-            print(f"  ► Scanning cluster to identify unique worker nodes...")
+            print(f"  ► Syncing dependencies on all {num_executors} executors (with node-level serialization)...")
 
-            # Find unique hostnames
-            unique_nodes = sc.parallelize(range(num_executors * 4), num_executors * 4) \
-                             .map(lambda x: __import__('socket').gethostname()) \
-                             .distinct() \
-                             .collect()
-
-            print(f"  ► Syncing dependencies on {len(unique_nodes)} unique EMR worker nodes: {unique_nodes}")
-
-            # Parallel install exactly once per node
-            results = sc.parallelize(unique_nodes, len(unique_nodes)) \
-                        .mapPartitions(run_executor_node_install) \
+            # Run on all executor partitions to ensure package availability on all Python workers
+            results = sc.parallelize(range(num_executors * 4), num_executors * 4) \
+                        .mapPartitions(run_executor_install) \
                         .collect()
 
             print("\n  === YARN Executor Package Sync Summary ===")
-            for node, res in results:
-                print(f"    Node {node}: {', '.join(res)}")
+            unique_reports = sorted(list(set(results)))
+            for report in unique_reports:
+                print(f"    {report}")
 
         except Exception as e:
             print(f"  ⚠ Executor package sync failed: {e}")
