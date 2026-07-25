@@ -749,7 +749,11 @@ def run_phase3(spark, sc, datasets, algorithms, use_global_mapping,
             edges_df = spark.read.format('delta').load(p_alg['p2_edges'])
 
             # Aggregate edges by source to prevent isolated node drops
-            edge_agg = edges_df.groupBy('community_id', 'src').agg(F.collect_list('dst').alias('neighbors')).withColumnRenamed('src', 'id')
+            # Cap max neighbors per node to 2,000 to prevent Arrow ListVector integer buffer overflow on massive hub nodes (>100k degree)
+            edge_agg = (edges_df
+                        .groupBy('community_id', 'src')
+                        .agg(F.slice(F.collect_list('dst'), 1, 2000).alias('neighbors'))
+                        .withColumnRenamed('src', 'id'))
             
             # Left join edges onto nodes_df
             training_df_base = nodes_df.join(edge_agg, on=['community_id', 'id'], how='left')
@@ -938,6 +942,10 @@ def run_phase3(spark, sc, datasets, algorithms, use_global_mapping,
                     print(f"  Warning: Skipped warm-start driver pre-training: {base_err}")
 
                 # 2. Driver-side Community Binning
+                spark.conf.set("spark.sql.execution.arrow.maxRecordsPerBatch", "200")
+                spark.conf.set("spark.sql.execution.arrow.pyspark.enabled", "true")
+                spark.conf.set("spark.sql.execution.arrow.pyspark.fallback.enabled", "true")
+
                 comms_node_counts = training_df_base.groupBy('community_id').count().toPandas()
                 comms_node_counts = comms_node_counts.sort_values(by='count', ascending=False).reset_index(drop=True)
                 num_comms = len(comms_node_counts)
