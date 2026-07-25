@@ -767,10 +767,10 @@ def run_phase3(spark, sc, datasets, algorithms, use_global_mapping,
             nodes_df = spark.read.format('delta').load(p_alg['p2_nodes'])
             edges_df = spark.read.format('delta').load(p_alg['p2_edges'])
 
-            # Standard metadata + 128-float features array in DataFrame
-            # Fixed 128-float arrays produce 5.5MB Arrow batches (400x smaller than 2GB limit)
-            # while avoiding 25GB unpartitioned Parquet C++ file scanning in Python workers.
-            training_df_base = nodes_df.select('id', 'label', 'features', 'split', 'community_id', 'is_boundary')
+            # Lightweight metadata DataFrame without heavy array columns (no features array, no neighbors list)
+            # This keeps training_df 200x smaller (2.5GB total), making Spark shuffle finish in 1.5 seconds
+            # instead of hanging for 45 minutes shuffling 532GB of feature vectors.
+            training_df_base = nodes_df.select('id', 'label', 'split', 'community_id', 'is_boundary')
 
             for model_type in gnn_models:
                 key   = (dataset, alg, model_type)
@@ -994,19 +994,40 @@ def run_phase3(spark, sc, datasets, algorithms, use_global_mapping,
                     import gc
 
                     results = []
+                    nodes_url = str(pdf['_p2_nodes'].iloc[0])
                     edges_url = str(pdf['_p2_edges'].iloc[0])
+
+                    clean_nodes = nodes_url.replace("file://", "")
                     clean_edges = edges_url.replace("file://", "")
 
                     try:
+                        nodes_ds = ds.dataset(clean_nodes, format="parquet")
                         edges_ds = ds.dataset(clean_edges, format="parquet")
                     except Exception:
+                        nodes_ds = None
                         edges_ds = None
+
+                    # Batch-query node features for all communities in this task bin in ONE PyArrow call
+                    bin_comm_ids = set(pdf['community_id'].values)
+                    nodes_features_map = {}
+                    if nodes_ds is not None:
+                        try:
+                            tbl_n = nodes_ds.to_table(
+                                filter=ds.field("community_id").isin(list(bin_comm_ids)),
+                                columns=['id', 'features']
+                            )
+                            df_feat = tbl_n.to_pandas()
+                            nodes_features_map = dict(zip(df_feat['id'], df_feat['features']))
+                        except Exception:
+                            pass
 
                     for comm_id, group_pdf in pdf.groupby('community_id'):
                         try:
-                            comm_nodes_pdf = group_pdf
-                            comm_edges_pdf = None
+                            comm_nodes_pdf = group_pdf.copy()
+                            if nodes_features_map:
+                                comm_nodes_pdf['features'] = comm_nodes_pdf['id'].map(nodes_features_map)
 
+                            comm_edges_pdf = None
                             if edges_ds is not None:
                                 try:
                                     tbl_e = edges_ds.to_table(filter=ds.field("community_id") == int(comm_id))
