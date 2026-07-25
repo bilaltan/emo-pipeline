@@ -783,7 +783,9 @@ def main():
                 }
                 n_nodes, feature_dim = fallback_stats.get(dataset_name, (200000, 128))
 
-            required_bytes = 2 * (n_nodes * feature_dim * 4)
+            full_feature_bytes = n_nodes * feature_dim * 4
+            # Executors only process local data shards. We scale required disk space by nodes_count with a 1.5x safety margin.
+            required_bytes = max(10 * 1024**3, (full_feature_bytes * 1.5) / max(1, nodes_count))
             required_gb = required_bytes / (1024**3)
 
             print("\n" + "="*80)
