@@ -69,8 +69,6 @@ def _train_gnn_community_single(pdf, base_weights_bc=None, base_embeddings_bc=No
     import torch
     import torch.nn as nn
     import torch.nn.functional as F
-    import dgl.nn as dglnn
-
     try:
         omp_threads = int(os.environ.get('OMP_NUM_THREADS', '1'))
         torch.set_num_threads(omp_threads)
@@ -107,12 +105,10 @@ def _train_gnn_community_single(pdf, base_weights_bc=None, base_embeddings_bc=No
     sorted_ids = np.sort(all_nodes)
     sort_idx   = np.argsort(all_nodes)
     
-    # Fast exploded edge mapping in compiled C (pandas explode is optimized and fast)
-    exploded = pdf[['id', 'neighbors']].explode('neighbors').dropna()
-    if len(exploded) > 0:
-        src_arr = exploded['id'].values.astype(np.int64)
-        dst_arr = exploded['neighbors'].values.astype(np.int64)
-
+    # Fast vectorized edge mapping
+    if comm_edges_pdf is not None and len(comm_edges_pdf) > 0:
+        src_arr = comm_edges_pdf['src'].values.astype(np.int64)
+        dst_arr = comm_edges_pdf['dst'].values.astype(np.int64)
         idx_src = np.searchsorted(sorted_ids, src_arr)
         idx_dst = np.searchsorted(sorted_ids, dst_arr)
 
@@ -121,6 +117,23 @@ def _train_gnn_community_single(pdf, base_weights_bc=None, base_embeddings_bc=No
 
         src_l = sort_idx[idx_src[valid]].astype(np.int64)
         dst_l = sort_idx[idx_dst[valid]].astype(np.int64)
+    elif 'neighbors' in pdf.columns:
+        exploded = pdf[['id', 'neighbors']].explode('neighbors').dropna()
+        if len(exploded) > 0:
+            src_arr = exploded['id'].values.astype(np.int64)
+            dst_arr = exploded['neighbors'].values.astype(np.int64)
+
+            idx_src = np.searchsorted(sorted_ids, src_arr)
+            idx_dst = np.searchsorted(sorted_ids, dst_arr)
+
+            valid = (idx_src < n_nodes) & (sorted_ids[np.minimum(idx_src, n_nodes - 1)] == src_arr) & \
+                    (idx_dst < n_nodes) & (sorted_ids[np.minimum(idx_dst, n_nodes - 1)] == dst_arr)
+
+            src_l = sort_idx[idx_src[valid]].astype(np.int64)
+            dst_l = sort_idx[idx_dst[valid]].astype(np.int64)
+        else:
+            src_l = np.array([], dtype=np.int64)
+            dst_l = np.array([], dtype=np.int64)
     else:
         src_l = np.array([], dtype=np.int64)
         dst_l = np.array([], dtype=np.int64)
@@ -748,15 +761,9 @@ def run_phase3(spark, sc, datasets, algorithms, use_global_mapping,
             nodes_df = spark.read.format('delta').load(p_alg['p2_nodes'])
             edges_df = spark.read.format('delta').load(p_alg['p2_edges'])
 
-            # Aggregate edges by source to prevent isolated node drops
-            # Cap max neighbors per node to 2,000 to prevent Arrow ListVector integer buffer overflow on massive hub nodes (>100k degree)
-            edge_agg = (edges_df
-                        .groupBy('community_id', 'src')
-                        .agg(F.slice(F.collect_list('dst'), 1, 2000).alias('neighbors'))
-                        .withColumnRenamed('src', 'id'))
-            
-            # Left join edges onto nodes_df
-            training_df_base = nodes_df.join(edge_agg, on=['community_id', 'id'], how='left')
+            # Lightweight metadata DataFrame without heavy array columns (no features array, no neighbors list)
+            # This keeps training_df 400x smaller and completely eliminates Apache Arrow ArrayWriter buffer overflows
+            training_df_base = nodes_df.select('id', 'label', 'split', 'community_id', 'is_boundary')
 
             for model_type in gnn_models:
                 key   = (dataset, alg, model_type)
@@ -956,7 +963,12 @@ def run_phase3(spark, sc, datasets, algorithms, use_global_mapping,
                 bin_mapping_df = spark.createDataFrame(comms_node_counts[['community_id', 'bin_id']])
                 training_df_bin = training_df_base.join(bin_mapping_df, on='community_id', how='left')
 
+                p2_nodes_url = p_alg['p2_nodes']
+                p2_edges_url = p_alg['p2_edges']
+
                 training_df = (training_df_bin
+                    .withColumn('_p2_nodes',    F.lit(str(p2_nodes_url)))
+                    .withColumn('_p2_edges',    F.lit(str(p2_edges_url)))
                     .withColumn('_num_classes', F.lit(int(cfg['num_classes'])))
                     .withColumn('_hidden',      F.lit(int(gcn_cfg['hidden_dim'])))
                     .withColumn('_epochs',      F.lit(int(gcn_cfg['num_epochs'])))
@@ -971,12 +983,48 @@ def run_phase3(spark, sc, datasets, algorithms, use_global_mapping,
 
                 def _train_gnn_bin(pdf):
                     import pandas as pd
+                    import pyarrow.dataset as ds
                     import gc
+
                     results = []
+                    nodes_url = str(pdf['_p2_nodes'].iloc[0])
+                    edges_url = str(pdf['_p2_edges'].iloc[0])
+
+                    clean_nodes = nodes_url.replace("file://", "")
+                    clean_edges = edges_url.replace("file://", "")
+
+                    try:
+                        nodes_ds = ds.dataset(clean_nodes, format="parquet")
+                        edges_ds = ds.dataset(clean_edges, format="parquet")
+                    except Exception:
+                        nodes_ds = None
+                        edges_ds = None
+
                     for comm_id, group_pdf in pdf.groupby('community_id'):
                         try:
+                            comm_nodes_pdf = group_pdf
+                            comm_edges_pdf = None
+
+                            if nodes_ds is not None:
+                                try:
+                                    tbl_n = nodes_ds.to_table(filter=ds.field("community_id") == int(comm_id))
+                                    comm_nodes_pdf = tbl_n.to_pandas()
+                                    for col in ['_num_classes', '_hidden', '_epochs', '_lr', '_dropout', '_task_type', '_model_type']:
+                                        if col in group_pdf.columns:
+                                            comm_nodes_pdf[col] = group_pdf[col].iloc[0]
+                                except Exception:
+                                    pass
+
+                            if edges_ds is not None:
+                                try:
+                                    tbl_e = edges_ds.to_table(filter=ds.field("community_id") == int(comm_id))
+                                    comm_edges_pdf = tbl_e.to_pandas()
+                                except Exception:
+                                    pass
+
                             res_row = _train_gnn_community_single(
-                                group_pdf,
+                                comm_nodes_pdf,
+                                comm_edges_pdf=comm_edges_pdf,
                                 base_weights_bc=base_weights_bc,
                                 base_embeddings_bc=base_embeddings_bc,
                                 base_node_map_bc=base_node_map_bc
