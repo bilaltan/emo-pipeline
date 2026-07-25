@@ -474,7 +474,7 @@ def _train_gnn_community_single(pdf, base_weights_bc=None, base_embeddings_bc=No
             train_embed = embed[train_idx]
             train_labels = lbl_t[train_idx]
             mlp_dataset = TensorDataset(train_embed, train_labels)
-            mlp_loader = DataLoader(mlp_dataset, batch_size=128, shuffle=True)
+            mlp_loader = DataLoader(mlp_dataset, batch_size=min(4096, max(128, len(train_idx))), shuffle=True)
             mlp_loss_fn = nn.CrossEntropyLoss()
             mlp_opt = torch.optim.Adam(mlp_model.parameters(), lr=0.001, weight_decay=5e-4)
 
@@ -949,7 +949,7 @@ def run_phase3(spark, sc, datasets, algorithms, use_global_mapping,
                 comms_node_counts = training_df_base.groupBy('community_id').count().toPandas()
                 comms_node_counts = comms_node_counts.sort_values(by='count', ascending=False).reset_index(drop=True)
                 num_comms = len(comms_node_counts)
-                num_bins = min(int(spark.conf.get("spark.sql.shuffle.partitions", "336")), num_comms)
+                num_bins = min(max(2520, int(spark.conf.get("spark.sql.shuffle.partitions", "2520"))), num_comms)
                 
                 print(f"  Distributing {num_comms:,} communities across {num_bins} balanced parallel YARN executor tasks...")
                 comms_node_counts['bin_id'] = [i % num_bins for i in range(len(comms_node_counts))]
