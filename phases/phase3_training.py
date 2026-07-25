@@ -72,7 +72,8 @@ def _train_gnn_community_single(pdf, base_weights_bc=None, base_embeddings_bc=No
     import dgl.nn as dglnn
 
     try:
-        torch.set_num_threads(4)
+        omp_threads = int(os.environ.get('OMP_NUM_THREADS', '1'))
+        torch.set_num_threads(omp_threads)
     except Exception:
         pass
 

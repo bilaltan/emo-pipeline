@@ -411,14 +411,29 @@ def main():
     usable_node_mem_gb = node_mem_gb - OS_RESERVE_GB
 
     # Step 2: Bin-packing solver — maximize total_parallel_tasks
+    # Cap candidate cores to prevent memory blast-radius from being too large,
+    # and to avoid excessive thread context switching/GC overhead.
+    # For massive datasets, 3 cores per executor is the sweet spot.
+    if python_ram_per_task >= 6.0:
+        max_cores = 3
+    elif python_ram_per_task >= 4.0:
+        max_cores = 4
+    else:
+        max_cores = 5
+
+    OS_RESERVE_GB   = max(12.0, node_mem_gb * 0.08)   # reserved for OS kernel + YARN NodeManager daemon (8% of node RAM)
+    DRIVER_FRACTION = 0.75  # fraction of driver host RAM for driver container
+
+    usable_node_mem_gb = node_mem_gb - OS_RESERVE_GB
+
     best_config = None
     best_total_cores = 0
 
-    for cores_candidate in range(1, min(9, node_vcores + 1)):
+    for cores_candidate in range(1, min(max_cores + 1, node_vcores + 1)):
         # Memory needed for Python workers (lives in memoryOverhead)
         overhead_needed = python_ram_per_task * cores_candidate
-        # Add 1 GB overhead buffer for Python interpreter + Arrow IPC
-        overhead_needed += 1.0
+        # Add 1.5 GB overhead buffer for Python interpreter + Arrow IPC
+        overhead_needed += 1.5
         # JVM heap for Spark shuffle, broadcast, Delta reads
         heap_needed = max(jvm_heap_min, overhead_needed * 0.5)
         container_size = heap_needed + overhead_needed
@@ -519,6 +534,11 @@ def main():
         .config("spark.executorEnv.TMPDIR", large_tmp) \
         .config("spark.executorEnv.TEMP", large_tmp) \
         .config("spark.executorEnv.TMP", large_tmp) \
+        .config("spark.executorEnv.OMP_NUM_THREADS", "1") \
+        .config("spark.executorEnv.MKL_NUM_THREADS", "1") \
+        .config("spark.executorEnv.OPENBLAS_NUM_THREADS", "1") \
+        .config("spark.executorEnv.VECLIB_MAXIMUM_THREADS", "1") \
+        .config("spark.executorEnv.NUMEXPR_NUM_THREADS", "1") \
         .config("spark.jars.packages", "io.delta:delta-spark_2.12:3.2.0,graphframes:graphframes:0.8.3-spark3.5-s_2.12") \
         .config("spark.jars.ivy", f"{large_tmp}/.ivy2") \
         .config("spark.local.dir", f"{large_tmp}/spark-local") \
