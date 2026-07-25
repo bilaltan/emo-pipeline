@@ -560,7 +560,7 @@ def main():
     print("  ✓ SparkSession successfully configured and initialized as 'spark'.")
 
     # ── 3. INSTALL PYTHON DEPENDENCIES ─────────────────────────────────────────
-    if getattr(args, 'no_install', False):
+    if getattr(args, 'no_install', False) or getattr(config, 'SKIP_PKG_SYNC', False):
         print("\n  ► Skipping dynamic package verification/installation on YARN executors...")
     else:
         print("\n" + "="*80)
@@ -613,7 +613,8 @@ def main():
 
             # Some packages are only imported on the driver node (plotting, excel report generation)
             # Installing them on executors is unnecessary and can cause lock conflicts or path pollution
-            driver_only_packages = {'xlsxwriter', 'openpyxl', 'matplotlib', 'seaborn'}
+            driver_only_packages = {'xlsxwriter', 'openpyxl', 'matplotlib', 'seaborn',
+                                     'numpy', 'igraph', 'leidenalg', 'ogb'}
             is_driver_only = pkg in driver_only_packages
 
             # Check driver

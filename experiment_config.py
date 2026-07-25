@@ -86,6 +86,7 @@ RUN_PHASE4H       = False       # GATv2 Baseline
 # ── Infrastructure ─────────────────────────────────────────────────────────────
 S3_BUCKET         = 'us-east-1-s3-gnn'
 S3_CODE_PREFIX    = 'pipeline'   # where upload_to_s3.py puts .py files
+SKIP_PKG_SYNC     = True         # Set to True to skip slow Python package verification on executors
 
 # ══════════════════════════════════════════════════════════════════════════════
 #  DERIVED CONFIG — do not edit below this line
