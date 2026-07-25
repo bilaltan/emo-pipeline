@@ -107,18 +107,27 @@ def _train_gnn_community_single(pdf, base_weights_bc=None, base_embeddings_bc=No
     sorted_ids = np.sort(all_nodes)
     sort_idx   = np.argsort(all_nodes)
     
-    # Fast exploded edge mapping in compiled C
-    exploded = pdf[['id', 'neighbors']].explode('neighbors').dropna()
-    if len(exploded) > 0:
-        src_arr = exploded['id'].values.astype(np.int64)
-        dst_arr = exploded['neighbors'].values.astype(np.int64)
-        
+    # Memory-efficient edge construction (avoids pandas explode DataFrame copy)
+    _ids = pdf['id'].values.astype(np.int64)
+    _nbrs_col = pdf['neighbors'].values
+    _src_parts, _dst_parts = [], []
+    for _i in range(len(_ids)):
+        _nb = _nbrs_col[_i]
+        if _nb is not None and hasattr(_nb, '__len__') and len(_nb) > 0:
+            _dst_parts.append(np.asarray(_nb, dtype=np.int64))
+            _src_parts.append(np.full(len(_nb), _ids[_i], dtype=np.int64))
+
+    if _src_parts:
+        src_arr = np.concatenate(_src_parts)
+        dst_arr = np.concatenate(_dst_parts)
+        del _src_parts, _dst_parts
+
         idx_src = np.searchsorted(sorted_ids, src_arr)
         idx_dst = np.searchsorted(sorted_ids, dst_arr)
-        
+
         valid = (idx_src < n_nodes) & (sorted_ids[np.minimum(idx_src, n_nodes - 1)] == src_arr) & \
                 (idx_dst < n_nodes) & (sorted_ids[np.minimum(idx_dst, n_nodes - 1)] == dst_arr)
-                
+
         src_l = sort_idx[idx_src[valid]].astype(np.int64)
         dst_l = sort_idx[idx_dst[valid]].astype(np.int64)
     else:
@@ -420,6 +429,7 @@ def _train_gnn_community_single(pdf, base_weights_bc=None, base_embeddings_bc=No
                 loss.backward()
                 opt.step()
             else:
+                opt.zero_grad()
                 logits = model(g, feat_t)
                 loss   = crit(logits[train_m], lbl_t[train_m])
                 
@@ -432,7 +442,7 @@ def _train_gnn_community_single(pdf, base_weights_bc=None, base_embeddings_bc=No
                     except Exception:
                         pass
 
-                opt.zero_grad(); loss.backward(); opt.step()
+                loss.backward(); opt.step()
         node_train_time = time.time() - t_node_start
         
         model.eval()
@@ -480,7 +490,8 @@ def _train_gnn_community_single(pdf, base_weights_bc=None, base_embeddings_bc=No
             best_acc = -1.0
             best_weights = copy.deepcopy(mlp_model.state_dict())
 
-            for mlp_epoch in range(num_epochs):
+            mlp_epochs = 5  # Fixed MLP epochs, independent of GNN training epochs
+            for mlp_epoch in range(mlp_epochs):
                 mlp_model.train()
                 for x_b, y_b in mlp_loader:
                     mlp_opt.zero_grad()
@@ -956,21 +967,38 @@ def run_phase3(spark, sc, datasets, algorithms, use_global_mapping,
                     .withColumn('_task_type',   F.lit(str(task_type)))
                     .withColumn('_model_type',  F.lit(str(model_type))))
 
-                n_rows  = training_df.count()
-                n_comms = training_df.select('community_id').distinct().count()
-                print(f"  Training DF: {n_rows:,} rows | {n_comms:,} communities assigned to {num_bins} executor tasks")
+                n_rows  = int(comms_node_counts['count'].sum())
+                n_comms = len(comms_node_counts)
+                print(f"  Training DF: ~{n_rows:,} rows | {n_comms:,} communities assigned to {num_bins} executor tasks")
 
                 def _train_gnn_bin(pdf):
                     import pandas as pd
+                    import gc
                     results = []
                     for comm_id, group_pdf in pdf.groupby('community_id'):
-                        res_row = _train_gnn_community_single(
-                            group_pdf,
-                            base_weights_bc=base_weights_bc,
-                            base_embeddings_bc=base_embeddings_bc,
-                            base_node_map_bc=base_node_map_bc
-                        )
-                        results.append(res_row)
+                        try:
+                            res_row = _train_gnn_community_single(
+                                group_pdf,
+                                base_weights_bc=base_weights_bc,
+                                base_embeddings_bc=base_embeddings_bc,
+                                base_node_map_bc=base_node_map_bc
+                            )
+                            results.append(res_row)
+                        except Exception as e:
+                            import sys
+                            print(f"[WARN] Community {comm_id} failed: {e}", file=sys.stderr)
+                            results.append(pd.DataFrame([{
+                                'community_id': int(comm_id),
+                                'n_nodes': len(group_pdf), 'n_edges': 0,
+                                'n_train': 0, 'n_val': 0, 'n_test': 0,
+                                'n_boundary': 0, 'n_internal': len(group_pdf),
+                                'comm_test_acc': 0.0, 'boundary_acc': 0.0,
+                                'internal_acc': 0.0, 'comm_link_auc': 0.5,
+                                'size_bucket': 'error', 'load_time_s': 0.0,
+                                'node_train_time_s': 0.0, 'link_train_time_s': 0.0,
+                                'peak_mem_mb': 0.0,
+                            }]))
+                        gc.collect()
                     return pd.concat(results, ignore_index=True)
 
                 sc.setJobDescription(f'phase3_{dataset}_{alg}_{model_type}')
