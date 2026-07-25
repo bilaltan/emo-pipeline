@@ -398,10 +398,6 @@ def make_caan_udf(super_nodes_dict_bc, minor_node_to_idx_bc, minor_feats_arr_bc,
         task_type = str(pdf['_task_type'].iloc[0]) if '_task_type' in pdf.columns else 'node_classification'
         model_type = str(pdf['_model_type'].iloc[0]) if '_model_type' in pdf.columns else 'sage'
         
-        # Warm-start logic: override epochs (keep high epoch count for local adaptation)
-        if base_weights_bc is not None and model_type == 'sage':
-            num_epochs = max(5, num_epochs)
-        
         super_nodes_dict = super_nodes_dict_bc.value
         minor_node_to_idx = minor_node_to_idx_bc.value
         minor_feats_arr = minor_feats_arr_bc.value
@@ -414,6 +410,19 @@ def make_caan_udf(super_nodes_dict_bc, minor_node_to_idx_bc, minor_feats_arr_bc,
         
         local_ids = pdf['id'].values
         n_local = len(local_ids)
+
+        # Dynamic dataset/community size-aware epochs scale down to speed up training
+        # Small communities (nodes < 1K) adapt in 2 epochs, medium (nodes < 10K) in 4 epochs, large/massive in 10 epochs.
+        if n_local < 1000:
+            num_epochs = min(2, num_epochs)
+        elif n_local < 10000:
+            num_epochs = min(4, num_epochs)
+        else:
+            num_epochs = num_epochs
+            
+        # Warm-start logic safety floor
+        if base_weights_bc is not None and model_type == 'sage':
+            num_epochs = max(2, num_epochs)
         local_feats = np.stack(pdf['features'].values).astype(np.float32)
         local_labels = np.array([int(v) if not pd.isna(v) else -1 for v in pdf['label'].values], dtype=np.int64)
         local_splits = list(pdf['split'].values)

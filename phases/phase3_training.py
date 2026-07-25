@@ -87,13 +87,23 @@ def _train_gnn_community_single(pdf, base_weights_bc=None, base_embeddings_bc=No
     task_type   = str(pdf['_task_type'].iloc[0]) if '_task_type' in pdf.columns else 'node_classification'
     model_type  = str(pdf['_model_type'].iloc[0]) if '_model_type' in pdf.columns else 'sage'
 
-    # Warm-start logic: override epochs (keep high epoch count for local adaptation)
-    if base_weights_bc is not None and model_type == 'sage':
-        num_epochs = max(5, num_epochs)
-
     # Fast C-vectorized node mapping
     all_nodes = pdf['id'].values.astype(np.int64)
     n_nodes   = len(all_nodes)
+
+    # Dynamic dataset/community size-aware epochs scale down to speed up training
+    # Small communities (nodes < 1K) adapt in 2 epochs, medium (nodes < 10K) in 4 epochs, large/massive in 10 epochs.
+    if n_nodes < 1000:
+        num_epochs = min(2, num_epochs)
+    elif n_nodes < 10000:
+        num_epochs = min(4, num_epochs)
+    else:
+        num_epochs = num_epochs  # keep original full epochs (e.g. 10)
+    
+    # Warm-start logic safety floor
+    if base_weights_bc is not None and model_type == 'sage':
+        num_epochs = max(2, num_epochs)
+
     sorted_ids = np.sort(all_nodes)
     sort_idx   = np.argsort(all_nodes)
     
@@ -520,8 +530,8 @@ def _train_gnn_community_single(pdf, base_weights_bc=None, base_embeddings_bc=No
         n_tr_edges = int(0.8 * n_edges)
         n_val_edges = int(0.1 * n_edges)
         
-        max_local_train = min(100000, n_tr_edges)
-        max_local_test = min(20000, n_edges - n_tr_edges - n_val_edges)
+        max_local_train = min(10000, n_tr_edges)
+        max_local_test = min(2000, n_edges - n_tr_edges - n_val_edges)
         
         train_edges_idx = shuffled_edge_ids[:max_local_train]
         test_edges_idx = shuffled_edge_ids[n_tr_edges + n_val_edges : n_tr_edges + n_val_edges + max_local_test]
