@@ -547,7 +547,7 @@ def main():
         .config("spark.hadoop.dfs.datanode.du.reserved", "1073741824") \
         .config("spark.sql.extensions", "io.delta.sql.DeltaSparkSessionExtension") \
         .config("spark.sql.catalog.spark_catalog", "org.apache.spark.sql.delta.catalog.DeltaCatalog") \
-        .config("spark.sql.execution.arrow.pyspark.enabled", "true") \
+        .config("spark.sql.execution.arrow.pyspark.enabled", "false") \
         .config("spark.sql.execution.arrow.pyspark.fallback.enabled", "true") \
         .config("spark.sql.execution.arrow.maxRecordsPerBatch", "500") \
         .config("spark.python.worker.reuse", "true") \

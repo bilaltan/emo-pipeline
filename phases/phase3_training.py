@@ -942,8 +942,7 @@ def run_phase3(spark, sc, datasets, algorithms, use_global_mapping,
                     print(f"  Warning: Skipped warm-start driver pre-training: {base_err}")
 
                 # 2. Driver-side Community Binning
-                spark.conf.set("spark.sql.execution.arrow.maxRecordsPerBatch", "200")
-                spark.conf.set("spark.sql.execution.arrow.pyspark.enabled", "true")
+                spark.conf.set("spark.sql.execution.arrow.pyspark.enabled", "false")
                 spark.conf.set("spark.sql.execution.arrow.pyspark.fallback.enabled", "true")
 
                 comms_node_counts = training_df_base.groupBy('community_id').count().toPandas()
