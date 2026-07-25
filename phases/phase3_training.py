@@ -27,7 +27,7 @@ def _make_result_schema():
         StructField('peak_mem_mb',    DoubleType()),
     ])
 
-def _train_gnn_community_single(pdf, base_weights_bc=None, base_embeddings_bc=None, base_node_map_bc=None):
+def _train_gnn_community_single(pdf, comm_edges_pdf=None, base_weights_bc=None, base_embeddings_bc=None, base_node_map_bc=None):
     """
     Spark Pandas UDF — runs on executor, one call per community.
     Hyperparams are read from constant DataFrame columns to avoid closure issues.
@@ -865,9 +865,9 @@ def run_phase3(spark, sc, datasets, algorithms, use_global_mapping,
                     
                     if comm_count > 100_000:
                         print(f"  [Driver Warmstart] Community size ({comm_count:,} nodes) exceeds driver RAM safety limit — sub-sampling 50,000 nodes...")
-                        large_comm_pdf = training_df_base.filter(F.col('community_id') == largest_comm_id).limit(50000).toPandas()
+                        large_comm_pdf = nodes_df.filter(F.col('community_id') == largest_comm_id).limit(50000).toPandas()
                     else:
-                        large_comm_pdf = training_df_base.filter(F.col('community_id') == largest_comm_id).toPandas()
+                        large_comm_pdf = nodes_df.filter(F.col('community_id') == largest_comm_id).toPandas()
                     
                     in_feats = len(large_comm_pdf['features'].iloc[0])
                     num_classes = int(cfg['num_classes'])
