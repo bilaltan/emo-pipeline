@@ -264,18 +264,34 @@ def main():
     if not dataset_name:
         dataset_name = 'ogbn-arxiv'
     
-    # 1. Query active YARN worker nodes
+    # 1. Query actual YARN cluster capacity (memory + cores per node)
     nodes_count = 0
+    yarn_total_mem_gb = 0
+    yarn_total_vcores = 0
     try:
-        import subprocess
-        import re
-        out = subprocess.check_output(['yarn', 'node', '-list'], stderr=subprocess.DEVNULL).decode('utf-8')
-        nodes_count = len(re.findall(r'RUNNING', out))
+        import subprocess, re, json
+        # Try YARN REST API first (most accurate)
+        try:
+            out = subprocess.check_output(
+                ['curl', '-s', 'http://localhost:8088/ws/v1/cluster/metrics'],
+                stderr=subprocess.DEVNULL, timeout=5
+            ).decode('utf-8')
+            metrics = json.loads(out).get('clusterMetrics', {})
+            yarn_total_mem_gb = metrics.get('totalMB', 0) / 1024.0
+            yarn_total_vcores = metrics.get('totalVirtualCores', 0)
+            nodes_count = metrics.get('activeNodes', 0)
+        except Exception:
+            pass
+
+        # Fallback: parse `yarn node -list`
+        if nodes_count < 1:
+            out = subprocess.check_output(['yarn', 'node', '-list'], stderr=subprocess.DEVNULL).decode('utf-8')
+            nodes_count = len(re.findall(r'RUNNING', out))
     except Exception:
         pass
 
-    if nodes_count < 4:
-        # Check Hadoop configuration for configured worker nodes
+    # Fallback: Hadoop slaves file
+    if nodes_count < 2:
         for slaves_file in ['/etc/hadoop/conf/slaves', '/etc/hadoop/conf/workers']:
             if os.path.exists(slaves_file):
                 try:
@@ -286,13 +302,41 @@ def main():
                             break
                 except Exception:
                     pass
-
     if nodes_count == 0:
-        nodes_count = 4  # Default to 4 worker nodes for standard EMR cluster
+        nodes_count = 4
 
-    # 2. Dynamic graph scale detection from S3
+    # 2. Detect per-node hardware (from driver host as proxy)
+    def get_system_total_memory_gb():
+        try:
+            with open('/proc/meminfo', 'r') as f:
+                for line in f:
+                    if 'MemTotal' in line:
+                        return int(line.split()[1]) / (1024 * 1024)
+        except Exception:
+            pass
+        try:
+            import subprocess
+            out = subprocess.check_output(['sysctl', '-n', 'hw.memsize']).decode('utf-8').strip()
+            return int(out) / (1024**3)
+        except Exception:
+            pass
+        return 64.0
+
+    import multiprocessing
+    host_cores = multiprocessing.cpu_count()
+    host_mem_gb = get_system_total_memory_gb()
+
+    # Use YARN metrics if available, otherwise estimate from host hardware
+    if yarn_total_mem_gb > 0 and yarn_total_vcores > 0:
+        node_mem_gb = yarn_total_mem_gb / nodes_count
+        node_vcores = yarn_total_vcores // nodes_count
+    else:
+        node_mem_gb = host_mem_gb
+        node_vcores = host_cores
+
+    # 3. Dynamic graph scale detection from S3
     bucket_name = getattr(args, 's3_bucket', 'us-east-1-s3-gnn')
-    
+
     def get_dataset_s3_size_mb(bucket, prefix):
         import boto3
         s3 = boto3.client('s3')
@@ -311,8 +355,7 @@ def main():
 
     edges_prefix = f"delta-data/{dataset_name}/edges/"
     edges_size_mb = get_dataset_s3_size_mb(bucket_name, edges_prefix)
-    
-    # Fallback lookup if dataset is not yet ingested (running Phase 0)
+
     if edges_size_mb == 0.0:
         if dataset_name in ('wikics', 'ogbn-arxiv'):
             edges_size_mb = 5.0
@@ -323,100 +366,128 @@ def main():
         else:
             edges_size_mb = 100.0
 
-    # 3. Dynamic Host machine hardware detection
-    def get_system_total_memory_gb():
-        try:
-            with open('/proc/meminfo', 'r') as f:
-                for line in f:
-                    if 'MemTotal' in line:
-                        mem_kb = int(line.split()[1])
-                        return mem_kb / (1024 * 1024)
-        except Exception:
-            pass
-        try:
-            import subprocess
-            out = subprocess.check_output(['sysctl', '-n', 'hw.memsize']).decode('utf-8').strip()
-            return int(out) / (1024**3)
-        except Exception:
-            pass
-        return 64.0  # fallback
+    # ═══════════════════════════════════════════════════════════════════════════
+    #  DATASET-AWARE BIN-PACKING AUTO-SCALER
+    #
+    #  Maximizes cluster parallelism while keeping every executor safely within
+    #  its YARN container memory limit.
+    #
+    #  Key insight: Python RAM per task varies dramatically by dataset size.
+    #  Small datasets (WikiCS):       communities ~500 nodes  → ~0.8 GB/task
+    #  Medium datasets (ogbn-products): communities ~5K nodes → ~2.0 GB/task
+    #  Massive datasets (papers100M): communities ~600K nodes → ~6.5 GB/task
+    #
+    #  The solver tries cores_per_executor ∈ [1..8] and picks the configuration
+    #  that maximizes total_parallel_tasks subject to:
+    #    overhead ≥ cores × python_ram_per_task   (memory safety)
+    #    heap + overhead ≤ usable_node_mem        (YARN container limit)
+    #    cores ≤ available_vcores                 (CPU limit)
+    # ═══════════════════════════════════════════════════════════════════════════
 
-    import multiprocessing
-    host_cores = multiprocessing.cpu_count()
-    host_mem_gb = get_system_total_memory_gb()
-
-    # Allocate 75% of host RAM to the Spark driver container (80% heap, 20% overhead)
-    allocated_driver_total_gb = int(host_mem_gb * 0.75)
-    driver_mem_val = int(allocated_driver_total_gb * 0.8)
-    driver_overhead_val = allocated_driver_total_gb - driver_mem_val
-    
-    driver_mem = f"{driver_mem_val}g"
-    driver_overhead = f"{driver_overhead_val}g"
-    driver_cores = str(max(4, host_cores - 2))
-
-    # 4. Smart Dynamic Allocation Solver
-    # Profiles worker VMs based on driver host metrics, reserving a safe system buffer.
-    worker_mem_gb = max(32.0, host_mem_gb)
-    worker_cores = max(4, host_cores)
-    
-    usable_mem_gb = max(16.0, worker_mem_gb - 16.0) # OS/YARN buffer
-    usable_cores = max(2, worker_cores - 2)          # OS/YARN buffer
-
+    # Step 1: Estimate Python RAM per concurrent task based on dataset scale
+    #   - Each task receives a pandas DataFrame partition via applyInPandas()
+    #   - It builds: np.stack(features) + PyTorch tensors + DGL graph + gradients
+    #   - Larger communities = more nodes per partition = more RAM
     if edges_size_mb <= 20.0:
         scale_label = "Small/Medium"
-        mem_per_executor = 12.0 # Total memory container size (mem + overhead)
-        
-        # Calculate how many executors fit in memory, capped by core limits
-        execs_per_node = int(usable_mem_gb // mem_per_executor)
-        execs_per_node = max(2, min(execs_per_node, int(usable_cores // 2)))
-        
-        executor_instances = max(4, nodes_count * execs_per_node)
-        executor_mem_val = int(mem_per_executor * 0.67)
-        executor_overhead_val = int(mem_per_executor - executor_mem_val)
-        executor_mem = f"{executor_mem_val}g"
-        executor_overhead = f"{executor_overhead_val}g"
-        # Distribute remaining cores symmetrically
-        executor_cores = str(max(2, int(usable_cores // execs_per_node)))
-        
-    elif edges_size_mb <= 1000.0:
-        scale_label = "Large"
-        mem_per_executor = 24.0 # 24 GB container size
-        
-        execs_per_node = int(usable_mem_gb // mem_per_executor)
-        execs_per_node = max(1, min(execs_per_node, int(usable_cores // 2)))
-        
-        executor_instances = max(4, nodes_count * execs_per_node)
-        executor_mem_val = int(mem_per_executor * 0.67)
-        executor_overhead_val = int(mem_per_executor - executor_mem_val)
-        executor_mem = f"{executor_mem_val}g"
-        executor_overhead = f"{executor_overhead_val}g"
-        # Distribute remaining cores symmetrically
-        executor_cores = str(max(2, int(usable_cores // execs_per_node)))
-        
+        python_ram_per_task = 1.0    # ~500 node communities, 128-dim features
+        jvm_heap_min       = 4.0    # small shuffle volumes
+    elif edges_size_mb <= 300.0:
+        scale_label = "Large (100M Scale)"
+        python_ram_per_task = 2.5    # ~5K node communities
+        jvm_heap_min       = 6.0
+    elif edges_size_mb <= 2000.0:
+        scale_label = "Very Large (500M Scale)"
+        python_ram_per_task = 4.0    # ~50K node communities
+        jvm_heap_min       = 8.0
     else:
         scale_label = "Massive (1B+ Scale)"
-        mem_per_executor = 32.0 # 32 GB container size
-        
-        execs_per_node = int(usable_mem_gb // mem_per_executor)
-        execs_per_node = max(1, min(execs_per_node, int(usable_cores // 2)))
-        
-        executor_instances = max(2, nodes_count * execs_per_node)
-        executor_mem_val = int(mem_per_executor * 0.67)
-        executor_overhead_val = int(mem_per_executor - executor_mem_val)
-        executor_mem = f"{executor_mem_val}g"
-        executor_overhead = f"{executor_overhead_val}g"
-        # Distribute remaining cores symmetrically
-        executor_cores = str(max(2, int(usable_cores // execs_per_node)))
-        
-        if driver_mem_val < 40:
-            driver_mem = "40g"
-            driver_overhead = "12g"
-            driver_cores = "8"
+        python_ram_per_task = 6.5    # ~600K node communities, 128-dim float32
+        jvm_heap_min       = 10.0   # large Arrow IPC + shuffle buffers
 
-    print(f"\n  [Spark Auto-Scaler] Dataset: {dataset_name} | Physical Size: {edges_size_mb:.2f} MB | Scale: {scale_label}")
-    print(f"  [Spark Auto-Scaler] Active YARN Workers: {nodes_count}")
-    print(f"  → Allocating {executor_instances} executors with {executor_cores} cores and {executor_mem} (+{executor_overhead} overhead) memory.")
-    print(f"  → Driver memory: {driver_mem} (+{driver_overhead} overhead)\n")
+    OS_RESERVE_GB   = 8.0   # reserved for OS kernel + YARN NodeManager daemon
+    DRIVER_FRACTION = 0.75  # fraction of driver host RAM for driver container
+
+    usable_node_mem_gb = node_mem_gb - OS_RESERVE_GB
+
+    # Step 2: Bin-packing solver — maximize total_parallel_tasks
+    best_config = None
+    best_total_cores = 0
+
+    for cores_candidate in range(1, min(9, node_vcores + 1)):
+        # Memory needed for Python workers (lives in memoryOverhead)
+        overhead_needed = python_ram_per_task * cores_candidate
+        # Add 1 GB overhead buffer for Python interpreter + Arrow IPC
+        overhead_needed += 1.0
+        # JVM heap for Spark shuffle, broadcast, Delta reads
+        heap_needed = max(jvm_heap_min, overhead_needed * 0.5)
+        container_size = heap_needed + overhead_needed
+
+        if container_size > usable_node_mem_gb:
+            continue  # this config won't fit on a single node
+
+        execs_per_node = int(usable_node_mem_gb / container_size)
+        execs_per_node = min(execs_per_node, node_vcores // cores_candidate)
+        execs_per_node = max(1, execs_per_node)
+
+        total_execs = nodes_count * execs_per_node
+        total_cores = total_execs * cores_candidate
+
+        # Prefer configs that maximize total parallelism
+        # Tie-break: prefer fewer, fatter executors (less scheduling overhead)
+        if total_cores > best_total_cores or \
+           (total_cores == best_total_cores and best_config and total_execs < best_config['total_execs']):
+            best_total_cores = total_cores
+            best_config = {
+                'cores': cores_candidate,
+                'heap_gb': int(heap_needed),
+                'overhead_gb': int(overhead_needed),
+                'container_gb': int(container_size),
+                'execs_per_node': execs_per_node,
+                'total_execs': total_execs,
+                'python_ram_per_task': python_ram_per_task,
+            }
+
+    if best_config is None:
+        best_config = {
+            'cores': 2, 'heap_gb': 16, 'overhead_gb': 14,
+            'container_gb': 30, 'execs_per_node': 1,
+            'total_execs': nodes_count, 'python_ram_per_task': python_ram_per_task,
+        }
+        best_total_cores = nodes_count * 2
+
+    executor_instances = best_config['total_execs']
+    executor_mem       = f"{best_config['heap_gb']}g"
+    executor_overhead  = f"{best_config['overhead_gb']}g"
+    executor_cores     = str(best_config['cores'])
+
+    # Step 3: Driver allocation — 75% of driver host RAM
+    allocated_driver_total_gb = int(host_mem_gb * DRIVER_FRACTION)
+    driver_mem_val     = int(allocated_driver_total_gb * 0.8)
+    driver_overhead_val = allocated_driver_total_gb - driver_mem_val
+    driver_mem         = f"{driver_mem_val}g"
+    driver_overhead    = f"{driver_overhead_val}g"
+    driver_cores       = str(max(4, host_cores - 2))
+
+    if driver_mem_val < 40:
+        driver_mem = "40g"
+        driver_overhead = "12g"
+        driver_cores = "8"
+
+    # Step 4: Shuffle partitions — 2× total cores for pipeline overlap
+    shuffle_partitions = max(200, best_total_cores * 2)
+
+    # Step 5: Print the full allocation plan
+    print(f"\n  [Spark Auto-Scaler] Dataset: {dataset_name} | S3 Size: {edges_size_mb:.0f} MB | Scale: {scale_label}")
+    print(f"  [Spark Auto-Scaler] YARN Cluster: {nodes_count} nodes × {node_mem_gb:.0f} GB RAM × {node_vcores} vCores")
+    print(f"  [Spark Auto-Scaler] Python RAM Budget: {python_ram_per_task:.1f} GB/task (dataset-aware)")
+    print(f"  [Spark Auto-Scaler] Bin-Packing Solution:")
+    print(f"    → {best_config['execs_per_node']} executors/node × {nodes_count} nodes = {executor_instances} total executors")
+    print(f"    → {executor_cores} cores/executor | {executor_mem} heap + {executor_overhead} overhead = {best_config['container_gb']}g container")
+    print(f"    → Total parallel tasks: {best_total_cores} | Shuffle partitions: {shuffle_partitions}")
+    print(f"    → Driver: {driver_mem} heap + {driver_overhead} overhead")
+    print(f"    → Cluster utilization: {executor_instances * best_config['container_gb']:.0f}g / {node_mem_gb * nodes_count:.0f}g "
+          f"({100.0 * executor_instances * best_config['container_gb'] / (node_mem_gb * nodes_count):.0f}%)\n")
 
     spark = SparkSession.builder \
         .appName(f"GRL-{args.experiment_name}") \
@@ -434,8 +505,8 @@ def main():
         .config("spark.executor.memory", executor_mem) \
         .config("spark.executor.memoryOverhead", executor_overhead) \
         .config("spark.executor.cores", executor_cores) \
-        .config("spark.sql.shuffle.partitions", "336") \
-        .config("spark.default.parallelism", "336") \
+        .config("spark.sql.shuffle.partitions", str(shuffle_partitions)) \
+        .config("spark.default.parallelism", str(shuffle_partitions)) \
         .config("spark.serializer", "org.apache.spark.serializer.KryoSerializer") \
         .config("spark.kryoserializer.buffer.max", "1024m") \
         .config("spark.pyspark.python", "python3") \
@@ -457,6 +528,7 @@ def main():
         .config("spark.sql.extensions", "io.delta.sql.DeltaSparkSessionExtension") \
         .config("spark.sql.catalog.spark_catalog", "org.apache.spark.sql.delta.catalog.DeltaCatalog") \
         .config("spark.sql.execution.arrow.pyspark.enabled", "true") \
+        .config("spark.python.worker.reuse", "true") \
         .config("spark.databricks.delta.retentionDurationCheck.enabled", "false") \
         .config("spark.databricks.delta.vacuum.parallelDelete.enabled", "true") \
         .enableHiveSupport() \

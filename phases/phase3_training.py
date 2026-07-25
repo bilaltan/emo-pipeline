@@ -928,7 +928,7 @@ def run_phase3(spark, sc, datasets, algorithms, use_global_mapping,
                 comms_node_counts = training_df_base.groupBy('community_id').count().toPandas()
                 comms_node_counts = comms_node_counts.sort_values(by='count', ascending=False).reset_index(drop=True)
                 num_comms = len(comms_node_counts)
-                num_bins = min(336, num_comms)
+                num_bins = min(int(spark.conf.get("spark.sql.shuffle.partitions", "336")), num_comms)
                 
                 print(f"  Distributing {num_comms:,} communities across {num_bins} balanced parallel YARN executor tasks...")
                 comms_node_counts['bin_id'] = [i % num_bins for i in range(len(comms_node_counts))]
