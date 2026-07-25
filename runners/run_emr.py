@@ -560,7 +560,21 @@ def main():
     print("  ✓ SparkSession successfully configured and initialized as 'spark'.")
 
     # ── 3. INSTALL PYTHON DEPENDENCIES ─────────────────────────────────────────
-    if getattr(args, 'no_install', False) or getattr(config, 'SKIP_PKG_SYNC', False):
+    skip_pkg_sync = False
+    try:
+        script_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        cfg_path = os.path.join(script_dir, "experiment_config.py")
+        if os.path.exists(cfg_path):
+            import re
+            with open(cfg_path, 'r') as f:
+                content = f.read()
+            m = re.search(r'SKIP_PKG_SYNC\s*=\s*(True|False)', content)
+            if m:
+                skip_pkg_sync = (m.group(1) == 'True')
+    except Exception:
+        pass
+
+    if getattr(args, 'no_install', False) or skip_pkg_sync:
         print("\n  ► Skipping dynamic package verification/installation on YARN executors...")
     else:
         print("\n" + "="*80)
