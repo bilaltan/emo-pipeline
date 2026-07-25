@@ -107,20 +107,11 @@ def _train_gnn_community_single(pdf, base_weights_bc=None, base_embeddings_bc=No
     sorted_ids = np.sort(all_nodes)
     sort_idx   = np.argsort(all_nodes)
     
-    # Memory-efficient edge construction (avoids pandas explode DataFrame copy)
-    _ids = pdf['id'].values.astype(np.int64)
-    _nbrs_col = pdf['neighbors'].values
-    _src_parts, _dst_parts = [], []
-    for _i in range(len(_ids)):
-        _nb = _nbrs_col[_i]
-        if _nb is not None and hasattr(_nb, '__len__') and len(_nb) > 0:
-            _dst_parts.append(np.asarray(_nb, dtype=np.int64))
-            _src_parts.append(np.full(len(_nb), _ids[_i], dtype=np.int64))
-
-    if _src_parts:
-        src_arr = np.concatenate(_src_parts)
-        dst_arr = np.concatenate(_dst_parts)
-        del _src_parts, _dst_parts
+    # Fast exploded edge mapping in compiled C (pandas explode is optimized and fast)
+    exploded = pdf[['id', 'neighbors']].explode('neighbors').dropna()
+    if len(exploded) > 0:
+        src_arr = exploded['id'].values.astype(np.int64)
+        dst_arr = exploded['neighbors'].values.astype(np.int64)
 
         idx_src = np.searchsorted(sorted_ids, src_arr)
         idx_dst = np.searchsorted(sorted_ids, dst_arr)
