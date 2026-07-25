@@ -884,13 +884,13 @@ def run_phase3(spark, sc, datasets, algorithms, use_global_mapping,
                     all_nodes = large_comm_pdf['id'].values
                     n_nodes = len(all_nodes)
                     node_map = {int(n): i for i, n in enumerate(all_nodes)}
-                    
-                    exploded = large_comm_pdf[['id', 'neighbors']].explode('neighbors').dropna()
-                    if len(exploded) > 0:
-                        exploded['neighbors'] = exploded['neighbors'].astype(np.int64)
-                        exploded = exploded[exploded['neighbors'].isin(node_map)]
-                        src_l = exploded['id'].map(node_map).values.astype(np.int64)
-                        dst_l = exploded['neighbors'].map(node_map).values.astype(np.int64)
+                    large_edges_pdf = edges_df.filter(F.col('community_id') == largest_comm_id).toPandas()
+                    if len(large_edges_pdf) > 0:
+                        src_arr = large_edges_pdf['src'].values.astype(np.int64)
+                        dst_arr = large_edges_pdf['dst'].values.astype(np.int64)
+                        valid = np.isin(src_arr, all_nodes) & np.isin(dst_arr, all_nodes)
+                        src_l = np.array([node_map[s] for s in src_arr[valid]], dtype=np.int64)
+                        dst_l = np.array([node_map[d] for d in dst_arr[valid]], dtype=np.int64)
                     else:
                         src_l = np.array([], dtype=np.int64)
                         dst_l = np.array([], dtype=np.int64)
@@ -968,7 +968,7 @@ def run_phase3(spark, sc, datasets, algorithms, use_global_mapping,
                 comms_node_counts['bin_id'] = [i % num_bins for i in range(len(comms_node_counts))]
                 
                 bin_mapping_df = spark.createDataFrame(comms_node_counts[['community_id', 'bin_id']])
-                training_df_bin = training_df_base.join(bin_mapping_df, on='community_id', how='left')
+                training_df_bin = training_df_base.join(F.broadcast(bin_mapping_df), on='community_id', how='left')
 
                 p2_nodes_url = p_alg['p2_nodes']
                 p2_edges_url = p_alg['p2_edges']
