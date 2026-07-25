@@ -761,9 +761,10 @@ def run_phase3(spark, sc, datasets, algorithms, use_global_mapping,
             nodes_df = spark.read.format('delta').load(p_alg['p2_nodes'])
             edges_df = spark.read.format('delta').load(p_alg['p2_edges'])
 
-            # Lightweight metadata DataFrame without heavy array columns (no features array, no neighbors list)
-            # This keeps training_df 400x smaller and completely eliminates Apache Arrow ArrayWriter buffer overflows
-            training_df_base = nodes_df.select('id', 'label', 'split', 'community_id', 'is_boundary')
+            # Standard metadata + 128-float features array in DataFrame
+            # Fixed 128-float arrays produce 5.5MB Arrow batches (400x smaller than 2GB limit)
+            # while avoiding 25GB unpartitioned Parquet C++ file scanning in Python workers.
+            training_df_base = nodes_df.select('id', 'label', 'features', 'split', 'community_id', 'is_boundary')
 
             for model_type in gnn_models:
                 key   = (dataset, alg, model_type)
@@ -987,33 +988,18 @@ def run_phase3(spark, sc, datasets, algorithms, use_global_mapping,
                     import gc
 
                     results = []
-                    nodes_url = str(pdf['_p2_nodes'].iloc[0])
                     edges_url = str(pdf['_p2_edges'].iloc[0])
-
-                    clean_nodes = nodes_url.replace("file://", "")
                     clean_edges = edges_url.replace("file://", "")
 
                     try:
-                        nodes_ds = ds.dataset(clean_nodes, format="parquet")
                         edges_ds = ds.dataset(clean_edges, format="parquet")
                     except Exception:
-                        nodes_ds = None
                         edges_ds = None
 
                     for comm_id, group_pdf in pdf.groupby('community_id'):
                         try:
                             comm_nodes_pdf = group_pdf
                             comm_edges_pdf = None
-
-                            if nodes_ds is not None:
-                                try:
-                                    tbl_n = nodes_ds.to_table(filter=ds.field("community_id") == int(comm_id))
-                                    comm_nodes_pdf = tbl_n.to_pandas()
-                                    for col in ['_num_classes', '_hidden', '_epochs', '_lr', '_dropout', '_task_type', '_model_type']:
-                                        if col in group_pdf.columns:
-                                            comm_nodes_pdf[col] = group_pdf[col].iloc[0]
-                                except Exception:
-                                    pass
 
                             if edges_ds is not None:
                                 try:
