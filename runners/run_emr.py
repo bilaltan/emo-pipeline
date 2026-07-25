@@ -549,7 +549,7 @@ def main():
         .config("spark.sql.catalog.spark_catalog", "org.apache.spark.sql.delta.catalog.DeltaCatalog") \
         .config("spark.sql.execution.arrow.pyspark.enabled", "true") \
         .config("spark.sql.execution.arrow.pyspark.fallback.enabled", "true") \
-        .config("spark.sql.execution.arrow.maxRecordsPerBatch", "2000") \
+        .config("spark.sql.execution.arrow.maxRecordsPerBatch", "500") \
         .config("spark.python.worker.reuse", "true") \
         .config("spark.databricks.delta.retentionDurationCheck.enabled", "false") \
         .config("spark.databricks.delta.vacuum.parallelDelete.enabled", "true") \

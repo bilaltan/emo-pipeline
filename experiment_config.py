@@ -52,7 +52,7 @@ RUN_PHASE3         = True             # Set to False to skip parallel GNN UDF tr
 USE_GLOBAL_MAPPING = True
 
 GCN_HIDDEN_DIM    = 256
-GCN_NUM_EPOCHS    = 10
+GCN_NUM_EPOCHS    = 5
 GCN_LR            = 0.001
 GCN_DROPOUT       = 0.5
 RUN_PHASE3B       = True              # Phase 3b: CaaN Global Graph GNN Training
@@ -66,7 +66,7 @@ TINY_COMM_HANDLING  = 'misc'
 EXPAND_BOUNDARY_NODES = True
 
 # Task Type: 'node_classification' or 'link_prediction'
-TASK_TYPE = 'both'
+TASK_TYPE = 'node_classification'
 
 # ── Phase 4: Full-Graph Baseline ──────────────────────────────────────────────
 # Runs ONCE per dataset (not per algorithm). Uses SAME masks as Phase 3.
