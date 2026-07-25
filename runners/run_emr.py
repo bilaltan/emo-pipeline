@@ -410,18 +410,20 @@ def main():
 
     usable_node_mem_gb = node_mem_gb - OS_RESERVE_GB
 
-    # Step 2: Bin-packing solver — maximize total_parallel_tasks
-    # Cap candidate cores to prevent memory blast-radius from being too large,
-    # and to avoid excessive thread context switching/GC overhead.
-    # For massive datasets, 3 cores per executor is the sweet spot.
+    # Step 2: Bin-packing solver — prioritize fewer, fatter executors with high RAM & CPU
+    # For massive datasets, 5 to 7 cores per executor with 50-70GB container RAM per executor
+    # maximizes total active vCPUs (280 vCPUs) while giving Python/PyTorch 40GB+ off-heap headroom.
     if python_ram_per_task >= 6.0:
-        max_cores = 3
+        max_cores = 7
+        jvm_heap_min = 16.0
     elif python_ram_per_task >= 4.0:
-        max_cores = 4
+        max_cores = 6
+        jvm_heap_min = 14.0
     else:
         max_cores = 5
+        jvm_heap_min = 10.0
 
-    OS_RESERVE_GB   = max(12.0, node_mem_gb * 0.08)   # reserved for OS kernel + YARN NodeManager daemon (8% of node RAM)
+    OS_RESERVE_GB   = max(16.0, node_mem_gb * 0.08)   # reserved for OS kernel + YARN NodeManager daemon
     DRIVER_FRACTION = 0.75  # fraction of driver host RAM for driver container
 
     usable_node_mem_gb = node_mem_gb - OS_RESERVE_GB
@@ -429,13 +431,13 @@ def main():
     best_config = None
     best_total_cores = 0
 
-    for cores_candidate in range(1, min(max_cores + 1, node_vcores + 1)):
+    for cores_candidate in range(3, min(max_cores + 1, node_vcores + 1)):
         # Memory needed for Python workers (lives in memoryOverhead)
         overhead_needed = python_ram_per_task * cores_candidate
-        # Add 1.5 GB overhead buffer for Python interpreter + Arrow IPC
-        overhead_needed += 1.5
+        # Add 4.0 GB overhead buffer for Python interpreter + Arrow IPC + PyTorch C++ memory pools
+        overhead_needed += 4.0
         # JVM heap for Spark shuffle, broadcast, Delta reads
-        heap_needed = max(jvm_heap_min, overhead_needed * 0.5)
+        heap_needed = max(jvm_heap_min, overhead_needed * 0.4)
         container_size = heap_needed + overhead_needed
 
         if container_size > usable_node_mem_gb:
@@ -448,8 +450,7 @@ def main():
         total_execs = nodes_count * execs_per_node
         total_cores = total_execs * cores_candidate
 
-        # Prefer configs that maximize total parallelism
-        # Tie-break: prefer fewer, fatter executors (less scheduling overhead)
+        # Prefer configs that maximize total parallelism, tie-break: prefer fewer, fatter executors
         if total_cores > best_total_cores or \
            (total_cores == best_total_cores and best_config and total_execs < best_config['total_execs']):
             best_total_cores = total_cores
