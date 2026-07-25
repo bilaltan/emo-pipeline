@@ -858,7 +858,7 @@ def run_phase3(spark, sc, datasets, algorithms, use_global_mapping,
                     import dgl
                     
                     print("  [Driver Warmstart] Extracting representative community for driver-side pre-training...")
-                    comms_node_counts = training_df_base.groupBy('community_id').count().toPandas()
+                    comms_node_counts = nodes_df.select('community_id').groupBy('community_id').count().toPandas()
                     comms_sorted = comms_node_counts.sort_values(by='count', ascending=False)
                     
                     valid_comms = comms_sorted[comms_sorted['count'] <= 100_000]
@@ -959,7 +959,7 @@ def run_phase3(spark, sc, datasets, algorithms, use_global_mapping,
                 spark.conf.set("spark.sql.execution.arrow.pyspark.enabled", "false")
                 spark.conf.set("spark.sql.execution.arrow.pyspark.fallback.enabled", "true")
 
-                comms_node_counts = training_df_base.groupBy('community_id').count().toPandas()
+                comms_node_counts = nodes_df.select('community_id').groupBy('community_id').count().toPandas()
                 comms_node_counts = comms_node_counts.sort_values(by='count', ascending=False).reset_index(drop=True)
                 num_comms = len(comms_node_counts)
                 num_bins = min(max(2520, int(spark.conf.get("spark.sql.shuffle.partitions", "2520"))), num_comms)
