@@ -16,15 +16,15 @@ from pyspark.sql import SparkSession
 
 def main():
     spark = SparkSession.builder \
-        .appName("DebugPipInstall") \
+        .appName("DebugAllPipInstalls") \
         .config("spark.master", "yarn") \
         .getOrCreate()
         
     sc = spark.sparkContext
     num_executors = int(spark.conf.get("spark.executor.instances", "2"))
     
-    # We want to run this on the executors
-    def run_debug_pip(iterator):
+    # We want to debug installation of all executor dependencies
+    def run_debug_pip_all(iterator):
         import subprocess
         import sys
         import os
@@ -33,20 +33,43 @@ def main():
         os.environ["PYTHONUSERBASE"] = f"{large_tmp}/.local"
         os.environ["TMPDIR"] = large_tmp
         
-        cmd = [sys.executable, '-m', 'pip', 'install', '--user', '--no-cache-dir', 'numpy']
-        try:
-            res = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, check=True)
-            return [f"SUCCESS: {res.stdout}"]
-        except subprocess.CalledProcessError as e:
-            return [f"FAILED: code={e.returncode}\nstdout={e.stdout}\nstderr={e.stderr}"]
+        # Test libraries
+        libs = ['numpy', 'scikit-learn', 'torch', 'torch-geometric', 'pyarrow', 'dgl==1.1.3']
+        results = []
+        
+        for lib in libs:
+            # First check if import works
+            import_name = 'sklearn' if lib == 'scikit-learn' else 'torch_geometric' if lib == 'torch-geometric' else lib.split('==')[0]
+            try:
+                import importlib
+                importlib.import_module(import_name)
+                results.append(f"{lib:<20} | IMPORT: OK")
+                continue
+            except Exception:
+                pass
+                
+            # If not importable, attempt pip install
+            cmd = [sys.executable, '-m', 'pip', 'install', '--user', '--no-cache-dir']
+            if lib.startswith('dgl'):
+                cmd += [lib, '-f', 'https://data.dgl.ai/wheels/repo.html']
+            else:
+                cmd += [lib]
+                
+            try:
+                res = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, check=True)
+                results.append(f"{lib:<20} | PIP INSTALL: SUCCESS\nstdout: {res.stdout.strip()[:100]}...")
+            except subprocess.CalledProcessError as e:
+                results.append(f"{lib:<20} | PIP INSTALL: FAILED (code={e.returncode})\nstdout: {e.stdout.strip()}\nstderr: {e.stderr.strip()}")
+                
+        return ["\n".join(results)]
             
-    results = sc.parallelize(range(num_executors * 2), num_executors * 2) \
-                .mapPartitions(run_debug_pip) \
+    results = sc.parallelize(range(num_executors), num_executors) \
+                .mapPartitions(run_debug_pip_all) \
                 .collect()
                 
-    print("=== PIP EXECUTION RESULTS ===")
+    print("=== PIP VERIFICATION RESULTS FOR ALL EXECUTORS ===")
     for idx, r in enumerate(results):
-        print(f"\nExecutor {idx}:\n{r}")
+        print(f"\nNode / Executor Partition {idx}:\n{r}")
         
     spark.stop()
 
