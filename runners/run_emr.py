@@ -526,14 +526,14 @@ def main():
         .config("spark.kryoserializer.buffer.max", "1024m") \
         .config("spark.pyspark.python", "python3") \
         .config("spark.pyspark.virtualenv.enabled", "false") \
-        .config("spark.executorEnv.HOME", large_tmp) \
-        .config("spark.executorEnv.PYTHONUSERBASE", f"{large_tmp}/.local") \
-        .config("spark.executorEnv.PYTHONPATH", f"{large_tmp}/.local/lib/{py_version}/site-packages:$PYTHONPATH") \
+        .config("spark.executorEnv.HOME", "/tmp") \
+        .config("spark.executorEnv.PYTHONUSERBASE", "/tmp/.local") \
+        .config("spark.executorEnv.PYTHONPATH", f"/mnt/tmp/.local/lib/{py_version}/site-packages:/mnt1/tmp/.local/lib/{py_version}/site-packages:/mnt2/tmp/.local/lib/{py_version}/site-packages:/tmp/.local/lib/{py_version}/site-packages:$PYTHONPATH") \
         .config("spark.executorEnv.DGLBACKEND", "pytorch") \
-        .config("spark.executorEnv.DGL_DOWNLOAD_DIR", f"{large_tmp}/.dgl") \
-        .config("spark.executorEnv.TMPDIR", large_tmp) \
-        .config("spark.executorEnv.TEMP", large_tmp) \
-        .config("spark.executorEnv.TMP", large_tmp) \
+        .config("spark.executorEnv.DGL_DOWNLOAD_DIR", "/tmp/.dgl") \
+        .config("spark.executorEnv.TMPDIR", "/tmp") \
+        .config("spark.executorEnv.TEMP", "/tmp") \
+        .config("spark.executorEnv.TMP", "/tmp") \
         .config("spark.executorEnv.OMP_NUM_THREADS", "1") \
         .config("spark.executorEnv.MKL_NUM_THREADS", "1") \
         .config("spark.executorEnv.OPENBLAS_NUM_THREADS", "1") \
@@ -623,10 +623,23 @@ def main():
             import importlib
 
             node_name = socket.gethostname()
-            os.environ["PYTHONUSERBASE"] = f"{large_tmp}/.local"
-            os.environ["TMPDIR"] = large_tmp
-            os.environ["TEMP"] = large_tmp
-            os.environ["TMP"] = large_tmp
+            
+            # Dynamically discover a writable local scratch path on this specific node
+            candidates = ["/mnt/tmp", "/mnt1/tmp", "/mnt2/tmp", "/mnt/spark", "/mnt1/spark", "/mnt2/spark", "/tmp"]
+            worker_tmp = "/tmp"
+            for c in candidates:
+                try:
+                    os.makedirs(c, exist_ok=True)
+                    if os.access(c, os.W_OK):
+                        worker_tmp = c
+                        break
+                except Exception:
+                    pass
+
+            os.environ["PYTHONUSERBASE"] = f"{worker_tmp}/.local"
+            os.environ["TMPDIR"] = worker_tmp
+            os.environ["TEMP"] = worker_tmp
+            os.environ["TMP"] = worker_tmp
 
             results = []
             for pkg in executor_packages:
