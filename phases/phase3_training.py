@@ -89,6 +89,12 @@ def _train_gnn_community_single(pdf, comm_edges_pdf=None, base_weights_bc=None, 
     all_nodes = pdf['id'].values.astype(np.int64)
     n_nodes   = len(all_nodes)
 
+    # Bulletproof RAM Safety Floor: Sub-sample outlier communities if > 50,000 nodes
+    if n_nodes > 50000:
+        pdf = pdf.iloc[:50000]
+        all_nodes = pdf['id'].values.astype(np.int64)
+        n_nodes   = len(all_nodes)
+
     # Dynamic dataset/community size-aware epochs scale down to speed up training
     # Small communities (nodes < 1K) adapt in 2 epochs, medium (nodes < 10K) in 4 epochs, large/massive in 10 epochs.
     if n_nodes < 1000:

@@ -513,9 +513,14 @@ def main():
         .config("spark.driver.maxResultSize", "0") \
         .config("spark.driver.cores", driver_cores) \
         .config("spark.driver.memoryOverhead", driver_overhead) \
-        .config("spark.rpc.message.maxSize", "512") \
-        .config("spark.network.timeout", "800s") \
-        .config("spark.executor.heartbeatInterval", "120s") \
+        .config("spark.rpc.message.maxSize", "1024") \
+        .config("spark.network.timeout", "1800s") \
+        .config("spark.executor.heartbeatInterval", "180s") \
+        .config("spark.task.maxFailures", "8") \
+        .config("spark.stage.maxConsecutiveAttempts", "8") \
+        .config("spark.shuffle.io.maxRetries", "10") \
+        .config("spark.shuffle.io.retryWait", "30s") \
+        .config("spark.yarn.maxAppAttempts", "4") \
         .config("spark.dynamicAllocation.enabled", "false") \
         .config("spark.executor.instances", str(executor_instances)) \
         .config("spark.executor.memory", executor_mem) \
