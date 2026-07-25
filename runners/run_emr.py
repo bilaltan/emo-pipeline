@@ -677,6 +677,12 @@ def main():
                         import time
                         import importlib
 
+                        # Explicitly set environment variables in the Python subprocess context
+                        os.environ["PYTHONUSERBASE"] = f"{large_tmp}/.local"
+                        os.environ["TMPDIR"] = large_tmp
+                        os.environ["TEMP"] = large_tmp
+                        os.environ["TMP"] = large_tmp
+
                         import_map = {
                             'scikit-learn': 'sklearn',
                             'torch-geometric': 'torch_geometric',
