@@ -1004,11 +1004,20 @@ def run_phase3(spark, sc, datasets, algorithms, use_global_mapping,
                 n_comms = len(comms_node_counts)
                 print(f"  Training DF: ~{n_rows:,} total nodes | {n_comms:,} communities distributed across {num_bins} YARN executor tasks")
 
+                def _train_gnn_udf(key, pdf):
+                    return _train_gnn_community_single(
+                        pdf,
+                        comm_edges_pdf=None,
+                        base_weights_bc=base_weights_bc,
+                        base_embeddings_bc=base_embeddings_bc,
+                        base_node_map_bc=base_node_map_bc
+                    )
+
                 sc.setJobDescription(f'phase3_{dataset}_{alg}_{model_type}')
                 comm_results = (training_df
                                 .repartition(num_bins, 'community_id')
                                 .groupBy('community_id')
-                                .applyInPandas(_train_gnn_community_single, schema=result_schema))
+                                .applyInPandas(_train_gnn_udf, schema=result_schema))
                 comm_pd = comm_results.toPandas()
                 sc.setJobDescription('')
 
