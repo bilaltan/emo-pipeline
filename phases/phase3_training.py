@@ -982,16 +982,11 @@ def run_phase3(spark, sc, datasets, algorithms, use_global_mapping,
                 
                 print(f"  Distributing {num_comms:,} communities in parallel across {num_bins} YARN tasks...")
 
-                # Group edges by community_id into lightweight src/dst lists
-                edges_grouped = edges_df.groupBy('community_id').agg(
-                    F.collect_list('src').alias('_src_list'),
-                    F.collect_list('dst').alias('_dst_list')
-                )
+                p2_edges_url = p_alg['p2_edges']
 
-                training_df_base = nodes_df.select('id', 'label', 'features', 'split', 'community_id', 'is_boundary')
-                training_df = training_df_base.join(F.broadcast(edges_grouped), on='community_id', how='left')
-
+                training_df = nodes_df.select('id', 'label', 'features', 'split', 'community_id', 'is_boundary')
                 training_df = (training_df
+                    .withColumn('_p2_edges',    F.lit(str(p2_edges_url)))
                     .withColumn('_num_classes', F.lit(int(cfg['num_classes'])))
                     .withColumn('_hidden',      F.lit(int(gcn_cfg['hidden_dim'])))
                     .withColumn('_epochs',      F.lit(int(gcn_cfg['num_epochs'])))
@@ -1005,9 +1000,21 @@ def run_phase3(spark, sc, datasets, algorithms, use_global_mapping,
                 print(f"  Training DF: ~{n_rows:,} total nodes | {n_comms:,} communities distributed across {num_bins} YARN executor tasks")
 
                 def _train_gnn_udf(key, pdf):
+                    comm_edges_pdf = None
+                    if '_p2_edges' in pdf.columns and len(pdf) > 0:
+                        edges_url = str(pdf['_p2_edges'].iloc[0]).replace("file://", "")
+                        comm_id = int(pdf['community_id'].iloc[0])
+                        try:
+                            import pyarrow.dataset as ds
+                            edges_ds = ds.dataset(edges_url, format="parquet")
+                            tbl_e = edges_ds.to_table(filter=ds.field("community_id") == comm_id)
+                            comm_edges_pdf = tbl_e.to_pandas()
+                        except Exception:
+                            comm_edges_pdf = None
+
                     return _train_gnn_community_single(
                         pdf,
-                        comm_edges_pdf=None,
+                        comm_edges_pdf=comm_edges_pdf,
                         base_weights_bc=base_weights_bc,
                         base_embeddings_bc=base_embeddings_bc,
                         base_node_map_bc=base_node_map_bc
