@@ -955,7 +955,7 @@ def run_phase3(spark, sc, datasets, algorithms, use_global_mapping,
                 except Exception as base_err:
                     print(f"  Warning: Skipped warm-start driver pre-training: {base_err}")
 
-                # 2. Driver-side Community Binning
+                # 2. Driver-side Lightweight Manifest Binning (Zero Shuffle Network Overhead)
                 spark.conf.set("spark.sql.execution.arrow.pyspark.enabled", "false")
                 spark.conf.set("spark.sql.execution.arrow.pyspark.fallback.enabled", "true")
 
@@ -964,16 +964,17 @@ def run_phase3(spark, sc, datasets, algorithms, use_global_mapping,
                 num_comms = len(comms_node_counts)
                 num_bins = min(max(2520, int(spark.conf.get("spark.sql.shuffle.partitions", "2520"))), num_comms)
                 
-                print(f"  Distributing {num_comms:,} communities across {num_bins} balanced parallel YARN executor tasks...")
+                print(f"  Distributing manifest of {num_comms:,} communities across {num_bins} balanced parallel YARN executor tasks...")
                 comms_node_counts['bin_id'] = [i % num_bins for i in range(len(comms_node_counts))]
                 
-                bin_mapping_df = spark.createDataFrame(comms_node_counts[['community_id', 'bin_id']])
-                training_df_bin = training_df_base.join(F.broadcast(bin_mapping_df), on='community_id', how='left')
+                # Manifest DF contains ONLY lightweight community metadata (integer community_id & bin_id)
+                # Prevents multi-GB dense node feature matrices from clogging Spark YARN shuffles and Arrow IPC memory
+                manifest_df_base = spark.createDataFrame(comms_node_counts[['community_id', 'bin_id']])
 
                 p2_nodes_url = p_alg['p2_nodes']
                 p2_edges_url = p_alg['p2_edges']
 
-                training_df = (training_df_bin
+                manifest_df = (manifest_df_base
                     .withColumn('_p2_nodes',    F.lit(str(p2_nodes_url)))
                     .withColumn('_p2_edges',    F.lit(str(p2_edges_url)))
                     .withColumn('_num_classes', F.lit(int(cfg['num_classes'])))
@@ -986,33 +987,66 @@ def run_phase3(spark, sc, datasets, algorithms, use_global_mapping,
 
                 n_rows  = int(comms_node_counts['count'].sum())
                 n_comms = len(comms_node_counts)
-                print(f"  Training DF: ~{n_rows:,} rows | {n_comms:,} communities assigned to {num_bins} executor tasks")
+                print(f"  Manifest: ~{n_rows:,} total nodes | {n_comms:,} communities assigned to {num_bins} executor tasks via direct PyArrow dataset streaming")
 
-                def _train_gnn_bin(pdf):
+                def _train_gnn_bin(manifest_pdf):
                     import pandas as pd
                     import pyarrow.dataset as ds
                     import gc
 
                     results = []
-                    edges_url = str(pdf['_p2_edges'].iloc[0])
-                    clean_edges = edges_url.replace("file://", "")
+                    if manifest_pdf is None or len(manifest_pdf) == 0:
+                        return pd.DataFrame(columns=[
+                            'community_id', 'n_nodes', 'n_edges', 'n_train', 'n_val', 'n_test',
+                            'n_boundary', 'n_internal', 'comm_test_acc', 'boundary_acc',
+                            'internal_acc', 'comm_link_auc', 'size_bucket', 'load_time_s',
+                            'node_train_time_s', 'link_train_time_s', 'peak_mem_mb'
+                        ])
+
+                    nodes_url = str(manifest_pdf['_p2_nodes'].iloc[0]).replace("file://", "")
+                    edges_url = str(manifest_pdf['_p2_edges'].iloc[0]).replace("file://", "")
 
                     try:
-                        edges_ds = ds.dataset(clean_edges, format="parquet")
+                        nodes_ds = ds.dataset(nodes_url, format="parquet")
+                    except Exception:
+                        nodes_ds = None
+
+                    try:
+                        edges_ds = ds.dataset(edges_url, format="parquet")
                     except Exception:
                         edges_ds = None
 
-                    for comm_id, group_pdf in pdf.groupby('community_id'):
+                    for _, row in manifest_pdf.iterrows():
+                        comm_id = int(row['community_id'])
                         try:
-                            comm_nodes_pdf = group_pdf
+                            comm_nodes_pdf = None
                             comm_edges_pdf = None
+
+                            if nodes_ds is not None:
+                                try:
+                                    tbl_n = nodes_ds.to_table(filter=ds.field("community_id") == comm_id)
+                                    comm_nodes_pdf = tbl_n.to_pandas()
+                                except Exception:
+                                    pass
 
                             if edges_ds is not None:
                                 try:
-                                    tbl_e = edges_ds.to_table(filter=ds.field("community_id") == int(comm_id))
+                                    tbl_e = edges_ds.to_table(filter=ds.field("community_id") == comm_id)
                                     comm_edges_pdf = tbl_e.to_pandas()
                                 except Exception:
                                     pass
+
+                            if comm_nodes_pdf is None or len(comm_nodes_pdf) == 0:
+                                continue
+
+                            # Inject configuration columns into comm_nodes_pdf
+                            comm_nodes_pdf['_num_classes'] = row['_num_classes']
+                            comm_nodes_pdf['_hidden']      = row['_hidden']
+                            comm_nodes_pdf['_epochs']      = row['_epochs']
+                            comm_nodes_pdf['_lr']          = row['_lr']
+                            comm_nodes_pdf['_dropout']     = row['_dropout']
+                            comm_nodes_pdf['_task_type']   = row['_task_type']
+                            comm_nodes_pdf['_model_type']  = row['_model_type']
 
                             res_row = _train_gnn_community_single(
                                 comm_nodes_pdf,
@@ -1026,10 +1060,10 @@ def run_phase3(spark, sc, datasets, algorithms, use_global_mapping,
                             import sys
                             print(f"[WARN] Community {comm_id} failed: {e}", file=sys.stderr)
                             results.append(pd.DataFrame([{
-                                'community_id': int(comm_id),
-                                'n_nodes': len(group_pdf), 'n_edges': 0,
+                                'community_id': comm_id,
+                                'n_nodes': 0, 'n_edges': 0,
                                 'n_train': 0, 'n_val': 0, 'n_test': 0,
-                                'n_boundary': 0, 'n_internal': len(group_pdf),
+                                'n_boundary': 0, 'n_internal': 0,
                                 'comm_test_acc': 0.0, 'boundary_acc': 0.0,
                                 'internal_acc': 0.0, 'comm_link_auc': 0.5,
                                 'size_bucket': 'error', 'load_time_s': 0.0,
@@ -1037,10 +1071,18 @@ def run_phase3(spark, sc, datasets, algorithms, use_global_mapping,
                                 'peak_mem_mb': 0.0,
                             }]))
                         gc.collect()
+
+                    if len(results) == 0:
+                        return pd.DataFrame(columns=[
+                            'community_id', 'n_nodes', 'n_edges', 'n_train', 'n_val', 'n_test',
+                            'n_boundary', 'n_internal', 'comm_test_acc', 'boundary_acc',
+                            'internal_acc', 'comm_link_auc', 'size_bucket', 'load_time_s',
+                            'node_train_time_s', 'link_train_time_s', 'peak_mem_mb'
+                        ])
                     return pd.concat(results, ignore_index=True)
 
                 sc.setJobDescription(f'phase3_{dataset}_{alg}_{model_type}')
-                comm_results = (training_df
+                comm_results = (manifest_df
                                 .groupBy('bin_id')
                                 .applyInPandas(_train_gnn_bin, schema=result_schema))
                 comm_pd = comm_results.toPandas()
