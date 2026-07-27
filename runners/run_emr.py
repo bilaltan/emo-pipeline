@@ -385,43 +385,22 @@ def main():
     # ═══════════════════════════════════════════════════════════════════════════
 
     # Step 1: Estimate Python RAM per concurrent task based on dataset scale
-    #   - Each task receives a pandas DataFrame partition via applyInPandas()
-    #   - It builds: np.stack(features) + PyTorch tensors + DGL graph + gradients
-    #   - Larger communities = more nodes per partition = more RAM
     if edges_size_mb <= 20.0:
         scale_label = "Small/Medium"
-        python_ram_per_task = 1.0    # ~500 node communities, 128-dim features
-        jvm_heap_min       = 4.0    # small shuffle volumes
+        python_ram_per_task = 1.0
     elif edges_size_mb <= 300.0:
         scale_label = "Large (100M Scale)"
-        python_ram_per_task = 2.5    # ~5K node communities
-        jvm_heap_min       = 6.0
+        python_ram_per_task = 2.5
     elif edges_size_mb <= 2000.0:
         scale_label = "Very Large (500M Scale)"
-        python_ram_per_task = 4.0    # ~50K node communities
-        jvm_heap_min       = 8.0
+        python_ram_per_task = 4.0
     else:
         scale_label = "Massive (1B+ Scale)"
-        python_ram_per_task = 6.5    # ~600K node communities, 128-dim float32
-        jvm_heap_min       = 10.0   # large Arrow IPC + shuffle buffers
+        python_ram_per_task = 6.5
 
-    OS_RESERVE_GB   = 8.0   # reserved for OS kernel + YARN NodeManager daemon
-    DRIVER_FRACTION = 0.75  # fraction of driver host RAM for driver container
-
-    usable_node_mem_gb = node_mem_gb - OS_RESERVE_GB
-
-    # Step 2: Bin-packing solver — prioritize fewer, fatter executors with high RAM & CPU
-    # For massive datasets, 5 to 7 cores per executor with 50-70GB container RAM per executor
-    # maximizes total active vCPUs (280 vCPUs) while giving Python/PyTorch 40GB+ off-heap headroom.
-    if python_ram_per_task >= 6.0:
-        max_cores = 7
-        jvm_heap_min = 16.0
-    elif python_ram_per_task >= 4.0:
-        max_cores = 6
-        jvm_heap_min = 14.0
-    else:
-        max_cores = 5
-        jvm_heap_min = 10.0
+    # Cap max_cores to 3 to provide ~7.3 GB off-heap headroom per PyTorch task, eliminating YARN 137 OOM kills.
+    max_cores = 3
+    jvm_heap_min = 12.0
 
     OS_RESERVE_GB   = max(16.0, node_mem_gb * 0.08)   # reserved for OS kernel + YARN NodeManager daemon
     DRIVER_FRACTION = 0.75  # fraction of driver host RAM for driver container

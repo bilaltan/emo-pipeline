@@ -59,12 +59,14 @@ def _train_gnn_community_single(pdf, comm_edges_pdf=None, base_weights_bc=None, 
 
     try:
         import dgl
+        import dgl.nn as dglnn
     except ImportError:
         subprocess.run([sys.executable, '-m', 'pip', 'install', '--quiet', '--no-cache-dir',
                         'dgl==1.1.3', '-f',
                         'https://data.dgl.ai/wheels/repo.html'],
                         stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=True)
         import dgl
+        import dgl.nn as dglnn
 
     import torch
     import torch.nn as nn
@@ -89,9 +91,9 @@ def _train_gnn_community_single(pdf, comm_edges_pdf=None, base_weights_bc=None, 
     all_nodes = pdf['id'].values.astype(np.int64)
     n_nodes   = len(all_nodes)
 
-    # Bulletproof RAM Safety Floor: Sub-sample outlier communities if > 50,000 nodes
-    if n_nodes > 50000:
-        pdf = pdf.iloc[:50000]
+    # Bulletproof RAM Safety Floor: Sub-sample outlier communities if > 10,000 nodes
+    if n_nodes > 10000:
+        pdf = pdf.iloc[:10000]
         all_nodes = pdf['id'].values.astype(np.int64)
         n_nodes   = len(all_nodes)
 
@@ -200,7 +202,6 @@ def _train_gnn_community_single(pdf, comm_edges_pdf=None, base_weights_bc=None, 
         lbl_t = torch.tensor(label_arr, dtype=torch.long)
     else:
         g = dgl.graph((src_l_g, dst_l_g), num_nodes=n_nodes)
-        g = dgl.to_simple(g)
         g = dgl.add_self_loop(g)
         g.ndata['feat']  = torch.tensor(feat_arr,  dtype=torch.float32)
         g.ndata['label'] = torch.tensor(label_arr, dtype=torch.int64)
@@ -878,7 +879,8 @@ def run_phase3(spark, sc, datasets, algorithms, use_global_mapping,
                     comms_node_counts = nodes_df.select('community_id').groupBy('community_id').count().toPandas()
                     comms_sorted = comms_node_counts.sort_values(by='count', ascending=False)
                     
-                    valid_comms = comms_sorted[comms_sorted['count'] <= 100_000]
+                    pos_comms = comms_sorted[comms_sorted['community_id'] >= 0]
+                    valid_comms = pos_comms[pos_comms['count'] <= 10_000] if len(pos_comms) > 0 else comms_sorted[comms_sorted['count'] <= 10_000]
                     if len(valid_comms) == 0:
                         target_comm_row = comms_sorted.iloc[-1]
                     else:
@@ -887,9 +889,9 @@ def run_phase3(spark, sc, datasets, algorithms, use_global_mapping,
                     largest_comm_id = int(target_comm_row['community_id'])
                     comm_count = int(target_comm_row['count'])
                     
-                    if comm_count > 100_000:
-                        print(f"  [Driver Warmstart] Community size ({comm_count:,} nodes) exceeds driver RAM safety limit — sub-sampling 50,000 nodes...")
-                        large_comm_pdf = nodes_df.filter(F.col('community_id') == largest_comm_id).limit(50000).toPandas()
+                    if comm_count > 10_000:
+                        print(f"  [Driver Warmstart] Community size ({comm_count:,} nodes) exceeds driver RAM safety limit — sub-sampling 5,000 nodes...")
+                        large_comm_pdf = nodes_df.filter(F.col('community_id') == largest_comm_id).limit(5000).toPandas()
                     else:
                         large_comm_pdf = nodes_df.filter(F.col('community_id') == largest_comm_id).toPandas()
                     
@@ -973,7 +975,8 @@ def run_phase3(spark, sc, datasets, algorithms, use_global_mapping,
                     print(f"  Warning: Skipped warm-start driver pre-training: {base_err}")
 
                 # 2. Parallel Community GNN Execution via Direct Spark Partitioning
-                spark.conf.set("spark.sql.execution.arrow.pyspark.enabled", "false")
+                # 2. Parallel Community GNN Execution via Direct Spark Partitioning with PyArrow IPC
+                spark.conf.set("spark.sql.execution.arrow.pyspark.enabled", "true")
                 spark.conf.set("spark.sql.execution.arrow.pyspark.fallback.enabled", "true")
 
                 comms_node_counts = nodes_df.select('community_id').groupBy('community_id').count().toPandas()
@@ -984,9 +987,28 @@ def run_phase3(spark, sc, datasets, algorithms, use_global_mapping,
 
                 p2_edges_url = p_alg['p2_edges']
 
+                # Pre-aggregate edge lists per community into a driver-side dict,
+                # then broadcast it to workers. This avoids duplicating the edge
+                # list onto every node row (which caused N_nodes × edge_list OOM).
+                print(f"  Pre-aggregating community edge lists into broadcast dict...")
+                edges_df_p3 = spark.read.parquet(p2_edges_url)
+                comm_edges_pd = (edges_df_p3
+                    .groupBy('community_id')
+                    .agg(
+                        F.collect_list('src').alias('_src_list'),
+                        F.collect_list('dst').alias('_dst_list')
+                    )
+                    .toPandas())
+                # Build broadcast dict: {community_id -> (src_list, dst_list)}
+                comm_edges_bc = sc.broadcast({
+                    int(row['community_id']): (list(row['_src_list']), list(row['_dst_list']))
+                    for _, row in comm_edges_pd.iterrows()
+                })
+                print(f"  ✓ Broadcast edge dict ready: {len(comm_edges_pd):,} communities.")
+                del comm_edges_pd  # free driver memory
+
                 training_df = nodes_df.select('id', 'label', 'features', 'split', 'community_id', 'is_boundary')
                 training_df = (training_df
-                    .withColumn('_p2_edges',    F.lit(str(p2_edges_url)))
                     .withColumn('_num_classes', F.lit(int(cfg['num_classes'])))
                     .withColumn('_hidden',      F.lit(int(gcn_cfg['hidden_dim'])))
                     .withColumn('_epochs',      F.lit(int(gcn_cfg['num_epochs'])))
@@ -1000,18 +1022,10 @@ def run_phase3(spark, sc, datasets, algorithms, use_global_mapping,
                 print(f"  Training DF: ~{n_rows:,} total nodes | {n_comms:,} communities distributed across {num_bins} YARN executor tasks")
 
                 def _train_gnn_udf(key, pdf):
-                    comm_edges_pdf = None
-                    if '_p2_edges' in pdf.columns and len(pdf) > 0:
-                        edges_url = str(pdf['_p2_edges'].iloc[0]).replace("file://", "")
-                        comm_id = int(pdf['community_id'].iloc[0])
-                        try:
-                            import pyarrow.dataset as ds
-                            edges_ds = ds.dataset(edges_url, format="parquet")
-                            tbl_e = edges_ds.to_table(filter=ds.field("community_id") == comm_id)
-                            comm_edges_pdf = tbl_e.to_pandas()
-                        except Exception:
-                            comm_edges_pdf = None
-
+                    # Look up this community's edges from the broadcast dict
+                    comm_id = int(key[0]) if isinstance(key, (tuple, list)) else int(key)
+                    edges = comm_edges_bc.value.get(comm_id, ([], []))
+                    comm_edges_pdf = pd.DataFrame({'src': edges[0], 'dst': edges[1]})
                     return _train_gnn_community_single(
                         pdf,
                         comm_edges_pdf=comm_edges_pdf,
@@ -1025,7 +1039,11 @@ def run_phase3(spark, sc, datasets, algorithms, use_global_mapping,
                                 .repartition(num_bins, 'community_id')
                                 .groupBy('community_id')
                                 .applyInPandas(_train_gnn_udf, schema=result_schema))
-                comm_pd = comm_results.toPandas()
+                # Write results to parquet first to avoid driver OOM on large result sets
+                import tempfile
+                result_tmp_path = f"/tmp/phase3_results_{dataset}_{alg}_{model_type}"
+                comm_results.write.mode('overwrite').parquet(result_tmp_path)
+                comm_pd = spark.read.parquet(result_tmp_path).toPandas()
                 sc.setJobDescription('')
 
                 total_test_nodes = comm_pd['n_test'].sum()

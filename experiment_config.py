@@ -22,7 +22,7 @@ GNN_MODELS = ['sage']
 # True  = re-download OGB dataset and overwrite Delta tables.
 #         REQUIRED when using a dataset for the first time.
 # False = skip (Delta tables already exist).
-RUN_PHASE0        = True
+RUN_PHASE0        = False
 FORCE_REINGEST    = False   # Set to False to use existing S3 Delta tables
 FORCE_RERUN       = True   # Set to False to use existing S3 checkpoints and skip completed phases
 USE_OGB_SPLITS    = True    # True = OGB official splits | False = stratified 60/20/20
