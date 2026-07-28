@@ -1100,7 +1100,7 @@ def run_phase3(spark, sc, datasets, algorithms, use_global_mapping,
                 except Exception as base_err:
                     print(f"  Warning: Skipped warm-start driver pre-training: {base_err}")
 
-                # 2. Parallel Manifest-Driven GNN Execution (Zero-Shuffle Architecture)
+                # 2. Parallel Manifest-Driven GNN Execution (Zero-Shuffle Architecture with Community Binning)
                 spark.conf.set("spark.sql.execution.arrow.pyspark.enabled", "true")
                 spark.conf.set("spark.sql.execution.arrow.pyspark.fallback.enabled", "true")
 
@@ -1108,8 +1108,19 @@ def run_phase3(spark, sc, datasets, algorithms, use_global_mapping,
                 p2_edges_url = p_alg['p2_edges']
 
                 print(f"  [Manifest Architecture] Extracting community manifest...")
-                comms_node_counts = nodes_df.select('community_id').groupBy('community_id').count()
+                # toPandas() is cheap on unique community counts (~100 KB total)
+                comms_node_counts_pd = nodes_df.select('community_id').groupBy('community_id').count().toPandas()
+                num_comms = len(comms_node_counts_pd)
                 
+                default_para = sc.defaultParallelism
+                num_bins = min(max(default_para * 2, int(spark.conf.get("spark.sql.shuffle.partitions", "200"))), num_comms)
+                if num_bins > 200 and num_comms < 10000:
+                    num_bins = min(200, num_comms)
+
+                # Group communities into bins to reduce PySpark UDF invocation round-trips
+                comms_node_counts_pd['bin_id'] = [i % num_bins for i in range(num_comms)]
+                comms_node_counts = spark.createDataFrame(comms_node_counts_pd[['community_id', 'bin_id']])
+
                 manifest_df = (comms_node_counts
                     .withColumn('_num_classes', F.lit(int(cfg['num_classes'])))
                     .withColumn('_hidden',      F.lit(int(gcn_cfg['hidden_dim'])))
@@ -1119,49 +1130,64 @@ def run_phase3(spark, sc, datasets, algorithms, use_global_mapping,
                     .withColumn('_task_type',   F.lit(str(task_type)))
                     .withColumn('_model_type',  F.lit(str(model_type))))
 
-                num_comms = comms_node_counts.count()
-                default_para = sc.defaultParallelism
-                num_bins = min(max(default_para * 2, int(spark.conf.get("spark.sql.shuffle.partitions", "200"))), num_comms)
-                if num_bins > 200 and num_comms < 10000:
-                    num_bins = min(200, num_comms)
-
-                print(f"  Distributing Manifest of {num_comms:,} communities across {num_bins} YARN executor tasks...")
+                print(f"  Distributing Manifest of {num_comms:,} communities across {num_bins} binned YARN executor tasks...")
                 print(f"  ✓ Zero-Shuffle Execution: Workers read partition files directly via C++ PyArrow Dataset readers.")
 
-                def _train_gnn_manifest_udf(key, manifest_pdf):
-                    comm_id = int(key[0]) if isinstance(key, (tuple, list)) else int(key)
-                    pdf, comm_edges_pdf = _load_community_data(p2_nodes_url, p2_edges_url, comm_id)
+                def _train_gnn_manifest_bin_udf(key, manifest_pdf):
+                    # Set inter-op and intra-op thread counts strictly on the worker
+                    try:
+                        import torch
+                        torch.set_num_threads(1)
+                        torch.set_num_interop_threads(1)
+                    except Exception:
+                        pass
+
+                    results = []
+                    for _, row in manifest_pdf.iterrows():
+                        comm_id = int(row['community_id'])
+                        pdf, comm_edges_pdf = _load_community_data(p2_nodes_url, p2_edges_url, comm_id)
+                        
+                        if pdf is None or len(pdf) == 0:
+                            results.append(pd.DataFrame([{
+                                'community_id':   comm_id,
+                                'n_nodes':        0, 'n_edges': 0, 'n_train': 0, 'n_val': 0, 'n_test': 0,
+                                'n_boundary':     0, 'n_internal': 0, 'comm_test_acc': 0.0, 'boundary_acc': 0.0,
+                                'internal_acc':   0.0, 'comm_link_auc': 0.5, 'size_bucket': 'empty',
+                                'load_time_s':    0.0, 'node_train_time_s': 0.0, 'link_train_time_s': 0.0, 'peak_mem_mb': 0.0
+                            }]))
+                            continue
+
+                        pdf['_num_classes'] = int(row['_num_classes'])
+                        pdf['_hidden']      = int(row['_hidden'])
+                        pdf['_epochs']      = int(row['_epochs'])
+                        pdf['_lr']          = float(row['_lr'])
+                        pdf['_dropout']     = float(row['_dropout'])
+                        pdf['_task_type']   = str(row['_task_type'])
+                        pdf['_model_type']  = str(row['_model_type'])
+
+                        res_df = _train_gnn_community_single(
+                            pdf,
+                            comm_edges_pdf=comm_edges_pdf,
+                            base_weights_bc=base_weights_bc,
+                            base_embeddings_bc=base_embeddings_bc,
+                            base_node_map_bc=base_node_map_bc
+                        )
+                        results.append(res_df)
                     
-                    if pdf is None or len(pdf) == 0:
-                        return pd.DataFrame([{
-                            'community_id':   comm_id,
-                            'n_nodes':        0, 'n_edges': 0, 'n_train': 0, 'n_val': 0, 'n_test': 0,
-                            'n_boundary':     0, 'n_internal': 0, 'comm_test_acc': 0.0, 'boundary_acc': 0.0,
-                            'internal_acc':   0.0, 'comm_link_auc': 0.5, 'size_bucket': 'empty',
-                            'load_time_s':    0.0, 'node_train_time_s': 0.0, 'link_train_time_s': 0.0, 'peak_mem_mb': 0.0
-                        }])
-
-                    pdf['_num_classes'] = int(manifest_pdf['_num_classes'].iloc[0])
-                    pdf['_hidden']      = int(manifest_pdf['_hidden'].iloc[0])
-                    pdf['_epochs']      = int(manifest_pdf['_epochs'].iloc[0])
-                    pdf['_lr']          = float(manifest_pdf['_lr'].iloc[0])
-                    pdf['_dropout']     = float(manifest_pdf['_dropout'].iloc[0])
-                    pdf['_task_type']   = str(manifest_pdf['_task_type'].iloc[0])
-                    pdf['_model_type']  = str(manifest_pdf['_model_type'].iloc[0])
-
-                    return _train_gnn_community_single(
-                        pdf,
-                        comm_edges_pdf=comm_edges_pdf,
-                        base_weights_bc=base_weights_bc,
-                        base_embeddings_bc=base_embeddings_bc,
-                        base_node_map_bc=base_node_map_bc
-                    )
+                    if len(results) == 0:
+                        return pd.DataFrame(columns=[
+                            'community_id', 'n_nodes', 'n_edges', 'n_train', 'n_val', 'n_test',
+                            'n_boundary', 'n_internal', 'comm_test_acc', 'boundary_acc',
+                            'internal_acc', 'comm_link_auc', 'size_bucket', 'load_time_s',
+                            'node_train_time_s', 'link_train_time_s', 'peak_mem_mb'
+                        ])
+                    return pd.concat(results, ignore_index=True)
 
                 sc.setJobDescription(f'phase3_{dataset}_{alg}_{model_type}')
                 comm_results = (manifest_df
-                                .repartition(num_bins, 'community_id')
-                                .groupBy('community_id')
-                                .applyInPandas(_train_gnn_manifest_udf, schema=result_schema))
+                                .repartition(num_bins, 'bin_id')
+                                .groupBy('bin_id')
+                                .applyInPandas(_train_gnn_manifest_bin_udf, schema=result_schema))
                 
                 result_tmp_path = f"/tmp/phase3_results_{dataset}_{alg}_{model_type}"
                 comm_results.write.mode('overwrite').parquet(result_tmp_path)

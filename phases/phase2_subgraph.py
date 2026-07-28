@@ -99,20 +99,15 @@ def run_phase2(spark, sc, datasets, algorithms, use_global_mapping, min_size,
             # Sub-partition any oversized communities (> 3,000 nodes) into sub-chunks of max 3,000 nodes
             # Guarantees 0 data loss, lightning-fast execution, and perfect executor RAM safety
             from pyspark.sql.window import Window
-            oversized = comms_filt.groupBy('community_id').agg(F.count('*').alias('c_sz')).filter(F.col('c_sz') > 3000)
-            n_over = oversized.count()
-            if n_over > 0:
-                print(f"  ► Sub-partitioning {n_over:,} oversized communities (> 3,000 nodes) into balanced sub-chunks...")
-                w_over = Window.partitionBy('community_id').orderBy('id')
-                over_nodes = comms_filt.join(oversized.select('community_id'), on='community_id', how='inner')
-                over_nodes_split = (over_nodes
-                                    .withColumn('rn', F.row_number().over(w_over) - 1)
-                                    .withColumn('sub_idx', (F.col('rn') / 3000).cast('long'))
-                                    .withColumn('new_community_id', (F.col('community_id') * 10000 + F.col('sub_idx')).cast('long'))
-                                    .select('id', F.col('new_community_id').alias('community_id')))
-                
-                normal_nodes = comms_filt.join(oversized.select('community_id'), on='community_id', how='left_anti')
-                comms_filt = normal_nodes.union(over_nodes_split)
+            w_over = Window.partitionBy('community_id').orderBy('id')
+            comms_filt = (comms_filt
+                          .join(comm_sizes, on='community_id', how='inner')
+                          .withColumn('rn', F.when(F.col('comm_size') > 3000, F.row_number().over(w_over) - 1).otherwise(0))
+                          .withColumn('sub_idx', (F.col('rn') / 3000).cast('long'))
+                          .withColumn('community_id',
+                                      F.when(F.col('comm_size') > 3000, (F.col('community_id') * 10000 + F.col('sub_idx')).cast('long'))
+                                      .otherwise(F.col('community_id')))
+                          .select('id', 'community_id'))
 
             print(f"  Raw={n_raw:,}  Valid(≥{min_size})={n_valid:,}  "
                   f"min={mn:,}  max={mx:,}  "
@@ -143,25 +138,23 @@ def run_phase2(spark, sc, datasets, algorithms, use_global_mapping, min_size,
             n_intra    = edges_part.count()
             pct_kept   = 100 * n_intra / n_edges if n_edges > 0 else 0.0
 
-            # Boundary flag
-            orig_deg  = (edges_df
-                         .join(node_comm.withColumnRenamed('id', 'src'), on='src', how='inner')
-                         .groupBy('src').count()
-                         .withColumnRenamed('src', 'id')
-                         .withColumnRenamed('count', 'orig_deg'))
+            # Boundary flag: Compute degrees directly from edges and join directly to nodes_part (zero edge-level joins against node_comm)
+            orig_deg = (edges_df
+                        .groupBy('src').count()
+                        .withColumnRenamed('src', 'id')
+                        .withColumnRenamed('count', 'orig_deg'))
             intra_deg = (edges_part
                          .groupBy('src').count()
                          .withColumnRenamed('src', 'id')
                          .withColumnRenamed('count', 'intra_deg'))
-            deg_df    = (orig_deg.join(intra_deg, on='id', how='left')
-                         .withColumn('intra_deg', F.coalesce('intra_deg', F.lit(0)))
-                         .withColumn('is_boundary',
-                                     (F.col('orig_deg') > F.col('intra_deg'))
-                                     .cast('boolean'))
-                         .select('id', 'is_boundary'))
-            nodes_final = (nodes_part.join(deg_df, on='id', how='left')
-                           .withColumn('is_boundary',
-                                       F.coalesce('is_boundary', F.lit(False))))
+            
+            nodes_final = (nodes_part
+                           .join(orig_deg, on='id', how='left')
+                           .join(intra_deg, on='id', how='left')
+                           .withColumn('orig_deg', F.coalesce('orig_deg', F.lit(0)))
+                           .withColumn('intra_deg', F.coalesce('intra_deg', F.lit(0)))
+                           .withColumn('is_boundary', (F.col('orig_deg') > F.col('intra_deg')).cast('boolean'))
+                           .withColumn('is_boundary', F.coalesce('is_boundary', F.lit(False))))
 
             n_boundary = nodes_final.filter(F.col('is_boundary')).count()
             print(f"  Edges kept: {n_intra:,} ({pct_kept:.1f}%)  "

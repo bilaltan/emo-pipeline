@@ -84,12 +84,11 @@ def run_phase1(spark, sc, datasets, algorithms, lpa_max_iter, resolution,
                                             F.col('src_comm').alias('proposed_comm')))
                                             
                     freq = proposed.groupBy('id', 'proposed_comm').count()
-                    from pyspark.sql.window import Window
-                    from pyspark.sql.functions import row_number
-                    w = Window.partitionBy('id').orderBy(F.desc('count'), F.desc('proposed_comm'))
-                    best = freq.withColumn('rn', row_number().over(w))\
-                               .filter(F.col('rn') == 1)\
-                               .select('id', F.col('proposed_comm').alias('new_comm'))
+                    best = (freq
+                            .select('id', F.struct('count', 'proposed_comm').alias('c_info'))
+                            .groupBy('id')
+                            .agg(F.max('c_info').alias('best_info'))
+                            .select('id', F.col('best_info.proposed_comm').alias('new_comm')))
                     
                     old_curr = curr
                     curr = (curr.join(best, on='id', how='left')
@@ -104,8 +103,11 @@ def run_phase1(spark, sc, datasets, algorithms, lpa_max_iter, resolution,
                     else:
                         curr = curr.cache()
                         
-                    nc = curr.select('community_id').distinct().count()
-                    print(f"    Iter {i+1}/{lpa_max_iter}: {nc:,} comms  [{time.time()-t_i:.1f}s]")
+                    if i == lpa_max_iter - 1:
+                        nc = curr.select('community_id').distinct().count()
+                        print(f"    Iter {i+1}/{lpa_max_iter}: {nc:,} comms  [{time.time()-t_i:.1f}s]")
+                    else:
+                        print(f"    Iter {i+1}/{lpa_max_iter} completed  [{time.time()-t_i:.1f}s]")
                     try:
                         old_curr.unpersist()
                     except Exception:
@@ -145,12 +147,7 @@ def run_phase1(spark, sc, datasets, algorithms, lpa_max_iter, resolution,
                 comm_rows = list(id_to_comm.items())
                 cschema   = StructType([StructField('id', _LT(), False),
                                         StructField('community_id', _LT(), False)])
-                communities_df = None
-                for s in range(0, len(comm_rows), 500_000):
-                    chunk = spark.createDataFrame(comm_rows[s:s+500_000], schema=cschema)
-                    communities_df = (chunk if communities_df is None
-                                      else communities_df.union(chunk))
-                communities_df = communities_df.cache()
+                communities_df = spark.sparkContext.parallelize(comm_rows).toDF(cschema).cache()
 
             # ── METIS Baseline ─────────────────────────────────────────────
             elif alg == 'metis':
@@ -243,12 +240,7 @@ def run_phase1(spark, sc, datasets, algorithms, lpa_max_iter, resolution,
                 comm_rows = list(id_to_comm.items())
                 cschema   = StructType([StructField('id', _LT(), False),
                                         StructField('community_id', _LT(), False)])
-                communities_df = None
-                for s in range(0, len(comm_rows), 500_000):
-                    chunk = spark.createDataFrame(comm_rows[s:s+500_000], schema=cschema)
-                    communities_df = (chunk if communities_df is None
-                                      else communities_df.union(chunk))
-                communities_df = communities_df.cache()
+                communities_df = spark.sparkContext.parallelize(comm_rows).toDF(cschema).cache()
             else:
                 raise ValueError(f"Unknown algorithm '{alg}'. "
                                  "Use 'lpa', 'louvain', 'leiden', 'igraph_lpa', or 'metis'.")

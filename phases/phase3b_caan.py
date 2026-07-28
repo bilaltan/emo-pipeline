@@ -3,6 +3,38 @@ import time
 import pandas as pd
 import numpy as np
 
+_DS_CACHE = {}
+
+def _get_dataset(url):
+    if url not in _DS_CACHE:
+        import pyarrow.dataset as ds
+        import pyarrow.fs as fs
+        if url.startswith("s3://"):
+            s3, path = fs.S3FileSystem.from_uri(url)
+            _DS_CACHE[url] = ds.dataset(path, filesystem=s3, format="parquet", ignore_prefixes=['_delta_log', '.'])
+        else:
+            local_path = url.replace("file://", "")
+            _DS_CACHE[url] = ds.dataset(local_path, format="parquet", ignore_prefixes=['_delta_log', '.'])
+    return _DS_CACHE[url]
+
+def _load_community_data(nodes_url, edges_url, comm_id):
+    import pyarrow.dataset as ds
+    import pandas as pd
+
+    try:
+        nodes_ds = _get_dataset(nodes_url)
+        nodes_pdf = nodes_ds.to_table(filter=(ds.field("community_id") == comm_id)).to_pandas()
+    except Exception:
+        nodes_pdf = pd.DataFrame()
+
+    try:
+        edges_ds = _get_dataset(edges_url)
+        edges_pdf = edges_ds.to_table(filter=(ds.field("community_id") == comm_id)).to_pandas()
+    except Exception:
+        edges_pdf = pd.DataFrame()
+
+    return nodes_pdf, edges_pdf
+
 def _train_minor_global_caan(dataset, gcn_cfg, dataset_cfg, caan_components, model_type, task_type='node_classification'):
     import os, time
     import numpy as np
@@ -348,8 +380,9 @@ def _train_minor_global_caan(dataset, gcn_cfg, dataset_cfg, caan_components, mod
 def make_caan_udf(super_nodes_dict_bc, minor_node_to_idx_bc, minor_feats_arr_bc,
                   minor_labels_arr_bc, minor_splits_arr_bc, minor_ids_arr_bc,
                   caan_adj_bc, node_to_comm_bc, major_comms_bc,
-                  base_weights_bc=None, base_embeddings_bc=None, base_node_map_bc=None):
-    def _train_gnn_community_caan_single(pdf):
+                  base_weights_bc=None, base_embeddings_bc=None, base_node_map_bc=None,
+                  p2_nodes_url=None, p2_edges_url=None):
+    def _train_gnn_community_caan_single(pdf, comm_edges_pdf):
         import os, time, subprocess, sys, resource
         import numpy as np
         import pandas as pd
@@ -442,7 +475,13 @@ def make_caan_udf(super_nodes_dict_bc, minor_node_to_idx_bc, minor_feats_arr_bc,
             super_feats = np.empty((0, feat_dim), dtype=np.float32)
             
         # 1. Map neighbors first to identify connected minor nodes
-        exploded = pdf[['id', 'neighbors']].explode('neighbors').dropna()
+        if comm_edges_pdf is not None and len(comm_edges_pdf) > 0:
+            exploded = pd.DataFrame({
+                'id': comm_edges_pdf['src'].values,
+                'neighbors': comm_edges_pdf['dst'].values
+            })
+        else:
+            exploded = pd.DataFrame(columns=['id', 'neighbors'])
         connected_minor_ids = set()
         
         if len(exploded) > 0:
@@ -945,12 +984,48 @@ def make_caan_udf(super_nodes_dict_bc, minor_node_to_idx_bc, minor_feats_arr_bc,
             'peak_mem_mb':   peak_mem / 1e6,
         }])
         
-    def _train_gnn_bin_caan(pdf):
+    def _train_gnn_bin_caan(key, manifest_pdf):
+        # Set inter-op and intra-op thread counts strictly on the worker
+        try:
+            import torch
+            torch.set_num_threads(1)
+            torch.set_num_interop_threads(1)
+        except Exception:
+            pass
+
         import pandas as pd
         results = []
-        for comm_id, group_pdf in pdf.groupby('community_id'):
-            res_row = _train_gnn_community_caan_single(group_pdf)
+        for _, row in manifest_pdf.iterrows():
+            comm_id = int(row['community_id'])
+            pdf, comm_edges_pdf = _load_community_data(p2_nodes_url, p2_edges_url, comm_id)
+            if pdf is None or len(pdf) == 0:
+                results.append(pd.DataFrame([{
+                    'community_id':   comm_id,
+                    'n_nodes':        0, 'n_edges': 0, 'n_train': 0, 'n_val': 0, 'n_test': 0,
+                    'n_boundary':     0, 'n_internal': 0, 'comm_test_acc': 0.0, 'boundary_acc': 0.0,
+                    'internal_acc':   0.0, 'comm_link_auc': 0.5, 'size_bucket': 'empty',
+                    'load_time_s':    0.0, 'node_train_time_s': 0.0, 'link_train_time_s': 0.0, 'peak_mem_mb': 0.0
+                }]))
+                continue
+
+            pdf['_num_classes'] = int(row['_num_classes'])
+            pdf['_hidden']      = int(row['_hidden'])
+            pdf['_epochs']      = int(row['_epochs'])
+            pdf['_lr']          = float(row['_lr'])
+            pdf['_dropout']     = float(row['_dropout'])
+            pdf['_task_type']   = str(row['_task_type'])
+            pdf['_model_type']  = str(row['_model_type'])
+
+            res_row = _train_gnn_community_caan_single(pdf, comm_edges_pdf)
             results.append(res_row)
+
+        if len(results) == 0:
+            return pd.DataFrame(columns=[
+                'community_id', 'n_nodes', 'n_edges', 'n_train', 'n_val', 'n_test',
+                'n_boundary', 'n_internal', 'comm_test_acc', 'boundary_acc',
+                'internal_acc', 'comm_link_auc', 'size_bucket', 'load_time_s',
+                'node_train_time_s', 'link_train_time_s', 'peak_mem_mb'
+            ])
         return pd.concat(results, ignore_index=True)
         
     return _train_gnn_bin_caan
@@ -959,6 +1034,7 @@ def run_phase3b(spark, sc, datasets, algorithms, use_global_mapping,
                 dataset_cfg, gcn_cfg, get_paths_fn, timing, results, **kwargs):
     """
     Train GNN models per community using Spark groupBy().applyInPandas() with CaaN Global Graph.
+    Optimized for massive EMR clusters and shuffless execution.
     """
     task_type = kwargs.get('task_type', 'node_classification')
     gnn_models = kwargs.get('models', ['sage'])
@@ -979,20 +1055,9 @@ def run_phase3b(spark, sc, datasets, algorithms, use_global_mapping,
         for alg in algorithms:
             p_alg = get_paths_fn(dataset, alg)
             
-            # Load community assignments
+            # Load community assignments and p2_nodes (already contains split, community_id, and is_boundary)
             comms_df = spark.read.format('delta').load(p_alg['communities'])
-            
-            # Load split masks and unique boundary flags
-            masks_df = spark.read.format('delta').load(p['masks'])
-            p2_nodes_df = spark.read.format('delta').load(p_alg['p2_nodes'])
-            unique_boundary = p2_nodes_df.select('id', 'is_boundary').distinct()
-            
-            # Join community assignments and node details
-            nodes_w_comm = (raw_nodes_df
-                            .join(masks_df.select('id', 'split'), on='id', how='inner')
-                            .join(comms_df, on='id', how='inner')
-                            .join(unique_boundary, on='id', how='left')
-                            .withColumn('is_boundary', F.coalesce(F.col('is_boundary'), F.lit(False))))
+            nodes_w_comm = spark.read.format('delta').load(p_alg['p2_nodes'])
             
             # Compute community sizes
             comm_sizes = comms_df.groupBy('community_id').count().collect()
@@ -1046,24 +1111,30 @@ def run_phase3b(spark, sc, datasets, algorithms, use_global_mapping,
                     'split': str(row['split'])
                 }
                 
-            # Mapped global caan edges
-            edges_w_comm = raw_edges_df.join(
-                comms_df.withColumnRenamed('id', 'src').withColumnRenamed('community_id', 'src_comm'),
-                on='src', how='inner'
-            ).join(
-                comms_df.withColumnRenamed('id', 'dst').withColumnRenamed('community_id', 'dst_comm'),
-                on='dst', how='inner'
-            )
-            
-            caan_edges_df = edges_w_comm.select(
-                F.when(F.col('src_comm').isin(list(major_comms)), -1000 - F.col('src_comm')).otherwise(F.col('src')).alias('src_mapped'),
-                F.when(F.col('dst_comm').isin(list(major_comms)), -1000 - F.col('dst_comm')).otherwise(F.col('dst')).alias('dst_mapped')
-            ).filter(F.col('src_mapped') != F.col('dst_mapped')).distinct()
-            
-            caan_edges = [(row['src_mapped'], row['dst_mapped']) for row in caan_edges_df.collect()]
-            
+            # Map-side broadcast edge mapping (completely shuffless!)
             node_to_comm_pd = comms_df.toPandas()
             node_to_comm = dict(zip(node_to_comm_pd['id'].astype(int), node_to_comm_pd['community_id'].astype(int)))
+
+            node_to_comm_bc = sc.broadcast(node_to_comm)
+            major_comms_bc = sc.broadcast(set(major_comms))
+
+            def map_edges(iterator):
+                n2c = node_to_comm_bc.value
+                maj = major_comms_bc.value
+                for row in iterator:
+                    u, v = row.src, row.dst
+                    u_comm = n2c.get(u, -1)
+                    v_comm = n2c.get(v, -1)
+                    u_mapped = -1000 - u_comm if u_comm in maj else u
+                    v_mapped = -1000 - v_comm if v_comm in maj else v
+                    if u_mapped != v_mapped:
+                        yield (u_mapped, v_mapped)
+
+            print("    - Computing global CAAN edges map-side (shuffless RDD partitioning)...")
+            caan_edges = (raw_edges_df.rdd
+                          .mapPartitions(map_edges)
+                          .distinct()
+                          .collect())
             
             # Broadcast caan components - Driver-side pre-stacking for optimization
             minor_ids = list(minor_nodes_dict.keys())
@@ -1101,10 +1172,6 @@ def run_phase3b(spark, sc, datasets, algorithms, use_global_mapping,
                 'minor_nodes_dict': minor_nodes_dict,
                 'caan_edges': caan_edges
             }
-            
-            major_nodes_spark = nodes_w_comm.filter(F.col('community_id').isin(list(major_comms)))
-            edge_agg = raw_edges_df.groupBy('src').agg(F.collect_list('dst').alias('neighbors')).withColumnRenamed('src', 'id')
-            training_df_base = major_nodes_spark.join(edge_agg, on='id', how='left')
             
             for model_type in gnn_models:
                 key = (dataset, alg, model_type)
@@ -1192,8 +1259,8 @@ def run_phase3b(spark, sc, datasets, algorithms, use_global_mapping,
                     import dgl
                     
                     print("  [Driver Warmstart] Extracting representative community for driver-side pre-training...")
-                    comms_node_counts = training_df_base.groupBy('community_id').count().toPandas()
-                    comms_sorted = comms_node_counts.sort_values(by='count', ascending=False)
+                    comms_node_counts_df = nodes_w_comm.select('community_id').groupBy('community_id').count().toPandas()
+                    comms_sorted = comms_node_counts_df.sort_values(by='count', ascending=False)
                     
                     valid_comms = comms_sorted[comms_sorted['count'] <= 100_000]
                     if len(valid_comms) == 0:
@@ -1206,9 +1273,9 @@ def run_phase3b(spark, sc, datasets, algorithms, use_global_mapping,
                     
                     if comm_count > 100_000:
                         print(f"  [Driver Warmstart] Community size ({comm_count:,} nodes) exceeds driver RAM safety limit — sub-sampling 50,000 nodes...")
-                        large_comm_pdf = training_df_base.filter(F.col('community_id') == largest_comm_id).limit(50000).toPandas()
+                        large_comm_pdf = nodes_w_comm.filter(F.col('community_id') == largest_comm_id).limit(50000).toPandas()
                     else:
-                        large_comm_pdf = training_df_base.filter(F.col('community_id') == largest_comm_id).toPandas()
+                        large_comm_pdf = nodes_w_comm.filter(F.col('community_id') == largest_comm_id).toPandas()
                     
                     in_feats = len(large_comm_pdf['features'].iloc[0])
                     num_classes = int(cfg['num_classes'])
@@ -1219,12 +1286,13 @@ def run_phase3b(spark, sc, datasets, algorithms, use_global_mapping,
                     n_nodes = len(all_nodes)
                     node_map = {int(n): i for i, n in enumerate(all_nodes)}
                     
-                    exploded = large_comm_pdf[['id', 'neighbors']].explode('neighbors').dropna()
-                    if len(exploded) > 0:
-                        exploded['neighbors'] = exploded['neighbors'].astype(np.int64)
-                        exploded = exploded[exploded['neighbors'].isin(node_map)]
-                        src_l = exploded['id'].map(node_map).values.astype(np.int64)
-                        dst_l = exploded['neighbors'].map(node_map).values.astype(np.int64)
+                    large_edges_pdf = spark.read.format('delta').load(p_alg['p2_edges']).filter(F.col('community_id') == largest_comm_id).toPandas()
+                    if len(large_edges_pdf) > 0:
+                        src_arr = large_edges_pdf['src'].values.astype(np.int64)
+                        dst_arr = large_edges_pdf['dst'].values.astype(np.int64)
+                        valid = np.isin(src_arr, all_nodes) & np.isin(dst_arr, all_nodes)
+                        src_l = np.array([node_map[s] for s in src_arr[valid]], dtype=np.int64)
+                        dst_l = np.array([node_map[d] for d in dst_arr[valid]], dtype=np.int64)
                     else:
                         src_l = np.array([], dtype=np.int64)
                         dst_l = np.array([], dtype=np.int64)
@@ -1299,20 +1367,19 @@ def run_phase3b(spark, sc, datasets, algorithms, use_global_mapping,
                 )
                 
                 # 2. Driver-side Community Binning
-                comms_node_counts = training_df_base.groupBy('community_id').count().toPandas()
-                comms_node_counts = comms_node_counts.sort_values(by='count', ascending=False).reset_index(drop=True)
+                comms_node_counts_df = nodes_w_comm.select('community_id').groupBy('community_id').count().toPandas()
+                comms_node_counts_df = comms_node_counts_df.sort_values(by='count', ascending=False).reset_index(drop=True)
                 
-                num_comms = len(comms_node_counts)
+                num_comms = len(comms_node_counts_df)
                 bin_size = 1 if num_comms <= 200 else 50
                 num_bins = int(np.ceil(num_comms / float(bin_size)))
                 if num_bins < 1:
                     num_bins = 1
-                comms_node_counts['bin_id'] = [i % num_bins for i in range(len(comms_node_counts))]
+                comms_node_counts_df['bin_id'] = [i % num_bins for i in range(len(comms_node_counts_df))]
                 
-                bin_mapping_df = spark.createDataFrame(comms_node_counts[['community_id', 'bin_id']])
-                training_df_bin = training_df_base.join(bin_mapping_df, on='community_id', how='left')
-
-                training_df = (training_df_bin
+                bin_mapping_df = spark.createDataFrame(comms_node_counts_df[['community_id', 'bin_id']])
+                
+                manifest_df = (bin_mapping_df
                     .withColumn('_num_classes', F.lit(int(cfg['num_classes'])))
                     .withColumn('_hidden',      F.lit(int(gcn_cfg['hidden_dim'])))
                     .withColumn('_epochs',      F.lit(int(gcn_cfg['num_epochs'])))
@@ -1333,11 +1400,14 @@ def run_phase3b(spark, sc, datasets, algorithms, use_global_mapping,
                     major_comms_bc=major_comms_bc,
                     base_weights_bc=base_weights_bc,
                     base_embeddings_bc=base_embeddings_bc,
-                    base_node_map_bc=base_node_map_bc
+                    base_node_map_bc=base_node_map_bc,
+                    p2_nodes_url=p_alg['p2_nodes'],
+                    p2_edges_url=p_alg['p2_edges']
                 )
                 
                 sc.setJobDescription(f'phase3b_{dataset}_{alg}_{model_type}')
-                major_results = (training_df
+                major_results = (manifest_df
+                                 .repartition(num_bins, 'bin_id')
                                  .groupBy('bin_id')
                                  .applyInPandas(caan_udf, schema=result_schema))
                 major_pd = major_results.toPandas()

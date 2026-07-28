@@ -528,10 +528,10 @@ def run_phase0(spark, sc, datasets, run_phase0_flag, use_ogb_splits,
             pdf_nodes = pd.DataFrame({
                 'id':       np.arange(s, e, dtype=np.int64),
                 'label':    lbl[s:e].astype(np.int32),
-                'features': [x.tolist() for x in node_feat[s:e]]
+                'features': node_feat[s:e].tolist()
             })
             df   = spark.createDataFrame(pdf_nodes, schema=ns)
-            df.coalesce(1).write.format('delta').mode('overwrite' if s == 0 else 'append').save(p['original_nodes'])
+            df.write.format('delta').mode('overwrite' if s == 0 else 'append').save(p['original_nodes'])
         print(f"  Original nodes written → {p['original_nodes']}")
 
         # Write original (directed) edges
@@ -543,7 +543,7 @@ def run_phase0(spark, sc, datasets, run_phase0_flag, use_ogb_splits,
                 'dst': dst_r[s:e].astype(np.int64)
             })
             df   = spark.createDataFrame(pdf_edges, schema=es_orig)
-            df.coalesce(1).write.format('delta').mode('overwrite' if s == 0 else 'append').save(p['original_edges'])
+            df.write.format('delta').mode('overwrite' if s == 0 else 'append').save(p['original_edges'])
         print(f"  Original edges written → {p['original_edges']}")
 
         # Undirected deduped edges
@@ -568,10 +568,10 @@ def run_phase0(spark, sc, datasets, run_phase0_flag, use_ogb_splits,
             pdf_nodes = pd.DataFrame({
                 'id':       np.arange(s, e, dtype=np.int64),
                 'label':    lbl[s:e].astype(np.int32),
-                'features': [x.tolist() for x in node_feat[s:e]]
+                'features': node_feat[s:e].tolist()
             })
             df   = spark.createDataFrame(pdf_nodes, schema=ns)
-            df.coalesce(1).write.format('delta').mode('overwrite' if s == 0 else 'append').save(p['nodes'])
+            df.write.format('delta').mode('overwrite' if s == 0 else 'append').save(p['nodes'])
         print(f"  Nodes written.")
 
         # Write processed edges
@@ -582,7 +582,7 @@ def run_phase0(spark, sc, datasets, run_phase0_flag, use_ogb_splits,
                 'dst': dst_f[s:e].astype(np.int64)
             })
             df   = spark.createDataFrame(pdf_edges, schema=es)
-            df.coalesce(1).write.format('delta').mode('overwrite' if s == 0 else 'append').save(p['edges'])
+            df.write.format('delta').mode('overwrite' if s == 0 else 'append').save(p['edges'])
         print(f"  Edges written.")
 
         # Write masks
