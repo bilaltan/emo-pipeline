@@ -39,7 +39,7 @@ RUN_PHASE1         = True             # Set to False to skip community detection
 ALGORITHMS_TO_RUN  = ['lpa']
 LPA_MAX_ITER       = 5
 RESOLUTION         = 1.0              # louvain / leiden resolution parameter
-MIN_COMMUNITY_SIZE = 100              # communities smaller than this are excluded
+MIN_COMMUNITY_SIZE = 1000              # communities smaller than this are excluded
 
 # ── Phase 2 / 3: Partitioning & GNN Training ──────────────────────────────────
 # USE_GLOBAL_MAPPING = True  (RECOMMENDED):
@@ -59,7 +59,7 @@ RUN_PHASE3B       = True              # Phase 3b: CaaN Global Graph GNN Training
 
 # ── New Advanced Features ──────────────────────────────────────────────────────
 # Tiny community handling: 'drop' (ignore them), 'misc' (group them all into community_id = -1)
-TINY_COMM_HANDLING  = 'misc'
+TINY_COMM_HANDLING  = 'drop'
 
 # 1-hop boundary expansion: If True, include 1-hop external neighbors for boundary nodes.
 # NOTE: increases data size but improves boundary accuracy significantly.
