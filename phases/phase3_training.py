@@ -27,12 +27,66 @@ def _make_result_schema():
         StructField('peak_mem_mb',    DoubleType()),
     ])
 
+def _load_community_data(nodes_url, edges_url, comm_id):
+    """
+    Direct C++ PyArrow Dataset reader for worker tasks.
+    Reads community partition nodes and edges directly from S3/disk Delta Parquet files,
+    bypassing Spark IPC network shuffle entirely.
+    """
+    import pyarrow.dataset as ds
+    import pyarrow.fs as fs
+    import pandas as pd
+
+    def _read_table(url, c_id):
+        if url.startswith("s3://"):
+            s3, path = fs.S3FileSystem.from_uri(url)
+            dataset = ds.dataset(path, filesystem=s3, format="parquet", ignore_prefixes=['_delta_log', '.'])
+        else:
+            local_path = url.replace("file://", "")
+            dataset = ds.dataset(local_path, format="parquet", ignore_prefixes=['_delta_log', '.'])
+        
+        filtered_table = dataset.to_table(filter=(ds.field("community_id") == c_id))
+        return filtered_table.to_pandas()
+
+    try:
+        nodes_pdf = _read_table(nodes_url, comm_id)
+    except Exception:
+        nodes_pdf = pd.DataFrame()
+
+    try:
+        edges_pdf = _read_table(edges_url, comm_id)
+    except Exception:
+        edges_pdf = pd.DataFrame()
+
+    return nodes_pdf, edges_pdf
+
 def _train_gnn_community_single(pdf, comm_edges_pdf=None, base_weights_bc=None, base_embeddings_bc=None, base_node_map_bc=None):
     """
     Spark Pandas UDF — runs on executor, one call per community.
     Hyperparams are read from constant DataFrame columns to avoid closure issues.
     Returns one-row DataFrame per community with all metrics.
     """
+    if pdf is None or len(pdf) == 0:
+        return pd.DataFrame([{
+            'community_id':   -1,
+            'n_nodes':        0,
+            'n_edges':        0,
+            'n_train':        0,
+            'n_val':          0,
+            'n_test':         0,
+            'n_boundary':     0,
+            'n_internal':     0,
+            'comm_test_acc':  0.0,
+            'boundary_acc':   0.0,
+            'internal_acc':   0.0,
+            'comm_link_auc':  0.5,
+            'size_bucket':    'empty',
+            'load_time_s':    0.0,
+            'node_train_time_s': 0.0,
+            'link_train_time_s': 0.0,
+            'peak_mem_mb':    0.0,
+        }])
+
     import os, time, subprocess, sys, resource
     import numpy as np
     import pandas as pd
@@ -974,41 +1028,17 @@ def run_phase3(spark, sc, datasets, algorithms, use_global_mapping,
                 except Exception as base_err:
                     print(f"  Warning: Skipped warm-start driver pre-training: {base_err}")
 
-                # 2. Parallel Community GNN Execution via Direct Spark Partitioning
-                # 2. Parallel Community GNN Execution via Direct Spark Partitioning with PyArrow IPC
+                # 2. Parallel Manifest-Driven GNN Execution (Zero-Shuffle Architecture)
                 spark.conf.set("spark.sql.execution.arrow.pyspark.enabled", "true")
                 spark.conf.set("spark.sql.execution.arrow.pyspark.fallback.enabled", "true")
 
-                comms_node_counts = nodes_df.select('community_id').groupBy('community_id').count().toPandas()
-                num_comms = len(comms_node_counts)
-                num_bins = min(max(2520, int(spark.conf.get("spark.sql.shuffle.partitions", "2520"))), num_comms)
-                
-                print(f"  Distributing {num_comms:,} communities in parallel across {num_bins} YARN tasks...")
-
+                p2_nodes_url = p_alg['p2_nodes']
                 p2_edges_url = p_alg['p2_edges']
 
-                # Pre-aggregate edge lists per community into a driver-side dict,
-                # then broadcast it to workers. This avoids duplicating the edge
-                # list onto every node row (which caused N_nodes × edge_list OOM).
-                print(f"  Pre-aggregating community edge lists into broadcast dict...")
-                edges_df_p3 = spark.read.parquet(p2_edges_url)
-                comm_edges_pd = (edges_df_p3
-                    .groupBy('community_id')
-                    .agg(
-                        F.collect_list('src').alias('_src_list'),
-                        F.collect_list('dst').alias('_dst_list')
-                    )
-                    .toPandas())
-                # Build broadcast dict: {community_id -> (src_list, dst_list)}
-                comm_edges_bc = sc.broadcast({
-                    int(row['community_id']): (list(row['_src_list']), list(row['_dst_list']))
-                    for _, row in comm_edges_pd.iterrows()
-                })
-                print(f"  ✓ Broadcast edge dict ready: {len(comm_edges_pd):,} communities.")
-                del comm_edges_pd  # free driver memory
-
-                training_df = nodes_df.select('id', 'label', 'features', 'split', 'community_id', 'is_boundary')
-                training_df = (training_df
+                print(f"  [Manifest Architecture] Extracting community manifest...")
+                comms_node_counts = nodes_df.select('community_id').groupBy('community_id').count()
+                
+                manifest_df = (comms_node_counts
                     .withColumn('_num_classes', F.lit(int(cfg['num_classes'])))
                     .withColumn('_hidden',      F.lit(int(gcn_cfg['hidden_dim'])))
                     .withColumn('_epochs',      F.lit(int(gcn_cfg['num_epochs'])))
@@ -1017,15 +1047,33 @@ def run_phase3(spark, sc, datasets, algorithms, use_global_mapping,
                     .withColumn('_task_type',   F.lit(str(task_type)))
                     .withColumn('_model_type',  F.lit(str(model_type))))
 
-                n_rows  = int(comms_node_counts['count'].sum())
-                n_comms = len(comms_node_counts)
-                print(f"  Training DF: ~{n_rows:,} total nodes | {n_comms:,} communities distributed across {num_bins} YARN executor tasks")
+                num_comms = comms_node_counts.count()
+                num_bins = min(max(2520, int(spark.conf.get("spark.sql.shuffle.partitions", "2520"))), num_comms)
 
-                def _train_gnn_udf(key, pdf):
-                    # Look up this community's edges from the broadcast dict
+                print(f"  Distributing Manifest of {num_comms:,} communities across {num_bins} YARN executor tasks...")
+                print(f"  ✓ Zero-Shuffle Execution: Workers read partition files directly via C++ PyArrow Dataset readers.")
+
+                def _train_gnn_manifest_udf(key, manifest_pdf):
                     comm_id = int(key[0]) if isinstance(key, (tuple, list)) else int(key)
-                    edges = comm_edges_bc.value.get(comm_id, ([], []))
-                    comm_edges_pdf = pd.DataFrame({'src': edges[0], 'dst': edges[1]})
+                    pdf, comm_edges_pdf = _load_community_data(p2_nodes_url, p2_edges_url, comm_id)
+                    
+                    if pdf is None or len(pdf) == 0:
+                        return pd.DataFrame([{
+                            'community_id':   comm_id,
+                            'n_nodes':        0, 'n_edges': 0, 'n_train': 0, 'n_val': 0, 'n_test': 0,
+                            'n_boundary':     0, 'n_internal': 0, 'comm_test_acc': 0.0, 'boundary_acc': 0.0,
+                            'internal_acc':   0.0, 'comm_link_auc': 0.5, 'size_bucket': 'empty',
+                            'load_time_s':    0.0, 'node_train_time_s': 0.0, 'link_train_time_s': 0.0, 'peak_mem_mb': 0.0
+                        }])
+
+                    pdf['_num_classes'] = int(manifest_pdf['_num_classes'].iloc[0])
+                    pdf['_hidden']      = int(manifest_pdf['_hidden'].iloc[0])
+                    pdf['_epochs']      = int(manifest_pdf['_epochs'].iloc[0])
+                    pdf['_lr']          = float(manifest_pdf['_lr'].iloc[0])
+                    pdf['_dropout']     = float(manifest_pdf['_dropout'].iloc[0])
+                    pdf['_task_type']   = str(manifest_pdf['_task_type'].iloc[0])
+                    pdf['_model_type']  = str(manifest_pdf['_model_type'].iloc[0])
+
                     return _train_gnn_community_single(
                         pdf,
                         comm_edges_pdf=comm_edges_pdf,
@@ -1035,12 +1083,11 @@ def run_phase3(spark, sc, datasets, algorithms, use_global_mapping,
                     )
 
                 sc.setJobDescription(f'phase3_{dataset}_{alg}_{model_type}')
-                comm_results = (training_df
+                comm_results = (manifest_df
                                 .repartition(num_bins, 'community_id')
                                 .groupBy('community_id')
-                                .applyInPandas(_train_gnn_udf, schema=result_schema))
-                # Write results to parquet first to avoid driver OOM on large result sets
-                import tempfile
+                                .applyInPandas(_train_gnn_manifest_udf, schema=result_schema))
+                
                 result_tmp_path = f"/tmp/phase3_results_{dataset}_{alg}_{model_type}"
                 comm_results.write.mode('overwrite').parquet(result_tmp_path)
                 comm_pd = spark.read.parquet(result_tmp_path).toPandas()
