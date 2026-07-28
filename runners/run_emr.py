@@ -540,6 +540,10 @@ def main():
         .config("spark.sql.execution.arrow.pyspark.fallback.enabled", "true") \
         .config("spark.sql.execution.arrow.maxRecordsPerBatch", "500") \
         .config("spark.python.worker.reuse", "true") \
+        .config("spark.sql.adaptive.enabled", "true") \
+        .config("spark.sql.adaptive.skewJoin.enabled", "true") \
+        .config("spark.sql.adaptive.skewJoin.skewedPartitionFactor", "3") \
+        .config("spark.sql.adaptive.skewJoin.skewedPartitionThresholdInBytes", "268435456") \
         .config("spark.databricks.delta.retentionDurationCheck.enabled", "false") \
         .config("spark.databricks.delta.vacuum.parallelDelete.enabled", "true") \
         .enableHiveSupport() \

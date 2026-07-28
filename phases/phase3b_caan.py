@@ -23,13 +23,13 @@ def _load_communities_data_batch(nodes_url, edges_url, comm_ids):
 
     try:
         nodes_ds = _get_dataset(nodes_url)
-        nodes_pdf = nodes_ds.to_table(filter=(ds.field("community_id").isin(comm_ids))).to_pandas()
+        nodes_pdf = nodes_ds.to_table(filter=(ds.field("community_id").isin(comm_ids)), use_threads=True).to_pandas()
     except Exception:
         nodes_pdf = pd.DataFrame()
 
     try:
         edges_ds = _get_dataset(edges_url)
-        edges_pdf = edges_ds.to_table(filter=(ds.field("community_id").isin(comm_ids))).to_pandas()
+        edges_pdf = edges_ds.to_table(filter=(ds.field("community_id").isin(comm_ids)), use_threads=True).to_pandas()
     except Exception:
         edges_pdf = pd.DataFrame()
 
