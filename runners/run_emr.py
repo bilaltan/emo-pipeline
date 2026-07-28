@@ -384,23 +384,22 @@ def main():
     #    cores ≤ available_vcores                 (CPU limit)
     # ═══════════════════════════════════════════════════════════════════════════
 
-    # Step 1: Estimate Python RAM per concurrent task based on dataset scale
+    # Step 1: Estimate Python RAM per concurrent task based on dataset scale.
+    # Since we use Zero-Shuffle PyArrow community filtering, executors only load tiny subgraphs (under 20MB)
+    # and never load the full graph. We cap python_ram_per_task to 1.5 GB to maximize container bin-packing.
     if edges_size_mb <= 20.0:
         scale_label = "Small/Medium"
-        python_ram_per_task = 1.0
+        python_ram_per_task = 0.8
     elif edges_size_mb <= 300.0:
         scale_label = "Large (100M Scale)"
-        python_ram_per_task = 2.5
-    elif edges_size_mb <= 2000.0:
-        scale_label = "Very Large (500M Scale)"
-        python_ram_per_task = 4.0
+        python_ram_per_task = 1.0
     else:
-        scale_label = "Massive (1B+ Scale)"
-        python_ram_per_task = 6.5
+        scale_label = "Very Large/Massive"
+        python_ram_per_task = 1.5
 
-    # Cap max_cores to 3 to provide ~7.3 GB off-heap headroom per PyTorch task, eliminating YARN 137 OOM kills.
-    max_cores = 3
-    jvm_heap_min = 12.0
+    # Cap max_cores to 4 to align with physical cores and maximize container density
+    max_cores = 4
+    jvm_heap_min = 4.0
 
     OS_RESERVE_GB   = max(16.0, node_mem_gb * 0.08)   # reserved for OS kernel + YARN NodeManager daemon
     DRIVER_FRACTION = 0.75  # fraction of driver host RAM for driver container
