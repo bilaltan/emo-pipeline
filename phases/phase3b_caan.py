@@ -8,13 +8,42 @@ _DS_CACHE = {}
 def _get_dataset(url):
     if url not in _DS_CACHE:
         import pyarrow.dataset as ds
-        import pyarrow.fs as fs
+        import subprocess, hashlib
+
         if url.startswith("s3://"):
-            s3, path = fs.S3FileSystem.from_uri(url)
-            _DS_CACHE[url] = ds.dataset(path, filesystem=s3, format="parquet", ignore_prefixes=['_delta_log', '.'])
+            candidates = ["/mnt1/tmp", "/mnt/tmp", "/mnt2/tmp", "/mnt/spark", "/mnt1/spark", "/mnt2/spark", "/tmp"]
+            worker_tmp = "/tmp"
+            for c in candidates:
+                if os.path.exists(c) and os.access(c, os.W_OK):
+                    worker_tmp = c
+                    break
+            
+            url_hash = hashlib.md5(url.encode('utf-8')).hexdigest()[:12]
+            local_dir = f"{worker_tmp}/s3_cache_{url_hash}"
+            flag_file = f"{local_dir}/_SYNC_COMPLETE"
+
+            if not os.path.exists(flag_file):
+                os.makedirs(local_dir, exist_ok=True)
+                cmd = ["aws", "s3", "sync", url, local_dir, "--quiet", "--exclude", "_delta_log/*"]
+                try:
+                    subprocess.run(cmd, check=True)
+                    with open(flag_file, "w") as f:
+                        f.write("OK")
+                except Exception:
+                    pass
+
+            if os.path.exists(flag_file):
+                local_path = local_dir
+            else:
+                import pyarrow.fs as fs
+                s3, path = fs.S3FileSystem.from_uri(url)
+                _DS_CACHE[url] = ds.dataset(path, filesystem=s3, format="parquet", ignore_prefixes=['_delta_log', '.'])
+                return _DS_CACHE[url]
         else:
             local_path = url.replace("file://", "")
-            _DS_CACHE[url] = ds.dataset(local_path, format="parquet", ignore_prefixes=['_delta_log', '.'])
+
+        _DS_CACHE[url] = ds.dataset(local_path, format="parquet", ignore_prefixes=['_delta_log', '.'])
+
     return _DS_CACHE[url]
 
 def _load_communities_data_batch(nodes_url, edges_url, comm_ids):
@@ -123,6 +152,10 @@ def _train_minor_global_caan(dataset, gcn_cfg, dataset_cfg, caan_components, mod
         dst_l_g = dst_l
         
     n_nodes = len(node_map)
+    if len(src_l_g) > 0:
+        mask = (src_l_g >= 0) & (src_l_g < n_nodes) & (dst_l_g >= 0) & (dst_l_g < n_nodes)
+        src_l_g = src_l_g[mask]
+        dst_l_g = dst_l_g[mask]
     n_edges = len(src_l_g)
     
     has_lbl = torch.tensor(label_arr >= 0, dtype=torch.bool)
@@ -606,8 +639,12 @@ def make_caan_udf(super_nodes_dict_bc, minor_node_to_idx_bc, minor_feats_arr_bc,
             src_l_g = src_l
             dst_l_g = dst_l
             
-        n_edges = len(src_l_g)
         n_nodes = len(node_map)
+        if len(src_l_g) > 0:
+            mask = (src_l_g >= 0) & (src_l_g < n_nodes) & (dst_l_g >= 0) & (dst_l_g < n_nodes)
+            src_l_g = src_l_g[mask]
+            dst_l_g = dst_l_g[mask]
+        n_edges = len(src_l_g)
         
         t_load = time.time() - t_start
         t_dgl_conv_start = time.time()

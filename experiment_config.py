@@ -52,8 +52,8 @@ RUN_PHASE3         = True             # Set to False to skip parallel GNN UDF tr
 USE_GLOBAL_MAPPING = True
 
 GCN_HIDDEN_DIM    = 256
-GCN_NUM_EPOCHS    = 5
-GCN_LR            = 0.001
+GCN_NUM_EPOCHS    = 30
+GCN_LR            = 0.005
 GCN_DROPOUT       = 0.5
 RUN_PHASE3B       = True              # Phase 3b: CaaN Global Graph GNN Training
 
