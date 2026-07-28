@@ -17,23 +17,24 @@ def _get_dataset(url):
             _DS_CACHE[url] = ds.dataset(local_path, format="parquet", ignore_prefixes=['_delta_log', '.'])
     return _DS_CACHE[url]
 
-def _load_community_data(nodes_url, edges_url, comm_id):
+def _load_communities_data_batch(nodes_url, edges_url, comm_ids):
     import pyarrow.dataset as ds
     import pandas as pd
 
     try:
         nodes_ds = _get_dataset(nodes_url)
-        nodes_pdf = nodes_ds.to_table(filter=(ds.field("community_id") == comm_id)).to_pandas()
+        nodes_pdf = nodes_ds.to_table(filter=(ds.field("community_id").isin(comm_ids))).to_pandas()
     except Exception:
         nodes_pdf = pd.DataFrame()
 
     try:
         edges_ds = _get_dataset(edges_url)
-        edges_pdf = edges_ds.to_table(filter=(ds.field("community_id") == comm_id)).to_pandas()
+        edges_pdf = edges_ds.to_table(filter=(ds.field("community_id").isin(comm_ids))).to_pandas()
     except Exception:
         edges_pdf = pd.DataFrame()
 
     return nodes_pdf, edges_pdf
+
 
 def _train_minor_global_caan(dataset, gcn_cfg, dataset_cfg, caan_components, model_type, task_type='node_classification'):
     import os, time
@@ -994,10 +995,23 @@ def make_caan_udf(super_nodes_dict_bc, minor_node_to_idx_bc, minor_feats_arr_bc,
             pass
 
         import pandas as pd
+        comm_ids = manifest_pdf['community_id'].unique().tolist()
+        nodes_pdf_all, edges_pdf_all = _load_communities_data_batch(p2_nodes_url, p2_edges_url, comm_ids)
+
         results = []
         for _, row in manifest_pdf.iterrows():
             comm_id = int(row['community_id'])
-            pdf, comm_edges_pdf = _load_community_data(p2_nodes_url, p2_edges_url, comm_id)
+            
+            if len(nodes_pdf_all) > 0:
+                pdf = nodes_pdf_all[nodes_pdf_all['community_id'] == comm_id].copy()
+            else:
+                pdf = pd.DataFrame()
+
+            if len(edges_pdf_all) > 0:
+                comm_edges_pdf = edges_pdf_all[edges_pdf_all['community_id'] == comm_id].copy()
+            else:
+                comm_edges_pdf = pd.DataFrame()
+            
             if pdf is None or len(pdf) == 0:
                 results.append(pd.DataFrame([{
                     'community_id':   comm_id,

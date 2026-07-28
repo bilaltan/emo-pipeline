@@ -41,28 +41,28 @@ def _get_dataset(url):
             _DS_CACHE[url] = ds.dataset(local_path, format="parquet", ignore_prefixes=['_delta_log', '.'])
     return _DS_CACHE[url]
 
-def _load_community_data(nodes_url, edges_url, comm_id):
+def _load_communities_data_batch(nodes_url, edges_url, comm_ids):
     """
     Direct C++ PyArrow Dataset reader for worker tasks.
-    Reads community partition nodes and edges directly from S3/disk Delta Parquet files,
-    reusing dataset handles per worker process to eliminate S3 metadata latency.
+    Reads multiple community partition nodes and edges directly from S3/disk Delta Parquet files in a single batch.
     """
     import pyarrow.dataset as ds
     import pandas as pd
 
     try:
         nodes_ds = _get_dataset(nodes_url)
-        nodes_pdf = nodes_ds.to_table(filter=(ds.field("community_id") == comm_id)).to_pandas()
+        nodes_pdf = nodes_ds.to_table(filter=(ds.field("community_id").isin(comm_ids))).to_pandas()
     except Exception:
         nodes_pdf = pd.DataFrame()
 
     try:
         edges_ds = _get_dataset(edges_url)
-        edges_pdf = edges_ds.to_table(filter=(ds.field("community_id") == comm_id)).to_pandas()
+        edges_pdf = edges_ds.to_table(filter=(ds.field("community_id").isin(comm_ids))).to_pandas()
     except Exception:
         edges_pdf = pd.DataFrame()
 
     return nodes_pdf, edges_pdf
+
 
 def _train_gnn_community_single(pdf, comm_edges_pdf=None, base_weights_bc=None, base_embeddings_bc=None, base_node_map_bc=None):
     """
@@ -1142,10 +1142,22 @@ def run_phase3(spark, sc, datasets, algorithms, use_global_mapping,
                     except Exception:
                         pass
 
+                    comm_ids = manifest_pdf['community_id'].unique().tolist()
+                    nodes_pdf_all, edges_pdf_all = _load_communities_data_batch(p2_nodes_url, p2_edges_url, comm_ids)
+
                     results = []
                     for _, row in manifest_pdf.iterrows():
                         comm_id = int(row['community_id'])
-                        pdf, comm_edges_pdf = _load_community_data(p2_nodes_url, p2_edges_url, comm_id)
+                        
+                        if len(nodes_pdf_all) > 0:
+                            pdf = nodes_pdf_all[nodes_pdf_all['community_id'] == comm_id].copy()
+                        else:
+                            pdf = pd.DataFrame()
+
+                        if len(edges_pdf_all) > 0:
+                            comm_edges_pdf = edges_pdf_all[edges_pdf_all['community_id'] == comm_id].copy()
+                        else:
+                            comm_edges_pdf = pd.DataFrame()
                         
                         if pdf is None or len(pdf) == 0:
                             results.append(pd.DataFrame([{

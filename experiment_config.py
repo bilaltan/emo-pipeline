@@ -63,7 +63,7 @@ TINY_COMM_HANDLING  = 'drop'
 
 # 1-hop boundary expansion: If True, include 1-hop external neighbors for boundary nodes.
 # NOTE: increases data size but improves boundary accuracy significantly.
-EXPAND_BOUNDARY_NODES = True
+EXPAND_BOUNDARY_NODES = False
 
 # Task Type: 'node_classification' or 'link_prediction'
 TASK_TYPE = 'node_classification'
