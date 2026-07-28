@@ -651,8 +651,9 @@ def main():
                         return False
                 return True
 
-            # If already fully built on this node, exit immediately
+            # If already fully built on this node, hold slot briefly so Spark schedules tasks to all worker nodes
             if check_all_imported():
+                time.sleep(3)
                 return [f"{node_name}: Success (Cached)"]
 
             # Acquire node lock to install sequentially on this node
@@ -705,17 +706,36 @@ def main():
 
         try:
             num_executors = int(spark.conf.get("spark.executor.instances", "4"))
-            print(f"  ► Syncing dependencies on all YARN executor nodes...")
+            print(f"  ► Dynamically detecting YARN cluster worker nodes...")
 
-            # Discover all physical worker nodes registered in the cluster using standard PySpark API
+            # Dynamically query YARN ResourceManager REST API for physical RUNNING worker nodes
+            import json, urllib.request, socket
+            driver_host = socket.gethostname().split('.')[0]
+            all_hosts = set()
+            
             try:
-                exec_infos = sc.statusTracker().getExecutorInfos()
-                all_hosts = set([str(e.host()).split(':')[0] for e in exec_infos if e.host()])
+                url = "http://localhost:8088/ws/v1/cluster/nodes?state=RUNNING"
+                req = urllib.request.urlopen(url, timeout=3)
+                data = json.loads(req.read().decode('utf-8'))
+                nodes = data.get('nodes', {}).get('node', [])
+                all_hosts = set([n.get('nodeHostName', '').split('.')[0] for n in nodes if n.get('nodeHostName')])
             except Exception:
-                all_hosts = set()
+                pass
 
-            if len(all_hosts) > 0:
-                print(f"  ► Cluster Nodes Detected ({len(all_hosts)} hosts): {sorted(list(all_hosts))}")
+            # Fallback to Spark status tracker if YARN REST API is unavailable
+            if len(all_hosts) == 0:
+                try:
+                    exec_infos = sc.statusTracker().getExecutorInfos()
+                    all_hosts = set([
+                        str(e.host()).split('.')[0] 
+                        for e in exec_infos 
+                        if e.host() and str(e.id()) != "driver" and not str(e.host()).startswith(driver_host)
+                    ])
+                except Exception:
+                    all_hosts = set()
+
+            target_count = len(all_hosts)
+            print(f"  ► Physical YARN Worker Nodes Detected ({target_count} hosts): {sorted(list(all_hosts))}")
 
             synced_hosts = set()
             all_reports = []
@@ -730,17 +750,17 @@ def main():
                 for report in results:
                     all_reports.append(report)
                     if "Success" in report:
-                        h = report.split(":")[0].strip()
+                        h = report.split(":")[0].split('.')[0].strip()
                         synced_hosts.add(h)
 
-                if len(all_hosts) > 0 and all_hosts.issubset(synced_hosts):
-                    print(f"  ✓ All {len(all_hosts)} cluster nodes verified and synced successfully on attempt {attempt}.")
+                if target_count > 0 and all_hosts.issubset(synced_hosts):
+                    print(f"  ✓ All {len(synced_hosts)}/{target_count} YARN worker nodes verified and synced successfully on attempt {attempt}.")
                     break
-                elif len(all_hosts) == 0 and len(synced_hosts) >= num_executors:
-                    print(f"  ✓ Synced {len(synced_hosts)} executor nodes successfully.")
+                elif target_count == 0 and len(synced_hosts) >= 4:
+                    print(f"  ✓ Synced {len(synced_hosts)} YARN worker nodes successfully.")
                     break
                 else:
-                    print(f"  ► Sync attempt {attempt}/5: {len(synced_hosts)} nodes synced. Retrying remaining nodes...")
+                    print(f"  ► Sync attempt {attempt}/5: {len(synced_hosts)}/{target_count} worker nodes synced. Retrying remaining nodes...")
                     time.sleep(2)
 
             print("\n  === YARN Executor Package Sync Summary ===")
