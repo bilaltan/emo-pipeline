@@ -29,13 +29,15 @@ def _get_dataset(url):
                         break
                     try:
                         os.makedirs(lock_dir, exist_ok=False)
-                        try:
                             if not os.path.exists(flag_file):
                                 os.makedirs(local_dir, exist_ok=True)
-                                cmd = ["aws", "s3", "sync", url, local_dir, "--quiet", "--exclude", "_delta_log/*"]
+                                cmd = ["aws", "s3", "sync", url, local_dir, "--quiet"]
                                 subprocess.run(cmd, check=True)
-                                with open(flag_file, "w") as f:
-                                    f.write("OK")
+                                import glob
+                                parquet_files = glob.glob(f"{local_dir}/**/*.parquet", recursive=True) + glob.glob(f"{local_dir}/*.parquet")
+                                if len(parquet_files) > 0:
+                                    with open(flag_file, "w") as f:
+                                        f.write("OK")
                         finally:
                             try:
                                 os.rmdir(lock_dir)
