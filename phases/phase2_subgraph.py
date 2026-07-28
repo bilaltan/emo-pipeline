@@ -154,7 +154,8 @@ def run_phase2(spark, sc, datasets, algorithms, use_global_mapping, min_size,
                            .withColumn('orig_deg', F.coalesce('orig_deg', F.lit(0)))
                            .withColumn('intra_deg', F.coalesce('intra_deg', F.lit(0)))
                            .withColumn('is_boundary', (F.col('orig_deg') > F.col('intra_deg')).cast('boolean'))
-                           .withColumn('is_boundary', F.coalesce('is_boundary', F.lit(False))))
+                           .withColumn('is_boundary', F.coalesce('is_boundary', F.lit(False)))
+                           .select('id', 'label', 'features', 'split', 'community_id', 'is_boundary'))
 
             n_boundary = nodes_final.filter(F.col('is_boundary')).count()
             print(f"  Edges kept: {n_intra:,} ({pct_kept:.1f}%)  "
