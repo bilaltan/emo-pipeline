@@ -1113,9 +1113,10 @@ def run_phase3(spark, sc, datasets, algorithms, use_global_mapping,
                 num_comms = len(comms_node_counts_pd)
                 
                 default_para = sc.defaultParallelism
-                num_bins = min(max(default_para * 2, int(spark.conf.get("spark.sql.shuffle.partitions", "200"))), num_comms)
-                if num_bins > 200 and num_comms < 10000:
-                    num_bins = min(200, num_comms)
+                if num_comms <= 2000:
+                    num_bins = num_comms
+                else:
+                    num_bins = min(max(default_para * 4, 1000), num_comms)
 
                 # Group communities into bins to reduce PySpark UDF invocation round-trips
                 comms_node_counts_pd['bin_id'] = [i % num_bins for i in range(num_comms)]

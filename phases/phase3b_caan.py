@@ -1385,10 +1385,11 @@ def run_phase3b(spark, sc, datasets, algorithms, use_global_mapping,
                 comms_node_counts_df = comms_node_counts_df.sort_values(by='count', ascending=False).reset_index(drop=True)
                 
                 num_comms = len(comms_node_counts_df)
-                bin_size = 1 if num_comms <= 200 else 50
-                num_bins = int(np.ceil(num_comms / float(bin_size)))
-                if num_bins < 1:
-                    num_bins = 1
+                if num_comms <= 2000:
+                    num_bins = num_comms
+                else:
+                    default_para = sc.defaultParallelism
+                    num_bins = min(max(default_para * 4, 1000), num_comms)
                 comms_node_counts_df['bin_id'] = [i % num_bins for i in range(len(comms_node_counts_df))]
                 
                 bin_mapping_df = spark.createDataFrame(comms_node_counts_df[['community_id', 'bin_id']])
