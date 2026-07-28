@@ -727,8 +727,8 @@ def main():
 
                 print(f"  ► Sync attempt {attempt}/5: {len(synced_hosts)} worker node(s) verified: {sorted(list(synced_hosts))}")
 
-                # Stop when we hit the configured executor instance target or when discovered host count stabilizes
-                if len(synced_hosts) >= num_executors or (attempt > 1 and len(synced_hosts) == prev_count and len(synced_hosts) >= 2):
+                # Stop when we hit the configured executor instance target
+                if len(synced_hosts) >= num_executors:
                     print(f"  ✓ All {len(synced_hosts)} YARN worker nodes verified and synced successfully.")
                     break
                 

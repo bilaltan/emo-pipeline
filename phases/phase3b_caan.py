@@ -401,9 +401,15 @@ def make_caan_udf(super_nodes_dict_bc, minor_node_to_idx_bc, minor_feats_arr_bc,
             sys.path.insert(0, site_packages)
         os.environ["PYTHONUSERBASE"] = f"{worker_tmp}/.local"
 
-        import torch
-        import torch.nn as nn
-        import torch.nn.functional as F
+        try:
+            import torch
+            import torch.nn as nn
+            import torch.nn.functional as F
+        except Exception:
+            subprocess.run([sys.executable, '-m', 'pip', 'install', '--user', '--quiet', '--no-cache-dir', 'torch', '--index-url', 'https://download.pytorch.org/whl/cpu'], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=True)
+            import torch
+            import torch.nn as nn
+            import torch.nn.functional as F
 
         try:
             if not hasattr(torch, '_orig_load_patched'):
@@ -422,8 +428,15 @@ def make_caan_udf(super_nodes_dict_bc, minor_node_to_idx_bc, minor_feats_arr_bc,
         os.environ.setdefault('DGLBACKEND', 'pytorch')
         os.makedirs('/tmp/.dgl', exist_ok=True)
 
-        import dgl
-        import dgl.nn as dglnn
+        try:
+            import dgl
+            import dgl.nn as dglnn
+        except Exception:
+            subprocess.run([sys.executable, '-m', 'pip', 'install', '--user', '--quiet', '--no-cache-dir',
+                            'dgl==1.1.3', '-f', 'https://data.dgl.ai/wheels/repo.html'],
+                            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=True)
+            import dgl
+            import dgl.nn as dglnn
 
         try:
             omp_threads = int(os.environ.get('OMP_NUM_THREADS', '1'))
