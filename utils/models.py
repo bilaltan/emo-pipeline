@@ -1,17 +1,7 @@
-import torch
-
-class DownstreamNodeClassifier(torch.nn.Module):
-    def __init__(self, input_dim, classes):
-        super().__init__()
-        self.layers = torch.nn.Sequential(
-            torch.nn.Linear(input_dim, 64),
-            torch.nn.ReLU(),
-            torch.nn.Linear(64, 32),
-            torch.nn.ReLU(),
-            torch.nn.Linear(32, classes)
-        )
-    def forward(self, x):
-        return self.layers(x)
+try:
+    import torch
+except ImportError:
+    torch = None
 
 def run_downstream_classification(embed_np, labels_np, train_mask, val_mask, test_mask, num_classes, num_epochs=10, batch_size=128):
     import torch
@@ -20,6 +10,19 @@ def run_downstream_classification(embed_np, labels_np, train_mask, val_mask, tes
     from torch.utils.data import TensorDataset, DataLoader
     from sklearn.model_selection import train_test_split
     
+    class DownstreamNodeClassifier(torch.nn.Module):
+        def __init__(self, input_dim, classes):
+            super().__init__()
+            self.layers = torch.nn.Sequential(
+                torch.nn.Linear(input_dim, 64),
+                torch.nn.ReLU(),
+                torch.nn.Linear(64, 32),
+                torch.nn.ReLU(),
+                torch.nn.Linear(32, classes)
+            )
+        def forward(self, x):
+            return self.layers(x)
+            
     input_dim = embed_np.shape[1]
     model = DownstreamNodeClassifier(input_dim, num_classes)
     
