@@ -495,6 +495,10 @@ def main():
         .config("spark.rpc.message.maxSize", "1024") \
         .config("spark.network.timeout", "1800s") \
         .config("spark.executor.heartbeatInterval", "180s") \
+        .config("spark.speculation", "true") \
+        .config("spark.speculation.interval", "100ms") \
+        .config("spark.speculation.quantile", "0.75") \
+        .config("spark.speculation.multiplier", "2.0") \
         .config("spark.task.maxFailures", "8") \
         .config("spark.stage.maxConsecutiveAttempts", "8") \
         .config("spark.shuffle.io.maxRetries", "10") \
