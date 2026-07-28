@@ -32,8 +32,9 @@ _DS_CACHE = {}
 def _get_dataset(url):
     if url not in _DS_CACHE:
         import pyarrow.dataset as ds
-        import subprocess, hashlib
+        import subprocess, hashlib, glob
 
+        use_local = False
         if url.startswith("s3://"):
             candidates = ["/mnt1/tmp", "/mnt/tmp", "/mnt2/tmp", "/mnt/spark", "/mnt1/spark", "/mnt2/spark", "/tmp"]
             worker_tmp = "/tmp"
@@ -47,6 +48,14 @@ def _get_dataset(url):
             flag_file = f"{local_dir}/_SYNC_COMPLETE"
             lock_dir = f"{local_dir}.lock"
 
+            if os.path.exists(flag_file):
+                p_files = glob.glob(f"{local_dir}/**/*.parquet", recursive=True) + glob.glob(f"{local_dir}/*.parquet")
+                if len(p_files) == 0:
+                    try:
+                        os.remove(flag_file)
+                    except Exception:
+                        pass
+
             if not os.path.exists(flag_file):
                 for _ in range(60):
                     if os.path.exists(flag_file):
@@ -56,11 +65,11 @@ def _get_dataset(url):
                         try:
                             if not os.path.exists(flag_file):
                                 os.makedirs(local_dir, exist_ok=True)
-                                cmd = ["aws", "s3", "sync", url, local_dir, "--quiet"]
+                                s3_url = url if url.endswith('/') else f"{url}/"
+                                cmd = ["aws", "s3", "sync", s3_url, local_dir, "--quiet"]
                                 subprocess.run(cmd, check=True)
-                                import glob
-                                parquet_files = glob.glob(f"{local_dir}/**/*.parquet", recursive=True) + glob.glob(f"{local_dir}/*.parquet")
-                                if len(parquet_files) > 0:
+                                p_files = glob.glob(f"{local_dir}/**/*.parquet", recursive=True) + glob.glob(f"{local_dir}/*.parquet")
+                                if len(p_files) > 0:
                                     with open(flag_file, "w") as f:
                                         f.write("OK")
                         finally:
@@ -74,15 +83,17 @@ def _get_dataset(url):
 
             if os.path.exists(flag_file):
                 local_path = local_dir
-            else:
-                import pyarrow.fs as fs
-                s3, path = fs.S3FileSystem.from_uri(url)
-                _DS_CACHE[url] = ds.dataset(path, filesystem=s3, format="parquet", ignore_prefixes=['_delta_log', '.'])
-                return _DS_CACHE[url]
+                use_local = True
+
+        if use_local:
+            _DS_CACHE[url] = ds.dataset(local_path, format="parquet", ignore_prefixes=['_delta_log', '.'])
+        elif url.startswith("s3://"):
+            import pyarrow.fs as fs
+            s3, path = fs.S3FileSystem.from_uri(url)
+            _DS_CACHE[url] = ds.dataset(path, filesystem=s3, format="parquet", ignore_prefixes=['_delta_log', '.'])
         else:
             local_path = url.replace("file://", "")
-
-        _DS_CACHE[url] = ds.dataset(local_path, format="parquet", ignore_prefixes=['_delta_log', '.'])
+            _DS_CACHE[url] = ds.dataset(local_path, format="parquet", ignore_prefixes=['_delta_log', '.'])
 
     return _DS_CACHE[url]
 
