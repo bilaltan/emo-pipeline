@@ -707,17 +707,23 @@ def main():
             num_executors = int(spark.conf.get("spark.executor.instances", "4"))
             print(f"  ► Syncing dependencies on all YARN executor nodes...")
 
-            # Discover all physical worker nodes registered in the cluster
-            exec_status = sc._jsc.sc().getExecutorMemoryStatus()
-            all_hosts = set([str(k).split(':')[0] for k in exec_status.keys().toArray()])
-            print(f"  ► Cluster Nodes Detected ({len(all_hosts)} hosts): {sorted(list(all_hosts))}")
+            # Discover all physical worker nodes registered in the cluster using standard PySpark API
+            try:
+                exec_infos = sc.statusTracker().getExecutorInfos()
+                all_hosts = set([str(e.host()).split(':')[0] for e in exec_infos if e.host()])
+            except Exception:
+                all_hosts = set()
+
+            if len(all_hosts) > 0:
+                print(f"  ► Cluster Nodes Detected ({len(all_hosts)} hosts): {sorted(list(all_hosts))}")
 
             synced_hosts = set()
             all_reports = []
 
             for attempt in range(1, 6):
                 # Run partition tasks with high partition count to hit all nodes
-                results = sc.parallelize(range(num_executors * 8), num_executors * 8) \
+                n_partitions = max(64, num_executors * 16)
+                results = sc.parallelize(range(n_partitions), n_partitions) \
                             .mapPartitions(run_executor_install) \
                             .collect()
                 
@@ -727,12 +733,14 @@ def main():
                         h = report.split(":")[0].strip()
                         synced_hosts.add(h)
 
-                if all_hosts.issubset(synced_hosts):
+                if len(all_hosts) > 0 and all_hosts.issubset(synced_hosts):
                     print(f"  ✓ All {len(all_hosts)} cluster nodes verified and synced successfully on attempt {attempt}.")
                     break
+                elif len(all_hosts) == 0 and len(synced_hosts) >= num_executors:
+                    print(f"  ✓ Synced {len(synced_hosts)} executor nodes successfully.")
+                    break
                 else:
-                    missing = sorted(list(all_hosts - synced_hosts))
-                    print(f"  ► Sync attempt {attempt}/5: {len(synced_hosts)}/{len(all_hosts)} nodes synced. Retrying missing nodes: {missing}...")
+                    print(f"  ► Sync attempt {attempt}/5: {len(synced_hosts)} nodes synced. Retrying remaining nodes...")
                     time.sleep(2)
 
             print("\n  === YARN Executor Package Sync Summary ===")
