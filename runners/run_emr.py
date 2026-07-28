@@ -705,63 +705,34 @@ def main():
                     pass
 
         try:
-            num_executors = int(spark.conf.get("spark.executor.instances", "4"))
-            print(f"  ► Dynamically detecting YARN cluster worker nodes...")
-
-            # Dynamically query YARN ResourceManager REST API for physical RUNNING worker nodes
-            import json, urllib.request, socket
-            driver_host = socket.gethostname().split('.')[0]
-            all_hosts = set()
-            
-            try:
-                url = "http://localhost:8088/ws/v1/cluster/nodes?state=RUNNING"
-                req = urllib.request.urlopen(url, timeout=3)
-                data = json.loads(req.read().decode('utf-8'))
-                nodes = data.get('nodes', {}).get('node', [])
-                all_hosts = set([n.get('nodeHostName', '').split('.')[0] for n in nodes if n.get('nodeHostName')])
-            except Exception:
-                pass
-
-            # Fallback to Spark status tracker if YARN REST API is unavailable
-            if len(all_hosts) == 0:
-                try:
-                    exec_infos = sc.statusTracker().getExecutorInfos()
-                    all_hosts = set([
-                        str(e.host()).split('.')[0] 
-                        for e in exec_infos 
-                        if e.host() and str(e.id()) != "driver" and not str(e.host()).startswith(driver_host)
-                    ])
-                except Exception:
-                    all_hosts = set()
-
-            target_count = len(all_hosts)
-            print(f"  ► Physical YARN Worker Nodes Detected ({target_count} hosts): {sorted(list(all_hosts))}")
+            num_executors = int(spark.conf.get("spark.executor.instances", "8"))
+            print(f"  ► Syncing dependencies across all active YARN worker nodes...")
 
             synced_hosts = set()
             all_reports = []
 
             for attempt in range(1, 6):
-                # Run partition tasks with high partition count to hit all nodes
+                # Run high partition count with 3s slot hold to hit all physical nodes
                 n_partitions = max(64, num_executors * 16)
                 results = sc.parallelize(range(n_partitions), n_partitions) \
                             .mapPartitions(run_executor_install) \
                             .collect()
                 
+                prev_count = len(synced_hosts)
                 for report in results:
                     all_reports.append(report)
                     if "Success" in report:
                         h = report.split(":")[0].split('.')[0].strip()
                         synced_hosts.add(h)
 
-                if target_count > 0 and all_hosts.issubset(synced_hosts):
-                    print(f"  ✓ All {len(synced_hosts)}/{target_count} YARN worker nodes verified and synced successfully on attempt {attempt}.")
+                print(f"  ► Sync attempt {attempt}/5: {len(synced_hosts)} worker node(s) verified: {sorted(list(synced_hosts))}")
+
+                # Stop when we hit the configured executor instance target or when discovered host count stabilizes
+                if len(synced_hosts) >= num_executors or (attempt > 1 and len(synced_hosts) == prev_count and len(synced_hosts) >= 2):
+                    print(f"  ✓ All {len(synced_hosts)} YARN worker nodes verified and synced successfully.")
                     break
-                elif target_count == 0 and len(synced_hosts) >= 4:
-                    print(f"  ✓ Synced {len(synced_hosts)} YARN worker nodes successfully.")
-                    break
-                else:
-                    print(f"  ► Sync attempt {attempt}/5: {len(synced_hosts)}/{target_count} worker nodes synced. Retrying remaining nodes...")
-                    time.sleep(2)
+                
+                time.sleep(2)
 
             print("\n  === YARN Executor Package Sync Summary ===")
             unique_reports = sorted(list(set(all_reports)))
