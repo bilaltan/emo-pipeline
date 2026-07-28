@@ -97,8 +97,31 @@ def _train_gnn_community_single(pdf, comm_edges_pdf=None, base_weights_bc=None, 
     import inspect
 
     # Patch torch.load inline on workers to prevent weights_only=True unpickling error
+    # 1. Dynamically resolve node site-packages to sys.path
+    candidates = ["/mnt/tmp", "/mnt1/tmp", "/mnt2/tmp", "/mnt/spark", "/mnt1/spark", "/mnt2/spark", "/tmp"]
+    worker_tmp = "/tmp"
+    for c in candidates:
+        if os.path.exists(c) and os.access(c, os.W_OK):
+            worker_tmp = c
+            break
+    site_packages = f"{worker_tmp}/.local/lib/python{sys.version_info.major}.{sys.version_info.minor}/site-packages"
+    if site_packages not in sys.path:
+        sys.path.insert(0, site_packages)
+    os.environ["PYTHONUSERBASE"] = f"{worker_tmp}/.local"
+
+    # 2. Self-healing PyTorch import & inline installation fallback
     try:
         import torch
+        import torch.nn as nn
+        import torch.nn.functional as F
+    except ImportError:
+        cmd = [sys.executable, '-m', 'pip', 'install', '--user', '--quiet', '--no-cache-dir', 'torch', '--index-url', 'https://download.pytorch.org/whl/cpu']
+        subprocess.run(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=True)
+        import torch
+        import torch.nn as nn
+        import torch.nn.functional as F
+
+    try:
         if not hasattr(torch, '_orig_load_patched'):
             _orig = torch.load
             torch._orig_load_patched = _orig
@@ -115,20 +138,18 @@ def _train_gnn_community_single(pdf, comm_edges_pdf=None, base_weights_bc=None, 
     os.environ.setdefault('DGLBACKEND', 'pytorch')
     os.makedirs('/tmp/.dgl', exist_ok=True)
 
+    # 3. Self-healing DGL import & inline installation fallback
     try:
         import dgl
         import dgl.nn as dglnn
     except ImportError:
-        subprocess.run([sys.executable, '-m', 'pip', 'install', '--quiet', '--no-cache-dir',
+        subprocess.run([sys.executable, '-m', 'pip', 'install', '--user', '--quiet', '--no-cache-dir',
                         'dgl==1.1.3', '-f',
                         'https://data.dgl.ai/wheels/repo.html'],
                         stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=True)
         import dgl
         import dgl.nn as dglnn
 
-    import torch
-    import torch.nn as nn
-    import torch.nn.functional as F
     try:
         omp_threads = int(os.environ.get('OMP_NUM_THREADS', '1'))
         torch.set_num_threads(omp_threads)
