@@ -21,16 +21,29 @@ def _get_dataset(url):
             url_hash = hashlib.md5(url.encode('utf-8')).hexdigest()[:12]
             local_dir = f"{worker_tmp}/s3_cache_{url_hash}"
             flag_file = f"{local_dir}/_SYNC_COMPLETE"
+            lock_dir = f"{local_dir}.lock"
 
             if not os.path.exists(flag_file):
-                os.makedirs(local_dir, exist_ok=True)
-                cmd = ["aws", "s3", "sync", url, local_dir, "--quiet", "--exclude", "_delta_log/*"]
-                try:
-                    subprocess.run(cmd, check=True)
-                    with open(flag_file, "w") as f:
-                        f.write("OK")
-                except Exception:
-                    pass
+                for _ in range(60):
+                    if os.path.exists(flag_file):
+                        break
+                    try:
+                        os.makedirs(lock_dir, exist_ok=False)
+                        try:
+                            if not os.path.exists(flag_file):
+                                os.makedirs(local_dir, exist_ok=True)
+                                cmd = ["aws", "s3", "sync", url, local_dir, "--quiet", "--exclude", "_delta_log/*"]
+                                subprocess.run(cmd, check=True)
+                                with open(flag_file, "w") as f:
+                                    f.write("OK")
+                        finally:
+                            try:
+                                os.rmdir(lock_dir)
+                            except Exception:
+                                pass
+                        break
+                    except FileExistsError:
+                        time.sleep(1)
 
             if os.path.exists(flag_file):
                 local_path = local_dir
