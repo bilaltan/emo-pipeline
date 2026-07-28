@@ -705,15 +705,38 @@ def main():
 
         try:
             num_executors = int(spark.conf.get("spark.executor.instances", "4"))
-            print(f"  ► Syncing dependencies on all {num_executors} executors (with node-level serialization)...")
+            print(f"  ► Syncing dependencies on all YARN executor nodes...")
 
-            # Run on all executor partitions to ensure package availability on all Python workers
-            results = sc.parallelize(range(num_executors * 4), num_executors * 4) \
-                        .mapPartitions(run_executor_install) \
-                        .collect()
+            # Discover all physical worker nodes registered in the cluster
+            exec_status = sc._jsc.sc().getExecutorMemoryStatus()
+            all_hosts = set([str(k).split(':')[0] for k in exec_status.keys().toArray()])
+            print(f"  ► Cluster Nodes Detected ({len(all_hosts)} hosts): {sorted(list(all_hosts))}")
+
+            synced_hosts = set()
+            all_reports = []
+
+            for attempt in range(1, 6):
+                # Run partition tasks with high partition count to hit all nodes
+                results = sc.parallelize(range(num_executors * 8), num_executors * 8) \
+                            .mapPartitions(run_executor_install) \
+                            .collect()
+                
+                for report in results:
+                    all_reports.append(report)
+                    if "Success" in report:
+                        h = report.split(":")[0].strip()
+                        synced_hosts.add(h)
+
+                if all_hosts.issubset(synced_hosts):
+                    print(f"  ✓ All {len(all_hosts)} cluster nodes verified and synced successfully on attempt {attempt}.")
+                    break
+                else:
+                    missing = sorted(list(all_hosts - synced_hosts))
+                    print(f"  ► Sync attempt {attempt}/5: {len(synced_hosts)}/{len(all_hosts)} nodes synced. Retrying missing nodes: {missing}...")
+                    time.sleep(2)
 
             print("\n  === YARN Executor Package Sync Summary ===")
-            unique_reports = sorted(list(set(results)))
+            unique_reports = sorted(list(set(all_reports)))
             for report in unique_reports:
                 print(f"    {report}")
 
