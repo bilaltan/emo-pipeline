@@ -5,9 +5,14 @@ import resource
 import subprocess
 import numpy as np
 import pandas as pd
-import torch
-import torch.nn as nn
-import torch.nn.functional as F
+try:
+    import torch
+    import torch.nn as nn
+    import torch.nn.functional as F
+except ImportError:
+    torch = None
+    nn = None
+    F = None
 
 from pipeline.utils.common import _patch_torch_load
 from pipeline.utils.models import run_downstream_classification
