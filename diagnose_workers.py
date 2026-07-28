@@ -28,6 +28,14 @@ def check_worker_pip(iterator):
     os.environ["PYTHONUSERBASE"] = f"{worker_tmp}/.local"
     results.append(f"Resolved PYTHONUSERBASE: {os.environ['PYTHONUSERBASE']}")
     
+    # Crucial: Dynamically add the resolved site-packages path to sys.path
+    import time
+    site_packages = f"{worker_tmp}/.local/lib/python{sys.version_info.major}.{sys.version_info.minor}/site-packages"
+    if site_packages not in sys.path:
+        sys.path.insert(0, site_packages)
+        
+    time.sleep(2) # Sleep to allow Spark to distribute tasks to all executors
+    
     try:
         import torch
         results.append(f"✓ torch is already importable on this node: {torch.__file__}")
