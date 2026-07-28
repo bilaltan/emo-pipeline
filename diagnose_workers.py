@@ -31,7 +31,7 @@ def check_worker_pip(iterator):
     try:
         import torch
         results.append(f"✓ torch is already importable on this node: {torch.__file__}")
-        return results
+        return [(node_name, results)]
     except Exception as e:
         results.append(f"✗ torch import failed currently: {e}")
 
@@ -51,7 +51,7 @@ def check_worker_pip(iterator):
     except Exception as e:
         results.append(f"Failed to execute command: {e}")
         
-    return results
+    return [(node_name, results)]
 
 if __name__ == "__main__":
     spark = SparkSession.builder.appName("DiagnoseWorkers").getOrCreate()
@@ -63,7 +63,15 @@ if __name__ == "__main__":
                 .mapPartitions(check_worker_pip) \
                 .collect()
                 
-    # Filter to show unique reports per host
-    seen_hosts = set()
-    for line in reports:
-        print(line)
+    # Deduplicate by hostname
+    unique_reports = {}
+    for host, lines in reports:
+        if host not in unique_reports:
+            unique_reports[host] = lines
+            
+    print(f"\n=======================================================")
+    print(f"  UNIQUE DIAGNOSTIC REPORTS ({len(unique_reports)} NODES)")
+    print(f"=======================================================")
+    for host, lines in sorted(unique_reports.items()):
+        for line in lines:
+            print(line)
