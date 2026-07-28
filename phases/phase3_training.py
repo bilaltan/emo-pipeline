@@ -27,34 +27,38 @@ def _make_result_schema():
         StructField('peak_mem_mb',    DoubleType()),
     ])
 
+_DS_CACHE = {}
+
+def _get_dataset(url):
+    if url not in _DS_CACHE:
+        import pyarrow.dataset as ds
+        import pyarrow.fs as fs
+        if url.startswith("s3://"):
+            s3, path = fs.S3FileSystem.from_uri(url)
+            _DS_CACHE[url] = ds.dataset(path, filesystem=s3, format="parquet", ignore_prefixes=['_delta_log', '.'])
+        else:
+            local_path = url.replace("file://", "")
+            _DS_CACHE[url] = ds.dataset(local_path, format="parquet", ignore_prefixes=['_delta_log', '.'])
+    return _DS_CACHE[url]
+
 def _load_community_data(nodes_url, edges_url, comm_id):
     """
     Direct C++ PyArrow Dataset reader for worker tasks.
     Reads community partition nodes and edges directly from S3/disk Delta Parquet files,
-    bypassing Spark IPC network shuffle entirely.
+    reusing dataset handles per worker process to eliminate S3 metadata latency.
     """
     import pyarrow.dataset as ds
-    import pyarrow.fs as fs
     import pandas as pd
 
-    def _read_table(url, c_id):
-        if url.startswith("s3://"):
-            s3, path = fs.S3FileSystem.from_uri(url)
-            dataset = ds.dataset(path, filesystem=s3, format="parquet", ignore_prefixes=['_delta_log', '.'])
-        else:
-            local_path = url.replace("file://", "")
-            dataset = ds.dataset(local_path, format="parquet", ignore_prefixes=['_delta_log', '.'])
-        
-        filtered_table = dataset.to_table(filter=(ds.field("community_id") == c_id))
-        return filtered_table.to_pandas()
-
     try:
-        nodes_pdf = _read_table(nodes_url, comm_id)
+        nodes_ds = _get_dataset(nodes_url)
+        nodes_pdf = nodes_ds.to_table(filter=(ds.field("community_id") == comm_id)).to_pandas()
     except Exception:
         nodes_pdf = pd.DataFrame()
 
     try:
-        edges_pdf = _read_table(edges_url, comm_id)
+        edges_ds = _get_dataset(edges_url)
+        edges_pdf = edges_ds.to_table(filter=(ds.field("community_id") == comm_id)).to_pandas()
     except Exception:
         edges_pdf = pd.DataFrame()
 
@@ -145,6 +149,56 @@ def _train_gnn_community_single(pdf, comm_edges_pdf=None, base_weights_bc=None, 
     all_nodes = pdf['id'].values.astype(np.int64)
     n_nodes   = len(all_nodes)
 
+    # Fast-Path for Micro-Communities (< 5 nodes) — instant evaluation without PyTorch setup
+    if n_nodes < 5:
+        label_arr = np.array([int(v) if not pd.isna(v) else -1 for v in pdf['label'].values], dtype=np.int64)
+        split_arr = list(pdf['split'].values)
+        bnd_arr   = np.array([bool(v) if not (pd.isna(v) or v is None) else False for v in pdf['is_boundary'].values], dtype=bool)
+
+        has_lbl = label_arr >= 0
+        train_m = np.array([s == 'train' for s in split_arr]) & has_lbl
+        test_m  = np.array([s == 'test'  for s in split_arr]) & has_lbl
+
+        if train_m.sum() > 0:
+            maj_class = int(pd.Series(label_arr[train_m]).mode().iloc[0])
+        elif has_lbl.sum() > 0:
+            maj_class = int(pd.Series(label_arr[has_lbl]).mode().iloc[0])
+        else:
+            maj_class = 0
+
+        n_test = int(test_m.sum())
+        if n_test > 0:
+            test_acc = float((label_arr[test_m] == maj_class).sum() / n_test)
+            bnd_test_m = test_m & bnd_arr
+            int_test_m = test_m & (~bnd_arr)
+            bnd_acc = float((label_arr[bnd_test_m] == maj_class).sum() / bnd_test_m.sum()) if bnd_test_m.sum() > 0 else 0.0
+            int_acc = float((label_arr[int_test_m] == maj_class).sum() / int_test_m.sum()) if int_test_m.sum() > 0 else 0.0
+        else:
+            test_acc = 0.0
+            bnd_acc  = 0.0
+            int_acc  = 0.0
+
+        return pd.DataFrame([{
+            'community_id':   int(comm_id),
+            'n_nodes':        int(n_nodes),
+            'n_edges':        0,
+            'n_train':        int(train_m.sum()),
+            'n_val':          int((np.array([s == 'valid' for s in split_arr]) & has_lbl).sum()),
+            'n_test':         int(n_test),
+            'n_boundary':     int(bnd_arr.sum()),
+            'n_internal':     int((~bnd_arr).sum()),
+            'comm_test_acc':  test_acc,
+            'boundary_acc':   bnd_acc,
+            'internal_acc':   int_acc,
+            'comm_link_auc':  0.5,
+            'size_bucket':    'small',
+            'load_time_s':    0.0,
+            'node_train_time_s': 0.0,
+            'link_train_time_s': 0.0,
+            'peak_mem_mb':    0.0,
+        }])
+
+
     # Bulletproof RAM Safety Floor: Sub-sample outlier communities if > 10,000 nodes
     if n_nodes > 10000:
         pdf = pdf.iloc[:10000]
@@ -222,7 +276,12 @@ def _train_gnn_community_single(pdf, comm_edges_pdf=None, base_weights_bc=None, 
     t_load = time.time() - t_start
     t_dgl_conv_start = time.time()
 
-    feat_arr  = np.stack(pdf['features'].values).astype(np.float32)
+    raw_feats = pdf['features'].values
+    if len(raw_feats) > 0 and isinstance(raw_feats[0], (np.ndarray, list, tuple)):
+        feat_arr = np.ascontiguousarray(np.vstack(raw_feats), dtype=np.float32)
+    else:
+        feat_arr = np.stack(raw_feats).astype(np.float32)
+
     feat_norms = np.linalg.norm(feat_arr, axis=1, keepdims=True)
     feat_arr  = feat_arr / np.where(feat_norms > 0, feat_norms, 1.0)
     label_arr = np.array([int(v) if not pd.isna(v) else -1 for v in pdf['label'].values], dtype=np.int64)
@@ -460,71 +519,84 @@ def _train_gnn_community_single(pdf, comm_edges_pdf=None, base_weights_bc=None, 
                 pass
 
         model.train()
-        for _ in range(num_epochs):
-            if model_type == 'clusterscl':
-                opt.zero_grad()
-                z1, proj1, logits1 = model.get_embeddings_and_logits(feat_t, pyg_edge_index)
-                z2, proj2, logits2 = model.get_embeddings_and_logits(feat_t, pyg_edge_index)
-                loss_ce = crit(logits1[train_m], lbl_t[train_m])
-                
-                # Apply regularization if applicable
-                if valid_emb_mask is not None and valid_emb_mask.sum() > 0:
-                    try:
-                        local_emb, _, _ = model.get_embeddings_and_logits(feat_t, pyg_edge_index)
-                        loss_reg = F.mse_loss(local_emb[valid_emb_mask], global_emb_t[valid_emb_mask])
-                        loss_ce = loss_ce + 0.01 * loss_reg
-                    except Exception:
-                        pass
+        if train_m.sum() > 0:
+            best_loss = float('inf')
+            patience_counter = 0
 
-                if train_m.sum() >= 2:
-                    loss_ce.backward(retain_graph=True)
-                    n_tr = train_m.sum().item()
-                    tr_indices = torch.where(train_m)[0]
-                    shuf_indices = tr_indices[torch.randperm(n_tr)]
-                    batch_size = 128
-                    for i in range(0, n_tr, batch_size):
-                        b_idx = shuf_indices[i : i + batch_size]
-                        p1_b = proj1[b_idx]
-                        p2_b = proj2[b_idx]
-                        y_b = lbl_t[b_idx]
-                        loss_elbo_b = elbo_loss_fn(p1_b, p2_b, y_b)
-                        scaled_elbo = loss_elbo_b * (len(b_idx) / n_tr)
-                        is_last = (i + batch_size >= n_tr)
-                        scaled_elbo.backward(retain_graph=not is_last)
+            for _ in range(num_epochs):
+                if model_type == 'clusterscl':
+                    opt.zero_grad()
+                    z1, proj1, logits1 = model.get_embeddings_and_logits(feat_t, pyg_edge_index)
+                    z2, proj2, logits2 = model.get_embeddings_and_logits(feat_t, pyg_edge_index)
+                    loss_ce = crit(logits1[train_m], lbl_t[train_m])
+                    
+                    if valid_emb_mask is not None and valid_emb_mask.sum() > 0:
+                        try:
+                            local_emb, _, _ = model.get_embeddings_and_logits(feat_t, pyg_edge_index)
+                            loss_reg = F.mse_loss(local_emb[valid_emb_mask], global_emb_t[valid_emb_mask])
+                            loss_ce = loss_ce + 0.01 * loss_reg
+                        except Exception:
+                            pass
+
+                    if train_m.sum() >= 2:
+                        loss_ce.backward(retain_graph=True)
+                        n_tr = train_m.sum().item()
+                        tr_indices = torch.where(train_m)[0]
+                        shuf_indices = tr_indices[torch.randperm(n_tr)]
+                        batch_size = 128
+                        for i in range(0, n_tr, batch_size):
+                            b_idx = shuf_indices[i : i + batch_size]
+                            p1_b = proj1[b_idx]
+                            p2_b = proj2[b_idx]
+                            y_b = lbl_t[b_idx]
+                            loss_elbo_b = elbo_loss_fn(p1_b, p2_b, y_b)
+                            scaled_elbo = loss_elbo_b * (len(b_idx) / n_tr)
+                            is_last = (i + batch_size >= n_tr)
+                            scaled_elbo.backward(retain_graph=not is_last)
+                    else:
+                        loss_ce.backward()
+                    opt.step()
+                    curr_loss = loss_ce.item()
+                elif is_pyg:
+                    opt.zero_grad()
+                    logits = model(feat_t, pyg_edge_index)
+                    loss   = crit(logits[train_m], lbl_t[train_m])
+                    
+                    if valid_emb_mask is not None and valid_emb_mask.sum() > 0:
+                        try:
+                            local_emb = model.enc(feat_t, pyg_edge_index)
+                            loss_reg = F.mse_loss(local_emb[valid_emb_mask], global_emb_t[valid_emb_mask])
+                            loss = loss + 0.01 * loss_reg
+                        except Exception:
+                            pass
+
+                    loss.backward()
+                    opt.step()
+                    curr_loss = loss.item()
                 else:
-                    loss_ce.backward()
-                opt.step()
-            elif is_pyg:
-                opt.zero_grad()
-                logits = model(feat_t, pyg_edge_index)
-                loss   = crit(logits[train_m], lbl_t[train_m])
-                
-                # Apply regularization if applicable
-                if valid_emb_mask is not None and valid_emb_mask.sum() > 0:
-                    try:
-                        local_emb = model.enc(feat_t, pyg_edge_index)
-                        loss_reg = F.mse_loss(local_emb[valid_emb_mask], global_emb_t[valid_emb_mask])
-                        loss = loss + 0.01 * loss_reg
-                    except Exception:
-                        pass
+                    opt.zero_grad()
+                    logits = model(g, feat_t)
+                    loss   = crit(logits[train_m], lbl_t[train_m])
+                    
+                    if valid_emb_mask is not None and valid_emb_mask.sum() > 0:
+                        try:
+                            local_emb = model.encode(g, feat_t)
+                            loss_reg = F.mse_loss(local_emb[valid_emb_mask], global_emb_t[valid_emb_mask])
+                            loss = loss + 0.01 * loss_reg
+                        except Exception:
+                            pass
 
-                loss.backward()
-                opt.step()
-            else:
-                opt.zero_grad()
-                logits = model(g, feat_t)
-                loss   = crit(logits[train_m], lbl_t[train_m])
-                
-                # Apply regularization if applicable
-                if valid_emb_mask is not None and valid_emb_mask.sum() > 0:
-                    try:
-                        local_emb = model.encode(g, feat_t)
-                        loss_reg = F.mse_loss(local_emb[valid_emb_mask], global_emb_t[valid_emb_mask])
-                        loss = loss + 0.01 * loss_reg
-                    except Exception:
-                        pass
+                    loss.backward()
+                    opt.step()
+                    curr_loss = loss.item()
 
-                loss.backward(); opt.step()
+                if curr_loss < best_loss - 1e-4:
+                    best_loss = curr_loss
+                    patience_counter = 0
+                else:
+                    patience_counter += 1
+                    if patience_counter >= 2:
+                        break
         node_train_time = time.time() - t_node_start
         
         model.eval()
@@ -1048,7 +1120,10 @@ def run_phase3(spark, sc, datasets, algorithms, use_global_mapping,
                     .withColumn('_model_type',  F.lit(str(model_type))))
 
                 num_comms = comms_node_counts.count()
-                num_bins = min(max(2520, int(spark.conf.get("spark.sql.shuffle.partitions", "2520"))), num_comms)
+                default_para = sc.defaultParallelism
+                num_bins = min(max(default_para * 2, int(spark.conf.get("spark.sql.shuffle.partitions", "200"))), num_comms)
+                if num_bins > 200 and num_comms < 10000:
+                    num_bins = min(200, num_comms)
 
                 print(f"  Distributing Manifest of {num_comms:,} communities across {num_bins} YARN executor tasks...")
                 print(f"  ✓ Zero-Shuffle Execution: Workers read partition files directly via C++ PyArrow Dataset readers.")

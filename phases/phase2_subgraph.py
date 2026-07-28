@@ -178,9 +178,16 @@ def run_phase2(spark, sc, datasets, algorithms, use_global_mapping, min_size,
             print(f"  Shuffle overhead (groupBy community_id): {shuffle_s:.1f}s")
 
             # Write — isolated per tag
-            nodes_final.write.format('delta').mode('overwrite')\
+            # Physical storage clustering: Repartition & sort within partition by community_id for S3 block locality
+            p2_bins = min(200, n_valid) if n_valid > 0 else 200
+            nodes_final.repartition(p2_bins, 'community_id')\
+                       .sortWithinPartitions('community_id')\
+                       .write.format('delta').mode('overwrite')\
                        .save(p_alg['p2_nodes'])
-            edges_part.write.format('delta').mode('overwrite')\
+
+            edges_part.repartition(p2_bins, 'community_id')\
+                       .sortWithinPartitions('community_id')\
+                       .write.format('delta').mode('overwrite')\
                        .save(p_alg['p2_edges'])
 
             elapsed = time.time() - t0
