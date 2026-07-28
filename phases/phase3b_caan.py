@@ -8,69 +8,15 @@ _DS_CACHE = {}
 def _get_dataset(url):
     if url not in _DS_CACHE:
         import pyarrow.dataset as ds
-        import subprocess, hashlib, glob
-
-        use_local = False
         if url.startswith("s3://"):
-            candidates = ["/mnt1/tmp", "/mnt/tmp", "/mnt2/tmp", "/mnt/spark", "/mnt1/spark", "/mnt2/spark", "/tmp"]
-            worker_tmp = "/tmp"
-            for c in candidates:
-                if os.path.exists(c) and os.access(c, os.W_OK):
-                    worker_tmp = c
-                    break
-            
-            url_hash = hashlib.md5(url.encode('utf-8')).hexdigest()[:12]
-            local_dir = f"{worker_tmp}/s3_cache_{url_hash}"
-            flag_file = f"{local_dir}/_SYNC_COMPLETE"
-            lock_dir = f"{local_dir}.lock"
-
-            if os.path.exists(flag_file):
-                p_files = glob.glob(f"{local_dir}/**/*.parquet", recursive=True) + glob.glob(f"{local_dir}/*.parquet")
-                if len(p_files) == 0:
-                    try:
-                        os.remove(flag_file)
-                    except Exception:
-                        pass
-
-            if not os.path.exists(flag_file):
-                for _ in range(60):
-                    if os.path.exists(flag_file):
-                        break
-                    try:
-                        os.makedirs(lock_dir, exist_ok=False)
-                        try:
-                            if not os.path.exists(flag_file):
-                                os.makedirs(local_dir, exist_ok=True)
-                                s3_url = url if url.endswith('/') else f"{url}/"
-                                cmd = ["aws", "s3", "sync", s3_url, local_dir, "--quiet"]
-                                subprocess.run(cmd, check=True)
-                                p_files = glob.glob(f"{local_dir}/**/*.parquet", recursive=True) + glob.glob(f"{local_dir}/*.parquet")
-                                if len(p_files) > 0:
-                                    with open(flag_file, "w") as f:
-                                        f.write("OK")
-                        finally:
-                            try:
-                                os.rmdir(lock_dir)
-                            except Exception:
-                                pass
-                        break
-                    except FileExistsError:
-                        time.sleep(1)
-
-            if os.path.exists(flag_file):
-                local_path = local_dir
-                use_local = True
-
-        if use_local:
-            _DS_CACHE[url] = ds.dataset(local_path, format="parquet", ignore_prefixes=['_delta_log', '.'])
-        elif url.startswith("s3://"):
             import pyarrow.fs as fs
-            s3, path = fs.S3FileSystem.from_uri(url)
-            _DS_CACHE[url] = ds.dataset(path, filesystem=s3, format="parquet", ignore_prefixes=['_delta_log', '.'])
+            clean_url = url.replace("s3://", "")
+            prefix = "/".join(clean_url.split('/')[1:]).rstrip('/')
+            s3 = fs.S3FileSystem(region="us-east-1")
+            _DS_CACHE[url] = ds.dataset(prefix, filesystem=s3, format="parquet", ignore_prefixes=['_delta_log', '.'])
         else:
             local_path = url.replace("file://", "")
             _DS_CACHE[url] = ds.dataset(local_path, format="parquet", ignore_prefixes=['_delta_log', '.'])
-
     return _DS_CACHE[url]
 
 def _load_communities_data_batch(nodes_url, edges_url, comm_ids):
@@ -527,14 +473,8 @@ def make_caan_udf(super_nodes_dict_bc, minor_node_to_idx_bc, minor_feats_arr_bc,
         local_ids = pdf['id'].values
         n_local = len(local_ids)
 
-        # Dynamic dataset/community size-aware epochs scale down to speed up training
-        # Small communities (nodes < 1K) adapt in 2 epochs, medium (nodes < 10K) in 4 epochs, large/massive in 10 epochs.
-        if n_local < 1000:
-            num_epochs = min(2, num_epochs)
-        elif n_local < 10000:
-            num_epochs = min(4, num_epochs)
-        else:
-            num_epochs = num_epochs
+        # Use full configured num_epochs (e.g. 30 epochs)
+        num_epochs = num_epochs
             
         # Warm-start logic safety floor
         if base_weights_bc is not None and model_type == 'sage':
