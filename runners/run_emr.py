@@ -549,6 +549,7 @@ def main():
         .getOrCreate()
 
     sc = spark.sparkContext
+    sc.setLogLevel("ERROR")
     print("  ✓ SparkSession successfully configured and initialized as 'spark'.")
 
     # ── 3. INSTALL PYTHON DEPENDENCIES ─────────────────────────────────────────
