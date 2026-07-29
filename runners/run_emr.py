@@ -571,7 +571,7 @@ def main():
                 importlib.import_module(import_name)
             except Exception:
                 print(f"  ► Installing {pkg} on driver node...")
-                cmd = [sys.executable, '-m', 'pip', 'install', '--user', '--quiet', '--no-cache-dir', '--force-reinstall']
+                cmd = [sys.executable, '-m', 'pip', 'install', '--user', '--quiet', '--no-cache-dir']
                 if pkg.startswith('dgl'):
                     cmd += [pkg, '-f', 'https://data.dgl.ai/wheels/repo.html']
                 elif pkg == 'torch':
