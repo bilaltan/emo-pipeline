@@ -5,14 +5,14 @@
 #      python upload_to_s3.py
 # ══════════════════════════════════════════════════════════════════════════════
 
-EXPERIMENT_NAME   = 'ogbn-products'          # labels ALL S3 outputs; change per experiment run
+EXPERIMENT_NAME   = 'ogbn-papers100M'          # labels ALL S3 outputs; change per experiment run
 
 # ── Datasets ───────────────────────────────────────────────────────────────────
 # Available options:
 # Standard: 'WikiCS', 'Coauthor-Physics', 'Coauthor-CS', 'DeezerEurope', 'Foursquare'
 # 100M-scale: 'reddit', 'ogbn-products'
 # 1B-scale:   'ogbn-papers100M'
-DATASETS_TO_RUN = ['ogbn-products']
+DATASETS_TO_RUN = ['ogbn-papers100M']
 
 # ── GNN Models to Run ─────────────────────────────────────────────────────────
 # Supported choices: 'sage', 'gat', 'gatv2', 'transformer', 'clusterscl', 'arma', 'asap'
@@ -37,7 +37,7 @@ N_BASELINE_RUNS   = 1          # number of runs per baseline for mean ± std
 #   'igraph_lpa' = driver/igraph   (LPA using igraph)
 RUN_PHASE1         = True             # Set to False to skip community detection phase
 ALGORITHMS_TO_RUN  = ['lpa']
-LPA_MAX_ITER       = 10
+LPA_MAX_ITER       = 6
 RESOLUTION         = 1.0              # louvain / leiden resolution parameter
 MIN_COMMUNITY_SIZE = 100             # communities smaller than this are excluded
 
@@ -52,7 +52,7 @@ RUN_PHASE3         = True             # Set to False to skip parallel GNN UDF tr
 USE_GLOBAL_MAPPING = True
 
 GCN_HIDDEN_DIM    = 256
-GCN_NUM_EPOCHS    = 30
+GCN_NUM_EPOCHS    = 20
 GCN_LR            = 0.001
 GCN_DROPOUT       = 0.5
 RUN_PHASE3B       = False              # Phase 3b: CaaN Global Graph GNN Training
