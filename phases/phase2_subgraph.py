@@ -157,9 +157,11 @@ def run_phase2(spark, sc, datasets, algorithms, use_global_mapping, min_size,
                            .withColumn('is_boundary', F.coalesce('is_boundary', F.lit(False)))
                            .select('id', 'label', 'features', 'split', 'community_id', 'is_boundary'))
 
+            n_total_nodes = nodes_final.count()
             n_boundary = nodes_final.filter(F.col('is_boundary')).count()
+            n_internal = n_total_nodes - n_boundary
             print(f"  Edges kept: {n_intra:,} ({pct_kept:.1f}%)  "
-                  f"Boundary nodes: {n_boundary:,}  Internal: {n_kept-n_boundary:,}")
+                  f"Boundary nodes: {n_boundary:,}  Internal: {n_internal:,}")
 
             # Shuffle overhead metric
             sc.setJobDescription(f'shuffle_p2_{dataset}_{alg}')
