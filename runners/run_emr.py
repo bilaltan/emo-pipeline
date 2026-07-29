@@ -403,52 +403,37 @@ def main():
 
     OS_RESERVE_GB   = max(16.0, node_mem_gb * 0.08)   # reserved for OS kernel + YARN NodeManager daemon
     DRIVER_FRACTION = 0.75  # fraction of driver host RAM for driver container
-
     usable_node_mem_gb = node_mem_gb - OS_RESERVE_GB
 
-    best_config = None
-    best_total_cores = 0
+    if edges_size_mb <= 50.0:
+        scale_label = "Small/Medium"
+        target_execs_per_node = min(16, max(1, node_vcores // 4))
+    elif edges_size_mb <= 500.0:
+        scale_label = "Large (100M Scale)"
+        target_execs_per_node = min(8, max(1, node_vcores // 4))
+    else:
+        scale_label = "Very Large/Massive (100M+ Scale)"
+        target_execs_per_node = min(8, max(1, node_vcores // 4))
 
-    for cores_candidate in range(3, min(max_cores + 1, node_vcores + 1)):
-        # Memory needed for Python workers (lives in memoryOverhead)
-        overhead_needed = python_ram_per_task * cores_candidate
-        # Add 4.0 GB overhead buffer for Python interpreter + Arrow IPC + PyTorch C++ memory pools
-        overhead_needed += 4.0
-        # JVM heap for Spark shuffle, broadcast, Delta reads
-        heap_needed = max(jvm_heap_min, overhead_needed * 0.4)
-        container_size = heap_needed + overhead_needed
+    execs_per_node = max(1, target_execs_per_node)
+    cores_candidate = max(2, min(4, node_vcores // execs_per_node))
+    total_execs = nodes_count * execs_per_node
+    total_cores = total_execs * cores_candidate
 
-        if container_size > usable_node_mem_gb:
-            continue  # this config won't fit on a single node
+    container_gb = max(16, int(usable_node_mem_gb / execs_per_node))
+    heap_needed = max(4, int(container_gb * 0.30))
+    overhead_needed = container_gb - heap_needed
 
-        execs_per_node = int(usable_node_mem_gb / container_size)
-        execs_per_node = min(execs_per_node, node_vcores // cores_candidate)
-        execs_per_node = max(1, execs_per_node)
-
-        total_execs = nodes_count * execs_per_node
-        total_cores = total_execs * cores_candidate
-
-        # Prefer configs that maximize total parallelism, tie-break: prefer fewer, fatter executors
-        if total_cores > best_total_cores or \
-           (total_cores == best_total_cores and best_config and total_execs < best_config['total_execs']):
-            best_total_cores = total_cores
-            best_config = {
-                'cores': cores_candidate,
-                'heap_gb': int(heap_needed),
-                'overhead_gb': int(overhead_needed),
-                'container_gb': int(container_size),
-                'execs_per_node': execs_per_node,
-                'total_execs': total_execs,
-                'python_ram_per_task': python_ram_per_task,
-            }
-
-    if best_config is None:
-        best_config = {
-            'cores': 2, 'heap_gb': 16, 'overhead_gb': 14,
-            'container_gb': 30, 'execs_per_node': 1,
-            'total_execs': nodes_count, 'python_ram_per_task': python_ram_per_task,
-        }
-        best_total_cores = nodes_count * 2
+    best_total_cores = total_cores
+    best_config = {
+        'cores': cores_candidate,
+        'heap_gb': heap_needed,
+        'overhead_gb': overhead_needed,
+        'container_gb': container_gb,
+        'execs_per_node': execs_per_node,
+        'total_execs': total_execs,
+        'python_ram_per_task': round(overhead_needed / cores_candidate, 1),
+    }
 
     executor_instances = best_config['total_execs']
     executor_mem       = f"{best_config['heap_gb']}g"
@@ -474,7 +459,7 @@ def main():
     # Step 5: Print the full allocation plan
     print(f"\n  [Spark Auto-Scaler] Dataset: {dataset_name} | S3 Size: {edges_size_mb:.0f} MB | Scale: {scale_label}")
     print(f"  [Spark Auto-Scaler] YARN Cluster: {nodes_count} nodes × {node_mem_gb:.0f} GB RAM × {node_vcores} vCores")
-    print(f"  [Spark Auto-Scaler] Python RAM Budget: {python_ram_per_task:.1f} GB/task (dataset-aware)")
+    print(f"  [Spark Auto-Scaler] Python RAM Budget: {best_config['python_ram_per_task']:.1f} GB/task (dataset-aware)")
     print(f"  [Spark Auto-Scaler] Bin-Packing Solution:")
     print(f"    → {best_config['execs_per_node']} executors/node × {nodes_count} nodes = {executor_instances} total executors")
     print(f"    → {executor_cores} cores/executor | {executor_mem} heap + {executor_overhead} overhead = {best_config['container_gb']}g container")
