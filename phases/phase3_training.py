@@ -1148,8 +1148,7 @@ def run_phase3(spark, sc, datasets, algorithms, use_global_mapping,
                 print(f"  Distributing Manifest of {num_comms:,} communities across {num_bins} binned YARN executor tasks...")
                 print(f"  ✓ Zero-Shuffle Execution: Workers read partition files directly via C++ PyArrow Dataset readers.")
 
-                def _train_gnn_manifest_bin_udf(key, manifest_pdf):
-                    # Set inter-op and intra-op thread counts strictly on the worker
+                def _train_gnn_community_single_wrapper(pdf):
                     try:
                         import torch
                         torch.set_num_threads(1)
@@ -1157,64 +1156,28 @@ def run_phase3(spark, sc, datasets, algorithms, use_global_mapping,
                     except Exception:
                         pass
 
-                    comm_ids = manifest_pdf['community_id'].unique().tolist()
-                    nodes_pdf_all, edges_pdf_all = _load_communities_data_batch(p2_nodes_url, p2_edges_url, comm_ids)
+                    return _train_gnn_community_single(
+                        pdf,
+                        comm_edges_pdf=None,
+                        base_weights_bc=base_weights_bc,
+                        base_embeddings_bc=base_embeddings_bc,
+                        base_node_map_bc=base_node_map_bc
+                    )
 
-                    results = []
-                    for _, row in manifest_pdf.iterrows():
-                        comm_id = int(row['community_id'])
-                        
-                        if len(nodes_pdf_all) > 0:
-                            pdf = nodes_pdf_all[nodes_pdf_all['community_id'] == comm_id].copy()
-                        else:
-                            pdf = pd.DataFrame()
-
-                        if len(edges_pdf_all) > 0:
-                            comm_edges_pdf = edges_pdf_all[edges_pdf_all['community_id'] == comm_id].copy()
-                        else:
-                            comm_edges_pdf = pd.DataFrame()
-                        
-                        if pdf is None or len(pdf) == 0:
-                            results.append(pd.DataFrame([{
-                                'community_id':   comm_id,
-                                'n_nodes':        0, 'n_edges': 0, 'n_train': 0, 'n_val': 0, 'n_test': 0,
-                                'n_boundary':     0, 'n_internal': 0, 'comm_test_acc': 0.0, 'boundary_acc': 0.0,
-                                'internal_acc':   0.0, 'comm_link_auc': 0.5, 'size_bucket': 'empty',
-                                'load_time_s':    0.0, 'node_train_time_s': 0.0, 'link_train_time_s': 0.0, 'peak_mem_mb': 0.0
-                            }]))
-                            continue
-
-                        pdf['_num_classes'] = int(row['_num_classes'])
-                        pdf['_hidden']      = int(row['_hidden'])
-                        pdf['_epochs']      = int(row['_epochs'])
-                        pdf['_lr']          = float(row['_lr'])
-                        pdf['_dropout']     = float(row['_dropout'])
-                        pdf['_task_type']   = str(row['_task_type'])
-                        pdf['_model_type']  = str(row['_model_type'])
-
-                        res_df = _train_gnn_community_single(
-                            pdf,
-                            comm_edges_pdf=comm_edges_pdf,
-                            base_weights_bc=base_weights_bc,
-                            base_embeddings_bc=base_embeddings_bc,
-                            base_node_map_bc=base_node_map_bc
-                        )
-                        results.append(res_df)
-                    
-                    if len(results) == 0:
-                        return pd.DataFrame(columns=[
-                            'community_id', 'n_nodes', 'n_edges', 'n_train', 'n_val', 'n_test',
-                            'n_boundary', 'n_internal', 'comm_test_acc', 'boundary_acc',
-                            'internal_acc', 'comm_link_auc', 'size_bucket', 'load_time_s',
-                            'node_train_time_s', 'link_train_time_s', 'peak_mem_mb'
-                        ])
-                    return pd.concat(results, ignore_index=True)
+                nodes_df_meta = (nodes_df
+                    .withColumn('_num_classes', F.lit(int(cfg['num_classes'])))
+                    .withColumn('_hidden',      F.lit(int(gcn_cfg['hidden_dim'])))
+                    .withColumn('_epochs',      F.lit(int(gcn_cfg['num_epochs'])))
+                    .withColumn('_lr',          F.lit(float(gcn_cfg['lr'])))
+                    .withColumn('_dropout',     F.lit(float(gcn_cfg['dropout'])))
+                    .withColumn('_task_type',   F.lit(str(task_type)))
+                    .withColumn('_model_type',  F.lit(str(model_type))))
 
                 sc.setJobDescription(f'phase3_{dataset}_{alg}_{model_type}')
-                comm_results = (manifest_df
-                                .repartition(num_bins, 'bin_id')
-                                .groupBy('bin_id')
-                                .applyInPandas(_train_gnn_manifest_bin_udf, schema=result_schema))
+                comm_results = (nodes_df_meta
+                                .repartition(num_bins, 'community_id')
+                                .groupBy('community_id')
+                                .applyInPandas(_train_gnn_community_single_wrapper, schema=result_schema))
                 
                 result_tmp_path = f"/tmp/phase3_results_{dataset}_{alg}_{model_type}"
                 comm_results.write.mode('overwrite').parquet(result_tmp_path)
