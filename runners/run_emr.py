@@ -634,10 +634,15 @@ def main():
                 time.sleep(3)
                 return [f"{node_name}: Success (Cached)"]
 
-            # Acquire node lock to install sequentially on this node
-            lock_dir = "/tmp/.local_sync_lock"
+            lock_dir = f"{worker_tmp}/.local_sync_lock"
+            if os.path.exists(lock_dir):
+                try:
+                    os.rmdir(lock_dir)
+                except Exception:
+                    pass
+
             lock_acquired = False
-            for _ in range(300):
+            for _ in range(5):
                 if check_all_imported():
                     return [f"{node_name}: Success (Completed by other task)"]
                 try:
@@ -645,7 +650,7 @@ def main():
                     lock_acquired = True
                     break
                 except FileExistsError:
-                    time.sleep(2)
+                    time.sleep(1)
 
             if not lock_acquired:
                 if check_all_imported():
