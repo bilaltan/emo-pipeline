@@ -96,18 +96,7 @@ def run_phase2(spark, sc, datasets, algorithms, use_global_mapping, min_size,
             else:
                 comms_filt = comms_df.join(valid_comms.select('community_id'), on='community_id', how='inner')
 
-            # Sub-partition any oversized communities (> 3,000 nodes) into sub-chunks of max 3,000 nodes
-            # Guarantees 0 data loss, lightning-fast execution, and perfect executor RAM safety
-            from pyspark.sql.window import Window
-            w_over = Window.partitionBy('community_id').orderBy('id')
-            comms_filt = (comms_filt
-                          .join(comm_sizes, on='community_id', how='inner')
-                          .withColumn('rn', F.when(F.col('comm_size') > 3000, F.row_number().over(w_over) - 1).otherwise(0))
-                          .withColumn('sub_idx', (F.col('rn') / 3000).cast('long'))
-                          .withColumn('community_id',
-                                      F.when(F.col('comm_size') > 3000, (F.col('community_id') * 10000 + F.col('sub_idx')).cast('long'))
-                                      .otherwise(F.col('community_id')))
-                          .select('id', 'community_id'))
+            comms_filt = comms_filt.select('id', 'community_id')
 
             print(f"  Raw={n_raw:,}  Valid(≥{min_size})={n_valid:,}  "
                   f"min={mn:,}  max={mx:,}  "
