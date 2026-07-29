@@ -1168,8 +1168,8 @@ def run_phase3(spark, sc, datasets, algorithms, use_global_mapping,
                 edges_agg = (edges_df
                     .groupBy('community_id')
                     .agg(
-                        F.slice(F.collect_list('src'), 1, 50000).alias('_src_list'),
-                        F.slice(F.collect_list('dst'), 1, 50000).alias('_dst_list')
+                        F.collect_list('src').alias('_src_list'),
+                        F.collect_list('dst').alias('_dst_list')
                     ))
 
                 nodes_df_meta = (nodes_df

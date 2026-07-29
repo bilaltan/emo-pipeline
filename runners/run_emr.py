@@ -389,17 +389,17 @@ def main():
     # and never load the full graph. We cap python_ram_per_task to 1.5 GB to maximize container bin-packing.
     if edges_size_mb <= 20.0:
         scale_label = "Small/Medium"
-        python_ram_per_task = 0.8
+        python_ram_per_task = 2.0
     elif edges_size_mb <= 300.0:
         scale_label = "Large (100M Scale)"
-        python_ram_per_task = 1.0
+        python_ram_per_task = 6.0
     else:
-        scale_label = "Very Large/Massive"
-        python_ram_per_task = 1.5
+        scale_label = "Very Large/Massive (100M+ Scale)"
+        python_ram_per_task = 20.0
 
-    # Cap max_cores to 4 to align with physical cores and maximize container density
-    max_cores = 4
-    jvm_heap_min = 4.0
+    # For massive datasets, use fatter executors (2-4 cores per exec) to guarantee 56GB+ RAM per container
+    max_cores = 2 if edges_size_mb > 300.0 else 4
+    jvm_heap_min = 16.0 if edges_size_mb > 300.0 else 4.0
 
     OS_RESERVE_GB   = max(16.0, node_mem_gb * 0.08)   # reserved for OS kernel + YARN NodeManager daemon
     DRIVER_FRACTION = 0.75  # fraction of driver host RAM for driver container
