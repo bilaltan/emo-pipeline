@@ -39,7 +39,7 @@ RUN_PHASE1         = True             # Set to False to skip community detection
 ALGORITHMS_TO_RUN  = ['lpa']
 LPA_MAX_ITER       = 10
 RESOLUTION         = 1.0              # louvain / leiden resolution parameter
-MIN_COMMUNITY_SIZE = 1000              # communities smaller than this are excluded
+MIN_COMMUNITY_SIZE = 100             # communities smaller than this are excluded
 
 # ── Phase 2 / 3: Partitioning & GNN Training ──────────────────────────────────
 # USE_GLOBAL_MAPPING = True  (RECOMMENDED):
