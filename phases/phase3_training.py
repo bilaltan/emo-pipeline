@@ -1164,6 +1164,14 @@ def run_phase3(spark, sc, datasets, algorithms, use_global_mapping,
                         base_node_map_bc=base_node_map_bc
                     )
 
+                edges_df = spark.read.format('delta').load(p_alg['p2_edges'])
+                edges_agg = (edges_df
+                    .groupBy('community_id')
+                    .agg(
+                        F.collect_list('src').alias('_src_list'),
+                        F.collect_list('dst').alias('_dst_list')
+                    ))
+
                 nodes_df_meta = (nodes_df
                     .withColumn('_num_classes', F.lit(int(cfg['num_classes'])))
                     .withColumn('_hidden',      F.lit(int(gcn_cfg['hidden_dim'])))
@@ -1171,7 +1179,8 @@ def run_phase3(spark, sc, datasets, algorithms, use_global_mapping,
                     .withColumn('_lr',          F.lit(float(gcn_cfg['lr'])))
                     .withColumn('_dropout',     F.lit(float(gcn_cfg['dropout'])))
                     .withColumn('_task_type',   F.lit(str(task_type)))
-                    .withColumn('_model_type',  F.lit(str(model_type))))
+                    .withColumn('_model_type',  F.lit(str(model_type)))
+                    .join(edges_agg, on='community_id', how='left'))
 
                 sc.setJobDescription(f'phase3_{dataset}_{alg}_{model_type}')
                 comm_results = (nodes_df_meta
