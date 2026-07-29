@@ -10,10 +10,9 @@ def _get_dataset(url):
         import pyarrow.dataset as ds
         if url.startswith("s3://"):
             import pyarrow.fs as fs
-            clean_url = url.replace("s3://", "")
-            prefix = "/".join(clean_url.split('/')[1:]).rstrip('/')
+            clean_url = url.replace("s3://", "").rstrip('/')
             s3 = fs.S3FileSystem(region="us-east-1")
-            _DS_CACHE[url] = ds.dataset(prefix, filesystem=s3, format="parquet", ignore_prefixes=['_delta_log', '.'])
+            _DS_CACHE[url] = ds.dataset(clean_url, filesystem=s3, format="parquet", ignore_prefixes=['_delta_log', '.'])
         else:
             local_path = url.replace("file://", "")
             _DS_CACHE[url] = ds.dataset(local_path, format="parquet", ignore_prefixes=['_delta_log', '.'])
@@ -26,13 +25,15 @@ def _load_communities_data_batch(nodes_url, edges_url, comm_ids):
     try:
         nodes_ds = _get_dataset(nodes_url)
         nodes_pdf = nodes_ds.to_table(filter=(ds.field("community_id").isin(comm_ids)), use_threads=True).to_pandas()
-    except Exception:
+    except Exception as e:
+        print(f"  ⚠ CAAN _load_communities_data_batch NODES ERROR: {e}")
         nodes_pdf = pd.DataFrame()
 
     try:
         edges_ds = _get_dataset(edges_url)
         edges_pdf = edges_ds.to_table(filter=(ds.field("community_id").isin(comm_ids)), use_threads=True).to_pandas()
-    except Exception:
+    except Exception as e:
+        print(f"  ⚠ CAAN _load_communities_data_batch EDGES ERROR: {e}")
         edges_pdf = pd.DataFrame()
 
     return nodes_pdf, edges_pdf
