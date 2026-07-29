@@ -53,9 +53,9 @@ USE_GLOBAL_MAPPING = True
 
 GCN_HIDDEN_DIM    = 256
 GCN_NUM_EPOCHS    = 30
-GCN_LR            = 0.005
+GCN_LR            = 0.001
 GCN_DROPOUT       = 0.5
-RUN_PHASE3B       = True              # Phase 3b: CaaN Global Graph GNN Training
+RUN_PHASE3B       = False              # Phase 3b: CaaN Global Graph GNN Training
 
 # ── New Advanced Features ──────────────────────────────────────────────────────
 # Tiny community handling: 'drop' (ignore them), 'misc' (group them all into community_id = -1)
