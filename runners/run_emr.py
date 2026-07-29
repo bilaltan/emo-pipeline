@@ -302,8 +302,8 @@ def main():
                             break
                 except Exception:
                     pass
-    if nodes_count == 0:
-        nodes_count = 4
+    if nodes_count < 2:
+        nodes_count = 8
 
     # 2. Detect per-node hardware (from driver host as proxy)
     def get_system_total_memory_gb():
@@ -440,18 +440,10 @@ def main():
     executor_overhead  = f"{best_config['overhead_gb']}g"
     executor_cores     = str(best_config['cores'])
 
-    # Step 3: Driver allocation — 75% of driver host RAM
-    allocated_driver_total_gb = int(host_mem_gb * DRIVER_FRACTION)
-    driver_mem_val     = int(allocated_driver_total_gb * 0.8)
-    driver_overhead_val = allocated_driver_total_gb - driver_mem_val
-    driver_mem         = f"{driver_mem_val}g"
-    driver_overhead    = f"{driver_overhead_val}g"
-    driver_cores       = str(max(4, host_cores - 2))
-
-    if driver_mem_val < 40:
-        driver_mem = "40g"
-        driver_overhead = "12g"
-        driver_cores = "8"
+    # Step 3: Driver allocation — capped to 40g heap + 12g overhead (52g total) for YARN container harmony
+    driver_mem = "40g"
+    driver_overhead = "12g"
+    driver_cores = "8"
 
     # Step 4: Shuffle partitions — 2× total cores for pipeline overlap
     shuffle_partitions = max(200, best_total_cores * 2)
