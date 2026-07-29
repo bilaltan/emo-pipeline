@@ -459,6 +459,18 @@ def main():
     print(f"    → Driver: {driver_mem} heap + {driver_overhead} overhead")
     print(f"    → Cluster utilization: {executor_instances * best_config['container_gb']:.0f}g / {node_mem_gb * nodes_count:.0f}g "
           f"({100.0 * executor_instances * best_config['container_gb'] / (node_mem_gb * nodes_count):.0f}%)\n")
+    # Automatically terminate any zombie YARN applications left behind by previous interrupted runs
+    try:
+        import subprocess, re
+        out = subprocess.check_output(['yarn', 'application', '-list'], stderr=subprocess.DEVNULL).decode('utf-8')
+        app_ids = re.findall(r'application_\d+_\d+', out)
+        if app_ids:
+            print(f"  ► Terminating {len(app_ids)} zombie YARN application(s) from previous runs to free YARN memory...")
+            for app_id in app_ids:
+                subprocess.run(['yarn', 'application', '-kill', app_id], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            time.sleep(2)
+    except Exception:
+        pass
 
     spark = SparkSession.builder \
         .appName(f"GRL-{args.experiment_name}") \
