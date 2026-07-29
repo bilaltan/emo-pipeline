@@ -35,11 +35,11 @@ N_BASELINE_RUNS   = 1          # number of runs per baseline for mean ± std
 #   'lpa'     = distributed Spark (fast, lower community quality)
 #   'louvain' = driver/igraph   (moderate quality, pulls graph to driver RAM)
 #   'igraph_lpa' = driver/igraph   (LPA using igraph)
-RUN_PHASE1         = False             # Set to False to skip community detection phase
+RUN_PHASE1         = True             # Set to False to skip community detection phase
 ALGORITHMS_TO_RUN  = ['lpa']
 LPA_MAX_ITER       = 5
 RESOLUTION         = 1.0              # louvain / leiden resolution parameter
-MIN_COMMUNITY_SIZE = 1000              # communities smaller than this are excluded
+MIN_COMMUNITY_SIZE = 100              # communities smaller than this are excluded
 
 # ── Phase 2 / 3: Partitioning & GNN Training ──────────────────────────────────
 # USE_GLOBAL_MAPPING = True  (RECOMMENDED):
@@ -47,7 +47,7 @@ MIN_COMMUNITY_SIZE = 1000              # communities smaller than this are exclu
 #   Required for valid global accuracy comparison (Pipelines.txt §5).
 # USE_GLOBAL_MAPPING = False (ablation only):
 #   Per-community 70/15/15 random split inside UDF → NOT globally comparable.
-RUN_PHASE2         = False             # Set to False to skip subgraph generation phase
+RUN_PHASE2         = True             # Set to False to skip subgraph generation phase
 RUN_PHASE3         = True             # Set to False to skip parallel GNN UDF training phase
 USE_GLOBAL_MAPPING = True
 
@@ -59,14 +59,14 @@ RUN_PHASE3B       = True              # Phase 3b: CaaN Global Graph GNN Training
 
 # ── New Advanced Features ──────────────────────────────────────────────────────
 # Tiny community handling: 'drop' (ignore them), 'misc' (group them all into community_id = -1)
-TINY_COMM_HANDLING  = 'drop'
+TINY_COMM_HANDLING  = 'misc'
 
 # 1-hop boundary expansion: If True, include 1-hop external neighbors for boundary nodes.
 # NOTE: increases data size but improves boundary accuracy significantly.
 EXPAND_BOUNDARY_NODES = False
 
 # Task Type: 'node_classification' or 'link_prediction'
-TASK_TYPE = 'node_classification'
+TASK_TYPE = 'both'
 
 # ── Phase 4: Full-Graph Baseline ──────────────────────────────────────────────
 # Runs ONCE per dataset (not per algorithm). Uses SAME masks as Phase 3.
