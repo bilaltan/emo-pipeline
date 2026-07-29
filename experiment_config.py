@@ -35,11 +35,11 @@ N_BASELINE_RUNS   = 1          # number of runs per baseline for mean ± std
 #   'lpa'     = distributed Spark (fast, lower community quality)
 #   'louvain' = driver/igraph   (moderate quality, pulls graph to driver RAM)
 #   'igraph_lpa' = driver/igraph   (LPA using igraph)
-RUN_PHASE1         = False             # Set to False to skip community detection phase
+RUN_PHASE1         = True             # Set to False to skip community detection phase
 ALGORITHMS_TO_RUN  = ['lpa']
 LPA_MAX_ITER       = 6
 RESOLUTION         = 1.0              # louvain / leiden resolution parameter
-MIN_COMMUNITY_SIZE = 100             # communities smaller than this are excluded
+MIN_COMMUNITY_SIZE = 1000             # communities smaller than this are excluded
 
 # ── Phase 2 / 3: Partitioning & GNN Training ──────────────────────────────────
 # USE_GLOBAL_MAPPING = True  (RECOMMENDED):
@@ -47,7 +47,7 @@ MIN_COMMUNITY_SIZE = 100             # communities smaller than this are exclude
 #   Required for valid global accuracy comparison (Pipelines.txt §5).
 # USE_GLOBAL_MAPPING = False (ablation only):
 #   Per-community 70/15/15 random split inside UDF → NOT globally comparable.
-RUN_PHASE2         = False             # Set to False to skip subgraph generation phase
+RUN_PHASE2         = True             # Set to False to skip subgraph generation phase
 RUN_PHASE3         = True             # Set to False to skip parallel GNN UDF training phase
 USE_GLOBAL_MAPPING = True
 
