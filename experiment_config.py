@@ -37,9 +37,9 @@ N_BASELINE_RUNS   = 1          # number of runs per baseline for mean ± std
 #   'igraph_lpa' = driver/igraph   (LPA using igraph)
 RUN_PHASE1         = True             # Set to False to skip community detection phase
 ALGORITHMS_TO_RUN  = ['lpa']
-LPA_MAX_ITER       = 5
+LPA_MAX_ITER       = 10
 RESOLUTION         = 1.0              # louvain / leiden resolution parameter
-MIN_COMMUNITY_SIZE = 100              # communities smaller than this are excluded
+MIN_COMMUNITY_SIZE = 1000              # communities smaller than this are excluded
 
 # ── Phase 2 / 3: Partitioning & GNN Training ──────────────────────────────────
 # USE_GLOBAL_MAPPING = True  (RECOMMENDED):
@@ -63,7 +63,7 @@ TINY_COMM_HANDLING  = 'misc'
 
 # 1-hop boundary expansion: If True, include 1-hop external neighbors for boundary nodes.
 # NOTE: increases data size but improves boundary accuracy significantly.
-EXPAND_BOUNDARY_NODES = False
+EXPAND_BOUNDARY_NODES = True
 
 # Task Type: 'node_classification' or 'link_prediction'
 TASK_TYPE = 'both'
