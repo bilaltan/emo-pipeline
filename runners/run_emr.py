@@ -54,11 +54,13 @@ writable_candidates.sort(key=lambda x: x[1], reverse=True)
 
 if writable_candidates:
     large_tmp = writable_candidates[0][0]
+    spark_local_dirs = ','.join([path for path, _ in writable_candidates])
     print("Writable directories and free space:")
     for path, free_bytes in writable_candidates:
         print(f"  - {path}: {free_bytes / (1024*1024*1024):.2f} GB free")
 else:
     large_tmp = '/tmp'
+    spark_local_dirs = '/tmp,/var/tmp'
     print("WARNING: No writable candidate directories found, falling back to /tmp")
 
 os.environ['HOME'] = large_tmp
@@ -518,7 +520,7 @@ def main():
         .config("spark.executorEnv.NUMEXPR_NUM_THREADS", "1") \
         .config("spark.jars.packages", "io.delta:delta-spark_2.12:3.2.0,graphframes:graphframes:0.8.3-spark3.5-s_2.12") \
         .config("spark.jars.ivy", f"{large_tmp}/.ivy2") \
-        .config("spark.local.dir", f"{large_tmp}/spark-local") \
+        .config("spark.local.dir", spark_local_dirs) \
         .config("spark.driver.extraJavaOptions", f"-Djava.io.tmpdir={large_tmp}") \
         .config("spark.executor.extraJavaOptions", f"-Djava.io.tmpdir={large_tmp}") \
         .config("spark.hadoop.dfs.datanode.du.reserved", "1073741824") \

@@ -914,6 +914,7 @@ def run_phase3(spark, sc, datasets, algorithms, use_global_mapping,
     task_type = kwargs.get('task_type', 'node_classification')
     gnn_models = kwargs.get('models', ['sage'])
     
+    from pyspark import StorageLevel
     from pyspark.sql import functions as F
     result_schema = _make_result_schema()
 
@@ -922,13 +923,40 @@ def run_phase3(spark, sc, datasets, algorithms, use_global_mapping,
         for alg in algorithms:
             p_alg = get_paths_fn(dataset, alg)
             
-            nodes_df = spark.read.format('delta').load(p_alg['p2_nodes'])
-            edges_df = spark.read.format('delta').load(p_alg['p2_edges'])
+            nodes_df = (spark.read.format('delta').load(p_alg['p2_nodes'])
+                        .persist(StorageLevel.MEMORY_AND_DISK))
+            edges_df = (spark.read.format('delta').load(p_alg['p2_edges'])
+                        .persist(StorageLevel.MEMORY_AND_DISK))
+            nodes_df.count()
+            edges_df.count()
 
             # Standard metadata + 128-float features array in DataFrame
             # Fixed 128-float arrays with maxRecordsPerBatch=1000 produce tiny 512KB Arrow batches
             # while avoiding all C++ PyArrow dataset disk scanning in Python workers.
             training_df_base = nodes_df.select('id', 'label', 'features', 'split', 'community_id', 'is_boundary')
+
+            # Compute model-independent community layout once per (dataset, alg).
+            comms_node_counts_pd = nodes_df.select('community_id').groupBy('community_id').count().toPandas()
+            comms_node_counts_pd = comms_node_counts_pd.sort_values(by='count', ascending=False).reset_index(drop=True)
+            num_comms = len(comms_node_counts_pd)
+
+            default_para = sc.defaultParallelism
+            if num_comms <= 2000:
+                num_bins = num_comms
+            else:
+                num_bins = min(max(default_para * 4, 1000), num_comms)
+
+            # Group communities into bins once, then reuse for each model type.
+            comms_node_counts_pd['bin_id'] = [i % num_bins for i in range(num_comms)]
+            comms_node_counts = spark.createDataFrame(comms_node_counts_pd[['community_id', 'bin_id']])
+
+            base_manifest_df = (comms_node_counts
+                .withColumn('_num_classes', F.lit(int(cfg['num_classes'])))
+                .withColumn('_hidden',      F.lit(int(gcn_cfg['hidden_dim'])))
+                .withColumn('_epochs',      F.lit(int(gcn_cfg['num_epochs'])))
+                .withColumn('_lr',          F.lit(float(gcn_cfg['lr'])))
+                .withColumn('_dropout',     F.lit(float(gcn_cfg['dropout'])))
+                .withColumn('_task_type',   F.lit(str(task_type))))
 
             for model_type in gnn_models:
                 key   = (dataset, alg, model_type)
@@ -1009,36 +1037,35 @@ def run_phase3(spark, sc, datasets, algorithms, use_global_mapping,
                 base_weights_bc = None
                 base_embeddings_bc = None
                 base_node_map_bc = None
-                
+
                 try:
                     import torch
                     import torch.nn as nn
                     import dgl
-                    
+
                     print("  [Driver Warmstart] Extracting representative community for driver-side pre-training...")
-                    comms_node_counts = nodes_df.select('community_id').groupBy('community_id').count().toPandas()
-                    comms_sorted = comms_node_counts.sort_values(by='count', ascending=False)
-                    
+                    comms_sorted = comms_node_counts_pd
+
                     pos_comms = comms_sorted[comms_sorted['community_id'] >= 0]
                     valid_comms = pos_comms[pos_comms['count'] <= 10_000] if len(pos_comms) > 0 else comms_sorted[comms_sorted['count'] <= 10_000]
                     if len(valid_comms) == 0:
                         target_comm_row = comms_sorted.iloc[-1]
                     else:
                         target_comm_row = valid_comms.iloc[0]
-                        
+
                     largest_comm_id = int(target_comm_row['community_id'])
                     comm_count = int(target_comm_row['count'])
-                    
+
                     if comm_count > 10_000:
                         print(f"  [Driver Warmstart] Community size ({comm_count:,} nodes) exceeds driver RAM safety limit — sub-sampling 5,000 nodes...")
                         large_comm_pdf = nodes_df.filter(F.col('community_id') == largest_comm_id).limit(5000).toPandas()
                     else:
                         large_comm_pdf = nodes_df.filter(F.col('community_id') == largest_comm_id).toPandas()
-                    
+
                     in_feats = len(large_comm_pdf['features'].iloc[0])
                     num_classes = int(cfg['num_classes'])
                     hidden_dim = int(gcn_cfg['hidden_dim'])
-                    
+
                     # Map nodes
                     all_nodes = large_comm_pdf['id'].values
                     n_nodes = len(all_nodes)
@@ -1053,22 +1080,22 @@ def run_phase3(spark, sc, datasets, algorithms, use_global_mapping,
                     else:
                         src_l = np.array([], dtype=np.int64)
                         dst_l = np.array([], dtype=np.int64)
-                        
+
                     g_large = dgl.graph((src_l, dst_l), num_nodes=n_nodes)
                     g_large = dgl.add_self_loop(g_large)
-                    
+
                     feat_arr = np.stack(large_comm_pdf['features'].values).astype(np.float32)
                     feat_norms = np.linalg.norm(feat_arr, axis=1, keepdims=True)
                     feat_arr = feat_arr / np.where(feat_norms > 0, feat_norms, 1.0)
                     feat_t = torch.tensor(feat_arr, dtype=torch.float32)
-                    
+
                     lbl_arr = np.array([int(v) if not pd.isna(v) else -1 for v in large_comm_pdf['label'].values], dtype=np.int64)
                     lbl_t = torch.tensor(lbl_arr, dtype=torch.long)
                     has_lbl = torch.tensor(lbl_arr >= 0, dtype=torch.bool)
-                    
+
                     splits = list(large_comm_pdf['split'].values)
                     train_m = torch.tensor([s == 'train' for s in splits], dtype=torch.bool) & has_lbl
-                    
+
                     class DriverGraphSAGE(nn.Module):
                         def __init__(self, in_f, h, nc):
                             super().__init__()
@@ -1084,11 +1111,11 @@ def run_phase3(spark, sc, datasets, algorithms, use_global_mapping,
                         def encode(self, g, x):
                             x = torch.relu(self.c1(g, x)); x = self.dr(x)
                             return self.c2(g, x)
-                            
+
                     base_model = DriverGraphSAGE(in_feats, hidden_dim, num_classes)
                     opt = torch.optim.Adam(base_model.parameters(), lr=float(gcn_cfg['lr']))
                     crit = nn.CrossEntropyLoss()
-                    
+
                     base_model.train()
                     for _ in range(5):
                         opt.zero_grad()
@@ -1097,11 +1124,11 @@ def run_phase3(spark, sc, datasets, algorithms, use_global_mapping,
                             loss = crit(logits[train_m], lbl_t[train_m])
                             loss.backward()
                             opt.step()
-                            
+
                     base_model.eval()
                     with torch.no_grad():
                         global_embeddings = base_model.encode(g_large, feat_t).numpy()
-                        
+
                     # Broadcast state dict and embeddings safely
                     base_weights_bc = sc.broadcast(base_model.state_dict())
                     if len(node_map) <= 5_000_000:
@@ -1121,22 +1148,9 @@ def run_phase3(spark, sc, datasets, algorithms, use_global_mapping,
                 p2_nodes_url = p_alg['p2_nodes']
                 p2_edges_url = p_alg['p2_edges']
 
-                print(f"  [Manifest Architecture] Extracting community manifest...")
-                # toPandas() is cheap on unique community counts (~100 KB total)
-                comms_node_counts_pd = nodes_df.select('community_id').groupBy('community_id').count().toPandas()
-                num_comms = len(comms_node_counts_pd)
-                
-                default_para = sc.defaultParallelism
-                if num_comms <= 2000:
-                    num_bins = num_comms
-                else:
-                    num_bins = min(max(default_para * 4, 1000), num_comms)
+                print(f"  [Manifest Architecture] Reusing cached community manifest...")
 
-                # Group communities into bins to reduce PySpark UDF invocation round-trips
-                comms_node_counts_pd['bin_id'] = [i % num_bins for i in range(num_comms)]
-                comms_node_counts = spark.createDataFrame(comms_node_counts_pd[['community_id', 'bin_id']])
-
-                manifest_df = (comms_node_counts
+                manifest_df = (base_manifest_df
                     .withColumn('_num_classes', F.lit(int(cfg['num_classes'])))
                     .withColumn('_hidden',      F.lit(int(gcn_cfg['hidden_dim'])))
                     .withColumn('_epochs',      F.lit(int(gcn_cfg['num_epochs'])))
@@ -1186,59 +1200,133 @@ def run_phase3(spark, sc, datasets, algorithms, use_global_mapping,
                 comm_results = (nodes_df_meta
                                 .repartition(num_bins, 'community_id')
                                 .groupBy('community_id')
-                                .applyInPandas(_train_gnn_community_single_wrapper, schema=result_schema))
-                
-                result_tmp_path = f"/tmp/phase3_results_{dataset}_{alg}_{model_type}"
-                comm_results.write.mode('overwrite').parquet(result_tmp_path)
-                comm_pd = spark.read.parquet(result_tmp_path).toPandas()
+                                .applyInPandas(_train_gnn_community_single_wrapper, schema=result_schema)
+                                .persist(StorageLevel.MEMORY_AND_DISK))
+
+                # Keep the full per-community frame in Spark; only collect the compact summaries
+                # needed for reporting and checkpoints.
+                summary_row = comm_results.agg(
+                    F.count('*').alias('n_communities'),
+                    F.sum('n_nodes').alias('total_nodes'),
+                    F.sum('n_edges').alias('total_edges'),
+                    F.sum('n_train').alias('total_train_nodes'),
+                    F.sum('n_val').alias('total_val_nodes'),
+                    F.sum('n_test').alias('total_test_nodes'),
+                    F.sum('n_boundary').alias('total_boundary_nodes'),
+                    F.sum('n_internal').alias('total_internal_nodes'),
+                    F.sum(F.col('comm_test_acc') * F.col('n_test')).alias('weighted_comm_acc_num'),
+                    F.sum(F.col('comm_link_auc') * F.col('n_edges')).alias('weighted_comm_link_auc_num'),
+                    F.avg('comm_test_acc').alias('mean_comm_acc'),
+                    F.avg('boundary_acc').alias('mean_boundary_acc'),
+                    F.avg('internal_acc').alias('mean_internal_acc'),
+                    F.avg('comm_link_auc').alias('mean_comm_link_auc'),
+                    F.avg('load_time_s').alias('avg_load_time_s'),
+                    F.avg('node_train_time_s').alias('avg_node_train_time_s'),
+                    F.avg('link_train_time_s').alias('avg_link_train_time_s'),
+                    F.avg('peak_mem_mb').alias('avg_peak_mem_mb'),
+                    F.max('peak_mem_mb').alias('max_peak_mem_mb'),
+                ).toPandas()
+
+                bucket_stats_pd = (comm_results
+                    .groupBy('size_bucket')
+                    .agg(
+                        F.count('*').alias('n_communities'),
+                        F.sum('n_test').alias('total_test_nodes'),
+                        F.sum('n_edges').alias('total_edges'),
+                        F.avg('comm_test_acc').alias('mean_comm_acc'),
+                        F.avg('boundary_acc').alias('mean_boundary_acc'),
+                        F.avg('internal_acc').alias('mean_internal_acc'),
+                        F.avg('comm_link_auc').alias('mean_comm_link_auc'),
+                        F.avg('load_time_s').alias('avg_load_time_s'),
+                        F.avg('node_train_time_s').alias('avg_node_train_time_s'),
+                        F.avg('link_train_time_s').alias('avg_link_train_time_s'),
+                        F.avg('peak_mem_mb').alias('avg_peak_mem_mb'),
+                    )
+                    .orderBy('size_bucket')
+                    .toPandas())
+
+                weighted_comm_acc = (
+                    float(summary_row['weighted_comm_acc_num'].iloc[0]) / float(summary_row['total_test_nodes'].iloc[0])
+                    if float(summary_row['total_test_nodes'].iloc[0]) > 0 else 0.0
+                )
+                weighted_comm_link_auc = (
+                    float(summary_row['weighted_comm_link_auc_num'].iloc[0]) / float(summary_row['total_edges'].iloc[0])
+                    if float(summary_row['total_edges'].iloc[0]) > 0 else 0.5
+                )
+
+                summary_pdf = pd.DataFrame([{
+                    'community_id': -1,
+                    'n_nodes': float(summary_row['total_nodes'].iloc[0]),
+                    'n_edges': float(summary_row['total_edges'].iloc[0]),
+                    'n_train': float(summary_row['total_train_nodes'].iloc[0]),
+                    'n_val': float(summary_row['total_val_nodes'].iloc[0]),
+                    'n_test': float(summary_row['total_test_nodes'].iloc[0]),
+                    'n_boundary': float(summary_row['total_boundary_nodes'].iloc[0]),
+                    'n_internal': float(summary_row['total_internal_nodes'].iloc[0]),
+                    'comm_test_acc': float(summary_row['mean_comm_acc'].iloc[0]),
+                    'boundary_acc': float(summary_row['mean_boundary_acc'].iloc[0]),
+                    'internal_acc': float(summary_row['mean_internal_acc'].iloc[0]),
+                    'comm_link_auc': float(summary_row['mean_comm_link_auc'].iloc[0]),
+                    'size_bucket': 'summary',
+                    'load_time_s': float(summary_row['avg_load_time_s'].iloc[0]),
+                    'node_train_time_s': float(summary_row['avg_node_train_time_s'].iloc[0]),
+                    'link_train_time_s': float(summary_row['avg_link_train_time_s'].iloc[0]),
+                    'peak_mem_mb': float(summary_row['avg_peak_mem_mb'].iloc[0]),
+                }])
                 sc.setJobDescription('')
-
-                total_test_nodes = comm_pd['n_test'].sum()
-                weighted_comm_acc = (comm_pd['comm_test_acc'] * comm_pd['n_test']).sum() / total_test_nodes if total_test_nodes > 0 else 0.0
-
-                # Compute weighted_comm_link_auc weighted by number of edges
-                total_edges = comm_pd['n_edges'].sum()
-                weighted_comm_link_auc = (comm_pd['comm_link_auc'] * comm_pd['n_edges']).sum() / total_edges if total_edges > 0 else 0.5
 
                 elapsed = time.time() - t0
                 timing[('phase3', dataset, alg, model_type)] = elapsed
 
                 # Store with attrs attached
-                results[key] = comm_pd.copy()
+                results[key] = summary_pdf.copy()
                 results[key].attrs['weighted_comm_acc']  = weighted_comm_acc
                 results[key].attrs['weighted_comm_link_auc'] = weighted_comm_link_auc
+                results[key].attrs['mean_comm_acc'] = float(summary_row['mean_comm_acc'].iloc[0])
+                results[key].attrs['mean_boundary_acc'] = float(summary_row['mean_boundary_acc'].iloc[0])
+                results[key].attrs['mean_internal_acc'] = float(summary_row['mean_internal_acc'].iloc[0])
+                results[key].attrs['mean_comm_link_auc'] = float(summary_row['mean_comm_link_auc'].iloc[0])
+                results[key].attrs['bucket_stats'] = bucket_stats_pd.to_dict('records')
+                results[key].attrs['summary_only'] = True
                 results[key].attrs['wall_time_s'] = elapsed
                 results[key].attrs['dataset']     = dataset
                 results[key].attrs['alg']         = alg
                 results[key].attrs['model_type']  = model_type
+                results[key].attrs['n_communities'] = int(summary_row['n_communities'].iloc[0])
 
-                print(f"  ✓ Mean comm acc = {comm_pd['comm_test_acc'].mean():.4f}")
+                print(f"  ✓ Mean comm acc = {results[key].attrs['mean_comm_acc']:.4f}")
                 print(f"  ✓ Weighted comm acc = {weighted_comm_acc:.4f}")
-                if 'comm_link_auc' in comm_pd.columns:
-                    print(f"  ✓ Mean comm link AUC = {comm_pd['comm_link_auc'].mean():.4f}")
-                    print(f"  ✓ Weighted comm link AUC = {weighted_comm_link_auc:.4f}")
+                print(f"  ✓ Mean comm link AUC = {results[key].attrs['mean_comm_link_auc']:.4f}")
+                print(f"  ✓ Weighted comm link AUC = {weighted_comm_link_auc:.4f}")
                 print(f"  ✓ Wall time: {elapsed:.1f}s")
-                print(f"    - Avg Load time: {comm_pd['load_time_s'].mean():.2f}s | Max: {comm_pd['load_time_s'].max():.2f}s")
-                if 'node_train_time_s' in comm_pd.columns:
-                    print(f"    - Avg Node Train: {comm_pd['node_train_time_s'].mean():.2f}s | Max: {comm_pd['node_train_time_s'].max():.2f}s")
-                if 'link_train_time_s' in comm_pd.columns:
-                    print(f"    - Avg Link Train: {comm_pd['link_train_time_s'].mean():.2f}s | Max: {comm_pd['link_train_time_s'].max():.2f}s")
+                print(f"    - Avg Load time: {summary_pdf['load_time_s'].iloc[0]:.2f}s")
+                print(f"    - Avg Node Train: {summary_pdf['node_train_time_s'].iloc[0]:.2f}s")
+                print(f"    - Avg Link Train: {summary_pdf['link_train_time_s'].iloc[0]:.2f}s")
 
                 # Save checkpoint
                 try:
+                    s3_result_path = f"s3://{s3_bucket}/gnn-bench-results/phase3/{experiment_name}/{dataset}_{alg}_{model_type}"
+                    comm_results.write.mode('overwrite').parquet(s3_result_path)
+                    results[key].attrs['spark_result_path'] = s3_result_path
+                    print(f"    ✓ Saved Spark result frame: {s3_result_path}")
+
                     if local_data_dir:
-                        comm_pd.to_parquet(ckpt_path, index=False)
-                        print(f"    ✓ Saved checkpoint locally: {ckpt_path}")
-                    else:
-                        import tempfile
-                        import boto3
-                        tmp_file = tempfile.mktemp(suffix=".parquet")
-                        comm_pd.to_parquet(tmp_file, index=False)
-                        s3_client = boto3.client('s3')
-                        s3_key = f"gnn-bench-checkpoint/phase3/{experiment_name}/{dataset}_{alg}_{model_type}.parquet"
-                        s3_client.upload_file(tmp_file, s3_bucket, s3_key)
-                        if os.path.exists(tmp_file):
-                            os.remove(tmp_file)
-                        print(f"    ✓ Saved S3 checkpoint: s3://{s3_bucket}/{s3_key}")
+                        import json
+                        ckpt_dir = os.path.join(local_data_dir, "gnn-bench-checkpoint", "phase3", experiment_name)
+                        os.makedirs(ckpt_dir, exist_ok=True)
+                        ckpt_path = os.path.join(ckpt_dir, f"{dataset}_{alg}_{model_type}.json")
+                        payload = {
+                            'summary': results[key].to_dict(orient='records'),
+                            'bucket_stats': results[key].attrs.get('bucket_stats', []),
+                            'weighted_comm_acc': weighted_comm_acc,
+                            'weighted_comm_link_auc': weighted_comm_link_auc,
+                            'spark_result_path': s3_result_path,
+                        }
+                        with open(ckpt_path, 'w') as f:
+                            json.dump(payload, f, indent=2)
+                        print(f"    ✓ Saved summary checkpoint locally: {ckpt_path}")
                 except Exception as ex:
                     print(f"    ⚠️ Failed to save checkpoint: {ex}")
+
+            nodes_df.unpersist()
+            edges_df.unpersist()

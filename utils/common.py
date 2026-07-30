@@ -70,8 +70,14 @@ def _delta_exists(spark, path):
     Works for both S3 (s3://) and local (file://) paths.
     """
     try:
-        # Try reading the Delta log — if it succeeds, the table exists
-        spark.read.format('delta').load(path).limit(1).count()
-        return True
+        from delta.tables import DeltaTable
+
+        # Metadata-only probe: avoid a data scan just to test checkpoint reuse.
+        return bool(DeltaTable.isDeltaTable(spark, path))
     except Exception:
-        return False
+        try:
+            # Fallback for environments where DeltaTable.isDeltaTable is unavailable.
+            spark.read.format('delta').load(path).limit(1).count()
+            return True
+        except Exception:
+            return False

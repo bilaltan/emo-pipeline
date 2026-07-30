@@ -24,7 +24,7 @@ GNN_MODELS = ['sage']
 # False = skip (Delta tables already exist).
 RUN_PHASE0        = False
 FORCE_REINGEST    = False   # Set to False to use existing S3 Delta tables
-FORCE_RERUN       = True   # Set to False to use existing S3 checkpoints and skip completed phases
+FORCE_RERUN       = False  # Set to True only when you intentionally want to ignore existing checkpoints
 USE_OGB_SPLITS    = True    # True = OGB official splits | False = stratified 60/20/20
 RANDOM_SEED       = 42
 N_BASELINE_RUNS   = 1          # number of runs per baseline for mean ± std
@@ -86,7 +86,7 @@ RUN_PHASE4H       = False       # GATv2 Baseline
 # ── Infrastructure ─────────────────────────────────────────────────────────────
 S3_BUCKET         = 'us-east-1-s3-gnn'
 S3_CODE_PREFIX    = 'pipeline'   # where upload_to_s3.py puts .py files
-SKIP_PKG_SYNC     = False        # Set to True to skip slow Python package verification on executors
+SKIP_PKG_SYNC     = True         # Skip slow Python package verification on executors; use when workers already have deps
 
 # ══════════════════════════════════════════════════════════════════════════════
 #  DERIVED CONFIG — do not edit below this line
