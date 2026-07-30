@@ -1,0 +1,353 @@
+nohup: ignoring input
+Writable directories and free space:
+  - /mnt1/tmp: 1749.54 GB free
+  - /mnt1/spark: 1749.54 GB free
+  - /mnt/tmp: 1738.20 GB free
+  - /mnt/spark: 1738.20 GB free
+  - /mnt/var/tmp: 1738.20 GB free
+  - /tmp: 1738.20 GB free
+  - /var/tmp: 1738.20 GB free
+
+  [Spark Auto-Scaler] Dataset: ogbn-papers100M | S3 Size: 28969 MB | Scale: Very Large/Massive (100M+ Scale)
+  [Spark Auto-Scaler] YARN Cluster: 8 nodes × 496 GB RAM × 64 vCores
+  [Spark Auto-Scaler] Python RAM Budget: 10.0 GB/task (dataset-aware)
+  [Spark Auto-Scaler] Bin-Packing Solution:
+    → 8 executors/node × 8 nodes = 64 total executors
+    → 4 cores/executor | 17g heap + 40g overhead = 57g container
+    → Total parallel tasks: 256 | Shuffle partitions: 512
+    → Driver: 40g heap + 12g overhead
+    → Cluster utilization: 3648g / 3966g (92%)
+
+:: loading settings :: url = jar:file:/usr/lib/spark/jars/ivy-2.5.1.jar!/org/apache/ivy/core/settings/ivysettings.xml
+Ivy Default Cache set to: /mnt1/tmp/.ivy2/cache
+The jars for the packages stored in: /mnt1/tmp/.ivy2/jars
+io.delta#delta-spark_2.12 added as a dependency
+graphframes#graphframes added as a dependency
+:: resolving dependencies :: org.apache.spark#spark-submit-parent-93092095-d3fd-4cb3-9fc3-a0f967119400;1.0
+	confs: [default]
+	found io.delta#delta-spark_2.12;3.2.0 in central
+	found io.delta#delta-storage;3.2.0 in central
+	found org.antlr#antlr4-runtime;4.9.3 in central
+	found graphframes#graphframes;0.8.3-spark3.5-s_2.12 in spark-packages
+	found org.slf4j#slf4j-api;1.7.16 in central
+:: resolution report :: resolve 131ms :: artifacts dl 6ms
+	:: modules in use:
+	graphframes#graphframes;0.8.3-spark3.5-s_2.12 from spark-packages in [default]
+	io.delta#delta-spark_2.12;3.2.0 from central in [default]
+	io.delta#delta-storage;3.2.0 from central in [default]
+	org.antlr#antlr4-runtime;4.9.3 from central in [default]
+	org.slf4j#slf4j-api;1.7.16 from central in [default]
+	---------------------------------------------------------------------
+	|                  |            modules            ||   artifacts   |
+	|       conf       | number| search|dwnlded|evicted|| number|dwnlded|
+	---------------------------------------------------------------------
+	|      default     |   5   |   0   |   0   |   0   ||   5   |   0   |
+	---------------------------------------------------------------------
+:: retrieving :: org.apache.spark#spark-submit-parent-93092095-d3fd-4cb3-9fc3-a0f967119400
+	confs: [default]
+	0 artifacts copied, 5 already retrieved (0kB/4ms)
+Setting default log level to "WARN".
+To adjust logging level use sc.setLogLevel(newLevel). For SparkR, use setLogLevel(newLevel).
+26/07/30 00:33:07 WARN SparkConf: Note that spark.local.dir will be overridden by the value set by the cluster manager (via SPARK_LOCAL_DIRS in mesos/standalone/kubernetes and LOCAL_DIRS in YARN).
+26/07/30 00:33:08 WARN Client: Neither spark.yarn.jars nor spark.yarn.archive is set, falling back to uploading libraries under SPARK_HOME.
+26/07/30 00:33:11 WARN Client: Same path resource file:///mnt1/tmp/.ivy2/jars/io.delta_delta-spark_2.12-3.2.0.jar added multiple times to distributed cache.
+26/07/30 00:33:11 WARN Client: Same path resource file:///mnt1/tmp/.ivy2/jars/graphframes_graphframes-0.8.3-spark3.5-s_2.12.jar added multiple times to distributed cache.
+26/07/30 00:33:11 WARN Client: Same path resource file:///mnt1/tmp/.ivy2/jars/io.delta_delta-storage-3.2.0.jar added multiple times to distributed cache.
+26/07/30 00:33:11 WARN Client: Same path resource file:///mnt1/tmp/.ivy2/jars/org.antlr_antlr4-runtime-4.9.3.jar added multiple times to distributed cache.
+26/07/30 00:33:11 WARN Client: Same path resource file:///mnt1/tmp/.ivy2/jars/org.slf4j_slf4j-api-1.7.16.jar added multiple times to distributed cache.
+  ✓ SparkSession successfully configured and initialized as 'spark'.
+
+  ► Skipping dynamic package verification/installation on YARN executors...
+
+================================================================================
+  BOOTSTRAPPING EXPERIMENT CODE AND STAGE UTILITIES
+================================================================================
+  ► LOADING PIPELINE AND CONFIG FROM LOCAL REPOSITORY PATHS...
+    ✓ Packed local git repository code to /tmp/pipeline.zip and copied to /tmp/pipeline
+  ✓ Registered pipeline.zip package on Spark Context
+
+  Run Profile: ogbn-papers100M
+  └─ Datasets: ['ogbn-papers100M']
+  └─ Algorithms: ['lpa']
+  └─ GNN Architecture: GCN (epochs=20, lr=0.001, hidden=256)
+  └─ Global Mapping: True | Boundary Expansion: True
+  └─ Ingestion Phase (Phase 0): False
+[Phase 0 SKIPPED]  RUN_PHASE0 = False
+  → Set RUN_PHASE0 = True in experiment_config.py when using a new dataset.
+SLF4J: Failed to load class "org.slf4j.impl.StaticLoggerBinder".
+SLF4J: Defaulting to no-operation (NOP) logger implementation
+SLF4J: See http://www.slf4j.org/codes.html#StaticLoggerBinder for further details.
+[Stage 0:>                                                          (0 + 6) / 6]                                                                                [Stage 1:===================>                                       (2 + 4) / 6]                                                                                
+============================================================
+  PHASE 3 — GNN Training: ogbn-papers100M / lpa / sage
+  tag=ogbn-papers100M_ogbn-papers100M_lpa
+============================================================
+  [Driver Warmstart] Extracting representative community for driver-side pre-training...
+[Stage 2:>                                                          (0 + 6) / 6][Stage 2:=============================>                             (3 + 3) / 6][Stage 2:=================================================>         (5 + 1) / 6][Stage 4:>                                                        (0 + 50) / 50][Stage 4:==>                                                      (2 + 48) / 50][Stage 4:==========>                                              (9 + 41) / 50][Stage 4:=================>                                      (16 + 34) / 50][Stage 4:=====================>                                  (19 + 31) / 50][Stage 4:=========================>                              (23 + 27) / 50][Stage 4:==========================>                             (24 + 26) / 50][Stage 4:============================>                           (25 + 25) / 50][Stage 4:=======================================>                (35 + 15) / 50][Stage 4:==================================================>      (44 + 6) / 50]                                                                                [Stage 10:>                                                    (0 + 128) / 1760][Stage 10:>                                                    (0 + 130) / 1760][Stage 10:=>                                                  (49 + 128) / 1760][Stage 10:==>                                                 (86 + 128) / 1760][Stage 10:====>                                              (159 + 128) / 1760][Stage 10:=======>                                           (246 + 128) / 1760][Stage 10:=========>                                         (336 + 128) / 1760][Stage 10:===========>                                       (390 + 128) / 1760][Stage 10:==============>                                    (491 + 128) / 1760][Stage 10:=================>                                 (601 + 128) / 1760][Stage 10:====================>                              (701 + 128) / 1760][Stage 10:=======================>                           (806 + 128) / 1760][Stage 10:==========================>                        (900 + 128) / 1760][Stage 10:============================>                     (1003 + 128) / 1760][Stage 10:===============================>                  (1118 + 128) / 1760][Stage 10:==================================>               (1211 + 128) / 1760][Stage 10:=====================================>            (1308 + 129) / 1760][Stage 10:========================================>         (1411 + 128) / 1760][Stage 10:===========================================>      (1516 + 128) / 1760][Stage 10:==============================================>   (1651 + 109) / 1760][Stage 10:===================================================>(1759 + 1) / 1760]                                                                                [Stage 15:=====================================>            (1328 + 128) / 1760][Stage 15:===================================================>(1757 + 3) / 1760][Stage 15:===================================================>(1759 + 1) / 1760]                                                                                [Stage 16:=============================>                            (3 + 3) / 6][Stage 18:============================>                          (26 + 24) / 50][Stage 18:========================================>              (37 + 13) / 50][Stage 18:=============================================>          (41 + 9) / 50][Stage 18:=================================================>      (44 + 6) / 50][Stage 18:===================================================>    (46 + 4) / 50]                                                                                [Stage 19:===================================================> (499 + 17) / 516][Stage 19:=====================================================>(514 + 2) / 516][Stage 19:=====================================================>(515 + 1) / 516]                                                                                  ✓ Driver-side base model trained successfully on Comm 110688747 (10,000 nodes).
+  [Manifest Architecture] Extracting community manifest...
+[Stage 22:=============>                                     (477 + 128) / 1760][Stage 22:==================>                                (652 + 128) / 1760][Stage 22:=======================>                           (822 + 128) / 1760][Stage 22:============================>                     (1009 + 128) / 1760][Stage 22:=================================>                (1177 + 129) / 1760][Stage 22:======================================>           (1365 + 128) / 1760][Stage 22:===========================================>      (1548 + 128) / 1760][Stage 22:===================================================>(1758 + 2) / 1760]                                                                                  Distributing Manifest of 14,883 communities across 2048 binned YARN executor tasks...
+  ✓ Zero-Shuffle Execution: Workers read partition files directly via C++ PyArrow Dataset readers.
+[Stage 29:>            (0 + 128) / 1760][Stage 30:>               (0 + 0) / 516][Stage 29:>           (14 + 128) / 1760][Stage 30:>               (0 + 0) / 516][Stage 29:>           (51 + 128) / 1760][Stage 30:>               (0 + 0) / 516][Stage 29:>           (79 + 128) / 1760][Stage 30:>               (0 + 0) / 516][Stage 29:>          (105 + 128) / 1760][Stage 30:>               (0 + 0) / 516][Stage 29:>          (119 + 128) / 1760][Stage 30:>               (0 + 0) / 516][Stage 29:>          (123 + 128) / 1760][Stage 30:>               (0 + 0) / 516][Stage 29:>          (126 + 128) / 1760][Stage 30:>               (0 + 0) / 516][Stage 29:>          (127 + 128) / 1760][Stage 30:>               (0 + 0) / 516][Stage 29:>          (128 + 128) / 1760][Stage 30:>               (0 + 0) / 516][Stage 29:>          (129 + 128) / 1760][Stage 30:>               (0 + 0) / 516][Stage 29:>          (137 + 128) / 1760][Stage 30:>               (0 + 0) / 516][Stage 29:>          (152 + 128) / 1760][Stage 30:>               (0 + 0) / 516][Stage 29:=>         (163 + 128) / 1760][Stage 30:>               (0 + 0) / 516][Stage 29:=>         (186 + 129) / 1760][Stage 30:>               (0 + 0) / 516][Stage 29:=>         (202 + 128) / 1760][Stage 30:>               (0 + 0) / 516][Stage 29:=>         (219 + 128) / 1760][Stage 30:>               (0 + 0) / 516][Stage 29:=>         (230 + 128) / 1760][Stage 30:>               (0 + 0) / 516][Stage 29:=>         (240 + 128) / 1760][Stage 30:>               (0 + 0) / 516][Stage 29:=>         (245 + 128) / 1760][Stage 30:>               (0 + 0) / 516][Stage 29:=>         (250 + 128) / 1760][Stage 30:>               (0 + 0) / 516][Stage 29:=>         (256 + 128) / 1760][Stage 30:>               (0 + 0) / 516][Stage 29:=>         (262 + 128) / 1760][Stage 30:>               (0 + 0) / 516][Stage 29:=>         (270 + 128) / 1760][Stage 30:>               (0 + 0) / 516][Stage 29:=>         (284 + 128) / 1760][Stage 30:>               (0 + 0) / 516][Stage 29:=>         (301 + 128) / 1760][Stage 30:>               (0 + 0) / 516][Stage 29:=>         (317 + 128) / 1760][Stage 30:>               (0 + 0) / 516][Stage 29:==>        (328 + 128) / 1760][Stage 30:>               (0 + 0) / 516][Stage 29:==>        (344 + 128) / 1760][Stage 30:>               (0 + 0) / 516][Stage 29:==>        (351 + 128) / 1760][Stage 30:>               (0 + 0) / 516][Stage 29:==>        (356 + 128) / 1760][Stage 30:>               (0 + 0) / 516][Stage 29:==>        (367 + 128) / 1760][Stage 30:>               (0 + 0) / 516][Stage 29:==>        (370 + 128) / 1760][Stage 30:>               (0 + 0) / 516][Stage 29:==>        (382 + 128) / 1760][Stage 30:>               (0 + 0) / 516][Stage 29:==>        (391 + 128) / 1760][Stage 30:>               (0 + 0) / 516][Stage 29:==>        (400 + 128) / 1760][Stage 30:>               (0 + 0) / 516][Stage 29:==>        (415 + 128) / 1760][Stage 30:>               (0 + 0) / 516][Stage 29:==>        (428 + 128) / 1760][Stage 30:>               (0 + 0) / 516][Stage 29:==>        (437 + 128) / 1760][Stage 30:>               (0 + 0) / 516][Stage 29:==>        (450 + 128) / 1760][Stage 30:>               (0 + 0) / 516][Stage 29:==>        (461 + 128) / 1760][Stage 30:>               (0 + 0) / 516][Stage 29:==>        (474 + 128) / 1760][Stage 30:>               (0 + 0) / 516][Stage 29:===>       (481 + 128) / 1760][Stage 30:>               (0 + 0) / 516][Stage 29:===>       (493 + 128) / 1760][Stage 30:>               (0 + 0) / 516][Stage 29:===>       (503 + 128) / 1760][Stage 30:>               (0 + 0) / 516][Stage 29:===>       (515 + 128) / 1760][Stage 30:>               (0 + 0) / 516][Stage 29:===>       (525 + 128) / 1760][Stage 30:>               (0 + 0) / 516][Stage 29:===>       (537 + 128) / 1760][Stage 30:>               (0 + 0) / 516][Stage 29:===>       (550 + 128) / 1760][Stage 30:>               (0 + 0) / 516][Stage 29:===>       (565 + 128) / 1760][Stage 30:>               (0 + 0) / 516][Stage 29:===>       (572 + 128) / 1760][Stage 30:>               (0 + 0) / 516][Stage 29:===>       (579 + 128) / 1760][Stage 30:>               (0 + 0) / 516][Stage 29:===>       (593 + 128) / 1760][Stage 30:>               (0 + 0) / 516][Stage 29:===>       (602 + 128) / 1760][Stage 30:>               (0 + 0) / 516][Stage 29:===>       (610 + 128) / 1760][Stage 30:>               (0 + 0) / 516][Stage 29:===>       (620 + 128) / 1760][Stage 30:>               (0 + 0) / 516][Stage 29:===>       (627 + 128) / 1760][Stage 30:>               (0 + 0) / 516][Stage 29:===>       (639 + 128) / 1760][Stage 30:>               (0 + 0) / 516][Stage 29:====>      (653 + 128) / 1760][Stage 30:>               (0 + 0) / 516][Stage 29:====>      (664 + 128) / 1760][Stage 30:>               (0 + 0) / 516][Stage 29:====>      (673 + 128) / 1760][Stage 30:>               (0 + 0) / 516][Stage 29:====>      (685 + 128) / 1760][Stage 30:>               (0 + 0) / 516][Stage 29:====>      (697 + 128) / 1760][Stage 30:>               (0 + 0) / 516][Stage 29:====>      (707 + 128) / 1760][Stage 30:>               (0 + 0) / 516][Stage 29:====>      (720 + 128) / 1760][Stage 30:>               (0 + 0) / 516][Stage 29:====>      (729 + 128) / 1760][Stage 30:>               (0 + 0) / 516][Stage 29:====>      (739 + 128) / 1760][Stage 30:>               (0 + 0) / 516][Stage 29:====>      (745 + 128) / 1760][Stage 30:>               (0 + 0) / 516][Stage 29:====>      (755 + 128) / 1760][Stage 30:>               (0 + 0) / 516][Stage 29:====>      (767 + 128) / 1760][Stage 30:>               (0 + 0) / 516][Stage 29:====>      (782 + 128) / 1760][Stage 30:>               (0 + 0) / 516][Stage 29:====>      (793 + 128) / 1760][Stage 30:>               (0 + 0) / 516][Stage 29:=====>     (804 + 128) / 1760][Stage 30:>               (0 + 0) / 516][Stage 29:=====>     (812 + 128) / 1760][Stage 30:>               (0 + 0) / 516][Stage 29:=====>     (828 + 128) / 1760][Stage 30:>               (0 + 0) / 516][Stage 29:=====>     (835 + 128) / 1760][Stage 30:>               (0 + 0) / 516][Stage 29:=====>     (848 + 128) / 1760][Stage 30:>               (0 + 0) / 516][Stage 29:=====>     (857 + 128) / 1760][Stage 30:>               (0 + 0) / 516][Stage 29:=====>     (868 + 128) / 1760][Stage 30:>               (0 + 0) / 516][Stage 29:=====>     (879 + 128) / 1760][Stage 30:>               (0 + 0) / 516][Stage 29:=====>     (889 + 128) / 1760][Stage 30:>               (0 + 0) / 516][Stage 29:=====>     (901 + 128) / 1760][Stage 30:>               (0 + 0) / 516][Stage 29:=====>     (913 + 128) / 1760][Stage 30:>               (0 + 0) / 516][Stage 29:=====>     (925 + 128) / 1760][Stage 30:>               (0 + 0) / 516][Stage 29:=====>     (930 + 128) / 1760][Stage 30:>               (0 + 0) / 516][Stage 29:=====>     (941 + 128) / 1760][Stage 30:>               (0 + 0) / 516][Stage 29:=====>     (946 + 128) / 1760][Stage 30:>               (0 + 0) / 516][Stage 29:=====>     (956 + 128) / 1760][Stage 30:>               (0 + 0) / 516][Stage 29:======>    (969 + 128) / 1760][Stage 30:>               (0 + 0) / 516][Stage 29:======>    (983 + 128) / 1760][Stage 30:>               (0 + 0) / 516][Stage 29:======>    (988 + 128) / 1760][Stage 30:>               (0 + 0) / 516][Stage 29:=====>    (1002 + 128) / 1760][Stage 30:>               (0 + 0) / 516][Stage 29:=====>    (1019 + 128) / 1760][Stage 30:>               (0 + 0) / 516][Stage 29:=====>    (1028 + 128) / 1760][Stage 30:>               (0 + 0) / 516][Stage 29:=====>    (1038 + 128) / 1760][Stage 30:>               (0 + 0) / 516][Stage 29:=====>    (1046 + 128) / 1760][Stage 30:>               (0 + 0) / 516][Stage 29:======>   (1058 + 128) / 1760][Stage 30:>               (0 + 0) / 516][Stage 29:======>   (1063 + 128) / 1760][Stage 30:>               (0 + 0) / 516][Stage 29:======>   (1069 + 128) / 1760][Stage 30:>               (0 + 0) / 516][Stage 29:======>   (1081 + 128) / 1760][Stage 30:>               (0 + 0) / 516][Stage 29:======>   (1092 + 128) / 1760][Stage 30:>               (0 + 0) / 516][Stage 29:======>   (1106 + 128) / 1760][Stage 30:>               (0 + 0) / 516][Stage 29:======>   (1116 + 128) / 1760][Stage 30:>               (0 + 0) / 516][Stage 29:======>   (1128 + 128) / 1760][Stage 30:>               (0 + 0) / 516][Stage 29:======>   (1136 + 128) / 1760][Stage 30:>               (0 + 0) / 516][Stage 29:======>   (1150 + 128) / 1760][Stage 30:>               (0 + 0) / 516][Stage 29:======>   (1164 + 128) / 1760][Stage 30:>               (0 + 0) / 516][Stage 29:======>   (1180 + 128) / 1760][Stage 30:>               (0 + 0) / 516][Stage 29:======>   (1186 + 128) / 1760][Stage 30:>               (0 + 0) / 516][Stage 29:======>   (1194 + 128) / 1760][Stage 30:>               (0 + 0) / 516][Stage 29:======>   (1202 + 128) / 1760][Stage 30:>               (0 + 0) / 516][Stage 29:======>   (1212 + 128) / 1760][Stage 30:>               (0 + 0) / 516][Stage 29:======>   (1222 + 128) / 1760][Stage 30:>               (0 + 0) / 516][Stage 29:======>   (1230 + 128) / 1760][Stage 30:>               (0 + 0) / 516][Stage 29:=======>  (1239 + 128) / 1760][Stage 30:>               (0 + 0) / 516][Stage 29:=======>  (1253 + 128) / 1760][Stage 30:>               (0 + 0) / 516][Stage 29:=======>  (1268 + 128) / 1760][Stage 30:>               (0 + 0) / 516][Stage 29:=======>  (1283 + 128) / 1760][Stage 30:>               (0 + 0) / 516][Stage 29:=======>  (1292 + 128) / 1760][Stage 30:>               (0 + 0) / 516][Stage 29:=======>  (1302 + 128) / 1760][Stage 30:>               (0 + 0) / 516][Stage 29:=======>  (1315 + 128) / 1760][Stage 30:>               (0 + 0) / 516][Stage 29:=======>  (1320 + 128) / 1760][Stage 30:>               (0 + 0) / 516][Stage 29:=======>  (1328 + 128) / 1760][Stage 30:>               (0 + 0) / 516][Stage 29:=======>  (1335 + 128) / 1760][Stage 30:>               (0 + 0) / 516][Stage 29:=======>  (1344 + 128) / 1760][Stage 30:>               (0 + 0) / 516][Stage 29:=======>  (1360 + 128) / 1760][Stage 30:>               (0 + 0) / 516][Stage 29:=======>  (1368 + 128) / 1760][Stage 30:>               (0 + 0) / 516][Stage 29:=======>  (1379 + 128) / 1760][Stage 30:>               (0 + 0) / 516][Stage 29:=======>  (1394 + 128) / 1760][Stage 30:>               (0 + 0) / 516][Stage 29:=======>  (1404 + 128) / 1760][Stage 30:>               (0 + 0) / 516][Stage 29:========> (1416 + 128) / 1760][Stage 30:>               (0 + 0) / 516][Stage 29:========> (1426 + 128) / 1760][Stage 30:>               (0 + 0) / 516][Stage 29:========> (1436 + 128) / 1760][Stage 30:>               (0 + 0) / 516][Stage 29:========> (1450 + 128) / 1760][Stage 30:>               (0 + 0) / 516][Stage 29:========> (1458 + 128) / 1760][Stage 30:>               (0 + 0) / 516][Stage 29:========> (1465 + 128) / 1760][Stage 30:>               (0 + 0) / 516][Stage 29:========> (1474 + 128) / 1760][Stage 30:>               (0 + 0) / 516][Stage 29:========> (1491 + 128) / 1760][Stage 30:>               (0 + 0) / 516][Stage 29:========> (1502 + 128) / 1760][Stage 30:>               (0 + 0) / 516][Stage 29:========> (1513 + 128) / 1760][Stage 30:>               (0 + 0) / 516][Stage 29:========> (1522 + 128) / 1760][Stage 30:>               (0 + 0) / 516][Stage 29:========> (1531 + 129) / 1760][Stage 30:>               (0 + 0) / 516][Stage 29:========> (1545 + 128) / 1760][Stage 30:>               (0 + 0) / 516][Stage 29:========> (1554 + 128) / 1760][Stage 30:>               (0 + 0) / 516][Stage 29:========> (1567 + 128) / 1760][Stage 30:>               (0 + 0) / 516][Stage 29:========> (1574 + 128) / 1760][Stage 30:>               (0 + 0) / 516][Stage 29:========> (1583 + 128) / 1760][Stage 30:>               (0 + 0) / 516][Stage 29:=========>(1594 + 128) / 1760][Stage 30:>               (0 + 0) / 516][Stage 29:=========>(1601 + 128) / 1760][Stage 30:>               (0 + 0) / 516][Stage 29:=========>(1614 + 128) / 1760][Stage 30:>               (0 + 0) / 516][Stage 29:=========>(1626 + 128) / 1760][Stage 30:>               (0 + 0) / 516][Stage 29:=========>(1635 + 125) / 1760][Stage 30:>               (0 + 3) / 516][Stage 29:=========>(1647 + 113) / 1760][Stage 30:>             (10 + 15) / 516][Stage 29:==========>(1671 + 89) / 1760][Stage 30:>             (23 + 39) / 516][Stage 29:==========>(1692 + 68) / 1760][Stage 30:=>            (38 + 60) / 516][Stage 29:==========>(1703 + 57) / 1760][Stage 30:=>            (47 + 71) / 516][Stage 29:==========>(1717 + 43) / 1760][Stage 30:=>            (63 + 85) / 516][Stage 29:==========>(1734 + 26) / 1760][Stage 30:==>          (83 + 103) / 516][Stage 29:==========>(1750 + 10) / 1760][Stage 30:==>          (95 + 118) / 516][Stage 29:===========>(1756 + 4) / 1760][Stage 30:==>         (100 + 124) / 516][Stage 29:===========>(1757 + 3) / 1760][Stage 30:==>         (101 + 125) / 516][Stage 30:==========>                                         (107 + 128) / 516][Stage 30:===========>                                        (115 + 128) / 516][Stage 30:============>                                       (120 + 128) / 516][Stage 30:=============>                                      (129 + 128) / 516][Stage 30:==============>                                     (139 + 128) / 516][Stage 30:===============>                                    (151 + 128) / 516][Stage 30:================>                                   (167 + 128) / 516][Stage 30:==================>                                 (185 + 128) / 516][Stage 30:=====================>                              (213 + 128) / 516][Stage 30:======================>                             (223 + 128) / 516][Stage 30:=======================>                            (237 + 128) / 516][Stage 30:==========================>                         (264 + 128) / 516][Stage 30:=================================>                  (328 + 128) / 516][Stage 30:=======================================>            (396 + 120) / 516][Stage 30:==========================================>          (417 + 99) / 516][Stage 30:===========================================>         (422 + 94) / 516][Stage 30:============================================>        (434 + 82) / 516][Stage 30:============================================>        (438 + 78) / 516][Stage 30:=============================================>       (442 + 74) / 516][Stage 30:=============================================>       (447 + 69) / 516][Stage 30:==============================================>      (450 + 66) / 516][Stage 30:===============================================>     (462 + 54) / 516][Stage 30:================================================>    (469 + 47) / 516][Stage 30:================================================>    (476 + 40) / 516][Stage 30:=================================================>   (479 + 37) / 516][Stage 30:==================================================>  (488 + 28) / 516][Stage 30:==================================================>  (492 + 24) / 516][Stage 30:===================================================> (497 + 19) / 516][Stage 30:===================================================> (499 + 17) / 516][Stage 30:===================================================> (504 + 12) / 516][Stage 30:===================================================> (506 + 10) / 516][Stage 30:=====================================================>(510 + 6) / 516][Stage 30:=====================================================>(511 + 5) / 516][Stage 30:=====================================================>(512 + 4) / 516][Stage 30:=====================================================>(513 + 3) / 516][Stage 30:=====================================================>(515 + 1) / 516][Stage 33:>                                                     (0 + 128) / 512][Stage 33:>                                                     (0 + 128) / 512][Stage 33:>                                                     (0 + 128) / 512][Stage 33:>                                                     (0 + 128) / 512][Stage 33:>                                                     (0 + 128) / 512][Stage 33:>                                                     (0 + 128) / 512][Stage 33:>                                                     (0 + 128) / 512]26/07/30 00:41:21 ERROR TransportResponseHandler: Still have 8 requests outstanding when connection from /172.31.66.104:37950 is closed
+26/07/30 00:41:21 ERROR YarnScheduler: Lost executor 12 on ip-172-31-66-104.ec2.internal: Executor Process Lost
+26/07/30 00:41:21 ERROR YarnScheduler: Lost executor 20 on ip-172-31-66-104.ec2.internal: Executor Process Lost
+26/07/30 00:41:21 ERROR YarnScheduler: Lost executor 23 on ip-172-31-70-186.ec2.internal: Executor Process Lost
+26/07/30 00:41:21 ERROR YarnScheduler: Lost executor 15 on ip-172-31-70-186.ec2.internal: Executor Process Lost
+26/07/30 00:41:21 ERROR YarnScheduler: Lost executor 6 on ip-172-31-70-186.ec2.internal: Executor Process Lost
+26/07/30 00:41:21 ERROR YarnScheduler: Lost executor 27 on ip-172-31-70-186.ec2.internal: Executor Process Lost
+26/07/30 00:41:21 ERROR YarnScheduler: Lost executor 3 on ip-172-31-66-104.ec2.internal: Executor Process Lost
+26/07/30 00:41:21 ERROR YarnScheduler: Lost executor 30 on ip-172-31-66-104.ec2.internal: Executor Process Lost
+26/07/30 00:41:21 ERROR TransportClient: Failed to send RPC RPC 4880114481185048294 to /172.31.66.104:37950: io.netty.channel.StacklessClosedChannelException
+io.netty.channel.StacklessClosedChannelException: null
+	at io.netty.channel.AbstractChannel$AbstractUnsafe.write(Object, ChannelPromise)(Unknown Source) ~[emr-spark-goodies-3.21.0.jar:3.21.0]
+26/07/30 00:41:21 ERROR TransportClient: Failed to send RPC RPC 6448547016466431707 to /172.31.66.104:37950: io.netty.channel.StacklessClosedChannelException
+io.netty.channel.StacklessClosedChannelException: null
+	at io.netty.channel.AbstractChannel$AbstractUnsafe.write(Object, ChannelPromise)(Unknown Source) ~[emr-spark-goodies-3.21.0.jar:3.21.0]
+26/07/30 00:41:21 ERROR TransportClient: Failed to send RPC RPC 9214887423212724228 to /172.31.66.104:37950: io.netty.channel.StacklessClosedChannelException
+io.netty.channel.StacklessClosedChannelException: null
+	at io.netty.channel.AbstractChannel$AbstractUnsafe.write(Object, ChannelPromise)(Unknown Source) ~[emr-spark-goodies-3.21.0.jar:3.21.0]
+26/07/30 00:41:21 ERROR YarnScheduler: Lost executor 21 on ip-172-31-75-41.ec2.internal: Executor Process Lost
+26/07/30 00:41:21 ERROR YarnScheduler: Lost executor 13 on ip-172-31-75-41.ec2.internal: Executor Process Lost
+26/07/30 00:41:21 ERROR TransportClient: Failed to send RPC RPC 7303364377202169527 to /172.31.66.104:37950: io.netty.channel.StacklessClosedChannelException
+io.netty.channel.StacklessClosedChannelException: null
+	at io.netty.channel.AbstractChannel$AbstractUnsafe.write(Object, ChannelPromise)(Unknown Source) ~[emr-spark-goodies-3.21.0.jar:3.21.0]
+26/07/30 00:41:21 ERROR YarnScheduler: Lost executor 31 on ip-172-31-75-41.ec2.internal: Executor Process Lost
+26/07/30 00:41:21 ERROR YarnScheduler: Lost executor 4 on ip-172-31-75-41.ec2.internal: Executor Process Lost
+26/07/30 00:41:21 ERROR TransportClient: Failed to send RPC RPC 8926492082129007046 to /172.31.66.104:37950: io.netty.channel.StacklessClosedChannelException
+io.netty.channel.StacklessClosedChannelException: null
+	at io.netty.channel.AbstractChannel$AbstractUnsafe.write(Object, ChannelPromise)(Unknown Source) ~[emr-spark-goodies-3.21.0.jar:3.21.0]
+26/07/30 00:41:21 ERROR TransportClient: Failed to send RPC RPC 5195341674493368452 to /172.31.66.104:37950: io.netty.channel.StacklessClosedChannelException
+io.netty.channel.StacklessClosedChannelException: null
+	at io.netty.channel.AbstractChannel$AbstractUnsafe.write(Object, ChannelPromise)(Unknown Source) ~[emr-spark-goodies-3.21.0.jar:3.21.0]
+26/07/30 00:41:21 ERROR TransportClient: Failed to send RPC RPC 5867458025792463303 to /172.31.66.104:37950: io.netty.channel.StacklessClosedChannelException
+io.netty.channel.StacklessClosedChannelException: null
+	at io.netty.channel.AbstractChannel$AbstractUnsafe.write(Object, ChannelPromise)(Unknown Source) ~[emr-spark-goodies-3.21.0.jar:3.21.0]
+26/07/30 00:41:21 ERROR YarnScheduler: Lost executor 11 on ip-172-31-69-110.ec2.internal: Executor Process Lost
+26/07/30 00:41:21 ERROR TransportClient: Failed to send RPC RPC 8125957139191554744 to /172.31.66.104:37950: io.netty.channel.StacklessClosedChannelException
+io.netty.channel.StacklessClosedChannelException: null
+	at io.netty.channel.AbstractChannel$AbstractUnsafe.write(Object, ChannelPromise)(Unknown Source) ~[emr-spark-goodies-3.21.0.jar:3.21.0]
+26/07/30 00:41:21 ERROR YarnScheduler: Lost executor 19 on ip-172-31-69-110.ec2.internal: Executor Process Lost
+26/07/30 00:41:21 ERROR YarnScheduler: Lost executor 2 on ip-172-31-69-110.ec2.internal: Executor Process Lost
+26/07/30 00:41:21 ERROR YarnScheduler: Lost executor 26 on ip-172-31-69-110.ec2.internal: Executor Process Lost
+26/07/30 00:41:21 ERROR TransportClient: Failed to send RPC RPC 6038376880684301028 to /172.31.66.104:37950: io.netty.channel.StacklessClosedChannelException
+io.netty.channel.StacklessClosedChannelException: null
+	at io.netty.channel.AbstractChannel$AbstractUnsafe.write(Object, ChannelPromise)(Unknown Source) ~[emr-spark-goodies-3.21.0.jar:3.21.0]
+26/07/30 00:41:21 ERROR YarnScheduler: Lost executor 8 on ip-172-31-71-118.ec2.internal: Executor Process Lost
+26/07/30 00:41:21 ERROR TransportClient: Failed to send RPC RPC 7535576330358149311 to /172.31.66.104:37950: io.netty.channel.StacklessClosedChannelException
+io.netty.channel.StacklessClosedChannelException: null
+	at io.netty.channel.AbstractChannel$AbstractUnsafe.write(Object, ChannelPromise)(Unknown Source) ~[emr-spark-goodies-3.21.0.jar:3.21.0]
+26/07/30 00:41:21 ERROR TransportClient: Failed to send RPC RPC 7863907561575897352 to /172.31.66.104:37950: io.netty.channel.StacklessClosedChannelException
+io.netty.channel.StacklessClosedChannelException: null
+	at io.netty.channel.AbstractChannel$AbstractUnsafe.write(Object, ChannelPromise)(Unknown Source) ~[emr-spark-goodies-3.21.0.jar:3.21.0]
+26/07/30 00:41:21 ERROR YarnScheduler: Lost executor 25 on ip-172-31-71-118.ec2.internal: Executor Process Lost
+26/07/30 00:41:21 ERROR YarnScheduler: Lost executor 17 on ip-172-31-71-118.ec2.internal: Executor Process Lost
+26/07/30 00:41:21 ERROR TransportClient: Failed to send RPC RPC 6462348945753059023 to /172.31.66.104:37950: io.netty.channel.StacklessClosedChannelException
+io.netty.channel.StacklessClosedChannelException: null
+	at io.netty.channel.AbstractChannel$AbstractUnsafe.write(Object, ChannelPromise)(Unknown Source) ~[emr-spark-goodies-3.21.0.jar:3.21.0]
+26/07/30 00:41:21 ERROR YarnScheduler: Lost executor 29 on ip-172-31-71-118.ec2.internal: Executor Process Lost
+26/07/30 00:41:21 ERROR TransportClient: Failed to send RPC RPC 4923534029716507562 to /172.31.66.104:37950: io.netty.channel.StacklessClosedChannelException
+io.netty.channel.StacklessClosedChannelException: null
+	at io.netty.channel.AbstractChannel$AbstractUnsafe.write(Object, ChannelPromise)(Unknown Source) ~[emr-spark-goodies-3.21.0.jar:3.21.0]
+26/07/30 00:41:21 ERROR YarnScheduler: Lost executor 24 on ip-172-31-67-121.ec2.internal: Executor Process Lost
+26/07/30 00:41:21 ERROR TransportClient: Failed to send RPC RPC 6289190712465306052 to /172.31.66.104:37950: io.netty.channel.StacklessClosedChannelException
+io.netty.channel.StacklessClosedChannelException: null
+	at io.netty.channel.AbstractChannel$AbstractUnsafe.write(Object, ChannelPromise)(Unknown Source) ~[emr-spark-goodies-3.21.0.jar:3.21.0]
+26/07/30 00:41:21 ERROR TransportClient: Failed to send RPC RPC 8110216603762424075 to /172.31.66.104:37950: io.netty.channel.StacklessClosedChannelException
+io.netty.channel.StacklessClosedChannelException: null
+	at io.netty.channel.AbstractChannel$AbstractUnsafe.write(Object, ChannelPromise)(Unknown Source) ~[emr-spark-goodies-3.21.0.jar:3.21.0]
+26/07/30 00:41:21 ERROR YarnScheduler: Lost executor 7 on ip-172-31-67-121.ec2.internal: Executor Process Lost
+26/07/30 00:41:21 ERROR YarnScheduler: Lost executor 16 on ip-172-31-67-121.ec2.internal: Executor Process Lost
+26/07/30 00:41:21 ERROR TransportClient: Failed to send RPC RPC 5149411042184560650 to /172.31.66.104:37950: io.netty.channel.StacklessClosedChannelException
+io.netty.channel.StacklessClosedChannelException: null
+	at io.netty.channel.AbstractChannel$AbstractUnsafe.write(Object, ChannelPromise)(Unknown Source) ~[emr-spark-goodies-3.21.0.jar:3.21.0]
+26/07/30 00:41:21 ERROR YarnScheduler: Lost executor 28 on ip-172-31-67-121.ec2.internal: Executor Process Lost
+26/07/30 00:41:21 ERROR TransportClient: Failed to send RPC RPC 8354627928268896849 to /172.31.66.104:37950: io.netty.channel.StacklessClosedChannelException
+io.netty.channel.StacklessClosedChannelException: null
+	at io.netty.channel.AbstractChannel$AbstractUnsafe.write(Object, ChannelPromise)(Unknown Source) ~[emr-spark-goodies-3.21.0.jar:3.21.0]
+26/07/30 00:41:21 ERROR YarnScheduler: Lost executor 5 on ip-172-31-77-41.ec2.internal: Executor Process Lost
+26/07/30 00:41:21 ERROR TransportClient: Failed to send RPC RPC 5228957150012095910 to /172.31.66.104:37950: io.netty.channel.StacklessClosedChannelException
+io.netty.channel.StacklessClosedChannelException: null
+	at io.netty.channel.AbstractChannel$AbstractUnsafe.write(Object, ChannelPromise)(Unknown Source) ~[emr-spark-goodies-3.21.0.jar:3.21.0]
+26/07/30 00:41:21 ERROR YarnScheduler: Lost executor 22 on ip-172-31-77-41.ec2.internal: Executor Process Lost
+26/07/30 00:41:21 ERROR TransportClient: Failed to send RPC RPC 6292227729255269696 to /172.31.66.104:37950: io.netty.channel.StacklessClosedChannelException
+io.netty.channel.StacklessClosedChannelException: null
+	at io.netty.channel.AbstractChannel$AbstractUnsafe.write(Object, ChannelPromise)(Unknown Source) ~[emr-spark-goodies-3.21.0.jar:3.21.0]
+26/07/30 00:41:21 ERROR YarnScheduler: Lost executor 14 on ip-172-31-77-41.ec2.internal: Executor Process Lost
+26/07/30 00:41:21 ERROR TransportClient: Failed to send RPC RPC 7560602948680523807 to /172.31.66.104:37950: io.netty.channel.StacklessClosedChannelException
+io.netty.channel.StacklessClosedChannelException: null
+	at io.netty.channel.AbstractChannel$AbstractUnsafe.write(Object, ChannelPromise)(Unknown Source) ~[emr-spark-goodies-3.21.0.jar:3.21.0]
+26/07/30 00:41:21 ERROR YarnScheduler: Lost executor 32 on ip-172-31-77-41.ec2.internal: Executor Process Lost
+26/07/30 00:41:21 ERROR TransportClient: Failed to send RPC RPC 4757380874439046214 to /172.31.66.104:37950: io.netty.channel.StacklessClosedChannelException
+io.netty.channel.StacklessClosedChannelException: null
+	at io.netty.channel.AbstractChannel$AbstractUnsafe.write(Object, ChannelPromise)(Unknown Source) ~[emr-spark-goodies-3.21.0.jar:3.21.0]
+26/07/30 00:41:21 ERROR TransportClient: Failed to send RPC RPC 8087317807216754943 to /172.31.66.104:37950: io.netty.channel.StacklessClosedChannelException
+io.netty.channel.StacklessClosedChannelException: null
+	at io.netty.channel.AbstractChannel$AbstractUnsafe.write(Object, ChannelPromise)(Unknown Source) ~[emr-spark-goodies-3.21.0.jar:3.21.0]
+26/07/30 00:41:21 ERROR YarnScheduler: Lost executor 9 on ip-172-31-73-104.ec2.internal: Executor Process Lost
+26/07/30 00:41:21 ERROR YarnScheduler: Lost executor 10 on ip-172-31-73-104.ec2.internal: Executor Process Lost
+26/07/30 00:41:21 ERROR TransportClient: Failed to send RPC RPC 6185829230520342187 to /172.31.66.104:37950: io.netty.channel.StacklessClosedChannelException
+io.netty.channel.StacklessClosedChannelException: null
+	at io.netty.channel.AbstractChannel$AbstractUnsafe.write(Object, ChannelPromise)(Unknown Source) ~[emr-spark-goodies-3.21.0.jar:3.21.0]
+26/07/30 00:41:21 ERROR TransportClient: Failed to send RPC RPC 6878121324669151012 to /172.31.66.104:37950: io.netty.channel.StacklessClosedChannelException
+io.netty.channel.StacklessClosedChannelException: null
+	at io.netty.channel.AbstractChannel$AbstractUnsafe.write(Object, ChannelPromise)(Unknown Source) ~[emr-spark-goodies-3.21.0.jar:3.21.0]
+26/07/30 00:41:21 ERROR YarnScheduler: Lost executor 1 on ip-172-31-73-104.ec2.internal: Executor Process Lost
+26/07/30 00:41:21 ERROR YarnScheduler: Lost executor 18 on ip-172-31-73-104.ec2.internal: Executor Process Lost
+[Stage 33:>                                                       (0 + 0) / 512]26/07/30 00:41:22 ERROR YarnClientSchedulerBackend: YARN application has exited unexpectedly with state KILLED! Check the YARN application logs for more details.
+26/07/30 00:41:22 ERROR YarnClientSchedulerBackend: Diagnostics message: Application application_1785367519373_0006 was killed by user hadoop at 172.31.64.198
+26/07/30 00:41:22 ERROR TransportClient: Failed to send RPC RPC 7346030900790420184 to /172.31.66.104:37950: io.netty.channel.StacklessClosedChannelException
+io.netty.channel.StacklessClosedChannelException: null
+	at io.netty.channel.AbstractChannel$AbstractUnsafe.write(Object, ChannelPromise)(Unknown Source) ~[emr-spark-goodies-3.21.0.jar:3.21.0]
+26/07/30 00:41:22 ERROR YarnSchedulerBackend$YarnSchedulerEndpoint: Sending RequestExecutors(Map(),Map(),Map(),Set()) to AM was unsuccessful
+java.io.IOException: Failed to send RPC RPC 7346030900790420184 to /172.31.66.104:37950: io.netty.channel.StacklessClosedChannelException
+	at org.apache.spark.network.client.TransportClient$RpcChannelListener.handleFailure(TransportClient.java:443) ~[spark-network-common_2.12-3.5.6-amzn-1.jar:3.5.6-amzn-1]
+	at org.apache.spark.network.client.TransportClient$StdChannelListener.operationComplete(TransportClient.java:420) ~[spark-network-common_2.12-3.5.6-amzn-1.jar:3.5.6-amzn-1]
+	at io.netty.util.concurrent.DefaultPromise.notifyListener0(DefaultPromise.java:590) ~[emr-spark-goodies-3.21.0.jar:3.21.0]
+	at io.netty.util.concurrent.DefaultPromise.notifyListenersNow(DefaultPromise.java:557) ~[emr-spark-goodies-3.21.0.jar:3.21.0]
+	at io.netty.util.concurrent.DefaultPromise.notifyListeners(DefaultPromise.java:492) ~[emr-spark-goodies-3.21.0.jar:3.21.0]
+	at io.netty.util.concurrent.DefaultPromise.setValue0(DefaultPromise.java:636) ~[emr-spark-goodies-3.21.0.jar:3.21.0]
+	at io.netty.util.concurrent.DefaultPromise.setFailure0(DefaultPromise.java:629) ~[emr-spark-goodies-3.21.0.jar:3.21.0]
+	at io.netty.util.concurrent.DefaultPromise.tryFailure(DefaultPromise.java:118) ~[emr-spark-goodies-3.21.0.jar:3.21.0]
+	at io.netty.channel.AbstractChannel$AbstractUnsafe.safeSetFailure(AbstractChannel.java:999) ~[emr-spark-goodies-3.21.0.jar:3.21.0]
+	at io.netty.channel.AbstractChannel$AbstractUnsafe.write(AbstractChannel.java:860) ~[emr-spark-goodies-3.21.0.jar:3.21.0]
+	at io.netty.channel.DefaultChannelPipeline$HeadContext.write(DefaultChannelPipeline.java:1367) ~[emr-spark-goodies-3.21.0.jar:3.21.0]
+	at io.netty.channel.AbstractChannelHandlerContext.invokeWrite0(AbstractChannelHandlerContext.java:877) ~[emr-spark-goodies-3.21.0.jar:3.21.0]
+	at io.netty.channel.AbstractChannelHandlerContext.invokeWriteAndFlush(AbstractChannelHandlerContext.java:940) ~[emr-spark-goodies-3.21.0.jar:3.21.0]
+	at io.netty.channel.AbstractChannelHandlerContext$WriteTask.run(AbstractChannelHandlerContext.java:1247) ~[emr-spark-goodies-3.21.0.jar:3.21.0]
+	at io.netty.util.concurrent.AbstractEventExecutor.runTask(AbstractEventExecutor.java:173) ~[emr-spark-goodies-3.21.0.jar:3.21.0]
+	at io.netty.util.concurrent.AbstractEventExecutor.safeExecute(AbstractEventExecutor.java:166) ~[emr-spark-goodies-3.21.0.jar:3.21.0]
+	at io.netty.util.concurrent.SingleThreadEventExecutor.runAllTasks(SingleThreadEventExecutor.java:470) ~[emr-spark-goodies-3.21.0.jar:3.21.0]
+	at io.netty.channel.nio.NioEventLoop.run(NioEventLoop.java:569) ~[emr-spark-goodies-3.21.0.jar:3.21.0]
+	at io.netty.util.concurrent.SingleThreadEventExecutor$4.run(SingleThreadEventExecutor.java:997) ~[emr-spark-goodies-3.21.0.jar:3.21.0]
+	at io.netty.util.internal.ThreadExecutorMap$2.run(ThreadExecutorMap.java:74) ~[emr-spark-goodies-3.21.0.jar:3.21.0]
+	at io.netty.util.concurrent.FastThreadLocalRunnable.run(FastThreadLocalRunnable.java:30) ~[emr-spark-goodies-3.21.0.jar:3.21.0]
+	at java.lang.Thread.run(Thread.java:840) [?:?]
+Caused by: io.netty.channel.StacklessClosedChannelException
+	at io.netty.channel.AbstractChannel$AbstractUnsafe.write(Object, ChannelPromise)(Unknown Source) ~[emr-spark-goodies-3.21.0.jar:3.21.0]
+26/07/30 00:41:22 ERROR Utils: Uncaught exception in thread YARN application state monitor
+org.apache.spark.SparkException: Exception thrown in awaitResult: 
+	at org.apache.spark.util.SparkThreadUtils$.awaitResult(SparkThreadUtils.scala:56) ~[spark-common-utils_2.12-3.5.6-amzn-1.jar:3.5.6-amzn-1]
+	at org.apache.spark.util.ThreadUtils$.awaitResult(ThreadUtils.scala:310) ~[spark-core_2.12-3.5.6-amzn-1.jar:3.5.6-amzn-1]
+	at org.apache.spark.rpc.RpcTimeout.awaitResult(RpcTimeout.scala:75) ~[spark-core_2.12-3.5.6-amzn-1.jar:3.5.6-amzn-1]
+	at org.apache.spark.scheduler.cluster.CoarseGrainedSchedulerBackend.requestTotalExecutors(CoarseGrainedSchedulerBackend.scala:896) ~[spark-core_2.12-3.5.6-amzn-1.jar:3.5.6-amzn-1]
+	at org.apache.spark.scheduler.cluster.YarnSchedulerBackend.stop(YarnSchedulerBackend.scala:202) ~[spark-yarn_2.12-3.5.6-amzn-1.jar:3.5.6-amzn-1]
+	at org.apache.spark.scheduler.cluster.YarnClientSchedulerBackend.stop(YarnClientSchedulerBackend.scala:189) ~[spark-yarn_2.12-3.5.6-amzn-1.jar:3.5.6-amzn-1]
+	at org.apache.spark.scheduler.TaskSchedulerImpl.$anonfun$stop$2(TaskSchedulerImpl.scala:992) ~[spark-core_2.12-3.5.6-amzn-1.jar:3.5.6-amzn-1]
+	at org.apache.spark.util.Utils$.tryLogNonFatalError(Utils.scala:1377) ~[spark-core_2.12-3.5.6-amzn-1.jar:3.5.6-amzn-1]
+	at org.apache.spark.scheduler.TaskSchedulerImpl.stop(TaskSchedulerImpl.scala:992) ~[spark-core_2.12-3.5.6-amzn-1.jar:3.5.6-amzn-1]
+	at org.apache.spark.scheduler.DAGScheduler.$anonfun$stop$4(DAGScheduler.scala:3488) ~[spark-core_2.12-3.5.6-amzn-1.jar:3.5.6-amzn-1]
+	at org.apache.spark.util.Utils$.tryLogNonFatalError(Utils.scala:1377) ~[spark-core_2.12-3.5.6-amzn-1.jar:3.5.6-amzn-1]
+	at org.apache.spark.scheduler.DAGScheduler.stop(DAGScheduler.scala:3488) ~[spark-core_2.12-3.5.6-amzn-1.jar:3.5.6-amzn-1]
+	at org.apache.spark.SparkContext.$anonfun$stop$12(SparkContext.scala:2370) ~[spark-core_2.12-3.5.6-amzn-1.jar:3.5.6-amzn-1]
+	at org.apache.spark.util.Utils$.tryLogNonFatalError(Utils.scala:1377) [spark-core_2.12-3.5.6-amzn-1.jar:3.5.6-amzn-1]
+	at org.apache.spark.SparkContext.stop(SparkContext.scala:2370) [spark-core_2.12-3.5.6-amzn-1.jar:3.5.6-amzn-1]
+	at org.apache.spark.SparkContext.stop(SparkContext.scala:2323) [spark-core_2.12-3.5.6-amzn-1.jar:3.5.6-amzn-1]
+	at org.apache.spark.scheduler.cluster.YarnClientSchedulerBackend$MonitorThread.run(YarnClientSchedulerBackend.scala:136) [spark-yarn_2.12-3.5.6-amzn-1.jar:3.5.6-amzn-1]
+Caused by: java.io.IOException: Failed to send RPC RPC 7346030900790420184 to /172.31.66.104:37950: io.netty.channel.StacklessClosedChannelException
+	at org.apache.spark.network.client.TransportClient$RpcChannelListener.handleFailure(TransportClient.java:443) ~[spark-network-common_2.12-3.5.6-amzn-1.jar:3.5.6-amzn-1]
+	at org.apache.spark.network.client.TransportClient$StdChannelListener.operationComplete(TransportClient.java:420) ~[spark-network-common_2.12-3.5.6-amzn-1.jar:3.5.6-amzn-1]
+	at io.netty.util.concurrent.DefaultPromise.notifyListener0(DefaultPromise.java:590) ~[emr-spark-goodies-3.21.0.jar:3.21.0]
+	at io.netty.util.concurrent.DefaultPromise.notifyListenersNow(DefaultPromise.java:557) ~[emr-spark-goodies-3.21.0.jar:3.21.0]
+	at io.netty.util.concurrent.DefaultPromise.notifyListeners(DefaultPromise.java:492) ~[emr-spark-goodies-3.21.0.jar:3.21.0]
+	at io.netty.util.concurrent.DefaultPromise.setValue0(DefaultPromise.java:636) ~[emr-spark-goodies-3.21.0.jar:3.21.0]
+	at io.netty.util.concurrent.DefaultPromise.setFailure0(DefaultPromise.java:629) ~[emr-spark-goodies-3.21.0.jar:3.21.0]
+	at io.netty.util.concurrent.DefaultPromise.tryFailure(DefaultPromise.java:118) ~[emr-spark-goodies-3.21.0.jar:3.21.0]
+	at io.netty.channel.AbstractChannel$AbstractUnsafe.safeSetFailure(AbstractChannel.java:999) ~[emr-spark-goodies-3.21.0.jar:3.21.0]
+	at io.netty.channel.AbstractChannel$AbstractUnsafe.write(AbstractChannel.java:860) ~[emr-spark-goodies-3.21.0.jar:3.21.0]
+	at io.netty.channel.DefaultChannelPipeline$HeadContext.write(DefaultChannelPipeline.java:1367) ~[emr-spark-goodies-3.21.0.jar:3.21.0]
+	at io.netty.channel.AbstractChannelHandlerContext.invokeWrite0(AbstractChannelHandlerContext.java:877) ~[emr-spark-goodies-3.21.0.jar:3.21.0]
+	at io.netty.channel.AbstractChannelHandlerContext.invokeWriteAndFlush(AbstractChannelHandlerContext.java:940) ~[emr-spark-goodies-3.21.0.jar:3.21.0]
+	at io.netty.channel.AbstractChannelHandlerContext$WriteTask.run(AbstractChannelHandlerContext.java:1247) ~[emr-spark-goodies-3.21.0.jar:3.21.0]
+	at io.netty.util.concurrent.AbstractEventExecutor.runTask(AbstractEventExecutor.java:173) ~[emr-spark-goodies-3.21.0.jar:3.21.0]
+	at io.netty.util.concurrent.AbstractEventExecutor.safeExecute(AbstractEventExecutor.java:166) ~[emr-spark-goodies-3.21.0.jar:3.21.0]
+	at io.netty.util.concurrent.SingleThreadEventExecutor.runAllTasks(SingleThreadEventExecutor.java:470) ~[emr-spark-goodies-3.21.0.jar:3.21.0]
+	at io.netty.channel.nio.NioEventLoop.run(NioEventLoop.java:569) ~[emr-spark-goodies-3.21.0.jar:3.21.0]
+	at io.netty.util.concurrent.SingleThreadEventExecutor$4.run(SingleThreadEventExecutor.java:997) ~[emr-spark-goodies-3.21.0.jar:3.21.0]
+	at io.netty.util.internal.ThreadExecutorMap$2.run(ThreadExecutorMap.java:74) ~[emr-spark-goodies-3.21.0.jar:3.21.0]
+	at io.netty.util.concurrent.FastThreadLocalRunnable.run(FastThreadLocalRunnable.java:30) ~[emr-spark-goodies-3.21.0.jar:3.21.0]
+	at java.lang.Thread.run(Thread.java:840) ~[?:?]
+Caused by: io.netty.channel.StacklessClosedChannelException
+	at io.netty.channel.AbstractChannel$AbstractUnsafe.write(Object, ChannelPromise)(Unknown Source) ~[emr-spark-goodies-3.21.0.jar:3.21.0]
+Traceback (most recent call last):
+  File "/home/hadoop/emo-pipeline/runners/run_emr.py", line 1455, in <module>
+    main()
+  File "/home/hadoop/emo-pipeline/runners/run_emr.py", line 1100, in main
+    run_phase3(
+  File "/tmp/pipeline/phases/phase3_training.py", line 1192, in run_phase3
+    comm_results.write.mode('overwrite').parquet(result_tmp_path)
+  File "/usr/lib/spark/python/pyspark/sql/readwriter.py", line 1721, in parquet
+    self._jwrite.parquet(path)
+  File "/usr/lib/spark/python/lib/py4j-0.10.9.7-src.zip/py4j/java_gateway.py", line 1322, in __call__
+  File "/usr/lib/spark/python/pyspark/errors/exceptions/captured.py", line 179, in deco
+    return f(*a, **kw)
+  File "/usr/lib/spark/python/lib/py4j-0.10.9.7-src.zip/py4j/protocol.py", line 326, in get_return_value
+py4j.protocol.Py4JJavaError: An error occurred while calling o622.parquet.
+: org.apache.spark.SparkException: Job 20 cancelled because SparkContext was shut down
+	at org.apache.spark.scheduler.DAGScheduler.$anonfun$cleanUpAfterSchedulerStop$1(DAGScheduler.scala:1349)
+	at org.apache.spark.scheduler.DAGScheduler.$anonfun$cleanUpAfterSchedulerStop$1$adapted(DAGScheduler.scala:1347)
+	at scala.collection.mutable.HashSet.foreach(HashSet.scala:79)
+	at org.apache.spark.scheduler.DAGScheduler.cleanUpAfterSchedulerStop(DAGScheduler.scala:1347)
+	at org.apache.spark.scheduler.DAGSchedulerEventProcessLoop.onStop(DAGScheduler.scala:3608)
+	at org.apache.spark.util.EventLoop.stop(EventLoop.scala:84)
+	at org.apache.spark.scheduler.DAGScheduler.$anonfun$stop$3(DAGScheduler.scala:3485)
+	at org.apache.spark.util.Utils$.tryLogNonFatalError(Utils.scala:1377)
+	at org.apache.spark.scheduler.DAGScheduler.stop(DAGScheduler.scala:3485)
+	at org.apache.spark.SparkContext.$anonfun$stop$12(SparkContext.scala:2370)
+	at org.apache.spark.util.Utils$.tryLogNonFatalError(Utils.scala:1377)
+	at org.apache.spark.SparkContext.stop(SparkContext.scala:2370)
+	at org.apache.spark.SparkContext.stop(SparkContext.scala:2323)
+	at org.apache.spark.scheduler.cluster.YarnClientSchedulerBackend$MonitorThread.run(YarnClientSchedulerBackend.scala:136)
+	at org.apache.spark.sql.execution.adaptive.AdaptiveExecutor.checkNoFailures(AdaptiveExecutor.scala:175)
+	at org.apache.spark.sql.execution.adaptive.AdaptiveExecutor.doRun(AdaptiveExecutor.scala:97)
+	at org.apache.spark.sql.execution.adaptive.AdaptiveExecutor.tryRunningAndGetFuture(AdaptiveExecutor.scala:75)
+	at org.apache.spark.sql.execution.adaptive.AdaptiveExecutor.execute(AdaptiveExecutor.scala:59)
+	at org.apache.spark.sql.execution.adaptive.AdaptiveSparkPlanExec.$anonfun$getFinalPhysicalPlan$1(AdaptiveSparkPlanExec.scala:304)
+	at org.apache.spark.sql.SparkSession.withActive(SparkSession.scala:996)
+	at org.apache.spark.sql.execution.adaptive.AdaptiveSparkPlanExec.getFinalPhysicalPlan(AdaptiveSparkPlanExec.scala:303)
+	at org.apache.spark.sql.execution.adaptive.AdaptiveSparkPlanExec.withFinalPlanUpdate(AdaptiveSparkPlanExec.scala:610)
+	at org.apache.spark.sql.execution.adaptive.AdaptiveSparkPlanExec.executeCollect(AdaptiveSparkPlanExec.scala:572)
+	at org.apache.spark.sql.execution.QueryExecution$$anonfun$eagerlyExecuteCommands$1.$anonfun$applyOrElse$1(QueryExecution.scala:127)
+	at org.apache.spark.sql.catalyst.QueryPlanningTracker$.withTracker(QueryPlanningTracker.scala:108)
+	at org.apache.spark.sql.execution.SQLExecution$.withTracker(SQLExecution.scala:391)
+	at org.apache.spark.sql.execution.SQLExecution$.executeQuery$1(SQLExecution.scala:159)
+	at org.apache.spark.sql.execution.SQLExecution$.$anonfun$withNewExecutionId$11(SQLExecution.scala:227)
+	at org.apache.spark.sql.catalyst.QueryPlanningTracker$.withTracker(QueryPlanningTracker.scala:108)
+	at org.apache.spark.sql.execution.SQLExecution$.withTracker(SQLExecution.scala:391)
+	at org.apache.spark.sql.execution.SQLExecution$.$anonfun$withNewExecutionId$10(SQLExecution.scala:227)
+	at org.apache.spark.sql.execution.SQLExecution$.withSQLConfPropagated(SQLExecution.scala:412)
+	at org.apache.spark.sql.execution.SQLExecution$.$anonfun$withNewExecutionId$1(SQLExecution.scala:226)
+	at org.apache.spark.sql.SparkSession.withActive(SparkSession.scala:996)
+	at org.apache.spark.sql.execution.SQLExecution$.withNewExecutionId(SQLExecution.scala:84)
+	at org.apache.spark.sql.execution.SQLExecution$.withNewExecutionId(SQLExecution.scala:75)
+	at org.apache.spark.sql.execution.QueryExecution$$anonfun$eagerlyExecuteCommands$1.applyOrElse(QueryExecution.scala:124)
+	at org.apache.spark.sql.execution.QueryExecution$$anonfun$eagerlyExecuteCommands$1.applyOrElse(QueryExecution.scala:115)
+	at org.apache.spark.sql.catalyst.trees.TreeNode.$anonfun$transformDownWithPruning$1(TreeNode.scala:521)
+	at org.apache.spark.sql.catalyst.trees.CurrentOrigin$.withOrigin(origin.scala:77)
+	at org.apache.spark.sql.catalyst.trees.TreeNode.transformDownWithPruning(TreeNode.scala:521)
+	at org.apache.spark.sql.catalyst.plans.logical.LogicalPlan.org$apache$spark$sql$catalyst$plans$logical$AnalysisHelper$$super$transformDownWithPruning(LogicalPlan.scala:39)
+	at org.apache.spark.sql.catalyst.plans.logical.AnalysisHelper.transformDownWithPruning(AnalysisHelper.scala:303)
+	at org.apache.spark.sql.catalyst.plans.logical.AnalysisHelper.transformDownWithPruning$(AnalysisHelper.scala:299)
+	at org.apache.spark.sql.catalyst.plans.logical.LogicalPlan.transformDownWithPruning(LogicalPlan.scala:39)
+	at org.apache.spark.sql.catalyst.plans.logical.LogicalPlan.transformDownWithPruning(LogicalPlan.scala:39)
+	at org.apache.spark.sql.catalyst.trees.TreeNode.transformDown(TreeNode.scala:497)
+	at org.apache.spark.sql.execution.QueryExecution.eagerlyExecuteCommands(QueryExecution.scala:115)
+	at org.apache.spark.sql.execution.QueryExecution.commandExecuted$lzycompute(QueryExecution.scala:102)
+	at org.apache.spark.sql.execution.QueryExecution.commandExecuted(QueryExecution.scala:100)
+	at org.apache.spark.sql.execution.QueryExecution.assertCommandExecuted(QueryExecution.scala:165)
+	at org.apache.spark.sql.DataFrameWriter.runCommand(DataFrameWriter.scala:910)
+	at org.apache.spark.sql.DataFrameWriter.saveToV1Source(DataFrameWriter.scala:405)
+	at org.apache.spark.sql.DataFrameWriter.saveInternal(DataFrameWriter.scala:365)
+	at org.apache.spark.sql.DataFrameWriter.save(DataFrameWriter.scala:244)
+	at org.apache.spark.sql.DataFrameWriter.parquet(DataFrameWriter.scala:842)
+	at java.base/jdk.internal.reflect.NativeMethodAccessorImpl.invoke0(Native Method)
+	at java.base/jdk.internal.reflect.NativeMethodAccessorImpl.invoke(NativeMethodAccessorImpl.java:77)
+	at java.base/jdk.internal.reflect.DelegatingMethodAccessorImpl.invoke(DelegatingMethodAccessorImpl.java:43)
+	at java.base/java.lang.reflect.Method.invoke(Method.java:569)
+	at py4j.reflection.MethodInvoker.invoke(MethodInvoker.java:244)
+	at py4j.reflection.ReflectionEngine.invoke(ReflectionEngine.java:374)
+	at py4j.Gateway.invoke(Gateway.java:282)
+	at py4j.commands.AbstractCommand.invokeMethod(AbstractCommand.java:132)
+	at py4j.commands.CallCommand.execute(CallCommand.java:79)
+	at py4j.ClientServerConnection.waitForCommands(ClientServerConnection.java:182)
+	at py4j.ClientServerConnection.run(ClientServerConnection.java:106)
+	at java.base/java.lang.Thread.run(Thread.java:840)
+

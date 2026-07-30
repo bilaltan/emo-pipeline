@@ -5,14 +5,14 @@
 #      python upload_to_s3.py
 # ══════════════════════════════════════════════════════════════════════════════
 
-EXPERIMENT_NAME   = 'ogbn-papers100M'          # labels ALL S3 outputs; change per experiment run
+EXPERIMENT_NAME   = 'ogbn-products'          # labels ALL S3 outputs; change per experiment run
 
 # ── Datasets ───────────────────────────────────────────────────────────────────
 # Available options:
 # Standard: 'WikiCS', 'Coauthor-Physics', 'Coauthor-CS', 'DeezerEurope', 'Foursquare'
 # 100M-scale: 'reddit', 'ogbn-products'
 # 1B-scale:   'ogbn-papers100M'
-DATASETS_TO_RUN = ['ogbn-papers100M']
+DATASETS_TO_RUN = ['ogbn-products']
 
 # ── GNN Models to Run ─────────────────────────────────────────────────────────
 # Supported choices: 'sage', 'gat', 'gatv2', 'transformer', 'clusterscl', 'arma', 'asap'
@@ -35,7 +35,7 @@ N_BASELINE_RUNS   = 1          # number of runs per baseline for mean ± std
 #   'lpa'     = distributed Spark (fast, lower community quality)
 #   'louvain' = driver/igraph   (moderate quality, pulls graph to driver RAM)
 #   'igraph_lpa' = driver/igraph   (LPA using igraph)
-RUN_PHASE1         = True             # Set to False to skip community detection phase
+RUN_PHASE1         = False             # Set to False to skip community detection phase
 ALGORITHMS_TO_RUN  = ['lpa']
 LPA_MAX_ITER       = 6
 RESOLUTION         = 1.0              # louvain / leiden resolution parameter
@@ -47,7 +47,7 @@ MIN_COMMUNITY_SIZE = 1000             # communities smaller than this are exclud
 #   Required for valid global accuracy comparison (Pipelines.txt §5).
 # USE_GLOBAL_MAPPING = False (ablation only):
 #   Per-community 70/15/15 random split inside UDF → NOT globally comparable.
-RUN_PHASE2         = True             # Set to False to skip subgraph generation phase
+RUN_PHASE2         = False             # Set to False to skip subgraph generation phase
 RUN_PHASE3         = True             # Set to False to skip parallel GNN UDF training phase
 USE_GLOBAL_MAPPING = True
 
@@ -86,7 +86,7 @@ RUN_PHASE4H       = False       # GATv2 Baseline
 # ── Infrastructure ─────────────────────────────────────────────────────────────
 S3_BUCKET         = 'us-east-1-s3-gnn'
 S3_CODE_PREFIX    = 'pipeline'   # where upload_to_s3.py puts .py files
-SKIP_PKG_SYNC     = True        # Set to True to skip slow Python package verification on executors
+SKIP_PKG_SYNC     = False        # Set to True to skip slow Python package verification on executors
 
 # ══════════════════════════════════════════════════════════════════════════════
 #  DERIVED CONFIG — do not edit below this line
