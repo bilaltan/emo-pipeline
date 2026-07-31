@@ -98,6 +98,7 @@ def _train_gnn_community_single(pdf, comm_edges_pdf=None, base_weights_bc=None, 
     import numpy as np
     import pandas as pd
     import inspect
+    worker_start = time.time()
 
     # Patch torch.load inline on workers to prevent weights_only=True unpickling error
     # 1. Dynamically resolve node site-packages to sys.path
@@ -157,6 +158,14 @@ def _train_gnn_community_single(pdf, comm_edges_pdf=None, base_weights_bc=None, 
 
     t_start     = time.time()
     comm_id     = int(pdf['community_id'].iloc[0])
+    diagnostics = bool(pdf['_phase3_diagnostics'].iloc[0]) if '_phase3_diagnostics' in pdf.columns else False
+    worker_name = os.environ.get('HOSTNAME', 'unknown-worker')
+
+    def diagnostic(message):
+        if diagnostics:
+            print(f"[PHASE3-WORKER] host={worker_name} community={comm_id} {message}", flush=True)
+
+    diagnostic(f"started with {len(pdf):,} node rows")
     num_classes = int(pdf['_num_classes'].iloc[0])
     hidden_dim  = int(pdf['_hidden'].iloc[0])
     num_epochs  = int(pdf['_epochs'].iloc[0])
@@ -164,6 +173,10 @@ def _train_gnn_community_single(pdf, comm_edges_pdf=None, base_weights_bc=None, 
     dropout     = float(pdf['_dropout'].iloc[0])
     task_type   = str(pdf['_task_type'].iloc[0]) if '_task_type' in pdf.columns else 'node_classification'
     model_type  = str(pdf['_model_type'].iloc[0]) if '_model_type' in pdf.columns else 'sage'
+    max_nodes_per_community = int(pdf['_max_nodes'].iloc[0]) if '_max_nodes' in pdf.columns else 10000
+    max_edges_per_community = int(pdf['_max_edges'].iloc[0]) if '_max_edges' in pdf.columns else 200000
+    mlp_epochs = int(pdf['_mlp_epochs'].iloc[0]) if '_mlp_epochs' in pdf.columns else 5
+    diagnostic(f"dependencies ready after {time.time() - worker_start:.1f}s; model={model_type}; task={task_type}")
 
     # Fast C-vectorized node mapping
     all_nodes = pdf['id'].values.astype(np.int64)
@@ -219,9 +232,9 @@ def _train_gnn_community_single(pdf, comm_edges_pdf=None, base_weights_bc=None, 
         }])
 
 
-    # Bulletproof RAM Safety Floor: Sub-sample outlier communities if > 10,000 nodes
-    if n_nodes > 10000:
-        pdf = pdf.iloc[:10000]
+    # Final RAM safety floor for the small amount of variation left by Spark-side sampling.
+    if n_nodes > max_nodes_per_community:
+        pdf = pdf.iloc[:max_nodes_per_community]
         all_nodes = pdf['id'].values.astype(np.int64)
         n_nodes   = len(all_nodes)
 
@@ -302,10 +315,9 @@ def _train_gnn_community_single(pdf, comm_edges_pdf=None, base_weights_bc=None, 
     split_arr = list(pdf['split'].values)
     bnd_arr   = np.array([bool(v) if not (pd.isna(v) or v is None) else False for v in pdf['is_boundary'].values], dtype=bool)
 
-    MAX_SUBGRAPH_EDGES = 200000
-    if n_edges > MAX_SUBGRAPH_EDGES:
+    if n_edges > max_edges_per_community:
         np.random.seed(42)
-        keep_idx = np.random.choice(n_edges, MAX_SUBGRAPH_EDGES, replace=False)
+        keep_idx = np.random.choice(n_edges, max_edges_per_community, replace=False)
         src_l_g = src_l[keep_idx]
         dst_l_g = dst_l[keep_idx]
     else:
@@ -335,6 +347,7 @@ def _train_gnn_community_single(pdf, comm_edges_pdf=None, base_weights_bc=None, 
         feat_t, lbl_t = g.ndata['feat'], g.ndata['label']
 
     t_dgl_conv = time.time() - t_dgl_conv_start
+    diagnostic(f"graph ready: nodes={n_nodes:,}, edges={n_edges:,}, load={t_load:.1f}s, graph_build={t_dgl_conv:.1f}s")
 
     node_train_time = 0.0
     comm_acc = 0.0
@@ -612,6 +625,7 @@ def _train_gnn_community_single(pdf, comm_edges_pdf=None, base_weights_bc=None, 
                     if patience_counter >= 2:
                         break
         node_train_time = time.time() - t_node_start
+        diagnostic(f"node training/evaluation finished in {node_train_time:.1f}s")
         
         model.eval()
         with torch.no_grad():
@@ -658,7 +672,6 @@ def _train_gnn_community_single(pdf, comm_edges_pdf=None, base_weights_bc=None, 
             best_acc = -1.0
             best_weights = copy.deepcopy(mlp_model.state_dict())
 
-            mlp_epochs = 5  # Fixed MLP epochs, independent of GNN training epochs
             for mlp_epoch in range(mlp_epochs):
                 mlp_model.train()
                 for x_b, y_b in mlp_loader:
@@ -879,10 +892,13 @@ def _train_gnn_community_single(pdf, comm_edges_pdf=None, base_weights_bc=None, 
                     comm_link_auc = 0.5
             link_train_time = time.time() - t_link_start
 
+        diagnostic(f"link training/evaluation finished in {link_train_time:.1f}s")
+
     peak_mem = resource.getrusage(resource.RESOURCE_SELF if hasattr(resource, 'RESOURCE_SELF') else resource.RUSAGE_SELF).ru_maxrss * 1024.0
 
     n_nodes_bnd = int(bnd_t.sum())
     bucket = 'large' if n_nodes > 200 else ('medium' if n_nodes >= 50 else 'small')
+    diagnostic(f"completed in {time.time() - t_start:.1f}s; peak_rss={peak_mem / 1e6:.1f} MB")
 
     return pd.DataFrame([{
         'community_id':  comm_id,
@@ -913,6 +929,11 @@ def run_phase3(spark, sc, datasets, algorithms, use_global_mapping,
     """
     task_type = kwargs.get('task_type', 'node_classification')
     gnn_models = kwargs.get('models', ['sage'])
+    diagnostics = kwargs.get('diagnostics', False)
+    max_nodes_per_community = int(kwargs.get('max_nodes_per_community', 10000))
+    max_edges_per_community = int(kwargs.get('max_edges_per_community', 50000))
+    edge_sample_modulus = max(1, int(kwargs.get('edge_sample_modulus', 64)))
+    mlp_epochs = max(1, int(kwargs.get('mlp_epochs', 5)))
     
     from pyspark import StorageLevel
     from pyspark.sql import functions as F
@@ -922,13 +943,17 @@ def run_phase3(spark, sc, datasets, algorithms, use_global_mapping,
         cfg = dataset_cfg[dataset]
         for alg in algorithms:
             p_alg = get_paths_fn(dataset, alg)
-            
+
+            print(f"  [Phase 3 setup] Loading Phase 2 Delta tables for {dataset}/{alg}...")
+            cache_start = time.time()
             nodes_df = (spark.read.format('delta').load(p_alg['p2_nodes'])
                         .persist(StorageLevel.MEMORY_AND_DISK))
             edges_df = (spark.read.format('delta').load(p_alg['p2_edges'])
                         .persist(StorageLevel.MEMORY_AND_DISK))
-            nodes_df.count()
-            edges_df.count()
+            n_phase2_nodes = nodes_df.count()
+            n_phase2_edges = edges_df.count()
+            print(f"  [Phase 3 setup] Cached {n_phase2_nodes:,} node rows and {n_phase2_edges:,} edge rows in {time.time() - cache_start:.1f}s "
+                  f"(nodes partitions={nodes_df.rdd.getNumPartitions()}, edges partitions={edges_df.rdd.getNumPartitions()}).")
 
             # Standard metadata + 128-float features array in DataFrame
             # Fixed 128-float arrays with maxRecordsPerBatch=1000 produce tiny 512KB Arrow batches
@@ -936,9 +961,16 @@ def run_phase3(spark, sc, datasets, algorithms, use_global_mapping,
             training_df_base = nodes_df.select('id', 'label', 'features', 'split', 'community_id', 'is_boundary')
 
             # Compute model-independent community layout once per (dataset, alg).
+            layout_start = time.time()
             comms_node_counts_pd = nodes_df.select('community_id').groupBy('community_id').count().toPandas()
             comms_node_counts_pd = comms_node_counts_pd.sort_values(by='count', ascending=False).reset_index(drop=True)
             num_comms = len(comms_node_counts_pd)
+            largest_communities = ', '.join(
+                f"{int(row.community_id)}:{int(row.count):,}"
+                for row in comms_node_counts_pd.head(5).itertuples(index=False)
+            )
+            print(f"  [Phase 3 setup] Community layout computed in {time.time() - layout_start:.1f}s: "
+                  f"{num_comms:,} communities; largest community_id:nodes = {largest_communities}.")
 
             default_para = sc.defaultParallelism
             if num_comms <= 2000:
@@ -948,7 +980,16 @@ def run_phase3(spark, sc, datasets, algorithms, use_global_mapping,
 
             # Group communities into bins once, then reuse for each model type.
             comms_node_counts_pd['bin_id'] = [i % num_bins for i in range(num_comms)]
-            comms_node_counts = spark.createDataFrame(comms_node_counts_pd[['community_id', 'bin_id']])
+            # Keep a safety margin below the hard UDF limit. Hash sampling avoids
+            # a per-community window sort over every Papers100M node row.
+            node_sampling_target = max(1, int(max_nodes_per_community * 0.8))
+            comms_node_counts_pd['_phase3_node_mod'] = np.maximum(
+                1,
+                np.ceil(comms_node_counts_pd['count'] / node_sampling_target).astype(np.int64)
+            )
+            comms_node_counts = spark.createDataFrame(
+                comms_node_counts_pd[['community_id', 'bin_id', '_phase3_node_mod']]
+            )
 
             base_manifest_df = (comms_node_counts
                 .withColumn('_num_classes', F.lit(int(cfg['num_classes'])))
@@ -1031,6 +1072,7 @@ def run_phase3(spark, sc, datasets, algorithms, use_global_mapping,
                 print(f"\n{'='*60}")
                 print(f"  PHASE 3 — GNN Training: {dataset} / {alg} / {model_type}")
                 print(f"  tag={p_alg['tag']}")
+                print(f"  task={task_type}; epochs={gcn_cfg['num_epochs']}; diagnostics={'on' if diagnostics else 'off'}")
                 print(f"{'='*60}")
 
                 # 1. Driver-side warmup training (GraphSAGE base weights and embeddings)
@@ -1141,7 +1183,7 @@ def run_phase3(spark, sc, datasets, algorithms, use_global_mapping,
                 except Exception as base_err:
                     print(f"  Warning: Skipped warm-start driver pre-training: {base_err}")
 
-                # 2. Parallel Manifest-Driven GNN Execution (Zero-Shuffle Architecture with Community Binning)
+                # 2. Parallel grouped Pandas execution with community binning.
                 spark.conf.set("spark.sql.execution.arrow.pyspark.enabled", "true")
                 spark.conf.set("spark.sql.execution.arrow.pyspark.fallback.enabled", "true")
 
@@ -1159,9 +1201,6 @@ def run_phase3(spark, sc, datasets, algorithms, use_global_mapping,
                     .withColumn('_task_type',   F.lit(str(task_type)))
                     .withColumn('_model_type',  F.lit(str(model_type))))
 
-                print(f"  Distributing Manifest of {num_comms:,} communities across {num_bins} binned YARN executor tasks...")
-                print(f"  ✓ Zero-Shuffle Execution: Workers read partition files directly via C++ PyArrow Dataset readers.")
-
                 def _train_gnn_community_single_wrapper(pdf):
                     try:
                         import torch
@@ -1178,15 +1217,33 @@ def run_phase3(spark, sc, datasets, algorithms, use_global_mapping,
                         base_node_map_bc=base_node_map_bc
                     )
 
-                edges_df = spark.read.format('delta').load(p_alg['p2_edges'])
-                edges_agg = (edges_df
+                # Apply the same deterministic hash predicate to node IDs and both
+                # endpoints. This creates an induced sampled subgraph without window
+                # sorts or two large edge/node joins. The 80% node target leaves room
+                # for normal sampling variation; the UDF retains the final hard cap.
+                sampling_plan = F.broadcast(comms_node_counts.select('community_id', '_phase3_node_mod'))
+                retained_nodes = (nodes_df
+                    .join(sampling_plan, on='community_id', how='inner')
+                    .filter(F.pmod(F.xxhash64('id'), F.col('_phase3_node_mod')) == F.lit(0)))
+
+                bounded_edges = (edges_df
+                    .join(sampling_plan, on='community_id', how='inner')
+                    .filter(F.pmod(F.xxhash64('src'), F.col('_phase3_node_mod')) == F.lit(0))
+                    .filter(F.pmod(F.xxhash64('dst'), F.col('_phase3_node_mod')) == F.lit(0))
+                    .filter(F.pmod(F.xxhash64('src', 'dst'), F.lit(edge_sample_modulus)) == F.lit(0)))
+
+                print(f"  [Phase 3 safety] Hash-sampling up to ~{node_sampling_target:,} nodes/community "
+                      f"(hard cap {max_nodes_per_community:,}); retaining ~1/{edge_sample_modulus} eligible edges "
+                      f"before aggregation (UDF hard edge cap {max_edges_per_community:,}).")
+
+                edges_agg = (bounded_edges
                     .groupBy('community_id')
                     .agg(
                         F.collect_list('src').alias('_src_list'),
                         F.collect_list('dst').alias('_dst_list')
                     ))
 
-                nodes_df_meta = (nodes_df
+                nodes_df_meta = (retained_nodes
                     .withColumn('_num_classes', F.lit(int(cfg['num_classes'])))
                     .withColumn('_hidden',      F.lit(int(gcn_cfg['hidden_dim'])))
                     .withColumn('_epochs',      F.lit(int(gcn_cfg['num_epochs'])))
@@ -1194,6 +1251,10 @@ def run_phase3(spark, sc, datasets, algorithms, use_global_mapping,
                     .withColumn('_dropout',     F.lit(float(gcn_cfg['dropout'])))
                     .withColumn('_task_type',   F.lit(str(task_type)))
                     .withColumn('_model_type',  F.lit(str(model_type)))
+                    .withColumn('_max_nodes',   F.lit(int(max_nodes_per_community)))
+                    .withColumn('_max_edges',   F.lit(int(max_edges_per_community)))
+                    .withColumn('_mlp_epochs',  F.lit(int(mlp_epochs)))
+                    .withColumn('_phase3_diagnostics', F.lit(bool(diagnostics)))
                     .join(edges_agg, on='community_id', how='left'))
 
                 sc.setJobDescription(f'phase3_{dataset}_{alg}_{model_type}')
@@ -1330,3 +1391,7 @@ def run_phase3(spark, sc, datasets, algorithms, use_global_mapping,
 
             nodes_df.unpersist()
             edges_df.unpersist()
+            try:
+                bounded_edges.unpersist()
+            except NameError:
+                pass

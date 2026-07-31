@@ -4,7 +4,8 @@ import pandas as pd
 
 def print_accuracy_table(datasets, algorithms, phase3_results, phase4_results, phase4b_results=None,
                          phase4c_results=None, phase4d_results=None, phase4e_results=None,
-                         phase4f_results=None, phase4g_results=None, phase4h_results=None, phase3b_results=None, gnn_models=None):
+                         phase4f_results=None, phase4g_results=None, phase4h_results=None, phase3b_results=None,
+                         phase38_results=None, gnn_models=None):
     """Per-algorithm performance comparison including node acc and link AUC."""
     print("\n" + "="*95)
     print("  PHASE 5A — PERFORMANCE COMPARISON (NODE ACCURACY & LINK AUC)")
@@ -82,6 +83,11 @@ def print_accuracy_table(datasets, algorithms, phase3_results, phase4_results, p
             b4h = phase4h_results.get(dataset)
             if b4h:
                 print(f"  {'GATv2-BL':<18} {b4h.get('test_acc', float('nan')):>10.4f} {'—':>10} {'—':>10} {'—':>10} {b4h.get('link_auc', float('nan')):>12.4f}")
+        if phase38_results:
+            for alg in algorithms:
+                p38 = phase38_results.get((dataset, alg))
+                if p38:
+                    print(f"  {f'{alg}-SIGN-LR':<18} {p38.get('test_acc', float('nan')):>10.4f} {'—':>10} {'—':>10} {'—':>10} {'—':>12}")
 
         # Size-bucket breakdown per algorithm-model
         print(f"\n  [{dataset}] Performance by community size bucket:")

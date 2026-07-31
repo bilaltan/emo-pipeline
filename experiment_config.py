@@ -24,7 +24,7 @@ GNN_MODELS = ['sage']
 # False = skip (Delta tables already exist).
 RUN_PHASE0        = False
 FORCE_REINGEST    = False   # Set to False to use existing S3 Delta tables
-FORCE_RERUN       = False  # Set to True only when you intentionally want to ignore existing checkpoints
+FORCE_RERUN       = False # Preserve the validated Phase 2.6/2.7 checkpoints
 USE_OGB_SPLITS    = True    # True = OGB official splits | False = stratified 60/20/20
 RANDOM_SEED       = 42
 N_BASELINE_RUNS   = 1          # number of runs per baseline for mean ± std
@@ -35,11 +35,11 @@ N_BASELINE_RUNS   = 1          # number of runs per baseline for mean ± std
 #   'lpa'     = distributed Spark (fast, lower community quality)
 #   'louvain' = driver/igraph   (moderate quality, pulls graph to driver RAM)
 #   'igraph_lpa' = driver/igraph   (LPA using igraph)
-RUN_PHASE1         = True             # Set to False to skip community detection phase
-ALGORITHMS_TO_RUN  = ['lpa']
+RUN_PHASE1         = False            # Reuse the completed LPA checkpoint for the Phase 3 retry
+ALGORITHMS_TO_RUN  = ['lpa']  # subset of ['lpa', 'louvain', 'igraph_lpa']
 LPA_MAX_ITER       = 6
 RESOLUTION         = 1.0              # louvain / leiden resolution parameter
-MIN_COMMUNITY_SIZE = 5000             # communities smaller than this are excluded
+MIN_COMMUNITY_SIZE = 1000             # communities smaller than this are excluded
 
 # ── Phase 2 / 3: Partitioning & GNN Training ──────────────────────────────────
 # USE_GLOBAL_MAPPING = True  (RECOMMENDED):
@@ -47,35 +47,100 @@ MIN_COMMUNITY_SIZE = 5000             # communities smaller than this are exclud
 #   Required for valid global accuracy comparison (Pipelines.txt §5).
 # USE_GLOBAL_MAPPING = False (ablation only):
 #   Per-community 70/15/15 random split inside UDF → NOT globally comparable.
-RUN_PHASE2         = True             # Set to False to skip subgraph generation phase
-RUN_PHASE3         = True             # Set to False to skip parallel GNN UDF training phase
+RUN_PHASE2         = False            # Reuse the completed bounded Phase 2 subgraphs
+# Phase 2.5 writes a lossless, shard-addressable node/adjacency graph store.
+# Enable this once to prepare the direct-parquet Phase 3 redesign; it does not
+# change the current sampled-community Phase 3 path yet.
+RUN_PHASE25        = False            # Reuse the completed lossless graph-store checkpoint
+PHASE25_NUM_SHARDS = 512
+RUN_PHASE26        = False            # Correct independent source-seed layout is now materialized
+PHASE26_SEED_BLOCKS = 16
+PHASE26_NEIGHBOR_BLOCKS = 4
+# Reunites the four edge partitions logically per source seed unit and records
+# exact halo/workload statistics. It does not train or materialize adjacency.
+RUN_PHASE27        = False            # Correct full seed-unit audit is now materialized
+PHASE27_WORKING_SET_HEADROOM = 4.0
+# Initial direct-Delta validation: trains bounded, complete source-seed units
+# without collect_list. This is intentionally a local-block validation, not a
+# synchronized full-graph model. Start with a small deterministic subset.
+RUN_PHASE35        = False            # Completed direct-I/O validation; preserve output while shared training is implemented
+PHASE35_MAX_UNITS  = 8
+# Synchronous FedAvg proof on bounded direct blocks. The driver averages only
+# this validation subset's compact model vectors; it is not the final 8,192-
+# unit distributed parameter-service implementation.
+RUN_PHASE36        = False            # Timing A/B complete; do not rerun before selecting a faster training architecture
+PHASE36_TRAIN_UNITS = 1024            # Scale validated FedAdam to the 118M-edge direct-training workload
+PHASE36_HOLDOUT_UNITS = 64            # Fixed deterministic evaluation population for fair scale comparisons
+PHASE36_ROUNDS     = 30               # Match the fixed-holdout 256-unit baseline before comparing scale
+PHASE36_LOCAL_EPOCHS = 2
+PHASE36_AGGREGATION_PARTITIONS = 64   # One weighted model vector returned per partition, not per unit
+PHASE36_SERVER_OPTIMIZER = 'fedadam'  # Compare against the 256-unit FedAvg fixed-holdout score of 0.2748
+PHASE36_SERVER_LR = 0.003
+PHASE36_SERVER_BETA1 = 0.9
+PHASE36_SERVER_BETA2 = 0.99
+PHASE36_SERVER_EPSILON = 1e-8
+PHASE36_USE_WORKSET_CHECKPOINT = True   # Delta checkpoint selected train/holdout unit records for fast reruns
+PHASE36_REPARTITION_BY_UNIT = True      # Pre-cluster by (src_shard, seed_block) before grouped UDF rounds
+# Phase 3.7 is a CPU-oriented SIGN-style preprocessing path. It computes each
+# graph hop once with Spark vector aggregation and caches reusable features in
+# Delta. The Phase 0 source runs the original 111M-node graph and its
+# symmetrized ~3.23B propagation edges. Its cache is separate from the prior
+# validated Phase 2 cache, so this is a new full-graph materialization.
+RUN_PHASE37        = True
+PHASE37_GRAPH_SOURCE = 'phase0'
+PHASE37_NUM_HOPS   = 2
+PHASE37_NUM_PARTITIONS = 512
+# Phase 3.8 evaluates one globally optimized Spark ML classifier on Phase 3.7
+# features. It is an edge-free, distributed linear probe; it does not create
+# independent partition models and therefore reports a valid global metric.
+RUN_PHASE38        = True
+PHASE38_MAX_ITER   = 30
+PHASE38_REG_PARAM  = 0.0001
+PHASE38_ELASTIC_NET_PARAM = 0.0
+RUN_PHASE3         = False
 USE_GLOBAL_MAPPING = True
 
+# Emits Phase 3 driver/executor timing markers to diagnose slow or stalled runs.
+# Executor markers are written to the relevant YARN container logs.
+PHASE3_DIAGNOSTICS = True
+
+# Phase 3 graph limits. Spark hash-samples toward the node limit and filters
+# edges before aggregation; the UDF then enforces these final hard limits.
+PHASE3_MAX_NODES_PER_COMMUNITY = 10000
+PHASE3_MAX_EDGES_PER_COMMUNITY = 30000
+# Samples one of every N eligible edges before aggregation. Combined with the
+# node cap this keeps the grouped edge payloads bounded without sorting all
+# Papers100M edges by community.
+# Accuracy experiment: retain twice as many eligible edges as the successful
+# 1/8 run while remaining below the unstable full-edge (1/1) configuration.
+PHASE3_EDGE_SAMPLE_MODULUS = 4
+PHASE3_MLP_EPOCHS = 10
+
 GCN_HIDDEN_DIM    = 256
-GCN_NUM_EPOCHS    = 20
+GCN_NUM_EPOCHS    = 10
 GCN_LR            = 0.001
 GCN_DROPOUT       = 0.5
 RUN_PHASE3B       = False              # Phase 3b: CaaN Global Graph GNN Training
 
 # ── New Advanced Features ──────────────────────────────────────────────────────
 # Tiny community handling: 'drop' (ignore them), 'misc' (group them all into community_id = -1)
-TINY_COMM_HANDLING  = 'misc'
+TINY_COMM_HANDLING  = 'drop'
 
 # 1-hop boundary expansion: If True, include 1-hop external neighbors for boundary nodes.
 # NOTE: increases data size but improves boundary accuracy significantly.
-EXPAND_BOUNDARY_NODES = True
+EXPAND_BOUNDARY_NODES = False
 
 # Task Type: 'node_classification' or 'link_prediction'
-TASK_TYPE = 'both'
+TASK_TYPE = 'node_classification'
 
 # ── Phase 4: Full-Graph Baseline ──────────────────────────────────────────────
 # Runs ONCE per dataset (not per algorithm). Uses SAME masks as Phase 3.
-RUN_PHASE4        = True       # Set to False to skip OOM-prone driver-bound baselines
+RUN_PHASE4        = False       # Set to False to skip OOM-prone driver-bound baselines
 BASELINE_EPOCHS   = 10          # reduced from 50 epochs to speed up CPU full-graph training
 BASELINE_BATCH    = 1024
 BASELINE_FANOUT   = [15, 10]
 BASELINE_LR       = GCN_LR
-RUN_PHASE4B       = True       # DistDGL Baseline Simulation
+RUN_PHASE4B       = False      # DistDGL Baseline Simulation
 RUN_PHASE4C       = False       # ARMA Baseline
 RUN_PHASE4D       = False       # ASAP Baseline
 RUN_PHASE4E       = False       # GAT Baseline
@@ -86,7 +151,7 @@ RUN_PHASE4H       = False       # GATv2 Baseline
 # ── Infrastructure ─────────────────────────────────────────────────────────────
 S3_BUCKET         = 'us-east-1-s3-gnn'
 S3_CODE_PREFIX    = 'pipeline'   # where upload_to_s3.py puts .py files
-SKIP_PKG_SYNC     = True         # Skip slow Python package verification on executors; use when workers already have deps
+SKIP_PKG_SYNC     = False        # Required after worker replacement/restart; verifies NumPy and GNN dependencies on every executor node
 
 # ══════════════════════════════════════════════════════════════════════════════
 #  DERIVED CONFIG — do not edit below this line
@@ -160,6 +225,15 @@ def get_paths(dataset, alg=None):
             'communities': f'{root}/communities/{alg}/',
             'p2_nodes':    f'{root}/phase2_nodes/{tag}/',
             'p2_edges':    f'{root}/phase2_edges/{tag}/',
+            'p25_nodes':   f'{root}/phase25_nodes/{tag}/',
+            'p25_edges':   f'{root}/phase25_edges/{tag}/',
+            'p25_manifest': f'{root}/phase25_manifest/{tag}/',
+            'p26_nodes':   f'{root}/phase26_nodes/{tag}/',
+            'p26_edges':   f'{root}/phase26_edges/{tag}/',
+            'p26_manifest': f'{root}/phase26_manifest/{tag}/',
+            'p27_manifest': f'{root}/phase27_manifest/{tag}/',
+            'p37_base':    f'{root}/phase37_propagation/{tag}/',
+            'p38_base':    f'{root}/phase38_classifier/{tag}/',
             'phase3_xlsx': (f's3://{S3_BUCKET}/gnn-bench-out/'
                             f'{tag}_phase3.xlsx'),
             'models':      f's3://{S3_BUCKET}/gnn-bench-out/models/{tag}/',

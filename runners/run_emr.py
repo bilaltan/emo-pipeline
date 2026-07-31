@@ -567,7 +567,7 @@ def main():
         print("  VERIFYING AND INSTALLING PYTHON ENVIRONMENT PACKAGES")
         print("="*80)
 
-        packages = ['numpy', 'ogb', 'igraph', 'leidenalg', 'scikit-learn',
+        packages = ['numpy==1.26.4', 'pandas==2.0.3', 'ogb', 'igraph', 'leidenalg', 'scikit-learn',
                     'torch', 'boto3', 'xlsxwriter', 'openpyxl', 'matplotlib', 'seaborn',
                     'torch-geometric', 'pyarrow', 'dgl==1.1.3']
         driver_only_packages = {'xlsxwriter', 'openpyxl', 'matplotlib', 'seaborn', 'igraph', 'leidenalg', 'ogb'}
@@ -576,6 +576,8 @@ def main():
         import importlib
         for pkg in packages:
             import_map = {
+                'numpy==1.26.4': 'numpy',
+                'pandas==2.0.3': 'pandas',
                 'scikit-learn': 'sklearn',
                 'torch-geometric': 'torch_geometric',
                 'dgl==1.1.3': 'dgl'
@@ -608,6 +610,7 @@ def main():
             import os
             import time
             import importlib
+            import shutil
 
             node_name = socket.gethostname()
             
@@ -627,19 +630,67 @@ def main():
             os.environ["TMPDIR"] = worker_tmp
             os.environ["TEMP"] = worker_tmp
             os.environ["TMP"] = worker_tmp
+            site_packages = (
+                f"{worker_tmp}/.local/lib/python{sys.version_info.major}."
+                f"{sys.version_info.minor}/site-packages"
+            )
+            os.makedirs(site_packages, exist_ok=True)
+            if site_packages not in sys.path:
+                sys.path.insert(0, site_packages)
+            os.environ["PYTHONPATH"] = f"{site_packages}:{os.environ.get('PYTHONPATH', '')}"
 
             import_map = {
+                'numpy==1.26.4': 'numpy',
+                'pandas==2.0.3': 'pandas',
                 'scikit-learn': 'sklearn',
                 'torch-geometric': 'torch_geometric',
                 'dgl==1.1.3': 'dgl'
             }
 
+            def module_is_healthy(pkg, import_name):
+                try:
+                    module = importlib.import_module(import_name)
+                    # A partially installed namespace package can import but lacks
+                    # __version__; Pandas then fails later inside each UDF.
+                    if pkg.startswith(('numpy==', 'pandas==')):
+                        if not getattr(module, '__version__', None):
+                            return False
+                        if pkg.startswith('numpy=='):
+                            # Require a real numeric core, not merely a
+                            # namespace package that exposes __version__.
+                            importlib.import_module('numpy.core.numeric')
+                        return True
+                    return True
+                except Exception:
+                    return False
+
+            def repair_numpy_and_pandas():
+                """Replace incomplete packages that can shadow valid NumPy/Pandas."""
+                for entry in os.listdir(site_packages):
+                    if entry.startswith(('numpy', 'pandas')):
+                        path = os.path.join(site_packages, entry)
+                        try:
+                            if os.path.isdir(path):
+                                shutil.rmtree(path)
+                            else:
+                                os.remove(path)
+                        except Exception:
+                            pass
+                subprocess.run(
+                    [sys.executable, '-m', 'pip', 'install', '--quiet', '--no-cache-dir',
+                     '--force-reinstall', '--target', site_packages,
+                     'numpy==1.26.4', 'pandas==2.0.3'],
+                    stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=True
+                )
+                importlib.invalidate_caches()
+                for name in list(sys.modules):
+                    if name == 'numpy' or name.startswith(('numpy.', 'pandas', 'pandas.')):
+                        del sys.modules[name]
+
             def check_all_imported():
                 for pkg in executor_packages:
                     import_name = import_map.get(pkg, pkg)
-                    try:
-                        importlib.import_module(import_name)
-                    except Exception:
+                    if not module_is_healthy(pkg, import_name):
                         return False
                 return True
 
@@ -674,15 +725,18 @@ def main():
             # We hold the lock! Check and install missing packages sequentially
             installed_pkgs = []
             try:
-                for pkg in executor_packages:
-                    import_name = import_map.get(pkg, pkg)
-                    try:
-                        importlib.import_module(import_name)
-                        continue
-                    except Exception:
-                        pass
+                if not module_is_healthy('numpy==1.26.4', 'numpy') or not module_is_healthy('pandas==2.0.3', 'pandas'):
+                    repair_numpy_and_pandas()
+                    installed_pkgs.extend(['numpy==1.26.4', 'pandas==2.0.3'])
 
-                    cmd = [sys.executable, '-m', 'pip', 'install', '--user', '--quiet', '--no-cache-dir', '--force-reinstall']
+                for pkg in executor_packages:
+                    if pkg in ('numpy==1.26.4', 'pandas==2.0.3'):
+                        continue
+                    import_name = import_map.get(pkg, pkg)
+                    if module_is_healthy(pkg, import_name):
+                        continue
+
+                    cmd = [sys.executable, '-m', 'pip', 'install', '--quiet', '--no-cache-dir', '--force-reinstall', '--target', site_packages]
                     if pkg.startswith('dgl'):
                         cmd += [pkg, '-f', 'https://data.dgl.ai/wheels/repo.html']
                     elif pkg == 'torch':
@@ -692,6 +746,8 @@ def main():
 
                     subprocess.run(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=True)
                     installed_pkgs.append(pkg)
+                if not check_all_imported():
+                    return [f"{node_name}: Failed (dependency health check failed after repair)"]
                 return [f"{node_name}: Success (Installed: {installed_pkgs})"]
             except Exception as e:
                 return [f"{node_name}: Failed ({e})"]
@@ -724,8 +780,10 @@ def main():
 
                 print(f"  ► Sync attempt {attempt}/5: {len(synced_hosts)} worker node(s) verified: {sorted(list(synced_hosts))}")
 
-                # Stop when we hit the configured executor instance target
-                if len(synced_hosts) >= num_executors:
+                # Reports are keyed by physical hostname, not executor ID. Stop
+                # once every available worker node has been verified.
+                required_hosts = min(nodes_count, num_executors)
+                if len(synced_hosts) >= required_hosts:
                     print(f"  ✓ All {len(synced_hosts)} YARN worker nodes verified and synced successfully.")
                     break
                 
@@ -965,7 +1023,7 @@ def main():
             print(f"Contents of /tmp: {os.listdir('/tmp')}")
         raise e
     from pipeline.phases import (
-        run_phase0, run_phase1, print_phase1_stats, run_phase2, run_phase3, run_phase3b,
+        run_phase0, run_phase1, print_phase1_stats, run_phase2, run_phase25, run_phase26, run_phase27, run_phase35, run_phase36, run_phase37, run_phase38, run_phase3, run_phase3b,
         run_phase4, run_phase4b, run_phase4c, run_phase4d, run_phase4e, run_phase4f, run_phase4g, run_phase4h,
         print_accuracy_table, print_timing_table, save_plots_and_xlsx, print_summary
     )
@@ -1010,6 +1068,13 @@ def main():
     timing = {}
     phase1_results = {}
     phase2_results = {}
+    phase25_results = {}
+    phase26_results = {}
+    phase27_results = {}
+    phase35_results = {}
+    phase36_results = {}
+    phase37_results = {}
+    phase38_results = {}
     phase3_results = {}
     phase3b_results = {}
     phase4_results = {}
@@ -1097,6 +1162,119 @@ def main():
             force_rerun         = FORCE_RERUN
         )
 
+    # Phase 2.5: Lossless distributed graph-store shards for the direct-parquet
+    # Phase 3 implementation. This is intentionally independent from Phase 3
+    # while the new manifest-driven trainer is being validated.
+    if getattr(config, 'RUN_PHASE25', False):
+        run_phase25(
+            spark,
+            datasets     = DATASETS_TO_RUN,
+            algorithms   = ALGORITHMS_TO_RUN,
+            get_paths_fn = get_paths_fn,
+            timing       = timing,
+            results      = phase25_results,
+            num_shards   = getattr(config, 'PHASE25_NUM_SHARDS', 512),
+            force_rerun  = FORCE_RERUN,
+        )
+
+    if getattr(config, 'RUN_PHASE26', False):
+        run_phase26(
+            spark,
+            datasets        = DATASETS_TO_RUN,
+            algorithms      = ALGORITHMS_TO_RUN,
+            get_paths_fn    = get_paths_fn,
+            timing          = timing,
+            results         = phase26_results,
+            seed_blocks     = getattr(config, 'PHASE26_SEED_BLOCKS', 16),
+            neighbor_blocks = getattr(config, 'PHASE26_NEIGHBOR_BLOCKS', 4),
+            force_rerun     = FORCE_RERUN,
+        )
+
+    # Phase 2.7 is a Spark-only audit of the complete one-hop workload for
+    # each source seed unit. It must complete before a direct GNN trainer can
+    # choose safe worker and message-passing limits.
+    if getattr(config, 'RUN_PHASE27', False):
+        run_phase27(
+            spark,
+            datasets            = DATASETS_TO_RUN,
+            algorithms          = ALGORITHMS_TO_RUN,
+            get_paths_fn        = get_paths_fn,
+            timing              = timing,
+            results             = phase27_results,
+            dataset_cfg         = config.DATASET_CFG,
+            headroom_multiplier = getattr(config, 'PHASE27_WORKING_SET_HEADROOM', 4.0),
+            force_rerun         = FORCE_RERUN,
+        )
+
+    if getattr(config, 'RUN_PHASE35', False):
+        run_phase35(
+            spark,
+            datasets     = DATASETS_TO_RUN,
+            algorithms   = ALGORITHMS_TO_RUN,
+            get_paths_fn = get_paths_fn,
+            timing       = timing,
+            results      = phase35_results,
+            dataset_cfg  = config.DATASET_CFG,
+            gcn_cfg      = GCN_CFG,
+            max_units    = getattr(config, 'PHASE35_MAX_UNITS', 8),
+        )
+        # Do not insert local-block validation metrics into Phase 3 reporting:
+        # an independently trained model per unit is not a global model and
+        # must never be presented as full-graph accuracy.
+
+    if getattr(config, 'RUN_PHASE36', False):
+        run_phase36(
+            spark,
+            datasets     = DATASETS_TO_RUN,
+            algorithms   = ALGORITHMS_TO_RUN,
+            get_paths_fn = get_paths_fn,
+            timing       = timing,
+            results      = phase36_results,
+            dataset_cfg  = config.DATASET_CFG,
+            gcn_cfg      = GCN_CFG,
+            train_units  = getattr(config, 'PHASE36_TRAIN_UNITS', getattr(config, 'PHASE36_MAX_UNITS', 8)),
+            holdout_units = getattr(config, 'PHASE36_HOLDOUT_UNITS', 64),
+            rounds       = getattr(config, 'PHASE36_ROUNDS', 5),
+            local_epochs = getattr(config, 'PHASE36_LOCAL_EPOCHS', 1),
+            aggregation_partitions = getattr(config, 'PHASE36_AGGREGATION_PARTITIONS', 64),
+            server_optimizer = getattr(config, 'PHASE36_SERVER_OPTIMIZER', 'fedavg'),
+            server_lr     = getattr(config, 'PHASE36_SERVER_LR', 0.003),
+            server_beta1  = getattr(config, 'PHASE36_SERVER_BETA1', 0.9),
+            server_beta2  = getattr(config, 'PHASE36_SERVER_BETA2', 0.99),
+            server_epsilon = getattr(config, 'PHASE36_SERVER_EPSILON', 1e-8),
+            use_workset_checkpoint = getattr(config, 'PHASE36_USE_WORKSET_CHECKPOINT', True),
+            repartition_by_unit = getattr(config, 'PHASE36_REPARTITION_BY_UNIT', True),
+        )
+
+    if getattr(config, 'RUN_PHASE37', False):
+        run_phase37(
+            spark,
+            datasets       = DATASETS_TO_RUN,
+            algorithms     = ALGORITHMS_TO_RUN,
+            get_paths_fn   = get_paths_fn,
+            timing         = timing,
+            results        = phase37_results,
+            graph_source   = getattr(config, 'PHASE37_GRAPH_SOURCE', 'phase2'),
+            num_hops       = getattr(config, 'PHASE37_NUM_HOPS', 2),
+            num_partitions = getattr(config, 'PHASE37_NUM_PARTITIONS', 512),
+            force_rerun    = FORCE_RERUN,
+        )
+
+    if getattr(config, 'RUN_PHASE38', False):
+        run_phase38(
+            spark,
+            datasets          = DATASETS_TO_RUN,
+            algorithms        = ALGORITHMS_TO_RUN,
+            get_paths_fn      = get_paths_fn,
+            timing            = timing,
+            results           = phase38_results,
+            graph_source      = getattr(config, 'PHASE37_GRAPH_SOURCE', 'phase2'),
+            num_hops          = getattr(config, 'PHASE37_NUM_HOPS', 2),
+            max_iter          = getattr(config, 'PHASE38_MAX_ITER', 30),
+            reg_param         = getattr(config, 'PHASE38_REG_PARAM', 1e-4),
+            elastic_net_param = getattr(config, 'PHASE38_ELASTIC_NET_PARAM', 0.0),
+        )
+
     # Phase 3: Parallel GNN UDF Training
     if getattr(args, 'run_phase3', True) and getattr(config, 'RUN_PHASE3', True):
         run_phase3(
@@ -1111,6 +1289,11 @@ def main():
             results            = phase3_results,
             task_type          = TASK_TYPE,
             models             = config.GNN_MODELS,
+            diagnostics        = getattr(config, 'PHASE3_DIAGNOSTICS', False),
+            max_nodes_per_community = getattr(config, 'PHASE3_MAX_NODES_PER_COMMUNITY', 10000),
+            max_edges_per_community = getattr(config, 'PHASE3_MAX_EDGES_PER_COMMUNITY', 50000),
+            edge_sample_modulus = getattr(config, 'PHASE3_EDGE_SAMPLE_MODULUS', 64),
+            mlp_epochs          = getattr(config, 'PHASE3_MLP_EPOCHS', 5),
             force_rerun        = FORCE_RERUN,
             s3_bucket          = args.s3_bucket,
             experiment_name    = EXPERIMENT_NAME
@@ -1343,6 +1526,7 @@ def main():
         phase4g_results = phase4g_results,
         phase4h_results = phase4h_results,
         phase3b_results = phase3b_results,
+        phase38_results = phase38_results,
         gnn_models      = config.GNN_MODELS
     )
 
