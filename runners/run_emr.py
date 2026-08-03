@@ -180,6 +180,8 @@ def main():
                         help="Skip Delta Lake ingestion phase")
     parser.add_argument("--force-reingest", action="store_true", default=None,
                         help="Force Phase 0 to re-download and overwrite existing Delta tables")
+    parser.add_argument("--force-rerun", action="store_true", default=None,
+                        help="Recompute phase checkpoints instead of reusing existing outputs")
     parser.add_argument("--use-ogb-splits", type=str, default=None, choices=["true", "false"],
                         help="Use OGB official splits (true) or stratified 60/20/20 random split (false)")
     parser.add_argument("--min-community-size", type=int, default=None,
@@ -220,6 +222,18 @@ def main():
                         help="Prefix/folder within the S3 bucket where code is stored")
     parser.add_argument("--no-install", action="store_true", default=False,
                         help="Skip dynamic package verification/installation on YARN executors")
+    parser.add_argument("--executor-instances", type=int, default=None,
+                        help="Override the auto-scaled executor count; retain auto-sized executor memory and cores")
+    parser.add_argument("--run-phase37", action="store_true", default=None,
+                        help="Run Phase 3.7 cached feature propagation")
+    parser.add_argument("--run-phase38", action="store_true", default=None,
+                        help="Run Phase 3.8 global classifier")
+    parser.add_argument("--phase37-graph-source", choices=["phase0", "phase2"], default=None,
+                        help="Graph table source for Phases 3.7 and 3.8")
+    parser.add_argument("--phase37-num-hops", type=int, default=None,
+                        help="Number of cached mean-propagation hops")
+    parser.add_argument("--phase37-num-partitions", type=int, default=None,
+                        help="Spark partition count for cached propagation")
 
     args = parser.parse_args()
 
@@ -442,22 +456,37 @@ def main():
     executor_overhead  = f"{best_config['overhead_gb']}g"
     executor_cores     = str(best_config['cores'])
 
+    if args.executor_instances is not None:
+        if args.executor_instances < 1:
+            raise ValueError("--executor-instances must be positive")
+        if args.executor_instances > best_config['total_execs']:
+            raise ValueError(
+                f"--executor-instances={args.executor_instances} exceeds the safe auto-scaled "
+                f"capacity of {best_config['total_execs']} for this cluster and dataset"
+            )
+        executor_instances = args.executor_instances
+
     # Step 3: Driver allocation — capped to 40g heap + 12g overhead (52g total) for YARN container harmony
     driver_mem = "40g"
     driver_overhead = "12g"
     driver_cores = "8"
 
     # Step 4: Shuffle partitions — 2× total cores for pipeline overlap
-    shuffle_partitions = max(200, best_total_cores * 2)
+    total_parallel_cores = executor_instances * int(executor_cores)
+    shuffle_partitions = max(200, total_parallel_cores * 2)
 
     # Step 5: Print the full allocation plan
     print(f"\n  [Spark Auto-Scaler] Dataset: {dataset_name} | S3 Size: {edges_size_mb:.0f} MB | Scale: {scale_label}")
     print(f"  [Spark Auto-Scaler] YARN Cluster: {nodes_count} nodes × {node_mem_gb:.0f} GB RAM × {node_vcores} vCores")
     print(f"  [Spark Auto-Scaler] Python RAM Budget: {best_config['python_ram_per_task']:.1f} GB/task (dataset-aware)")
     print(f"  [Spark Auto-Scaler] Bin-Packing Solution:")
-    print(f"    → {best_config['execs_per_node']} executors/node × {nodes_count} nodes = {executor_instances} total executors")
+    allocation_source = (
+        " (CLI override)" if args.executor_instances is not None
+        else f" ({best_config['execs_per_node']}/node × {nodes_count} nodes)"
+    )
+    print(f"    → {executor_instances} total executors{allocation_source}")
     print(f"    → {executor_cores} cores/executor | {executor_mem} heap + {executor_overhead} overhead = {best_config['container_gb']}g container")
-    print(f"    → Total parallel tasks: {best_total_cores} | Shuffle partitions: {shuffle_partitions}")
+    print(f"    → Total parallel tasks: {total_parallel_cores} | Shuffle partitions: {shuffle_partitions}")
     print(f"    → Driver: {driver_mem} heap + {driver_overhead} overhead")
     print(f"    → Cluster utilization: {executor_instances * best_config['container_gb']:.0f}g / {node_mem_gb * nodes_count:.0f}g "
           f"({100.0 * executor_instances * best_config['container_gb'] / (node_mem_gb * nodes_count):.0f}%)\n")
@@ -1042,6 +1071,14 @@ def main():
     TINY_COMM_HANDLING = args.tiny_comm_handling if args.tiny_comm_handling is not None else getattr(config, 'TINY_COMM_HANDLING', 'misc')
     EXPAND_BOUNDARY_NODES = (args.expand_boundary_nodes == "true") if args.expand_boundary_nodes is not None else getattr(config, 'EXPAND_BOUNDARY_NODES', True)
     USE_GLOBAL_MAPPING = (args.global_mapping == "true") if args.global_mapping is not None else getattr(config, 'USE_GLOBAL_MAPPING', True)
+    RUN_PHASE37 = args.run_phase37 if args.run_phase37 is not None else getattr(config, 'RUN_PHASE37', False)
+    RUN_PHASE38 = args.run_phase38 if args.run_phase38 is not None else getattr(config, 'RUN_PHASE38', False)
+    PHASE37_GRAPH_SOURCE = (args.phase37_graph_source if args.phase37_graph_source is not None
+                            else getattr(config, 'PHASE37_GRAPH_SOURCE', 'phase2'))
+    PHASE37_NUM_HOPS = (args.phase37_num_hops if args.phase37_num_hops is not None
+                        else getattr(config, 'PHASE37_NUM_HOPS', 2))
+    PHASE37_NUM_PARTITIONS = (args.phase37_num_partitions if args.phase37_num_partitions is not None
+                              else getattr(config, 'PHASE37_NUM_PARTITIONS', 512))
 
     h_dim = args.hidden_dim if args.hidden_dim is not None else getattr(config, 'GCN_CFG', {}).get('hidden_dim', 256)
     n_epochs = args.num_epochs if args.num_epochs is not None else getattr(config, 'GCN_CFG', {}).get('num_epochs', 10)
@@ -1116,7 +1153,7 @@ def main():
     )
 
     # Resolve FORCE_RERUN config parameter
-    FORCE_RERUN = getattr(config, 'FORCE_RERUN', False)
+    FORCE_RERUN = args.force_rerun if args.force_rerun is not None else getattr(config, 'FORCE_RERUN', False)
 
     # Phase 1: Partition assignment / Community detection
     if getattr(config, 'RUN_PHASE1', True):
@@ -1246,7 +1283,7 @@ def main():
             repartition_by_unit = getattr(config, 'PHASE36_REPARTITION_BY_UNIT', True),
         )
 
-    if getattr(config, 'RUN_PHASE37', False):
+    if RUN_PHASE37:
         run_phase37(
             spark,
             datasets       = DATASETS_TO_RUN,
@@ -1254,13 +1291,13 @@ def main():
             get_paths_fn   = get_paths_fn,
             timing         = timing,
             results        = phase37_results,
-            graph_source   = getattr(config, 'PHASE37_GRAPH_SOURCE', 'phase2'),
-            num_hops       = getattr(config, 'PHASE37_NUM_HOPS', 2),
-            num_partitions = getattr(config, 'PHASE37_NUM_PARTITIONS', 512),
+            graph_source   = PHASE37_GRAPH_SOURCE,
+            num_hops       = PHASE37_NUM_HOPS,
+            num_partitions = PHASE37_NUM_PARTITIONS,
             force_rerun    = FORCE_RERUN,
         )
 
-    if getattr(config, 'RUN_PHASE38', False):
+    if RUN_PHASE38:
         run_phase38(
             spark,
             datasets          = DATASETS_TO_RUN,
@@ -1268,8 +1305,8 @@ def main():
             get_paths_fn      = get_paths_fn,
             timing            = timing,
             results           = phase38_results,
-            graph_source      = getattr(config, 'PHASE37_GRAPH_SOURCE', 'phase2'),
-            num_hops          = getattr(config, 'PHASE37_NUM_HOPS', 2),
+            graph_source      = PHASE37_GRAPH_SOURCE,
+            num_hops          = PHASE37_NUM_HOPS,
             max_iter          = getattr(config, 'PHASE38_MAX_ITER', 30),
             reg_param         = getattr(config, 'PHASE38_REG_PARAM', 1e-4),
             elastic_net_param = getattr(config, 'PHASE38_ELASTIC_NET_PARAM', 0.0),
