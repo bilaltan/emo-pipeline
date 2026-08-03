@@ -1042,6 +1042,36 @@ def main():
         sys.path.remove('/tmp')
     sys.path.insert(0, '/tmp')
 
+    # Phase modules import Pandas at module load time, while the broader
+    # driver/executor package sync happens later. Repair this minimal bootstrap
+    # dependency set first so a new EMR cluster can reach that sync step.
+    import importlib
+    def driver_data_stack_is_healthy():
+        try:
+            numpy_module = importlib.import_module("numpy")
+            pandas_module = importlib.import_module("pandas")
+            importlib.import_module("numpy.core.numeric")
+            return bool(getattr(numpy_module, "__version__", None) and
+                        getattr(pandas_module, "__version__", None))
+        except Exception:
+            return False
+
+    if not driver_data_stack_is_healthy():
+        print("  ► Repairing NumPy and Pandas on the driver before loading pipeline phases...")
+        subprocess.run(
+            [sys.executable, "-m", "pip", "install", "--quiet", "--no-cache-dir",
+             "--force-reinstall", "--target", tmp_site_packages,
+             "numpy==1.26.4", "pandas==2.0.3"],
+            check=True,
+        )
+        importlib.invalidate_caches()
+        for module_name in list(sys.modules):
+            if module_name == "numpy" or module_name.startswith(("numpy.", "pandas", "pandas.")):
+                del sys.modules[module_name]
+        if not driver_data_stack_is_healthy():
+            raise RuntimeError("Driver NumPy/Pandas repair did not produce importable packages")
+        print("    ✓ Driver NumPy and Pandas are healthy.")
+
     # Load configuration
     try:
         import experiment_config as config
