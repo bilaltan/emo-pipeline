@@ -1,0 +1,4 @@
+experiment_name,dataset,executor_instances,graph_source,num_hops,phase37_partitions,started_utc,finished_utc,return_code,log_path
+phase37-scaling-wikics-e8-20260803T190943Z,wikics,8,phase0,2,256,2026-08-03T19:09:43.279872+00:00,2026-08-03T19:12:01.778449+00:00,0,/home/hadoop/emo-pipeline/phase37-scaling-wikics-e8-20260803T190943Z.log
+phase37-scaling-ogbn-products-e8-20260803T190943Z,ogbn-products,8,phase0,2,256,2026-08-03T19:12:01.778846+00:00,2026-08-03T19:16:46.807196+00:00,0,/home/hadoop/emo-pipeline/phase37-scaling-ogbn-products-e8-20260803T190943Z.log
+phase37-scaling-ogbn-papers100M-e8-20260803T190943Z,ogbn-papers100M,8,phase0,2,256,2026-08-03T19:16:46.807590+00:00,2026-08-03T20:14:49.743356+00:00,0,/home/hadoop/emo-pipeline/phase37-scaling-ogbn-papers100M-e8-20260803T190943Z.log

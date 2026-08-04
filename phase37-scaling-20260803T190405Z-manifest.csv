@@ -1,0 +1,2 @@
+experiment_name,dataset,executor_instances,graph_source,num_hops,phase37_partitions,started_utc,finished_utc,return_code,log_path
+phase37-scaling-wikics-e2-20260803T190405Z,wikics,2,phase0,2,200,2026-08-03T19:04:05.632733+00:00,2026-08-03T19:04:23.930473+00:00,1,/home/hadoop/emo-pipeline/phase37-scaling-wikics-e2-20260803T190405Z.log

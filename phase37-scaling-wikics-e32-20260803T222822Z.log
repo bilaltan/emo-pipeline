@@ -1,0 +1,180 @@
+Writable directories and free space:
+  - /mnt1/tmp: 1749.55 GB free
+  - /mnt1/spark: 1749.55 GB free
+  - /mnt/tmp: 1738.12 GB free
+  - /mnt/spark: 1738.12 GB free
+  - /mnt/var/tmp: 1738.12 GB free
+  - /tmp: 1738.12 GB free
+  - /var/tmp: 1738.12 GB free
+
+  [Spark Auto-Scaler] Dataset: wikics | S3 Size: 1 MB | Scale: Small/Medium
+  [Spark Auto-Scaler] YARN Cluster: 8 nodes × 496 GB RAM × 64 vCores
+  [Spark Auto-Scaler] Python RAM Budget: 5.0 GB/task (dataset-aware)
+  [Spark Auto-Scaler] Bin-Packing Solution:
+    → 32 total executors (CLI override)
+    → 4 cores/executor | 8g heap + 20g overhead = 28g container
+    → Total parallel tasks: 128 | Shuffle partitions: 256
+    → Driver: 40g heap + 12g overhead
+    → Cluster utilization: 896g / 3966g (23%)
+
+:: loading settings :: url = jar:file:/usr/lib/spark/jars/ivy-2.5.1.jar!/org/apache/ivy/core/settings/ivysettings.xml
+Ivy Default Cache set to: /mnt1/tmp/.ivy2/cache
+The jars for the packages stored in: /mnt1/tmp/.ivy2/jars
+io.delta#delta-spark_2.12 added as a dependency
+graphframes#graphframes added as a dependency
+:: resolving dependencies :: org.apache.spark#spark-submit-parent-6bd61f91-1d57-4570-a5c7-1c6944907b8e;1.0
+	confs: [default]
+	found io.delta#delta-spark_2.12;3.2.0 in central
+	found io.delta#delta-storage;3.2.0 in central
+	found org.antlr#antlr4-runtime;4.9.3 in central
+	found graphframes#graphframes;0.8.3-spark3.5-s_2.12 in spark-packages
+	found org.slf4j#slf4j-api;1.7.16 in central
+:: resolution report :: resolve 122ms :: artifacts dl 5ms
+	:: modules in use:
+	graphframes#graphframes;0.8.3-spark3.5-s_2.12 from spark-packages in [default]
+	io.delta#delta-spark_2.12;3.2.0 from central in [default]
+	io.delta#delta-storage;3.2.0 from central in [default]
+	org.antlr#antlr4-runtime;4.9.3 from central in [default]
+	org.slf4j#slf4j-api;1.7.16 from central in [default]
+	---------------------------------------------------------------------
+	|                  |            modules            ||   artifacts   |
+	|       conf       | number| search|dwnlded|evicted|| number|dwnlded|
+	---------------------------------------------------------------------
+	|      default     |   5   |   0   |   0   |   0   ||   5   |   0   |
+	---------------------------------------------------------------------
+:: retrieving :: org.apache.spark#spark-submit-parent-6bd61f91-1d57-4570-a5c7-1c6944907b8e
+	confs: [default]
+	0 artifacts copied, 5 already retrieved (0kB/3ms)
+Setting default log level to "WARN".
+To adjust logging level use sc.setLogLevel(newLevel). For SparkR, use setLogLevel(newLevel).
+26/08/03 22:30:05 WARN SparkConf: Note that spark.local.dir will be overridden by the value set by the cluster manager (via SPARK_LOCAL_DIRS in mesos/standalone/kubernetes and LOCAL_DIRS in YARN).
+26/08/03 22:30:06 WARN Client: Neither spark.yarn.jars nor spark.yarn.archive is set, falling back to uploading libraries under SPARK_HOME.
+26/08/03 22:30:09 WARN Client: Same path resource file:///mnt1/tmp/.ivy2/jars/io.delta_delta-spark_2.12-3.2.0.jar added multiple times to distributed cache.
+26/08/03 22:30:09 WARN Client: Same path resource file:///mnt1/tmp/.ivy2/jars/graphframes_graphframes-0.8.3-spark3.5-s_2.12.jar added multiple times to distributed cache.
+26/08/03 22:30:09 WARN Client: Same path resource file:///mnt1/tmp/.ivy2/jars/io.delta_delta-storage-3.2.0.jar added multiple times to distributed cache.
+26/08/03 22:30:09 WARN Client: Same path resource file:///mnt1/tmp/.ivy2/jars/org.antlr_antlr4-runtime-4.9.3.jar added multiple times to distributed cache.
+26/08/03 22:30:09 WARN Client: Same path resource file:///mnt1/tmp/.ivy2/jars/org.slf4j_slf4j-api-1.7.16.jar added multiple times to distributed cache.
+  ✓ SparkSession successfully configured and initialized as 'spark'.
+
+================================================================================
+  VERIFYING AND INSTALLING PYTHON ENVIRONMENT PACKAGES
+================================================================================
+  ► Syncing dependencies across all active YARN worker nodes...
+[Stage 0:>                                                      (0 + 128) / 512][Stage 0:====>                                                 (43 + 128) / 512][Stage 0:========>                                             (84 + 128) / 512][Stage 0:===========>                                         (107 + 128) / 512][Stage 0:===========>                                         (109 + 128) / 512][Stage 0:===========>                                         (110 + 128) / 512][Stage 0:===========>                                         (111 + 128) / 512][Stage 0:============>                                        (116 + 128) / 512][Stage 0:=============>                                       (127 + 129) / 512][Stage 0:=============>                                       (128 + 128) / 512][Stage 0:===============>                                     (152 + 128) / 512][Stage 0:====================>                                (198 + 128) / 512][Stage 0:=====================>                               (212 + 128) / 512][Stage 0:=======================>                             (223 + 128) / 512][Stage 0:========================>                            (233 + 128) / 512][Stage 0:========================>                            (236 + 128) / 512][Stage 0:========================>                            (238 + 128) / 512][Stage 0:=========================>                           (242 + 128) / 512][Stage 0:=========================>                           (244 + 128) / 512][Stage 0:=========================>                           (246 + 128) / 512][Stage 0:=========================>                           (250 + 128) / 512][Stage 0:==========================>                          (254 + 128) / 512][Stage 0:==========================>                          (256 + 128) / 512][Stage 0:============================>                        (279 + 128) / 512][Stage 0:==============================>                      (299 + 128) / 512][Stage 0:=================================>                   (327 + 128) / 512][Stage 0:==================================>                  (336 + 128) / 512][Stage 0:====================================>                (350 + 128) / 512][Stage 0:=====================================>               (360 + 128) / 512][Stage 0:=====================================>               (363 + 128) / 512][Stage 0:=====================================>               (364 + 128) / 512][Stage 0:=====================================>               (367 + 128) / 512][Stage 0:======================================>              (372 + 128) / 512][Stage 0:======================================>              (374 + 128) / 512][Stage 0:======================================>              (376 + 128) / 512][Stage 0:=======================================>             (379 + 128) / 512][Stage 0:=======================================>             (384 + 128) / 512][Stage 0:=========================================>           (401 + 111) / 512][Stage 0:==========================================>          (410 + 102) / 512][Stage 0:=============================================>        (428 + 84) / 512][Stage 0:================================================>     (457 + 55) / 512][Stage 0:================================================>     (459 + 53) / 512][Stage 0:=================================================>    (469 + 43) / 512][Stage 0:==================================================>   (483 + 29) / 512][Stage 0:===================================================>  (488 + 24) / 512][Stage 0:===================================================>  (489 + 23) / 512][Stage 0:===================================================>  (492 + 20) / 512][Stage 0:====================================================> (495 + 17) / 512][Stage 0:====================================================> (496 + 16) / 512][Stage 0:====================================================> (500 + 12) / 512][Stage 0:====================================================> (502 + 10) / 512][Stage 0:======================================================>(505 + 7) / 512][Stage 0:======================================================>(511 + 1) / 512]                                                                                  ► Sync attempt 1/5: 8 worker node(s) verified: ['ip-172-31-64-136', 'ip-172-31-70-87', 'ip-172-31-71-74', 'ip-172-31-71-75', 'ip-172-31-73-132', 'ip-172-31-74-26', 'ip-172-31-76-129', 'ip-172-31-78-25']
+  ✓ All 8 YARN worker nodes verified and synced successfully.
+
+  === YARN Executor Package Sync Summary ===
+    ip-172-31-64-136.ec2.internal: Success (Cached)
+    ip-172-31-70-87.ec2.internal: Success (Cached)
+    ip-172-31-71-74.ec2.internal: Success (Cached)
+    ip-172-31-71-75.ec2.internal: Success (Cached)
+    ip-172-31-73-132.ec2.internal: Success (Cached)
+    ip-172-31-74-26.ec2.internal: Success (Cached)
+    ip-172-31-76-129.ec2.internal: Success (Cached)
+    ip-172-31-78-25.ec2.internal: Success (Cached)
+
+  ✓ ALL PIPELINE DEPENDENCIES VERIFIED AND READY.
+
+================================================================================
+  CLUSTER DISK SPACE COMPATIBILITY VERIFICATION
+================================================================================
+  Dataset: wikics | Nodes: 11,701 | Features: 300
+  Required temp workspace disk space per executor container: 10.00 GB
+  Driver temp space available (/mnt1/tmp): 1749.55 GB
+  Executor nodes disk check results:
+    ✓  ip-172-31-64-136.ec2.internal                 - Sufficient Space. Available: 1745.44 GB
+    ✓  ip-172-31-70-87.ec2.internal                  - Sufficient Space. Available: 1745.43 GB
+    ✓  ip-172-31-71-74.ec2.internal                  - Sufficient Space. Available: 1744.48 GB
+    ✓  ip-172-31-71-75.ec2.internal                  - Sufficient Space. Available: 1744.36 GB
+    ✓  ip-172-31-73-132.ec2.internal                 - Sufficient Space. Available: 1745.44 GB
+    ✓  ip-172-31-74-26.ec2.internal                  - Sufficient Space. Available: 1745.44 GB
+    ✓  ip-172-31-76-129.ec2.internal                 - Sufficient Space. Available: 1744.25 GB
+    ✓  ip-172-31-78-25.ec2.internal                  - Sufficient Space. Available: 1745.44 GB
+  ✓ ALL NODES HAVE SUFFICIENT TEMPORARY DISK SPACE TO EXECUTE GNN JOBS.
+================================================================================
+
+
+================================================================================
+  BOOTSTRAPPING EXPERIMENT CODE AND STAGE UTILITIES
+================================================================================
+  ► LOADING PIPELINE AND CONFIG FROM LOCAL REPOSITORY PATHS...
+    ✓ Packed local git repository code to /tmp/pipeline.zip and copied to /tmp/pipeline
+  ✓ Registered pipeline.zip package on Spark Context
+
+  Run Profile: phase37-scaling-wikics-e32-20260803T222822Z
+  └─ Datasets: ['wikics']
+  └─ Algorithms: ['lpa']
+  └─ GNN Architecture: GCN (epochs=10, lr=0.001, hidden=256)
+  └─ Global Mapping: True | Boundary Expansion: False
+  └─ Ingestion Phase (Phase 0): False
+[Phase 0 SKIPPED]  RUN_PHASE0 = False
+  → Set RUN_PHASE0 = True in experiment_config.py when using a new dataset.
+
+============================================================
+  PHASE 3.7 — Delta cached feature propagation: wikics / lpa
+============================================================
+  Graph source=phase0; 2 mean-propagation hops; 1024 Spark partitions; no Python edge UDFs.
+SLF4J: Failed to load class "org.slf4j.impl.StaticLoggerBinder".
+SLF4J: Defaulting to no-operation (NOP) logger implementation
+SLF4J: See http://www.slf4j.org/codes.html#StaticLoggerBinder for further details.
+[Stage 2:>                                                          (0 + 1) / 1]                                                                                [Stage 3:>                                                          (0 + 1) / 1]                                                                                [Stage 4:>                                                          (0 + 1) / 1]                                                                                [Stage 5:>                                                          (0 + 1) / 1][Stage 7:>                                                        (0 + 50) / 50][Stage 7:=>                                                       (1 + 49) / 50][Stage 7:==>                                                      (2 + 48) / 50][Stage 7:====>                                                    (4 + 46) / 50][Stage 7:=====>                                                   (5 + 45) / 50][Stage 7:=========>                                               (8 + 42) / 50][Stage 7:==============>                                         (13 + 37) / 50][Stage 7:=================>                                      (16 + 34) / 50][Stage 7:=================================>                      (30 + 20) / 50][Stage 7:==============================================>          (41 + 9) / 50]                                                                                [Stage 16:>                                                         (0 + 1) / 1]                                                                                [Stage 17:>                                                         (0 + 4) / 4][Stage 17:===========================================>              (3 + 1) / 4]                                                                                  Input graph: 11,701 nodes, 431,206 directed propagation edges.
+  Hop 1/2: Spark vector mean aggregation and Delta checkpoint...
+[Stage 34:>                 (0 + 1) / 1][Stage 35:>                 (0 + 1) / 1]                                                                                [Stage 39:=============================>                            (2 + 2) / 4][Stage 39:===========================================>              (3 + 1) / 4][Stage 42:>                                                    (0 + 128) / 1024][Stage 42:>                                                   (12 + 128) / 1024][Stage 42:=>                                                  (28 + 128) / 1024][Stage 42:===>                                                (73 + 128) / 1024][Stage 42:======>                                            (133 + 128) / 1024][Stage 42:=========>                                         (197 + 128) / 1024][Stage 42:==============>                                    (282 + 128) / 1024][Stage 42:====================>                              (411 + 128) / 1024][Stage 42:=========================>                         (505 + 128) / 1024][Stage 42:===============================>                   (631 + 128) / 1024][Stage 42:======================================>            (770 + 128) / 1024][Stage 42:==============================================>     (925 + 99) / 1024]                                                                                  Hop 2/2: Spark vector mean aggregation and Delta checkpoint...
+[Stage 60:================================================>    (253 + 21) / 274][Stage 63:===============>                                   (310 + 128) / 1024][Stage 63:=====================>                             (439 + 128) / 1024][Stage 63:=============================>                     (583 + 128) / 1024][Stage 63:===================================>               (721 + 129) / 1024][Stage 63:===========================================>       (877 + 128) / 1024][Stage 63:===================================================>(1023 + 1) / 1024]                                                                                [Stage 96:===========>                                       (238 + 128) / 1024][Stage 96:====================>                              (407 + 128) / 1024][Stage 96:=============================>                     (598 + 128) / 1024][Stage 96:======================================>            (763 + 128) / 1024][Stage 96:================================================>   (955 + 69) / 1024]                                                                                  ✓ Propagation coverage verified: 11,701/11,701 nodes; 2 Delta hops materialized in 45.5s.
+    Classifier features are cached at s3://us-east-1-s3-gnn/delta-data/wikics/phase37_propagation/phase37-scaling-wikics-e32-20260803T222822Z_wikics_lpa/phase0/features_k2.
+
+============================================================
+  PHASE 3.8 — Global edge-free multinomial classifier: wikics / lpa
+============================================================
+  Training one Spark ML global model on cached propagation features; no graph edges are read.
+  Labelled examples: train=580, valid=1,769, test=5,847
+  Fitting distributed multinomial logistic model (maxIter=30, regParam=0.0001)...
+  ✓ Global classifier complete in 7.9s; valid accuracy=0.7829, test accuracy=0.7746; iterations=30.
+
+[PHASE 5] - Metrics Analysis, Visualizations, and Excel S3 Export
+
+===============================================================================================
+  PHASE 5A — PERFORMANCE COMPARISON (NODE ACCURACY & LINK AUC)
+===============================================================================================
+
+  Dataset: wikics
+  _Algorithm           Node Acc   Comm Acc    Bnd Acc    Int Acc     Link AUC
+  ---------------------------------------------------------------------------
+  lpa-SIGN-LR            0.7746          —          —          —            —
+
+  [wikics] Performance by community size bucket:
+
+================================================================================
+  PHASE 5B — TIMING COMPARISON
+================================================================================
+
+  Dataset: wikics
+  Algorithm             Phase1    Phase2    Phase3   Phase3b     Total
+  --------------------------------------------------------------------
+  BASELINE (SAGE)            —         —         —      0.0s (Node: 0.0s, Link: 0.0s)
+  XLSX → s3://us-east-1-s3-gnn/gnn-bench-out/phase37-scaling-wikics-e32-20260803T222822Z_results.xlsx
+  Plot → s3://us-east-1-s3-gnn/gnn-bench-out/plots/phase37-scaling-wikics-e32-20260803T222822Z/wikics_acc_dist.png
+
+================================================================================
+  FINAL PIPELINE REPORT SUMMARY
+================================================================================
+╔══════════════════════════════════════════════════════════════╗
+║  EXPERIMENT: phase37-scaling-wikics-e32-20260803T222822Z    ║
+║  Global mapping: True                                        ║
+╠══════════════════════════════════════════════════════════════╣
+║   Dataset                        wikics                        ║
+║   Phase 0 (ingest)               SKIPPED                       ║
+╠══════════════════════════════════════════════════════════════╣
+║   [lpa] communities              ? raw → ? valid               ║
+╚══════════════════════════════════════════════════════════════╝
+
+[SUCCESS] EMR Driver execution completed in 53.8 seconds.
+================================================================================
+
+Uploading execution log to: s3://us-east-1-s3-gnn/gnn-bench-out/spark-results/phase37-scaling-wikics-e32-20260803T222822Z-25de67c0a66b607b/logs/run_pipeline.log
+Copying S3 Excel results to: s3://us-east-1-s3-gnn/gnn-bench-out/spark-results/phase37-scaling-wikics-e32-20260803T222822Z-25de67c0a66b607b/excels/phase37-scaling-wikics-e32-20260803T222822Z_results.xlsx
+Uploading LaTeX table to: s3://us-east-1-s3-gnn/gnn-bench-out/spark-results/phase37-scaling-wikics-e32-20260803T222822Z-25de67c0a66b607b/latex_tables/table12_distdgl_comparison.tex
+Uploading LaTeX table to: s3://us-east-1-s3-gnn/gnn-bench-out/spark-results/phase37-scaling-wikics-e32-20260803T222822Z-25de67c0a66b607b/latex_tables/table13_scalability_multi_instance.tex
+Uploading LaTeX table to: s3://us-east-1-s3-gnn/gnn-bench-out/spark-results/phase37-scaling-wikics-e32-20260803T222822Z-25de67c0a66b607b/latex_tables/table3_link_prediction_main.tex
+Uploading LaTeX table to: s3://us-east-1-s3-gnn/gnn-bench-out/spark-results/phase37-scaling-wikics-e32-20260803T222822Z-25de67c0a66b607b/latex_tables/table4_node_classification_main.tex
+Uploading LaTeX table to: s3://us-east-1-s3-gnn/gnn-bench-out/spark-results/phase37-scaling-wikics-e32-20260803T222822Z-25de67c0a66b607b/latex_tables/table9_ablation_study.tex

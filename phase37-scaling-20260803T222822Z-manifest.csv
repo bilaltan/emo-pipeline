@@ -1,0 +1,10 @@
+experiment_name,dataset,executor_instances,graph_source,num_hops,phase37_partitions,started_utc,finished_utc,return_code,log_path
+phase37-scaling-wikics-e16-20260803T222822Z,wikics,16,phase0,2,512,2026-08-03T22:28:22.257450+00:00,2026-08-03T22:30:00.834549+00:00,0,/home/hadoop/emo-pipeline/phase37-scaling-wikics-e16-20260803T222822Z.log
+phase37-scaling-wikics-e32-20260803T222822Z,wikics,32,phase0,2,1024,2026-08-03T22:30:00.834753+00:00,2026-08-03T22:31:44.213047+00:00,0,/home/hadoop/emo-pipeline/phase37-scaling-wikics-e32-20260803T222822Z.log
+phase37-scaling-wikics-e64-20260803T222822Z,wikics,64,phase0,2,2048,2026-08-03T22:31:44.213238+00:00,2026-08-03T22:33:50.265412+00:00,0,/home/hadoop/emo-pipeline/phase37-scaling-wikics-e64-20260803T222822Z.log
+phase37-scaling-ogbn-products-e16-20260803T222822Z,ogbn-products,16,phase0,2,512,2026-08-03T22:33:50.265609+00:00,2026-08-03T22:36:18.740978+00:00,0,/home/hadoop/emo-pipeline/phase37-scaling-ogbn-products-e16-20260803T222822Z.log
+phase37-scaling-ogbn-products-e32-20260803T222822Z,ogbn-products,32,phase0,2,1024,2026-08-03T22:36:18.741168+00:00,2026-08-03T22:38:41.225304+00:00,0,/home/hadoop/emo-pipeline/phase37-scaling-ogbn-products-e32-20260803T222822Z.log
+phase37-scaling-ogbn-products-e64-20260803T222822Z,ogbn-products,64,phase0,2,2048,2026-08-03T22:38:41.225830+00:00,2026-08-03T22:41:35.086395+00:00,0,/home/hadoop/emo-pipeline/phase37-scaling-ogbn-products-e64-20260803T222822Z.log
+phase37-scaling-ogbn-papers100M-e16-20260803T222822Z,ogbn-papers100M,16,phase0,2,512,2026-08-03T22:41:35.086587+00:00,2026-08-03T23:25:20.736090+00:00,0,/home/hadoop/emo-pipeline/phase37-scaling-ogbn-papers100M-e16-20260803T222822Z.log
+phase37-scaling-ogbn-papers100M-e32-20260803T222822Z,ogbn-papers100M,32,phase0,2,1024,2026-08-03T23:25:20.736282+00:00,2026-08-03T23:59:12.462537+00:00,0,/home/hadoop/emo-pipeline/phase37-scaling-ogbn-papers100M-e32-20260803T222822Z.log
+phase37-scaling-ogbn-papers100M-e64-20260803T222822Z,ogbn-papers100M,64,phase0,2,2048,2026-08-03T23:59:12.462728+00:00,2026-08-04T00:33:09.142812+00:00,0,/home/hadoop/emo-pipeline/phase37-scaling-ogbn-papers100M-e64-20260803T222822Z.log

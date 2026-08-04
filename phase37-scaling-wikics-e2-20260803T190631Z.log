@@ -1,0 +1,161 @@
+Writable directories and free space:
+  - /mnt1/tmp: 1756.27 GB free
+  - /mnt1/spark: 1756.27 GB free
+  - /mnt/tmp: 1738.21 GB free
+  - /mnt/spark: 1738.21 GB free
+  - /mnt/var/tmp: 1738.21 GB free
+  - /tmp: 1738.21 GB free
+  - /var/tmp: 1738.21 GB free
+
+  [Spark Auto-Scaler] Dataset: wikics | S3 Size: 1 MB | Scale: Small/Medium
+  [Spark Auto-Scaler] YARN Cluster: 8 nodes × 496 GB RAM × 64 vCores
+  [Spark Auto-Scaler] Python RAM Budget: 5.0 GB/task (dataset-aware)
+  [Spark Auto-Scaler] Bin-Packing Solution:
+    → 2 total executors (CLI override)
+    → 4 cores/executor | 8g heap + 20g overhead = 28g container
+    → Total parallel tasks: 8 | Shuffle partitions: 200
+    → Driver: 40g heap + 12g overhead
+    → Cluster utilization: 56g / 3966g (1%)
+
+:: loading settings :: url = jar:file:/usr/lib/spark/jars/ivy-2.5.1.jar!/org/apache/ivy/core/settings/ivysettings.xml
+Ivy Default Cache set to: /mnt1/tmp/.ivy2/cache
+The jars for the packages stored in: /mnt1/tmp/.ivy2/jars
+io.delta#delta-spark_2.12 added as a dependency
+graphframes#graphframes added as a dependency
+:: resolving dependencies :: org.apache.spark#spark-submit-parent-49e9d270-9b42-49bc-9524-261497ede4b1;1.0
+	confs: [default]
+	found io.delta#delta-spark_2.12;3.2.0 in central
+	found io.delta#delta-storage;3.2.0 in central
+	found org.antlr#antlr4-runtime;4.9.3 in central
+	found graphframes#graphframes;0.8.3-spark3.5-s_2.12 in spark-packages
+	found org.slf4j#slf4j-api;1.7.16 in central
+:: resolution report :: resolve 150ms :: artifacts dl 5ms
+	:: modules in use:
+	graphframes#graphframes;0.8.3-spark3.5-s_2.12 from spark-packages in [default]
+	io.delta#delta-spark_2.12;3.2.0 from central in [default]
+	io.delta#delta-storage;3.2.0 from central in [default]
+	org.antlr#antlr4-runtime;4.9.3 from central in [default]
+	org.slf4j#slf4j-api;1.7.16 from central in [default]
+	---------------------------------------------------------------------
+	|                  |            modules            ||   artifacts   |
+	|       conf       | number| search|dwnlded|evicted|| number|dwnlded|
+	---------------------------------------------------------------------
+	|      default     |   5   |   0   |   0   |   0   ||   5   |   0   |
+	---------------------------------------------------------------------
+:: retrieving :: org.apache.spark#spark-submit-parent-49e9d270-9b42-49bc-9524-261497ede4b1
+	confs: [default]
+	0 artifacts copied, 5 already retrieved (0kB/3ms)
+Setting default log level to "WARN".
+To adjust logging level use sc.setLogLevel(newLevel). For SparkR, use setLogLevel(newLevel).
+26/08/03 19:06:35 WARN SparkConf: Note that spark.local.dir will be overridden by the value set by the cluster manager (via SPARK_LOCAL_DIRS in mesos/standalone/kubernetes and LOCAL_DIRS in YARN).
+26/08/03 19:06:36 WARN Client: Neither spark.yarn.jars nor spark.yarn.archive is set, falling back to uploading libraries under SPARK_HOME.
+26/08/03 19:06:39 WARN Client: Same path resource file:///mnt1/tmp/.ivy2/jars/io.delta_delta-spark_2.12-3.2.0.jar added multiple times to distributed cache.
+26/08/03 19:06:39 WARN Client: Same path resource file:///mnt1/tmp/.ivy2/jars/graphframes_graphframes-0.8.3-spark3.5-s_2.12.jar added multiple times to distributed cache.
+26/08/03 19:06:39 WARN Client: Same path resource file:///mnt1/tmp/.ivy2/jars/io.delta_delta-storage-3.2.0.jar added multiple times to distributed cache.
+26/08/03 19:06:39 WARN Client: Same path resource file:///mnt1/tmp/.ivy2/jars/org.antlr_antlr4-runtime-4.9.3.jar added multiple times to distributed cache.
+26/08/03 19:06:39 WARN Client: Same path resource file:///mnt1/tmp/.ivy2/jars/org.slf4j_slf4j-api-1.7.16.jar added multiple times to distributed cache.
+  ✓ SparkSession successfully configured and initialized as 'spark'.
+
+================================================================================
+  VERIFYING AND INSTALLING PYTHON ENVIRONMENT PACKAGES
+================================================================================
+  ► Installing numpy==1.26.4 on driver node...
+  WARNING: The script f2py is installed in '/mnt1/tmp/.local/bin' which is not on PATH.
+  Consider adding this directory to PATH or, if you prefer to suppress this warning, use --no-warn-script-location.
+ERROR: pip's dependency resolver does not currently take into account all the packages that are installed. This behaviour is the source of the following dependency conflicts.
+pandas 2.3.3 requires tzdata>=2022.7, which is not installed.
+matplotlib 3.9.4 requires contourpy>=1.0.1, which is not installed.
+matplotlib 3.9.4 requires cycler>=0.10, which is not installed.
+matplotlib 3.9.4 requires fonttools>=4.22.0, which is not installed.
+matplotlib 3.9.4 requires importlib-resources>=3.2.0; python_version < "3.10", which is not installed.
+matplotlib 3.9.4 requires kiwisolver>=1.3.1, which is not installed.
+matplotlib 3.9.4 requires pillow>=8, which is not installed.
+pandas 2.3.3 requires python-dateutil>=2.8.2, but you have python-dateutil 2.8.1 which is incompatible.
+    ✓ numpy==1.26.4 successfully installed on driver.
+  ► Installing ogb on driver node...
+  WARNING: The scripts proton and proton-viewer are installed in '/mnt1/tmp/.local/bin' which is not on PATH.
+  Consider adding this directory to PATH or, if you prefer to suppress this warning, use --no-warn-script-location.
+  WARNING: The script isympy is installed in '/mnt1/tmp/.local/bin' which is not on PATH.
+  Consider adding this directory to PATH or, if you prefer to suppress this warning, use --no-warn-script-location.
+  WARNING: The scripts torchfrtrace and torchrun are installed in '/mnt1/tmp/.local/bin' which is not on PATH.
+  Consider adding this directory to PATH or, if you prefer to suppress this warning, use --no-warn-script-location.
+ERROR: pip's dependency resolver does not currently take into account all the packages that are installed. This behaviour is the source of the following dependency conflicts.
+matplotlib 3.9.4 requires contourpy>=1.0.1, which is not installed.
+matplotlib 3.9.4 requires cycler>=0.10, which is not installed.
+matplotlib 3.9.4 requires fonttools>=4.22.0, which is not installed.
+matplotlib 3.9.4 requires importlib-resources>=3.2.0; python_version < "3.10", which is not installed.
+matplotlib 3.9.4 requires kiwisolver>=1.3.1, which is not installed.
+matplotlib 3.9.4 requires pillow>=8, which is not installed.
+awscli 2.33.15 requires python-dateutil<=2.9.0,>=2.1, but you have python-dateutil 2.9.0.post0 which is incompatible.
+    ✓ ogb successfully installed on driver.
+  ► Installing igraph on driver node...
+  WARNING: The script igraph is installed in '/mnt1/tmp/.local/bin' which is not on PATH.
+  Consider adding this directory to PATH or, if you prefer to suppress this warning, use --no-warn-script-location.
+    ✓ igraph successfully installed on driver.
+  ► Installing leidenalg on driver node...
+    ✓ leidenalg successfully installed on driver.
+  ► Installing xlsxwriter on driver node...
+    ✓ xlsxwriter successfully installed on driver.
+  ► Installing openpyxl on driver node...
+    ✓ openpyxl successfully installed on driver.
+  ► Installing matplotlib on driver node...
+  WARNING: The scripts fonttools, pyftmerge, pyftsubset and ttx are installed in '/mnt1/tmp/.local/bin' which is not on PATH.
+  Consider adding this directory to PATH or, if you prefer to suppress this warning, use --no-warn-script-location.
+    ✓ matplotlib successfully installed on driver.
+  ► Installing seaborn on driver node...
+    ✓ seaborn successfully installed on driver.
+  ► Installing torch-geometric on driver node...
+    ✓ torch-geometric successfully installed on driver.
+  ► Installing dgl==1.1.3 on driver node...
+    ✓ dgl==1.1.3 successfully installed on driver.
+  ► Syncing dependencies across all active YARN worker nodes...
+[Stage 0:>                                                         (0 + 8) / 64][Stage 0:>                                                        (0 + 11) / 64][Stage 0:=====>                                                    (6 + 8) / 64]ERROR:root:Exception while sending command.
+Traceback (most recent call last):
+  File "/usr/lib/spark/python/lib/py4j-0.10.9.7-src.zip/py4j/clientserver.py", line 511, in send_command
+    answer = smart_decode(self.stream.readline()[:-1])
+RuntimeError: reentrant call inside <_io.BufferedReader name=5>
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/usr/lib/spark/python/lib/py4j-0.10.9.7-src.zip/py4j/java_gateway.py", line 1038, in send_command
+    response = connection.send_command(command)
+  File "/usr/lib/spark/python/lib/py4j-0.10.9.7-src.zip/py4j/clientserver.py", line 539, in send_command
+    raise Py4JNetworkError(
+py4j.protocol.Py4JNetworkError: Error while sending or receiving
+ERROR:root:Exception while sending command.
+Traceback (most recent call last):
+  File "/usr/lib/spark/python/lib/py4j-0.10.9.7-src.zip/py4j/clientserver.py", line 511, in send_command
+    answer = smart_decode(self.stream.readline()[:-1])
+  File "/usr/lib64/python3.9/socket.py", line 716, in readinto
+    return self._sock.recv_into(b)
+  File "/usr/lib/spark/python/pyspark/context.py", line 392, in signal_handler
+    self.cancelAllJobs()
+  File "/usr/lib/spark/python/pyspark/context.py", line 2466, in cancelAllJobs
+    self._jsc.sc().cancelAllJobs()
+  File "/usr/lib/spark/python/lib/py4j-0.10.9.7-src.zip/py4j/java_gateway.py", line 1322, in __call__
+    return_value = get_return_value(
+  File "/usr/lib/spark/python/pyspark/errors/exceptions/captured.py", line 179, in deco
+    return f(*a, **kw)
+  File "/usr/lib/spark/python/lib/py4j-0.10.9.7-src.zip/py4j/protocol.py", line 334, in get_return_value
+    raise Py4JError(
+py4j.protocol.Py4JError: An error occurred while calling o338.sc
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/usr/lib/spark/python/lib/py4j-0.10.9.7-src.zip/py4j/java_gateway.py", line 1038, in send_command
+    response = connection.send_command(command)
+  File "/usr/lib/spark/python/lib/py4j-0.10.9.7-src.zip/py4j/clientserver.py", line 539, in send_command
+    raise Py4JNetworkError(
+py4j.protocol.Py4JNetworkError: Error while sending or receiving
+  ⚠ Executor package sync failed: An error occurred while calling z:org.apache.spark.api.python.PythonRDD.collectAndServe
+
+  ✓ ALL PIPELINE DEPENDENCIES VERIFIED AND READY.
+
+================================================================================
+  CLUSTER DISK SPACE COMPATIBILITY VERIFICATION
+================================================================================
+  Dataset: wikics | Nodes: 11,701 | Features: 300
+  Required temp workspace disk space per executor container: 10.00 GB
+  Driver temp space available (/mnt1/tmp): 1749.55 GB
