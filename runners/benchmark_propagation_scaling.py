@@ -41,6 +41,8 @@ def main():
                         help="Phase 3.7 partitions per executor, with a minimum of 200")
     parser.add_argument("--s3-bucket", default="us-east-1-s3-gnn")
     parser.add_argument("--s3-prefix", default="pipeline")
+    parser.add_argument("--output-dir", default="results/phase37_scaling",
+                        help="Directory for manifests and per-run logs")
     parser.add_argument("--skip-install", action="store_true",
                         help="Skip executor package verification for every run")
     parser.add_argument("--continue-on-error", action="store_true",
@@ -56,7 +58,9 @@ def main():
 
     runner = Path(__file__).with_name("run_emr.py")
     run_stamp = dt.datetime.now(dt.timezone.utc).strftime("%Y%m%dT%H%M%SZ")
-    manifest_path = Path.cwd() / f"{args.experiment_prefix}-{run_stamp}-manifest.csv"
+    output_dir = Path(args.output_dir).expanduser().resolve()
+    output_dir.mkdir(parents=True, exist_ok=True)
+    manifest_path = output_dir / f"{args.experiment_prefix}-{run_stamp}-manifest.csv"
     fields = [
         "experiment_name", "dataset", "executor_instances", "graph_source",
         "num_hops", "phase37_partitions", "started_utc", "finished_utc",
@@ -70,7 +74,7 @@ def main():
             for executor_count in executor_counts:
                 partitions = max(200, executor_count * args.partitions_per_executor)
                 experiment_name = f"{args.experiment_prefix}-{dataset}-e{executor_count}-{run_stamp}"
-                log_path = Path.cwd() / f"{experiment_name}.log"
+                log_path = output_dir / f"{experiment_name}.log"
                 command = [
                     sys.executable, str(runner),
                     "--experiment-name", experiment_name,
