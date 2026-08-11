@@ -1,10 +1,12 @@
-# Phase 3.7/3.8 Scaling Analysis
+# Phase 3.7/3.8 Scaling Analysis (Run1)
 
 ## Scope
 
-This experiment measures the full-graph Phase 3.7/3.8 path with two cached mean-propagation hops and one global Spark ML multinomial logistic-regression classifier. The graph source is Phase 0, and each successful run verifies output-node coverage before classifier fitting.
+This run evaluates Phase 3.7/3.8 using Phase 0 graph tables, two cached mean-propagation hops, and one global Spark ML multinomial classifier.
 
-The combined raw data and parsed metrics are in `phase37_scaling_results.xlsx`.
+- Run folder: `results/phase37_scaling/phase37_paper_run1`
+- Executor sweep: 16, 32, 64
+- Datasets: WikiCS, ogbn-products, ogbn-papers100M
 
 ## Verified Coverage and Accuracy
 
@@ -14,35 +16,37 @@ The combined raw data and parsed metrics are in `phase37_scaling_results.xlsx`.
 | ogbn-products | 2,449,029 | 123,718,024 | 100% | 0.8720 | 0.7068 |
 | ogbn-papers100M | 111,059,956 | 3,228,124,712 | 100% | 0.6314 | 0.6327 |
 
-Accuracy is invariant across executor counts because each configuration runs the same deterministic two-hop propagation and the same global classifier. Executor count is therefore evaluated as a systems-performance parameter, not a model hyperparameter.
+Accuracy remains invariant across executor settings in this matrix because the model path is fixed and only system parallelism changes.
 
 ## Scaling Results
 
-| Dataset | Executors | Propagation time (s) | Classifier time (s) | Total model time (s) | Propagation speedup vs. 8 executors |
+| Dataset | Executors | Propagation time (s) | Classifier time (s) | Total model time (s) | Propagation speedup vs. 16 executors |
 |---|---:|---:|---:|---:|---:|
-| WikiCS | 8 | 41.1 | 8.9 | 50.0 | 1.00x |
-| WikiCS | 16 | 41.0 | 8.4 | 49.4 | 1.00x |
-| WikiCS | 32 | 45.5 | 7.9 | 53.4 | 0.90x |
-| WikiCS | 64 | 58.0 | 10.2 | 68.2 | 0.71x |
-| ogbn-products | 8 | 110.4 | 16.7 | 127.1 | 1.00x |
-| ogbn-products | 16 | 86.7 | 11.7 | 98.4 | 1.27x |
-| ogbn-products | 32 | 81.7 | 10.3 | 92.0 | 1.35x |
-| ogbn-products | 64 | 82.5 | 12.0 | 94.5 | 1.34x |
-| ogbn-papers100M | 8 | 3199.1 | 237.8 | 3436.9 | 1.00x |
-| ogbn-papers100M | 16 | 2459.0 | 118.6 | 2577.6 | 1.30x |
-| ogbn-papers100M | 32 | 1912.0 | 67.1 | 1979.1 | 1.67x |
-| ogbn-papers100M | 64 | 1890.7 | 70.3 | 1961.0 | 1.69x |
+| WikiCS | 16 | 41.6 | 9.0 | 50.6 | 1.00x |
+| WikiCS | 32 | 43.7 | 7.6 | 51.3 | 0.95x |
+| WikiCS | 64 | 55.3 | 9.8 | 65.1 | 0.75x |
+| ogbn-products | 16 | 84.5 | 11.1 | 95.6 | 1.00x |
+| ogbn-products | 32 | 80.8 | 9.9 | 90.7 | 1.05x |
+| ogbn-products | 64 | 82.3 | 11.3 | 93.6 | 1.03x |
+| ogbn-papers100M | 16 | 2478.3 | 125.1 | 2603.4 | 1.00x |
+| ogbn-papers100M | 32 | 1940.5 | 73.5 | 2014.0 | 1.28x |
+| ogbn-papers100M | 64 | 1892.1 | 71.5 | 1963.6 | 1.31x |
 
 ## Interpretation
 
-- WikiCS is too small to benefit from more executors. Scheduling, shuffle, and cluster coordination overhead dominate; use 8 executors or fewer for this scale.
-- `ogbn-products` improves substantially from 8 to 16 executors, reaches its best observed propagation time at 32, and shows no meaningful gain at 64. Use 32 executors.
-- Papers100M improves materially from 8 to 32 executors. Increasing to 64 yields only 21.3 seconds, or about 1.1%, additional propagation improvement. Use 32 executors unless the cost of 64 executors is effectively identical.
-- The classifier is much cheaper than propagation at all scales, especially on Papers100M. The system optimization target should therefore be graph propagation, shuffle, and Delta I/O rather than the classifier.
-- One early bootstrap run is incomplete and is retained in the workbook's `incomplete_runs` sheet. It should not be used in tables or figures.
+- WikiCS is too small for aggressive executor scaling; coordination overhead dominates.
+- `ogbn-products` benefits slightly at 32 executors but largely saturates.
+- Papers100M gains substantially from 16 to 32 executors; 64 adds only marginal additional runtime improvement.
+- Classifier time is consistently smaller than propagation time, so optimization priority remains propagation and Delta I/O.
+
+## Generated Paper Artifacts
+
+- `phase37_runtime_by_config.png`
+- `phase37_speedup_by_config.png`
+- `phase38_accuracy_stability.png`
+- `phase37_scaling_recommended_configs.tex`
+- `phase37_scaling_results.xlsx`
 
 ## Paper-Safe Statement
 
-Across three graph sizes, the Phase 3.7/3.8 path preserved 100% of input nodes through two cached propagation hops and produced identical global test accuracy across executor configurations. Scaling benefits depend on graph size: executor growth hurts the small graph, saturates near 32 executors for `ogbn-products`, and reduces Papers100M propagation time from 3,199.1 seconds at 8 executors to 1,912.0 seconds at 32 executors.
-
-Do not claim linear scaling or a cost improvement until repeated trials and per-run cluster cost are recorded.
+Across all three datasets, the Phase 3.7/3.8 pipeline preserved full node coverage and fixed test accuracy while sweeping executor count. The largest graph (`ogbn-papers100M`) improved from 2478.3s propagation at 16 executors to 1940.5s at 32 executors, with diminishing gains at 64 executors.

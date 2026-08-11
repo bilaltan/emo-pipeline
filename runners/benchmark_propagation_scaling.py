@@ -4,7 +4,6 @@
 import argparse
 import csv
 import datetime as dt
-import os
 import subprocess
 import sys
 from pathlib import Path
@@ -21,6 +20,26 @@ def parse_csv(value, converter, label):
     return [converter(item) for item in values]
 
 
+def parse_optional_csv(value, converter):
+    if value is None:
+        return [None]
+    values = [item.strip() for item in value.split(",") if item.strip()]
+    if not values:
+        return [None]
+    return [converter(item) for item in values]
+
+
+def profile_suffix(executor_count, executor_cores, executor_memory_gb, executor_overhead_gb):
+    parts = [f"e{executor_count}"]
+    if executor_cores is not None:
+        parts.append(f"c{executor_cores}")
+    if executor_memory_gb is not None:
+        parts.append(f"m{executor_memory_gb}")
+    if executor_overhead_gb is not None:
+        parts.append(f"oh{executor_overhead_gb}")
+    return "-".join(parts)
+
+
 def main():
     parser = argparse.ArgumentParser(
         description="Benchmark cached graph propagation across datasets and executor counts."
@@ -29,6 +48,12 @@ def main():
                         help="Comma-separated small, medium, and large datasets")
     parser.add_argument("--executor-counts", default=DEFAULT_EXECUTORS,
                         help="Comma-separated executor-instance counts")
+    parser.add_argument("--executor-cores", default=None,
+                        help="Optional comma-separated executor cores to sweep")
+    parser.add_argument("--executor-memory-gb", default=None,
+                        help="Optional comma-separated executor heap sizes in GiB to sweep")
+    parser.add_argument("--executor-memory-overhead-gb", default=None,
+                        help="Optional comma-separated executor overhead sizes in GiB to sweep")
     parser.add_argument("--experiment-prefix", default="phase37-scaling",
                         help="Prefix for unique experiment names and manifests")
     parser.add_argument("--algorithms", default="lpa",
@@ -51,8 +76,17 @@ def main():
 
     datasets = parse_csv(args.datasets, str, "datasets")
     executor_counts = parse_csv(args.executor_counts, int, "executor counts")
+    executor_cores = parse_optional_csv(args.executor_cores, int)
+    executor_memory_gb = parse_optional_csv(args.executor_memory_gb, int)
+    executor_overhead_gb = parse_optional_csv(args.executor_memory_overhead_gb, int)
     if any(count < 1 for count in executor_counts):
         raise ValueError("executor counts must be positive")
+    if any(value is not None and value < 1 for value in executor_cores):
+        raise ValueError("executor cores must be positive")
+    if any(value is not None and value < 1 for value in executor_memory_gb):
+        raise ValueError("executor memory must be positive")
+    if any(value is not None and value < 1 for value in executor_overhead_gb):
+        raise ValueError("executor memory overhead must be positive")
     if args.num_hops < 1 or args.partitions_per_executor < 1:
         raise ValueError("num-hops and partitions-per-executor must be positive")
 
@@ -63,6 +97,7 @@ def main():
     manifest_path = output_dir / f"{args.experiment_prefix}-{run_stamp}-manifest.csv"
     fields = [
         "experiment_name", "dataset", "executor_instances", "graph_source",
+        "executor_cores", "executor_memory_gb", "executor_memory_overhead_gb",
         "num_hops", "phase37_partitions", "started_utc", "finished_utc",
         "return_code", "log_path",
     ]
@@ -72,55 +107,68 @@ def main():
         writer.writeheader()
         for dataset in datasets:
             for executor_count in executor_counts:
-                partitions = max(200, executor_count * args.partitions_per_executor)
-                experiment_name = f"{args.experiment_prefix}-{dataset}-e{executor_count}-{run_stamp}"
-                log_path = output_dir / f"{experiment_name}.log"
-                command = [
-                    sys.executable, str(runner),
-                    "--experiment-name", experiment_name,
-                    "--datasets", dataset,
-                    "--algorithms", args.algorithms,
-                    "--no-phase0",
-                    "--no-phase3",
-                    "--no-phase3b",
-                    "--no-phase4",
-                    "--run-phase37",
-                    "--run-phase38",
-                    "--force-rerun",
-                    "--executor-instances", str(executor_count),
-                    "--phase37-graph-source", args.graph_source,
-                    "--phase37-num-hops", str(args.num_hops),
-                    "--phase37-num-partitions", str(partitions),
-                    "--s3-bucket", args.s3_bucket,
-                    "--s3-prefix", args.s3_prefix,
-                ]
-                if args.skip_install:
-                    command.append("--no-install")
+                for executor_core_count in executor_cores:
+                    for executor_mem in executor_memory_gb:
+                        for executor_overhead in executor_overhead_gb:
+                            partitions = max(200, executor_count * args.partitions_per_executor)
+                            profile = profile_suffix(executor_count, executor_core_count, executor_mem, executor_overhead)
+                            experiment_name = f"{args.experiment_prefix}-{dataset}-{profile}-{run_stamp}"
+                            log_path = output_dir / f"{experiment_name}.log"
+                            command = [
+                                sys.executable, str(runner),
+                                "--experiment-name", experiment_name,
+                                "--datasets", dataset,
+                                "--algorithms", args.algorithms,
+                                "--no-phase0",
+                                "--no-phase3",
+                                "--no-phase3b",
+                                "--no-phase4",
+                                "--run-phase37",
+                                "--run-phase38",
+                                "--force-rerun",
+                                "--executor-instances", str(executor_count),
+                                "--phase37-graph-source", args.graph_source,
+                                "--phase37-num-hops", str(args.num_hops),
+                                "--phase37-num-partitions", str(partitions),
+                                "--s3-bucket", args.s3_bucket,
+                                "--s3-prefix", args.s3_prefix,
+                            ]
+                            if executor_core_count is not None:
+                                command.extend(["--executor-cores", str(executor_core_count)])
+                            if executor_mem is not None:
+                                command.extend(["--executor-memory-gb", str(executor_mem)])
+                            if executor_overhead is not None:
+                                command.extend(["--executor-memory-overhead-gb", str(executor_overhead)])
+                            if args.skip_install:
+                                command.append("--no-install")
 
-                started = dt.datetime.now(dt.timezone.utc).isoformat()
-                print(f"\n{'=' * 78}\nStarting {experiment_name}\nCommand: {' '.join(command)}\n{'=' * 78}")
-                with log_path.open("w", encoding="utf-8") as log_file:
-                    completed = subprocess.run(command, stdout=log_file, stderr=subprocess.STDOUT)
-                finished = dt.datetime.now(dt.timezone.utc).isoformat()
-                writer.writerow({
-                    "experiment_name": experiment_name,
-                    "dataset": dataset,
-                    "executor_instances": executor_count,
-                    "graph_source": args.graph_source,
-                    "num_hops": args.num_hops,
-                    "phase37_partitions": partitions,
-                    "started_utc": started,
-                    "finished_utc": finished,
-                    "return_code": completed.returncode,
-                    "log_path": log_path,
-                })
-                manifest_file.flush()
-                if completed.returncode:
-                    print(f"FAILED: {experiment_name}; inspect {log_path}")
-                    if not args.continue_on_error:
-                        raise SystemExit(completed.returncode)
-                else:
-                    print(f"Completed: {experiment_name}; log: {log_path}")
+                            started = dt.datetime.now(dt.timezone.utc).isoformat()
+                            print(f"\n{'=' * 78}\nStarting {experiment_name}\nCommand: {' '.join(command)}\n{'=' * 78}")
+                            with log_path.open("w", encoding="utf-8") as log_file:
+                                completed = subprocess.run(command, stdout=log_file, stderr=subprocess.STDOUT)
+                            finished = dt.datetime.now(dt.timezone.utc).isoformat()
+                            writer.writerow({
+                                "experiment_name": experiment_name,
+                                "dataset": dataset,
+                                "executor_instances": executor_count,
+                                "graph_source": args.graph_source,
+                                "executor_cores": executor_core_count,
+                                "executor_memory_gb": executor_mem,
+                                "executor_memory_overhead_gb": executor_overhead,
+                                "num_hops": args.num_hops,
+                                "phase37_partitions": partitions,
+                                "started_utc": started,
+                                "finished_utc": finished,
+                                "return_code": completed.returncode,
+                                "log_path": log_path,
+                            })
+                            manifest_file.flush()
+                            if completed.returncode:
+                                print(f"FAILED: {experiment_name}; inspect {log_path}")
+                                if not args.continue_on_error:
+                                    raise SystemExit(completed.returncode)
+                            else:
+                                print(f"Completed: {experiment_name}; log: {log_path}")
 
     print(f"\nScaling matrix manifest: {manifest_path}")
 

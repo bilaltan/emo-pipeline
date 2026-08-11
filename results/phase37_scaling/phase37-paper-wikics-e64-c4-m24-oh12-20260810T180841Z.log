@@ -1,0 +1,180 @@
+Writable directories and free space:
+  - /mnt1/tmp: 1749.55 GB free
+  - /mnt1/spark: 1749.55 GB free
+  - /mnt/tmp: 1738.14 GB free
+  - /mnt/spark: 1738.14 GB free
+  - /mnt/var/tmp: 1738.14 GB free
+  - /tmp: 1738.14 GB free
+  - /var/tmp: 1738.14 GB free
+
+  [Spark Auto-Scaler] Dataset: wikics | S3 Size: 1 MB | Scale: Small/Medium
+  [Spark Auto-Scaler] YARN Cluster: 8 nodes × 496 GB RAM × 64 vCores
+  [Spark Auto-Scaler] Python RAM Budget: 5.0 GB/task (dataset-aware)
+  [Spark Auto-Scaler] Bin-Packing Solution:
+    → 64 total executors (CLI override)
+    → 4 cores/executor | 24g heap + 12g overhead = 36g container
+    → Total parallel tasks: 256 | Shuffle partitions: 512
+    → Driver: 40g heap + 12g overhead
+    → Cluster utilization: 2304g / 3966g (58%)
+
+:: loading settings :: url = jar:file:/usr/lib/spark/jars/ivy-2.5.1.jar!/org/apache/ivy/core/settings/ivysettings.xml
+Ivy Default Cache set to: /mnt1/tmp/.ivy2/cache
+The jars for the packages stored in: /mnt1/tmp/.ivy2/jars
+io.delta#delta-spark_2.12 added as a dependency
+graphframes#graphframes added as a dependency
+:: resolving dependencies :: org.apache.spark#spark-submit-parent-b1acb353-6ad7-437a-9d3f-1da653e1c76d;1.0
+	confs: [default]
+	found io.delta#delta-spark_2.12;3.2.0 in central
+	found io.delta#delta-storage;3.2.0 in central
+	found org.antlr#antlr4-runtime;4.9.3 in central
+	found graphframes#graphframes;0.8.3-spark3.5-s_2.12 in spark-packages
+	found org.slf4j#slf4j-api;1.7.16 in central
+:: resolution report :: resolve 123ms :: artifacts dl 5ms
+	:: modules in use:
+	graphframes#graphframes;0.8.3-spark3.5-s_2.12 from spark-packages in [default]
+	io.delta#delta-spark_2.12;3.2.0 from central in [default]
+	io.delta#delta-storage;3.2.0 from central in [default]
+	org.antlr#antlr4-runtime;4.9.3 from central in [default]
+	org.slf4j#slf4j-api;1.7.16 from central in [default]
+	---------------------------------------------------------------------
+	|                  |            modules            ||   artifacts   |
+	|       conf       | number| search|dwnlded|evicted|| number|dwnlded|
+	---------------------------------------------------------------------
+	|      default     |   5   |   0   |   0   |   0   ||   5   |   0   |
+	---------------------------------------------------------------------
+:: retrieving :: org.apache.spark#spark-submit-parent-b1acb353-6ad7-437a-9d3f-1da653e1c76d
+	confs: [default]
+	0 artifacts copied, 5 already retrieved (0kB/4ms)
+Setting default log level to "WARN".
+To adjust logging level use sc.setLogLevel(newLevel). For SparkR, use setLogLevel(newLevel).
+26/08/10 18:57:53 WARN SparkConf: Note that spark.local.dir will be overridden by the value set by the cluster manager (via SPARK_LOCAL_DIRS in mesos/standalone/kubernetes and LOCAL_DIRS in YARN).
+26/08/10 18:57:54 WARN Client: Neither spark.yarn.jars nor spark.yarn.archive is set, falling back to uploading libraries under SPARK_HOME.
+26/08/10 18:57:56 WARN Client: Same path resource file:///mnt1/tmp/.ivy2/jars/io.delta_delta-spark_2.12-3.2.0.jar added multiple times to distributed cache.
+26/08/10 18:57:56 WARN Client: Same path resource file:///mnt1/tmp/.ivy2/jars/graphframes_graphframes-0.8.3-spark3.5-s_2.12.jar added multiple times to distributed cache.
+26/08/10 18:57:56 WARN Client: Same path resource file:///mnt1/tmp/.ivy2/jars/io.delta_delta-storage-3.2.0.jar added multiple times to distributed cache.
+26/08/10 18:57:56 WARN Client: Same path resource file:///mnt1/tmp/.ivy2/jars/org.antlr_antlr4-runtime-4.9.3.jar added multiple times to distributed cache.
+26/08/10 18:57:56 WARN Client: Same path resource file:///mnt1/tmp/.ivy2/jars/org.slf4j_slf4j-api-1.7.16.jar added multiple times to distributed cache.
+  ✓ SparkSession successfully configured and initialized as 'spark'.
+
+================================================================================
+  VERIFYING AND INSTALLING PYTHON ENVIRONMENT PACKAGES
+================================================================================
+  ► Syncing dependencies across all active YARN worker nodes...
+[Stage 0:>                                                     (0 + 192) / 1024][Stage 0:>                                                     (8 + 192) / 1024][Stage 0:=>                                                   (22 + 193) / 1024][Stage 0:==>                                                  (55 + 192) / 1024][Stage 0:===>                                                 (61 + 192) / 1024][Stage 0:===>                                                 (65 + 192) / 1024][Stage 0:===>                                                 (67 + 192) / 1024][Stage 0:====>                                                (89 + 192) / 1024][Stage 0:======>                                             (127 + 192) / 1024][Stage 0:========>                                           (176 + 192) / 1024][Stage 0:=========>                                          (192 + 192) / 1024][Stage 0:==========>                                         (197 + 192) / 1024][Stage 0:==========>                                         (199 + 192) / 1024][Stage 0:==========>                                         (211 + 192) / 1024][Stage 0:===========>                                        (219 + 192) / 1024][Stage 0:===========>                                        (230 + 192) / 1024][Stage 0:============>                                       (245 + 192) / 1024][Stage 0:=============>                                      (259 + 192) / 1024][Stage 0:==============>                                     (279 + 192) / 1024][Stage 0:==============>                                     (291 + 192) / 1024][Stage 0:===============>                                    (302 + 192) / 1024][Stage 0:================>                                   (321 + 193) / 1024][Stage 0:=================>                                  (342 + 192) / 1024][Stage 0:==================>                                 (363 + 192) / 1024][Stage 0:===================>                                (381 + 192) / 1024][Stage 0:===================>                                (384 + 192) / 1024][Stage 0:===================>                                (385 + 192) / 1024][Stage 0:===================>                                (386 + 192) / 1024][Stage 0:===================>                                (389 + 192) / 1024][Stage 0:====================>                               (394 + 192) / 1024][Stage 0:====================>                               (399 + 192) / 1024][Stage 0:====================>                               (403 + 192) / 1024][Stage 0:====================>                               (410 + 192) / 1024][Stage 0:=====================>                              (419 + 192) / 1024][Stage 0:=====================>                              (431 + 192) / 1024][Stage 0:======================>                             (437 + 192) / 1024][Stage 0:=======================>                            (455 + 192) / 1024][Stage 0:=======================>                            (472 + 192) / 1024][Stage 0:========================>                           (485 + 192) / 1024][Stage 0:=========================>                          (504 + 192) / 1024][Stage 0:==========================>                         (519 + 192) / 1024][Stage 0:===========================>                        (532 + 192) / 1024][Stage 0:===========================>                        (543 + 192) / 1024][Stage 0:============================>                       (559 + 192) / 1024][Stage 0:=============================>                      (572 + 193) / 1024][Stage 0:=============================>                      (576 + 192) / 1024][Stage 0:=============================>                      (577 + 192) / 1024][Stage 0:=============================>                      (580 + 192) / 1024][Stage 0:=============================>                      (583 + 192) / 1024][Stage 0:=============================>                      (585 + 192) / 1024][Stage 0:=============================>                      (589 + 192) / 1024][Stage 0:=============================>                      (590 + 192) / 1024][Stage 0:==============================>                     (598 + 192) / 1024][Stage 0:==============================>                     (602 + 192) / 1024][Stage 0:==============================>                     (607 + 192) / 1024][Stage 0:===============================>                    (611 + 192) / 1024][Stage 0:===============================>                    (622 + 192) / 1024][Stage 0:================================>                   (634 + 192) / 1024][Stage 0:================================>                   (644 + 192) / 1024][Stage 0:=================================>                  (654 + 192) / 1024][Stage 0:==================================>                 (671 + 192) / 1024][Stage 0:==================================>                 (683 + 192) / 1024][Stage 0:===================================>                (704 + 192) / 1024][Stage 0:====================================>               (713 + 192) / 1024][Stage 0:====================================>               (723 + 192) / 1024][Stage 0:=====================================>              (743 + 192) / 1024][Stage 0:======================================>             (754 + 192) / 1024][Stage 0:======================================>             (762 + 192) / 1024][Stage 0:======================================>             (765 + 192) / 1024][Stage 0:======================================>             (767 + 192) / 1024][Stage 0:=======================================>            (768 + 192) / 1024][Stage 0:=======================================>            (769 + 192) / 1024][Stage 0:=======================================>            (771 + 192) / 1024][Stage 0:=======================================>            (775 + 192) / 1024][Stage 0:=======================================>            (776 + 192) / 1024][Stage 0:=======================================>            (777 + 192) / 1024][Stage 0:=======================================>            (779 + 192) / 1024][Stage 0:=======================================>            (784 + 192) / 1024][Stage 0:=======================================>            (786 + 192) / 1024][Stage 0:========================================>           (792 + 192) / 1024][Stage 0:========================================>           (794 + 192) / 1024][Stage 0:========================================>           (798 + 192) / 1024][Stage 0:========================================>           (803 + 192) / 1024][Stage 0:=========================================>          (814 + 192) / 1024][Stage 0:=========================================>          (822 + 192) / 1024][Stage 0:==========================================>         (835 + 189) / 1024][Stage 0:==========================================>         (842 + 182) / 1024][Stage 0:===========================================>        (850 + 174) / 1024][Stage 0:===========================================>        (864 + 160) / 1024][Stage 0:============================================>       (879 + 145) / 1024][Stage 0:=============================================>      (887 + 137) / 1024][Stage 0:=============================================>      (903 + 121) / 1024][Stage 0:==============================================>     (923 + 101) / 1024][Stage 0:===============================================>     (927 + 97) / 1024][Stage 0:================================================>    (941 + 83) / 1024][Stage 0:=================================================>   (949 + 75) / 1024][Stage 0:=================================================>   (955 + 69) / 1024][Stage 0:=================================================>   (958 + 66) / 1024][Stage 0:=================================================>   (960 + 64) / 1024][Stage 0:=================================================>   (961 + 63) / 1024][Stage 0:=================================================>   (963 + 61) / 1024][Stage 0:=================================================>   (965 + 59) / 1024][Stage 0:==================================================>  (968 + 56) / 1024][Stage 0:==================================================>  (971 + 53) / 1024][Stage 0:==================================================>  (975 + 49) / 1024][Stage 0:==================================================>  (978 + 46) / 1024][Stage 0:==================================================>  (984 + 40) / 1024][Stage 0:===================================================> (987 + 37) / 1024][Stage 0:===================================================> (990 + 34) / 1024][Stage 0:===================================================> (996 + 28) / 1024][Stage 0:===================================================>(1008 + 16) / 1024][Stage 0:===================================================>(1014 + 10) / 1024]                                                                                  ► Sync attempt 1/5: 8 worker node(s) verified: ['ip-172-31-64-230', 'ip-172-31-66-85', 'ip-172-31-69-230', 'ip-172-31-70-20', 'ip-172-31-72-4', 'ip-172-31-74-7', 'ip-172-31-76-20', 'ip-172-31-77-105']
+  ✓ All 8 YARN worker nodes verified and synced successfully.
+
+  === YARN Executor Package Sync Summary ===
+    ip-172-31-64-230.ec2.internal: Success (Cached)
+    ip-172-31-66-85.ec2.internal: Success (Cached)
+    ip-172-31-69-230.ec2.internal: Success (Cached)
+    ip-172-31-70-20.ec2.internal: Success (Cached)
+    ip-172-31-72-4.ec2.internal: Success (Cached)
+    ip-172-31-74-7.ec2.internal: Success (Cached)
+    ip-172-31-76-20.ec2.internal: Success (Cached)
+    ip-172-31-77-105.ec2.internal: Success (Cached)
+
+  ✓ ALL PIPELINE DEPENDENCIES VERIFIED AND READY.
+
+================================================================================
+  CLUSTER DISK SPACE COMPATIBILITY VERIFICATION
+================================================================================
+  Dataset: wikics | Nodes: 11,701 | Features: 300
+  Required temp workspace disk space per executor container: 10.00 GB
+  Driver temp space available (/mnt1/tmp): 1749.55 GB
+  Executor nodes disk check results:
+    ✓  ip-172-31-64-230.ec2.internal                 - Sufficient Space. Available: 1740.35 GB
+    ✓  ip-172-31-66-85.ec2.internal                  - Sufficient Space. Available: 1739.35 GB
+    ✓  ip-172-31-69-230.ec2.internal                 - Sufficient Space. Available: 1740.36 GB
+    ✓  ip-172-31-70-20.ec2.internal                  - Sufficient Space. Available: 1740.35 GB
+    ✓  ip-172-31-72-4.ec2.internal                   - Sufficient Space. Available: 1740.34 GB
+    ✓  ip-172-31-74-7.ec2.internal                   - Sufficient Space. Available: 1740.35 GB
+    ✓  ip-172-31-76-20.ec2.internal                  - Sufficient Space. Available: 1740.35 GB
+    ✓  ip-172-31-77-105.ec2.internal                 - Sufficient Space. Available: 1740.35 GB
+  ✓ ALL NODES HAVE SUFFICIENT TEMPORARY DISK SPACE TO EXECUTE GNN JOBS.
+================================================================================
+
+
+================================================================================
+  BOOTSTRAPPING EXPERIMENT CODE AND STAGE UTILITIES
+================================================================================
+  ► LOADING PIPELINE AND CONFIG FROM LOCAL REPOSITORY PATHS...
+    ✓ Packed local git repository code to /tmp/pipeline.zip and copied to /tmp/pipeline
+  ✓ Registered pipeline.zip package on Spark Context
+
+  Run Profile: phase37-paper-wikics-e64-c4-m24-oh12-20260810T180841Z
+  └─ Datasets: ['wikics']
+  └─ Algorithms: ['lpa']
+  └─ GNN Architecture: GCN (epochs=10, lr=0.001, hidden=256)
+  └─ Global Mapping: True | Boundary Expansion: False
+  └─ Ingestion Phase (Phase 0): False
+[Phase 0 SKIPPED]  RUN_PHASE0 = False
+  → Set RUN_PHASE0 = True in experiment_config.py when using a new dataset.
+
+============================================================
+  PHASE 3.7 — Delta cached feature propagation: wikics / lpa
+============================================================
+  Graph source=phase0; 2 mean-propagation hops; 2048 Spark partitions; no Python edge UDFs.
+SLF4J: Failed to load class "org.slf4j.impl.StaticLoggerBinder".
+SLF4J: Defaulting to no-operation (NOP) logger implementation
+SLF4J: See http://www.slf4j.org/codes.html#StaticLoggerBinder for further details.
+[Stage 2:>                                                          (0 + 1) / 1]                                                                                [Stage 3:>                                                          (0 + 1) / 1]                                                                                [Stage 5:>                                                          (0 + 1) / 1][Stage 7:>                                                        (0 + 50) / 50][Stage 7:==>                                                      (2 + 48) / 50][Stage 7:===>                                                     (3 + 47) / 50][Stage 7:====>                                                    (4 + 46) / 50][Stage 7:======>                                                  (6 + 44) / 50][Stage 7:=============================>                          (26 + 24) / 50][Stage 7:====================================================>    (46 + 4) / 50]                                                                                [Stage 16:>                                                         (0 + 1) / 1]                                                                                [Stage 17:>                                                         (0 + 4) / 4][Stage 17:===========================================>              (3 + 1) / 4]                                                                                  Input graph: 11,701 nodes, 431,206 directed propagation edges.
+  Hop 1/2: Spark vector mean aggregation and Delta checkpoint...
+[Stage 34:>                 (0 + 1) / 1][Stage 35:>                 (0 + 1) / 1]                                                                                [Stage 36:=============>    (3 + 1) / 4][Stage 39:=========>        (2 + 2) / 4][Stage 39:===========================================>              (3 + 1) / 4][Stage 42:>                                                    (0 + 192) / 2048][Stage 42:>                                                    (9 + 192) / 2048][Stage 42:>                                                   (18 + 192) / 2048][Stage 42:>                                                   (38 + 192) / 2048][Stage 42:=>                                                  (67 + 192) / 2048][Stage 42:==>                                                (118 + 192) / 2048][Stage 42:====>                                              (172 + 192) / 2048][Stage 42:======>                                            (243 + 192) / 2048][Stage 42:=========>                                         (393 + 192) / 2048][Stage 42:============>                                      (499 + 192) / 2048][Stage 42:===============>                                   (640 + 192) / 2048][Stage 42:==================>                                (752 + 192) / 2048][Stage 42:======================>                            (901 + 192) / 2048][Stage 42:=========================>                        (1059 + 192) / 2048][Stage 42:==============================>                   (1239 + 192) / 2048][Stage 42:===================================>              (1449 + 192) / 2048][Stage 42:========================================>         (1642 + 192) / 2048][Stage 42:============================================>     (1841 + 192) / 2048]                                                                                  Hop 2/2: Spark vector mean aggregation and Delta checkpoint...
+[Stage 56:>                 (0 + 1) / 1][Stage 57:===>        (174 + 192) / 680]                                                                                [Stage 60:=================>                                  (230 + 192) / 680][Stage 60:==================================>                 (449 + 192) / 680][Stage 63:======>                                            (281 + 192) / 2048][Stage 63:==========>                                        (433 + 192) / 2048][Stage 63:==============>                                    (572 + 192) / 2048][Stage 63:=================>                                 (692 + 194) / 2048][Stage 63:====================>                              (836 + 192) / 2048][Stage 63:========================>                          (980 + 192) / 2048][Stage 63:===========================>                      (1126 + 192) / 2048][Stage 63:===============================>                  (1296 + 192) / 2048][Stage 63:====================================>             (1479 + 192) / 2048][Stage 63:========================================>         (1649 + 192) / 2048][Stage 63:============================================>     (1825 + 192) / 2048][Stage 63:==================================================>(2014 + 34) / 2048]                                                                                [Stage 86:============>(654 + 26) / 680][Stage 87:>                 (0 + 4) / 4][Stage 87:===========================================>              (3 + 1) / 4][Stage 91:==================================================>     (61 + 7) / 68][Stage 96:========>                                          (347 + 192) / 2048][Stage 96:=============>                                     (557 + 192) / 2048][Stage 96:===================>                               (785 + 192) / 2048][Stage 96:========================>                         (1022 + 192) / 2048][Stage 96:===============================>                  (1300 + 192) / 2048][Stage 96:=====================================>            (1549 + 193) / 2048][Stage 96:============================================>     (1828 + 192) / 2048][Stage 96:===================================================>(2047 + 1) / 2048]                                                                                  ✓ Propagation coverage verified: 11,701/11,701 nodes; 2 Delta hops materialized in 48.2s.
+    Classifier features are cached at s3://us-east-1-s3-gnn/delta-data/wikics/phase37_propagation/phase37-paper-wikics-e64-c4-m24-oh12-20260810T180841Z_wikics_lpa/phase0/features_k2.
+
+============================================================
+  PHASE 3.8 — Global edge-free multinomial classifier: wikics / lpa
+============================================================
+  Training one Spark ML global model on cached propagation features; no graph edges are read.
+[Stage 106:====================================================>(666 + 1) / 667]                                                                                  Labelled examples: train=580, valid=1,769, test=5,847
+  Fitting distributed multinomial logistic model (maxIter=30, regParam=0.0001)...
+  ✓ Global classifier complete in 9.1s; valid accuracy=0.7829, test accuracy=0.7746; iterations=30.
+
+[PHASE 5] - Metrics Analysis, Visualizations, and Excel S3 Export
+
+===============================================================================================
+  PHASE 5A — PERFORMANCE COMPARISON (NODE ACCURACY & LINK AUC)
+===============================================================================================
+
+  Dataset: wikics
+  _Algorithm           Node Acc   Comm Acc    Bnd Acc    Int Acc     Link AUC
+  ---------------------------------------------------------------------------
+  lpa-SIGN-LR            0.7746          —          —          —            —
+
+  [wikics] Performance by community size bucket:
+
+================================================================================
+  PHASE 5B — TIMING COMPARISON
+================================================================================
+
+  Dataset: wikics
+  Algorithm             Phase1    Phase2    Phase3   Phase3b     Total
+  --------------------------------------------------------------------
+  BASELINE (SAGE)            —         —         —      0.0s (Node: 0.0s, Link: 0.0s)
+  XLSX → s3://us-east-1-s3-gnn/gnn-bench-out/phase37-paper-wikics-e64-c4-m24-oh12-20260810T180841Z_results.xlsx
+  Plot → s3://us-east-1-s3-gnn/gnn-bench-out/plots/phase37-paper-wikics-e64-c4-m24-oh12-20260810T180841Z/wikics_acc_dist.png
+
+================================================================================
+  FINAL PIPELINE REPORT SUMMARY
+================================================================================
+╔══════════════════════════════════════════════════════════════╗
+║  EXPERIMENT: phase37-paper-wikics-e64-c4-m24-oh12-20260810T180841Z║
+║  Global mapping: True                                        ║
+╠══════════════════════════════════════════════════════════════╣
+║   Dataset                        wikics                        ║
+║   Phase 0 (ingest)               SKIPPED                       ║
+╠══════════════════════════════════════════════════════════════╣
+║   [lpa] communities              ? raw → ? valid               ║
+╚══════════════════════════════════════════════════════════════╝
+
+[SUCCESS] EMR Driver execution completed in 57.7 seconds.
+================================================================================
+
+Uploading execution log to: s3://us-east-1-s3-gnn/gnn-bench-out/spark-results/phase37-paper-wikics-e64-c4-m24-oh12-20260810T180841Z-6be26f4071efa5dc/logs/run_pipeline.log
+Copying S3 Excel results to: s3://us-east-1-s3-gnn/gnn-bench-out/spark-results/phase37-paper-wikics-e64-c4-m24-oh12-20260810T180841Z-6be26f4071efa5dc/excels/phase37-paper-wikics-e64-c4-m24-oh12-20260810T180841Z_results.xlsx
+Uploading LaTeX table to: s3://us-east-1-s3-gnn/gnn-bench-out/spark-results/phase37-paper-wikics-e64-c4-m24-oh12-20260810T180841Z-6be26f4071efa5dc/latex_tables/table12_distdgl_comparison.tex
+Uploading LaTeX table to: s3://us-east-1-s3-gnn/gnn-bench-out/spark-results/phase37-paper-wikics-e64-c4-m24-oh12-20260810T180841Z-6be26f4071efa5dc/latex_tables/table13_scalability_multi_instance.tex
+Uploading LaTeX table to: s3://us-east-1-s3-gnn/gnn-bench-out/spark-results/phase37-paper-wikics-e64-c4-m24-oh12-20260810T180841Z-6be26f4071efa5dc/latex_tables/table3_link_prediction_main.tex
+Uploading LaTeX table to: s3://us-east-1-s3-gnn/gnn-bench-out/spark-results/phase37-paper-wikics-e64-c4-m24-oh12-20260810T180841Z-6be26f4071efa5dc/latex_tables/table4_node_classification_main.tex
+Uploading LaTeX table to: s3://us-east-1-s3-gnn/gnn-bench-out/spark-results/phase37-paper-wikics-e64-c4-m24-oh12-20260810T180841Z-6be26f4071efa5dc/latex_tables/table9_ablation_study.tex

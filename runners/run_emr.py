@@ -224,6 +224,18 @@ def main():
                         help="Skip dynamic package verification/installation on YARN executors")
     parser.add_argument("--executor-instances", type=int, default=None,
                         help="Override the auto-scaled executor count; retain auto-sized executor memory and cores")
+    parser.add_argument("--executor-cores", type=int, default=None,
+                        help="Override executor cores for Spark/YARN sizing")
+    parser.add_argument("--executor-memory-gb", type=int, default=None,
+                        help="Override executor heap memory in GiB")
+    parser.add_argument("--executor-memory-overhead-gb", type=int, default=None,
+                        help="Override executor memory overhead in GiB")
+    parser.add_argument("--driver-cores", type=int, default=None,
+                        help="Override driver cores")
+    parser.add_argument("--driver-memory-gb", type=int, default=None,
+                        help="Override driver heap memory in GiB")
+    parser.add_argument("--driver-memory-overhead-gb", type=int, default=None,
+                        help="Override driver memory overhead in GiB")
     parser.add_argument("--run-phase37", action="store_true", default=None,
                         help="Run Phase 3.7 cached feature propagation")
     parser.add_argument("--run-phase38", action="store_true", default=None,
@@ -452,24 +464,76 @@ def main():
     }
 
     executor_instances = best_config['total_execs']
-    executor_mem       = f"{best_config['heap_gb']}g"
-    executor_overhead  = f"{best_config['overhead_gb']}g"
-    executor_cores     = str(best_config['cores'])
+    executor_mem_gb = int(best_config['heap_gb'])
+    executor_overhead_gb = int(best_config['overhead_gb'])
+    executor_cores_i = int(best_config['cores'])
+
+    if args.executor_cores is not None:
+        if args.executor_cores < 1:
+            raise ValueError("--executor-cores must be positive")
+        executor_cores_i = args.executor_cores
+    if args.executor_memory_gb is not None:
+        if args.executor_memory_gb < 1:
+            raise ValueError("--executor-memory-gb must be positive")
+        executor_mem_gb = args.executor_memory_gb
+    if args.executor_memory_overhead_gb is not None:
+        if args.executor_memory_overhead_gb < 1:
+            raise ValueError("--executor-memory-overhead-gb must be positive")
+        executor_overhead_gb = args.executor_memory_overhead_gb
+    if executor_cores_i > node_vcores:
+        raise ValueError(
+            f"Requested executor cores ({executor_cores_i}) exceed per-node YARN vCores ({node_vcores})"
+        )
+
+    container_gb = executor_mem_gb + executor_overhead_gb
+    if container_gb > usable_node_mem_gb:
+        raise ValueError(
+            f"Requested executor container ({container_gb}g) exceeds usable per-node memory "
+            f"budget ({usable_node_mem_gb:.1f}g)"
+        )
+    max_execs_per_node_by_cpu = max(1, node_vcores // executor_cores_i)
+    max_execs_per_node_by_mem = max(1, int(usable_node_mem_gb // container_gb))
+    max_execs_total = nodes_count * min(max_execs_per_node_by_cpu, max_execs_per_node_by_mem)
 
     if args.executor_instances is not None:
         if args.executor_instances < 1:
             raise ValueError("--executor-instances must be positive")
-        if args.executor_instances > best_config['total_execs']:
+        if args.executor_instances > max_execs_total:
             raise ValueError(
-                f"--executor-instances={args.executor_instances} exceeds the safe auto-scaled "
-                f"capacity of {best_config['total_execs']} for this cluster and dataset"
+                f"--executor-instances={args.executor_instances} exceeds the safe capacity of "
+                f"{max_execs_total} for the requested executor profile on this cluster"
             )
         executor_instances = args.executor_instances
+    elif any(value is not None for value in (
+        args.executor_cores,
+        args.executor_memory_gb,
+        args.executor_memory_overhead_gb,
+    )):
+        executor_instances = max_execs_total
+
+    executor_mem = f"{executor_mem_gb}g"
+    executor_overhead = f"{executor_overhead_gb}g"
+    executor_cores = str(executor_cores_i)
 
     # Step 3: Driver allocation — capped to 40g heap + 12g overhead (52g total) for YARN container harmony
-    driver_mem = "40g"
-    driver_overhead = "12g"
-    driver_cores = "8"
+    driver_mem_gb = 40
+    driver_overhead_gb = 12
+    driver_cores_i = 8
+    if args.driver_memory_gb is not None:
+        if args.driver_memory_gb < 1:
+            raise ValueError("--driver-memory-gb must be positive")
+        driver_mem_gb = args.driver_memory_gb
+    if args.driver_memory_overhead_gb is not None:
+        if args.driver_memory_overhead_gb < 1:
+            raise ValueError("--driver-memory-overhead-gb must be positive")
+        driver_overhead_gb = args.driver_memory_overhead_gb
+    if args.driver_cores is not None:
+        if args.driver_cores < 1:
+            raise ValueError("--driver-cores must be positive")
+        driver_cores_i = args.driver_cores
+    driver_mem = f"{driver_mem_gb}g"
+    driver_overhead = f"{driver_overhead_gb}g"
+    driver_cores = str(driver_cores_i)
 
     # Step 4: Shuffle partitions — 2× total cores for pipeline overlap
     total_parallel_cores = executor_instances * int(executor_cores)
@@ -481,15 +545,20 @@ def main():
     print(f"  [Spark Auto-Scaler] Python RAM Budget: {best_config['python_ram_per_task']:.1f} GB/task (dataset-aware)")
     print(f"  [Spark Auto-Scaler] Bin-Packing Solution:")
     allocation_source = (
-        " (CLI override)" if args.executor_instances is not None
+        " (CLI override)" if any(value is not None for value in (
+            args.executor_instances,
+            args.executor_cores,
+            args.executor_memory_gb,
+            args.executor_memory_overhead_gb,
+        ))
         else f" ({best_config['execs_per_node']}/node × {nodes_count} nodes)"
     )
     print(f"    → {executor_instances} total executors{allocation_source}")
-    print(f"    → {executor_cores} cores/executor | {executor_mem} heap + {executor_overhead} overhead = {best_config['container_gb']}g container")
+    print(f"    → {executor_cores} cores/executor | {executor_mem} heap + {executor_overhead} overhead = {container_gb}g container")
     print(f"    → Total parallel tasks: {total_parallel_cores} | Shuffle partitions: {shuffle_partitions}")
     print(f"    → Driver: {driver_mem} heap + {driver_overhead} overhead")
-    print(f"    → Cluster utilization: {executor_instances * best_config['container_gb']:.0f}g / {node_mem_gb * nodes_count:.0f}g "
-          f"({100.0 * executor_instances * best_config['container_gb'] / (node_mem_gb * nodes_count):.0f}%)\n")
+    print(f"    → Cluster utilization: {executor_instances * container_gb:.0f}g / {node_mem_gb * nodes_count:.0f}g "
+          f"({100.0 * executor_instances * container_gb / (node_mem_gb * nodes_count):.0f}%)\n")
     # Automatically terminate any zombie YARN applications left behind by previous interrupted runs
     try:
         import subprocess, re

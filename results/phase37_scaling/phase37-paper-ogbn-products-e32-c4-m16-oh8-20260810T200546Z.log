@@ -1,0 +1,180 @@
+Writable directories and free space:
+  - /mnt1/tmp: 1749.54 GB free
+  - /mnt1/spark: 1749.54 GB free
+  - /mnt/tmp: 1738.11 GB free
+  - /mnt/spark: 1738.11 GB free
+  - /mnt/var/tmp: 1738.11 GB free
+  - /tmp: 1738.11 GB free
+  - /var/tmp: 1738.11 GB free
+
+  [Spark Auto-Scaler] Dataset: ogbn-products | S3 Size: 645 MB | Scale: Very Large/Massive (100M+ Scale)
+  [Spark Auto-Scaler] YARN Cluster: 8 nodes × 496 GB RAM × 64 vCores
+  [Spark Auto-Scaler] Python RAM Budget: 10.0 GB/task (dataset-aware)
+  [Spark Auto-Scaler] Bin-Packing Solution:
+    → 32 total executors (CLI override)
+    → 4 cores/executor | 16g heap + 8g overhead = 24g container
+    → Total parallel tasks: 128 | Shuffle partitions: 256
+    → Driver: 40g heap + 12g overhead
+    → Cluster utilization: 768g / 3966g (19%)
+
+:: loading settings :: url = jar:file:/usr/lib/spark/jars/ivy-2.5.1.jar!/org/apache/ivy/core/settings/ivysettings.xml
+Ivy Default Cache set to: /mnt1/tmp/.ivy2/cache
+The jars for the packages stored in: /mnt1/tmp/.ivy2/jars
+io.delta#delta-spark_2.12 added as a dependency
+graphframes#graphframes added as a dependency
+:: resolving dependencies :: org.apache.spark#spark-submit-parent-ff49cad9-1b07-4f01-8816-f7e3bebd5a68;1.0
+	confs: [default]
+	found io.delta#delta-spark_2.12;3.2.0 in central
+	found io.delta#delta-storage;3.2.0 in central
+	found org.antlr#antlr4-runtime;4.9.3 in central
+	found graphframes#graphframes;0.8.3-spark3.5-s_2.12 in spark-packages
+	found org.slf4j#slf4j-api;1.7.16 in central
+:: resolution report :: resolve 131ms :: artifacts dl 5ms
+	:: modules in use:
+	graphframes#graphframes;0.8.3-spark3.5-s_2.12 from spark-packages in [default]
+	io.delta#delta-spark_2.12;3.2.0 from central in [default]
+	io.delta#delta-storage;3.2.0 from central in [default]
+	org.antlr#antlr4-runtime;4.9.3 from central in [default]
+	org.slf4j#slf4j-api;1.7.16 from central in [default]
+	---------------------------------------------------------------------
+	|                  |            modules            ||   artifacts   |
+	|       conf       | number| search|dwnlded|evicted|| number|dwnlded|
+	---------------------------------------------------------------------
+	|      default     |   5   |   0   |   0   |   0   ||   5   |   0   |
+	---------------------------------------------------------------------
+:: retrieving :: org.apache.spark#spark-submit-parent-ff49cad9-1b07-4f01-8816-f7e3bebd5a68
+	confs: [default]
+	0 artifacts copied, 5 already retrieved (0kB/3ms)
+Setting default log level to "WARN".
+To adjust logging level use sc.setLogLevel(newLevel). For SparkR, use setLogLevel(newLevel).
+26/08/10 20:40:30 WARN SparkConf: Note that spark.local.dir will be overridden by the value set by the cluster manager (via SPARK_LOCAL_DIRS in mesos/standalone/kubernetes and LOCAL_DIRS in YARN).
+26/08/10 20:40:31 WARN Client: Neither spark.yarn.jars nor spark.yarn.archive is set, falling back to uploading libraries under SPARK_HOME.
+26/08/10 20:40:34 WARN Client: Same path resource file:///mnt1/tmp/.ivy2/jars/io.delta_delta-spark_2.12-3.2.0.jar added multiple times to distributed cache.
+26/08/10 20:40:34 WARN Client: Same path resource file:///mnt1/tmp/.ivy2/jars/graphframes_graphframes-0.8.3-spark3.5-s_2.12.jar added multiple times to distributed cache.
+26/08/10 20:40:34 WARN Client: Same path resource file:///mnt1/tmp/.ivy2/jars/io.delta_delta-storage-3.2.0.jar added multiple times to distributed cache.
+26/08/10 20:40:34 WARN Client: Same path resource file:///mnt1/tmp/.ivy2/jars/org.antlr_antlr4-runtime-4.9.3.jar added multiple times to distributed cache.
+26/08/10 20:40:34 WARN Client: Same path resource file:///mnt1/tmp/.ivy2/jars/org.slf4j_slf4j-api-1.7.16.jar added multiple times to distributed cache.
+  ✓ SparkSession successfully configured and initialized as 'spark'.
+
+================================================================================
+  VERIFYING AND INSTALLING PYTHON ENVIRONMENT PACKAGES
+================================================================================
+  ► Syncing dependencies across all active YARN worker nodes...
+[Stage 0:>                                                      (0 + 128) / 512][Stage 0:==>                                                   (26 + 128) / 512][Stage 0:=========>                                            (88 + 128) / 512][Stage 0:==========>                                          (102 + 128) / 512][Stage 0:==========>                                          (104 + 128) / 512][Stage 0:==========>                                          (105 + 128) / 512][Stage 0:===========>                                         (111 + 128) / 512][Stage 0:============>                                        (120 + 128) / 512][Stage 0:=============>                                       (128 + 128) / 512][Stage 0:==============>                                      (140 + 128) / 512][Stage 0:====================>                                (196 + 128) / 512][Stage 0:=====================>                               (207 + 128) / 512][Stage 0:======================>                              (215 + 128) / 512][Stage 0:======================>                              (222 + 128) / 512][Stage 0:=======================>                             (229 + 128) / 512][Stage 0:========================>                            (232 + 128) / 512][Stage 0:========================>                            (235 + 128) / 512][Stage 0:========================>                            (240 + 128) / 512][Stage 0:========================>                            (241 + 128) / 512][Stage 0:=========================>                           (245 + 128) / 512][Stage 0:=========================>                           (249 + 128) / 512][Stage 0:==========================>                          (253 + 128) / 512][Stage 0:==========================>                          (256 + 128) / 512][Stage 0:===========================>                         (267 + 129) / 512][Stage 0:=============================>                       (288 + 128) / 512][Stage 0:=================================>                   (323 + 129) / 512][Stage 0:==================================>                  (329 + 128) / 512][Stage 0:===================================>                 (339 + 128) / 512][Stage 0:===================================>                 (346 + 128) / 512][Stage 0:====================================>                (352 + 128) / 512][Stage 0:====================================>                (356 + 128) / 512][Stage 0:=====================================>               (359 + 128) / 512][Stage 0:=====================================>               (366 + 128) / 512][Stage 0:======================================>              (368 + 128) / 512][Stage 0:======================================>              (370 + 128) / 512][Stage 0:======================================>              (373 + 128) / 512][Stage 0:======================================>              (375 + 128) / 512][Stage 0:=======================================>             (377 + 128) / 512][Stage 0:=======================================>             (379 + 128) / 512][Stage 0:=======================================>             (384 + 128) / 512][Stage 0:========================================>            (388 + 124) / 512][Stage 0:==========================================>          (408 + 104) / 512][Stage 0:==============================================>       (440 + 72) / 512][Stage 0:===============================================>      (448 + 64) / 512][Stage 0:================================================>     (461 + 51) / 512][Stage 0:=================================================>    (471 + 41) / 512][Stage 0:=================================================>    (474 + 38) / 512][Stage 0:==================================================>   (480 + 32) / 512][Stage 0:===================================================>  (486 + 26) / 512][Stage 0:===================================================>  (490 + 22) / 512][Stage 0:====================================================> (494 + 18) / 512][Stage 0:====================================================> (495 + 17) / 512][Stage 0:====================================================> (497 + 15) / 512][Stage 0:====================================================> (501 + 11) / 512][Stage 0:======================================================>(507 + 5) / 512][Stage 0:======================================================>(509 + 3) / 512]                                                                                  ► Sync attempt 1/5: 8 worker node(s) verified: ['ip-172-31-64-230', 'ip-172-31-66-85', 'ip-172-31-69-230', 'ip-172-31-70-20', 'ip-172-31-72-4', 'ip-172-31-74-7', 'ip-172-31-76-20', 'ip-172-31-77-105']
+  ✓ All 8 YARN worker nodes verified and synced successfully.
+
+  === YARN Executor Package Sync Summary ===
+    ip-172-31-64-230.ec2.internal: Success (Cached)
+    ip-172-31-66-85.ec2.internal: Success (Cached)
+    ip-172-31-69-230.ec2.internal: Success (Cached)
+    ip-172-31-70-20.ec2.internal: Success (Cached)
+    ip-172-31-72-4.ec2.internal: Success (Cached)
+    ip-172-31-74-7.ec2.internal: Success (Cached)
+    ip-172-31-76-20.ec2.internal: Success (Cached)
+    ip-172-31-77-105.ec2.internal: Success (Cached)
+
+  ✓ ALL PIPELINE DEPENDENCIES VERIFIED AND READY.
+
+================================================================================
+  CLUSTER DISK SPACE COMPATIBILITY VERIFICATION
+================================================================================
+  Dataset: ogbn-products | Nodes: 2,449,029 | Features: 100
+  Required temp workspace disk space per executor container: 10.00 GB
+  Driver temp space available (/mnt1/tmp): 1749.54 GB
+  Executor nodes disk check results:
+    ✓  ip-172-31-64-230.ec2.internal                 - Sufficient Space. Available: 1738.72 GB
+    ✓  ip-172-31-66-85.ec2.internal                  - Sufficient Space. Available: 1737.30 GB
+    ✓  ip-172-31-69-230.ec2.internal                 - Sufficient Space. Available: 1738.72 GB
+    ✓  ip-172-31-70-20.ec2.internal                  - Sufficient Space. Available: 1738.72 GB
+    ✓  ip-172-31-72-4.ec2.internal                   - Sufficient Space. Available: 1738.72 GB
+    ✓  ip-172-31-74-7.ec2.internal                   - Sufficient Space. Available: 1738.72 GB
+    ✓  ip-172-31-76-20.ec2.internal                  - Sufficient Space. Available: 1738.72 GB
+    ✓  ip-172-31-77-105.ec2.internal                 - Sufficient Space. Available: 1738.72 GB
+  ✓ ALL NODES HAVE SUFFICIENT TEMPORARY DISK SPACE TO EXECUTE GNN JOBS.
+================================================================================
+
+
+================================================================================
+  BOOTSTRAPPING EXPERIMENT CODE AND STAGE UTILITIES
+================================================================================
+  ► LOADING PIPELINE AND CONFIG FROM LOCAL REPOSITORY PATHS...
+    ✓ Packed local git repository code to /tmp/pipeline.zip and copied to /tmp/pipeline
+  ✓ Registered pipeline.zip package on Spark Context
+
+  Run Profile: phase37-paper-ogbn-products-e32-c4-m16-oh8-20260810T200546Z
+  └─ Datasets: ['ogbn-products']
+  └─ Algorithms: ['lpa']
+  └─ GNN Architecture: GCN (epochs=10, lr=0.001, hidden=256)
+  └─ Global Mapping: True | Boundary Expansion: False
+  └─ Ingestion Phase (Phase 0): False
+[Phase 0 SKIPPED]  RUN_PHASE0 = False
+  → Set RUN_PHASE0 = True in experiment_config.py when using a new dataset.
+
+============================================================
+  PHASE 3.7 — Delta cached feature propagation: ogbn-products / lpa
+============================================================
+  Graph source=phase0; 2 mean-propagation hops; 1024 Spark partitions; no Python edge UDFs.
+SLF4J: Failed to load class "org.slf4j.impl.StaticLoggerBinder".
+SLF4J: Defaulting to no-operation (NOP) logger implementation
+SLF4J: See http://www.slf4j.org/codes.html#StaticLoggerBinder for further details.
+[Stage 2:>                                                          (0 + 1) / 1][Stage 2:>                  (0 + 1) / 1][Stage 3:>                  (0 + 9) / 9]                                                                                [Stage 4:===========>                                               (1 + 4) / 5]                                                                                [Stage 6:===============================================>           (4 + 1) / 5]                                                                                [Stage 7:>                                                          (0 + 9) / 9][Stage 7:=============>                                             (2 + 7) / 9][Stage 7:==========================>                                (4 + 5) / 9][Stage 9:>                                                        (0 + 50) / 50][Stage 9:=>                                                       (1 + 49) / 50][Stage 9:=====>                                                   (5 + 45) / 50][Stage 9:===============>                                        (14 + 36) / 50][Stage 9:================>                                       (15 + 35) / 50][Stage 9:=====================>                                  (19 + 31) / 50][Stage 9:======================>                                 (20 + 30) / 50][Stage 9:============================>                           (25 + 25) / 50][Stage 9:=======================================>                (35 + 15) / 50][Stage 9:=========================================>              (37 + 13) / 50][Stage 9:====================================================>    (46 + 4) / 50]                                                                                [Stage 15:==============================================>           (4 + 1) / 5][Stage 17:==========================================>            (39 + 11) / 50][Stage 17:===============================================>        (42 + 8) / 50][Stage 17:================================================>       (43 + 7) / 50][Stage 17:===================================================>    (46 + 4) / 50]                                                                                [Stage 18:======================================>                   (2 + 1) / 3]                                                                                [Stage 19:===========================================>         (194 + 43) / 237][Stage 19:====================================================> (231 + 6) / 237][Stage 19:=====================================================>(236 + 1) / 237]                                                                                [Stage 24:===================================================>    (46 + 4) / 50]                                                                                  Input graph: 2,449,029 nodes, 123,718,024 directed propagation edges.
+  Hop 1/2: Spark vector mean aggregation and Delta checkpoint...
+[Stage 36:============>     (2 + 1) / 3][Stage 37:=============>(157 + 5) / 162]                                                                                [Stage 37:====================================================> (157 + 5) / 162][Stage 37:=============>(157 + 5) / 162][Stage 38:=====>      (108 + 123) / 237][Stage 37:(157 + 5) / 162][Stage 38:(217 + 20) / 237][Stage 39:(225 + 12) / 237][Stage 37:(157 + 5) / 162][Stage 38:(229 + 8) / 237][Stage 39:(229 + 8) / 237][Stage 37:(157 + 5) / 162][Stage 38:(229 + 8) / 237][Stage 39:(230 + 7) / 237][Stage 37:(157 + 5) / 162][Stage 38:(230 + 7) / 237][Stage 39:(230 + 7) / 237][Stage 37:(157 + 5) / 162][Stage 38:(230 + 7) / 237][Stage 39:(232 + 5) / 237][Stage 37:(157 + 5) / 162][Stage 38:(230 + 7) / 237][Stage 39:(236 + 1) / 237][Stage 37:=============>(158 + 4) / 162][Stage 38:=============>(230 + 7) / 237][Stage 37:=============>(160 + 2) / 162][Stage 38:=============>(230 + 7) / 237][Stage 37:=============>(161 + 1) / 162][Stage 38:=============>(231 + 6) / 237][Stage 38:=====================================================>(234 + 3) / 237][Stage 42:>                                                     (0 + 128) / 256][Stage 42:=>                                                    (8 + 128) / 256][Stage 42:=====>                                               (27 + 128) / 256][Stage 42:==========>                                          (53 + 128) / 256][Stage 42:===============>                                     (73 + 128) / 256][Stage 42:=================>                                   (85 + 128) / 256][Stage 42:=====================>                              (105 + 128) / 256][Stage 42:=======================>                            (118 + 128) / 256][Stage 42:==========================>                         (128 + 128) / 256][Stage 42:=============================>                      (147 + 109) / 256][Stage 42:==================================>                  (165 + 91) / 256][Stage 42:======================================>              (185 + 71) / 256][Stage 42:=========================================>           (200 + 56) / 256][Stage 42:==========================================>          (204 + 52) / 256][Stage 42:=============================================>       (220 + 36) / 256][Stage 42:================================================>    (235 + 21) / 256][Stage 42:====================================================> (251 + 5) / 256][Stage 47:>                                                    (0 + 128) / 1024][Stage 47:>                                                    (8 + 128) / 1024][Stage 47:=>                                                  (24 + 130) / 1024][Stage 47:==>                                                 (51 + 129) / 1024][Stage 47:===>                                                (75 + 128) / 1024][Stage 47:====>                                               (96 + 128) / 1024][Stage 47:======>                                            (124 + 128) / 1024][Stage 47:=======>                                           (148 + 128) / 1024][Stage 47:========>                                          (166 + 128) / 1024][Stage 47:========>                                          (178 + 128) / 1024][Stage 47:=========>                                         (200 + 128) / 1024][Stage 47:==========>                                        (213 + 128) / 1024][Stage 47:============>                                      (253 + 128) / 1024][Stage 47:==============>                                    (282 + 128) / 1024][Stage 47:===============>                                   (317 + 128) / 1024][Stage 47:=================>                                 (342 + 128) / 1024][Stage 47:=================>                                 (353 + 128) / 1024][Stage 47:===================>                               (390 + 128) / 1024][Stage 47:====================>                              (418 + 128) / 1024][Stage 47:======================>                            (442 + 128) / 1024][Stage 47:=======================>                           (474 + 129) / 1024][Stage 47:=========================>                         (507 + 128) / 1024][Stage 47:==========================>                        (534 + 129) / 1024][Stage 47:===========================>                       (558 + 128) / 1024][Stage 47:============================>                      (580 + 128) / 1024][Stage 47:==============================>                    (608 + 128) / 1024][Stage 47:================================>                  (645 + 128) / 1024][Stage 47:=================================>                 (674 + 128) / 1024][Stage 47:===================================>               (704 + 128) / 1024][Stage 47:====================================>              (727 + 128) / 1024][Stage 47:=====================================>             (756 + 128) / 1024][Stage 47:=======================================>           (789 + 128) / 1024][Stage 47:=========================================>         (825 + 128) / 1024][Stage 47:==========================================>        (854 + 129) / 1024][Stage 47:===========================================>       (874 + 128) / 1024][Stage 47:============================================>      (896 + 128) / 1024][Stage 47:===============================================>    (940 + 84) / 1024][Stage 47:=================================================>  (984 + 40) / 1024][Stage 47:===================================================>(1019 + 5) / 1024]                                                                                  Hop 2/2: Spark vector mean aggregation and Delta checkpoint...
+[Stage 61:(226 + 45) / 271][Stage 62:(123 + 39) / 162][Stage 63:>(0 + 44) / 271][Stage 61:(270 + 1) / 271][Stage 62:(156 + 6) / 162][Stage 63:(9 + 121) / 271][Stage 62:=============>(157 + 5) / 162][Stage 63:====>        (97 + 123) / 271][Stage 62:=============>(157 + 5) / 162][Stage 63:============>(252 + 19) / 271][Stage 62:====================================================> (157 + 5) / 162][Stage 62:=====================================================>(159 + 3) / 162][Stage 62:=====================================================>(160 + 2) / 162][Stage 62:=====================================================>(161 + 1) / 162][Stage 66:>                                                     (0 + 128) / 256][Stage 66:>                                                     (1 + 128) / 256][Stage 66:=========>                                           (48 + 128) / 256][Stage 66:==================>                                  (88 + 128) / 256][Stage 66:=====================>                              (106 + 128) / 256][Stage 66:=========================>                          (127 + 128) / 256][Stage 66:==========================>                         (128 + 128) / 256][Stage 66:==============================>                     (151 + 105) / 256][Stage 66:====================================>                (174 + 82) / 256][Stage 66:==========================================>          (207 + 49) / 256][Stage 66:==============================================>      (224 + 32) / 256][Stage 66:==================================================>  (246 + 10) / 256][Stage 71:>                                                    (0 + 128) / 1024][Stage 71:>                                                    (1 + 128) / 1024][Stage 71:>                                                   (13 + 128) / 1024][Stage 71:==>                                                 (49 + 128) / 1024][Stage 71:====>                                               (85 + 128) / 1024][Stage 71:=====>                                             (118 + 128) / 1024][Stage 71:======>                                            (132 + 128) / 1024][Stage 71:=======>                                           (143 + 128) / 1024][Stage 71:=======>                                           (159 + 128) / 1024][Stage 71:=========>                                         (183 + 128) / 1024][Stage 71:==========>                                        (201 + 128) / 1024][Stage 71:===========>                                       (222 + 128) / 1024][Stage 71:============>                                      (246 + 128) / 1024][Stage 71:=============>                                     (281 + 128) / 1024][Stage 71:===============>                                   (311 + 128) / 1024][Stage 71:================>                                  (333 + 128) / 1024][Stage 71:=================>                                 (359 + 128) / 1024][Stage 71:==================>                                (379 + 128) / 1024][Stage 71:===================>                               (401 + 128) / 1024][Stage 71:====================>                              (420 + 128) / 1024][Stage 71:=====================>                             (440 + 128) / 1024][Stage 71:=======================>                           (470 + 128) / 1024][Stage 71:=========================>                         (503 + 128) / 1024][Stage 71:==========================>                        (527 + 128) / 1024][Stage 71:===========================>                       (553 + 128) / 1024][Stage 71:============================>                      (573 + 128) / 1024][Stage 71:=============================>                     (598 + 128) / 1024][Stage 71:==============================>                    (619 + 128) / 1024][Stage 71:===============================>                   (640 + 128) / 1024][Stage 71:=================================>                 (669 + 128) / 1024][Stage 71:==================================>                (691 + 128) / 1024][Stage 71:===================================>               (715 + 128) / 1024][Stage 71:====================================>              (742 + 128) / 1024][Stage 71:======================================>            (766 + 128) / 1024][Stage 71:=======================================>           (793 + 128) / 1024][Stage 71:========================================>          (814 + 128) / 1024][Stage 71:=========================================>         (839 + 128) / 1024][Stage 71:===========================================>       (864 + 128) / 1024][Stage 71:============================================>      (891 + 128) / 1024][Stage 71:=============================================>     (915 + 109) / 1024][Stage 71:===============================================>    (940 + 84) / 1024][Stage 71:=================================================>  (970 + 54) / 1024][Stage 71:===================================================>(1016 + 8) / 1024]                                                                                [Stage 95:====================================================> (229 + 8) / 237][Stage 95:====================================================> (230 + 7) / 237][Stage 95:=====================================================>(233 + 4) / 237][Stage 95:=====================================================>(235 + 2) / 237][Stage 95:=====================================================>(236 + 1) / 237][Stage 99:==============>                                      (68 + 128) / 256][Stage 99:====================================>                (178 + 78) / 256][Stage 104:=====>                                            (120 + 128) / 1024][Stage 104:=======>                                          (152 + 128) / 1024][Stage 104:============>                                     (246 + 128) / 1024][Stage 104:===============>                                  (317 + 128) / 1024][Stage 104:===================>                              (399 + 128) / 1024][Stage 104:=======================>                          (484 + 129) / 1024][Stage 104:===========================>                      (560 + 128) / 1024][Stage 104:===============================>                  (643 + 128) / 1024][Stage 104:===================================>              (724 + 128) / 1024][Stage 104:=======================================>          (810 + 128) / 1024][Stage 104:===========================================>      (885 + 128) / 1024][Stage 104:================================================>  (970 + 54) / 1024]                                                                                  ✓ Propagation coverage verified: 2,449,029/2,449,029 nodes; 2 Delta hops materialized in 78.3s.
+    Classifier features are cached at s3://us-east-1-s3-gnn/delta-data/ogbn-products/phase37_propagation/phase37-paper-ogbn-products-e32-c4-m16-oh8-20260810T200546Z_ogbn-products_lpa/phase0/features_k2.
+
+============================================================
+  PHASE 3.8 — Global edge-free multinomial classifier: ogbn-products / lpa
+============================================================
+  Training one Spark ML global model on cached propagation features; no graph edges are read.
+[Stage 114:===========>                                        (60 + 128) / 272][Stage 114:========================>                          (131 + 128) / 272][Stage 114:====================================>               (192 + 80) / 272][Stage 114:===================================================> (263 + 9) / 272]                                                                                  Labelled examples: train=196,615, valid=39,323, test=2,213,091
+  Fitting distributed multinomial logistic model (maxIter=30, regParam=0.0001)...
+  ✓ Global classifier complete in 10.4s; valid accuracy=0.8720, test accuracy=0.7068; iterations=30.
+
+[PHASE 5] - Metrics Analysis, Visualizations, and Excel S3 Export
+
+===============================================================================================
+  PHASE 5A — PERFORMANCE COMPARISON (NODE ACCURACY & LINK AUC)
+===============================================================================================
+
+  Dataset: ogbn-products
+  _Algorithm           Node Acc   Comm Acc    Bnd Acc    Int Acc     Link AUC
+  ---------------------------------------------------------------------------
+  lpa-SIGN-LR            0.7068          —          —          —            —
+
+  [ogbn-products] Performance by community size bucket:
+
+================================================================================
+  PHASE 5B — TIMING COMPARISON
+================================================================================
+
+  Dataset: ogbn-products
+  Algorithm             Phase1    Phase2    Phase3   Phase3b     Total
+  --------------------------------------------------------------------
+  BASELINE (SAGE)            —         —         —      0.0s (Node: 0.0s, Link: 0.0s)
+  XLSX → s3://us-east-1-s3-gnn/gnn-bench-out/phase37-paper-ogbn-products-e32-c4-m16-oh8-20260810T200546Z_results.xlsx
+  Plot → s3://us-east-1-s3-gnn/gnn-bench-out/plots/phase37-paper-ogbn-products-e32-c4-m16-oh8-20260810T200546Z/ogbn-products_acc_dist.png
+
+================================================================================
+  FINAL PIPELINE REPORT SUMMARY
+================================================================================
+╔══════════════════════════════════════════════════════════════╗
+║  EXPERIMENT: phase37-paper-ogbn-products-e32-c4-m16-oh8-20260810T200546Z║
+║  Global mapping: True                                        ║
+╠══════════════════════════════════════════════════════════════╣
+║   Dataset                        ogbn-products                 ║
+║   Phase 0 (ingest)               SKIPPED                       ║
+╠══════════════════════════════════════════════════════════════╣
+║   [lpa] communities              ? raw → ? valid               ║
+╚══════════════════════════════════════════════════════════════╝
+
+[SUCCESS] EMR Driver execution completed in 89.2 seconds.
+================================================================================
+
+Uploading execution log to: s3://us-east-1-s3-gnn/gnn-bench-out/spark-results/phase37-paper-ogbn-products-e32-c4-m16-oh8-20260810T200546Z-7b248ff6c3806fd1/logs/run_pipeline.log
+Copying S3 Excel results to: s3://us-east-1-s3-gnn/gnn-bench-out/spark-results/phase37-paper-ogbn-products-e32-c4-m16-oh8-20260810T200546Z-7b248ff6c3806fd1/excels/phase37-paper-ogbn-products-e32-c4-m16-oh8-20260810T200546Z_results.xlsx
+Uploading LaTeX table to: s3://us-east-1-s3-gnn/gnn-bench-out/spark-results/phase37-paper-ogbn-products-e32-c4-m16-oh8-20260810T200546Z-7b248ff6c3806fd1/latex_tables/table12_distdgl_comparison.tex
+Uploading LaTeX table to: s3://us-east-1-s3-gnn/gnn-bench-out/spark-results/phase37-paper-ogbn-products-e32-c4-m16-oh8-20260810T200546Z-7b248ff6c3806fd1/latex_tables/table13_scalability_multi_instance.tex
+Uploading LaTeX table to: s3://us-east-1-s3-gnn/gnn-bench-out/spark-results/phase37-paper-ogbn-products-e32-c4-m16-oh8-20260810T200546Z-7b248ff6c3806fd1/latex_tables/table3_link_prediction_main.tex
+Uploading LaTeX table to: s3://us-east-1-s3-gnn/gnn-bench-out/spark-results/phase37-paper-ogbn-products-e32-c4-m16-oh8-20260810T200546Z-7b248ff6c3806fd1/latex_tables/table4_node_classification_main.tex
+Uploading LaTeX table to: s3://us-east-1-s3-gnn/gnn-bench-out/spark-results/phase37-paper-ogbn-products-e32-c4-m16-oh8-20260810T200546Z-7b248ff6c3806fd1/latex_tables/table9_ablation_study.tex

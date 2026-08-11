@@ -131,7 +131,7 @@ TINY_COMM_HANDLING  = 'drop'
 EXPAND_BOUNDARY_NODES = False
 
 # Task Type: 'node_classification' or 'link_prediction'
-TASK_TYPE = 'node_classification'
+TASK_TYPE = 'both'
 
 # ── Phase 4: Full-Graph Baseline ──────────────────────────────────────────────
 # Runs ONCE per dataset (not per algorithm). Uses SAME masks as Phase 3.
