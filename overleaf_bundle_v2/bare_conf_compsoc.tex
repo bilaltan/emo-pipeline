@@ -406,12 +406,12 @@ Modern data architectures use transactional formats like Delta Lake, Apache Hudi
 
 \section{EMO System Architecture}
 \subsection{Pipeline Overview \& Execution Phases}
-The EMO framework exposes two execution branches over the same transactional storage backbone. The primary branch used in this paper's scaling results is the full-graph Phase 3.7/3.8 path (cached propagation plus global classifier). The Phase 1/2 path remains available as an optional community-based branch for ablations and model variants.
+The EMO framework divides the GRL pipeline into five distinct phases, communicating entirely through transactional storage isolation on a Delta Lake data warehouse:
 
 \begin{figure*}[!t]
 \centering
 \includegraphics[width=\textwidth]{results/figures/emo_system_architecture_overview.pdf}
-\caption{EMO end-to-end system architecture with two branches. Highlighted top branch: full-graph Phase 3.7/3.8 path used for the paper's executor-scaling results. Lower branch: optional Phase 1/2 community route for partition-based variants and ablations. Both branches share the same Delta Lake transactional storage plane for ACID isolation and checkpoint reuse.}
+\caption{EMO end-to-end system architecture. Top row: execution phases from ingestion to reporting. Bottom row: shared Delta Lake transactional storage plane enabling ACID-isolated experiments, checkpoint reuse, and S3-backed artifacts.}
 \label{fig_phases}
 \end{figure*}
 

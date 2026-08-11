@@ -1,0 +1,23 @@
+\begin{table*}[!t]
+\renewcommand{\arraystretch}{1.2}
+\caption{Phase 3.7/3.8 Executor-Scaling Results on AWS EMR (8 workers, 16/32/64 executors)}
+\label{table_scalability_main}
+\centering
+\begin{tabular}{lcccccccc}
+\toprule
+\textbf{Dataset} & \textbf{Nodes / Prop. Edges} & \textbf{Executors} & \textbf{Coverage} & \textbf{Prop. (s)} & \textbf{Classifier (s)} & \textbf{Total (s)} & \textbf{Speedup vs 16} & \textbf{Test Acc.} \\
+\midrule
+WikiCS & 11,701 / 431,206 & 16 & 100\% & 41.6 & 9.0 & 50.6 & 1.00$\times$ & 0.7746 \\
+WikiCS & 11,701 / 431,206 & 32 & 100\% & 43.7 & 7.6 & 51.3 & 0.95$\times$ & 0.7746 \\
+WikiCS & 11,701 / 431,206 & 64 & 100\% & 55.3 & 9.8 & 65.1 & 0.75$\times$ & 0.7746 \\
+\midrule
+ogbn-products & 2,449,029 / 123,718,024 & 16 & 100\% & 84.5 & 11.1 & 95.6 & 1.00$\times$ & 0.7068 \\
+ogbn-products & 2,449,029 / 123,718,024 & 32 & 100\% & 80.8 & 9.9 & 90.7 & 1.05$\times$ & 0.7068 \\
+ogbn-products & 2,449,029 / 123,718,024 & 64 & 100\% & 82.3 & 11.3 & 93.6 & 1.03$\times$ & 0.7068 \\
+\midrule
+\textbf{ogbn-papers100M} & \textbf{111,059,956 / 3,228,124,712} & \textbf{16} & \textbf{100\%} & \textbf{2478.3} & \textbf{125.1} & \textbf{2603.4} & \textbf{1.00$\times$} & \textbf{0.6327} \\
+\textbf{ogbn-papers100M} & \textbf{111,059,956 / 3,228,124,712} & \textbf{32} & \textbf{100\%} & \textbf{1940.5} & \textbf{73.5} & \textbf{2014.0} & \textbf{1.28$\times$} & \textbf{0.6327} \\
+\textbf{ogbn-papers100M} & \textbf{111,059,956 / 3,228,124,712} & \textbf{64} & \textbf{100\%} & \textbf{1892.1} & \textbf{71.5} & \textbf{1963.6} & \textbf{1.31$\times$} & \textbf{0.6327} \\
+\bottomrule
+\end{tabular}
+\end{table*}
