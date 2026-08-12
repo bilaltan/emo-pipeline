@@ -94,6 +94,7 @@ echo "Executing 2-hop SIGN-style feature propagation + global Spark ML probe..."
 $RUNNER \
   --experiment-name "paper_approach2_scaling" \
   --datasets "WikiCS,ogbn-products,ogbn-papers100M" \
+  --run-phase0 \
   --no-phase3 \
   --no-phase3b \
   2>&1 | tee "$SUITE2_LOG"
@@ -115,6 +116,7 @@ $RUNNER \
   --experiment-name "ablation_louvain_caan" \
   --datasets "reddit" \
   --algorithms "louvain" \
+  --run-phase0 \
   --run-phase3 \
   --run-phase3b \
   --global-mapping "true" \
@@ -125,6 +127,7 @@ $RUNNER \
   --experiment-name "ablation_lpa_caan" \
   --datasets "reddit" \
   --algorithms "lpa" \
+  --run-phase0 \
   --run-phase3 \
   --run-phase3b \
   --global-mapping "true" \
@@ -135,6 +138,7 @@ $RUNNER \
   --experiment-name "ablation_louvain_nocaan" \
   --datasets "reddit" \
   --algorithms "louvain" \
+  --run-phase0 \
   --run-phase3 \
   --no-phase3b \
   --global-mapping "true" \
@@ -145,6 +149,7 @@ $RUNNER \
   --experiment-name "ablation_lpa_nocaan" \
   --datasets "reddit" \
   --algorithms "lpa" \
+  --run-phase0 \
   --run-phase3 \
   --no-phase3b \
   --global-mapping "true" \
@@ -155,6 +160,7 @@ $RUNNER \
   --experiment-name "ablation_uncached_s3" \
   --datasets "reddit" \
   --algorithms "louvain" \
+  --run-phase0 \
   --force-reingest \
   --run-phase3 \
   --run-phase3b \
@@ -175,6 +181,7 @@ echo "Evaluating DistDGL and PyG full-graph baselines..."
 $RUNNER \
   --experiment-name "distdgl_comparison" \
   --datasets "WikiCS,ogbn-products,reddit,ogbn-arxiv" \
+  --run-phase0 \
   --run-phase4 \
   2>&1 | tee "$SUITE4_LOG"
 

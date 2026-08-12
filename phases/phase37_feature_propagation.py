@@ -28,6 +28,11 @@ def _load_graph(spark, paths, graph_source):
         )
         edges = spark.read.format("delta").load(paths["p2_edges"]).select("src", "dst")
     elif graph_source == "phase0":
+        if not _delta_exists(spark, paths["original_nodes"]):
+            raise RuntimeError(
+                f"Delta table 'original_nodes' not found at '{paths['original_nodes']}'. "
+                f"Ensure Phase 0 ingestion (RUN_PHASE0 / --run-phase0) is enabled so missing dataset tables are generated."
+            )
         # Phase 0 nodes include all graph nodes; masks exist only for the
         # labelled OGB subset. Null split is intentional for unlabeled nodes.
         nodes = (spark.read.format("delta").load(paths["original_nodes"])
