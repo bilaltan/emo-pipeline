@@ -1,79 +1,129 @@
-# Implementation Plan - LaTeX Paper Skeleton Draft
+# Implementation Plan - EMO Paper Framing, Figures, Tables & Ablation Study
 
-This plan outlines the design and sections to be written into [bare_conf_compsoc.tex](file:///Users/bilaltan/Desktop/emo-pipeline/bare_conf_compsoc.tex) for our submission to the **IEEE Big Data 2026** conference.
+This plan details the technical structure, manuscript refactoring, and experimental table/figure generation to align the **EMO** manuscript ([bare_conf_compsoc.tex](file:///Users/bilaltan/Desktop/emo-pipeline/bare_conf_compsoc.tex)) with top-tier CS systems research standards.
+
+---
+
+## Key Framing & Strategic Decisions
+
+1. **Primary Paper Framing (Approach 1)**:
+   - **Main System Focus**: Phase 0 (Ingestion) $\rightarrow$ Phase 1 (Community Detection) $\rightarrow$ Phase 2 (Partitioning & Subgraphs) $\rightarrow$ Phase 3 (Decoupled Community GNN Training).
+   - **Supplementary Component**: Phase 3b (CaaN - Community-aware Auxiliary Networks) is framed as a supplementary relational context recovery mechanism to fix boundary degradation.
+   - **Approach 2 (Distributed Scale)**: Phase 3.7 & 3.8 (SIGN-style 2-hop neighborhood feature propagation + global Spark ML classifier) is framed specifically as the big-dataset scaling solution, demonstrating the capabilities of AWS EMR + Apache Spark + Delta Lake on massive graphs like `ogbn-papers100M`.
+
+2. **Strict Research Paper Tone (No Early Implementation Dumping)**:
+   - Sections 1–4 are kept strictly academic, formal, and problem/systems-first (focusing on formal graph definitions, boundary equations, relational algebra operators, complexity, and design principles).
+   - All environment details (e.g. PyPI YARN sync, `memoryOverhead`, local disk remapping, specific PyTorch flags) are isolated to **Section 5 (Runtime System Design on EMR)** and **Section 6 (Experimental Setup)**.
+
+3. **Separate DistDGL Reporting**:
+   - DistDGL is evaluated in a dedicated subsection (Section 6.D) and stand-alone comparison table (**Table 12**), contrasting EMO's communication-free training against DistDGL's RPC network traffic and memory overhead.
+
+4. **ML-GRL Style Figures & Tables**:
+   - **Figure 8 (ML-GRL Style)**: CPU Cores / Executor Scalability plot showing execution time and speedup as cluster parallelism increases across datasets.
+   - **Table 12 (ML-GRL Style)**: Fair performance & efficiency comparison with DistDGL (Node Acc, Link AUC, Runtime, Network Volume GB).
+   - **Table 9 (ML-GRL Style)**: Complete component-wise ablation study demonstrating the impact of each subsystem (Global Graph / CaaN, S3/Delta Lake optimizations, Partitioning algorithms).
+
+---
+
+## User Review Required
+
+> [!IMPORTANT]
+> **Manuscript Restructuring**: Sections 3 & 4 will emphasize Approach 1 (Phases 0-3) as the core systems paper narrative, while positioning Phases 3.7-3.8 as the big-data Spark/EMR processing path for 100M+ scale graphs.
+>
+> **Ablation Data Verification**: Table 9 will include specific measurements for:
+> 1. Full EMO (Louvain-SAGE-CAAN)
+> 2. Full EMO (LPA-SAGE-CAAN)
+> 3. w/o Global Graph / CAAN (Decoupled Louvain-SAGE & LPA-SAGE)
+> 4. w/o S3/Delta Lake Level Optimizations (Uncached S3 reads vs. Delta transaction log caching)
 
 ---
 
 ## Proposed Changes
 
-We will replace the placeholder text in the LaTeX file with a fully-fleshed academic skeleton for the paper **"Towards Scalable and Efficient Graph Representation Learning with Modern Data Lakes"**, detailing the design, implementation, and empirical results of the **EMO** framework.
+---
 
-### Document Configuration
+### Component 1: Manuscript Structural Refactoring ([bare_conf_compsoc.tex](file:///Users/bilaltan/Desktop/emo-pipeline/bare_conf_compsoc.tex))
 
-We will load necessary mathematical, algorithmic, and table packages (e.g., `amsmath`, `amssymb`, `booktabs`, `graphicx`, `url`) at the top of the file to support the systems figures and tables.
+#### [MODIFY] [bare_conf_compsoc.tex](file:///Users/bilaltan/Desktop/emo-pipeline/bare_conf_compsoc.tex)
 
-### Paper Title & Author Placeholders
-* **Title**: `Towards Scalable and Efficient Graph Representation Learning with Modern Data Lakes`
-* **Authors**: Leave default templates or set to placeholder authors representing your group.
+- **Section 3 (EMO Model and System Architecture)**:
+  - Formally introduce the two-approach paradigm:
+    - **Approach 1 (Core)**: Partition-centric, communication-free multi-community GNN execution (Phases 0–3).
+    - **Approach 2 (Distributed Scale)**: Full-graph relational feature propagation (Phases 3.7–3.8) for billion-scale graphs on EMR/Spark.
+  - Highlight Phase 3b (CaaN) as a supplementary relational context recovery layer.
+  - Clean out premature deployment notes, ensuring Sections 3 & 4 contain zero low-level execution noise.
 
-### Section-by-Section Content
+- **Section 4 (Relational Formulation for Community-Aware GRL)**:
+  - Detail relational graph encoding, boundary detection equations, super-node centroid abstraction, and distributed execution complexity ($T_{\text{total}} = T_{\text{io}} + T_{\text{shuffle}} + T_{\text{compute}} + T_{\text{sync}}$).
+  - Include Algorithm 1 (Boundary Detection and Super-node Context Construction).
 
-1. **Abstract**:
-   * Present the scalability challenges of distributed GRL (neighborhood explosion, network bottlenecks in DistDGL).
-   * Introduce EMO (Executor-level Multi-community Orchestrator) as a systems-level architecture bridging transactional data lakes (Delta Lake) and decentralized GNN training on AWS EMR.
-   * State that EMO supports complex partitioned workloads like CAAN (Community-aware Auxiliary Networks, from past literature) with zero cross-worker training communication.
-   * Report key results: up to a 2× accuracy increase over isolated models, matching or beating DistDGL in throughput and cost efficiency.
+- **Section 5 (Runtime System Design on AWS EMR)**:
+  - Consolidate all infrastructure, YARN memory overhead (`12g`), local volume redirection (`TMPDIR`), and PyPI executor synchronization logic here.
 
-2. **Section I: Introduction**:
-   * Motivate GRL and explain why distributed scaling is challenging.
-   * Define the trade-offs of decentralized community-based GRL: communication-free but suffers from boundary accuracy degradation and minor community sample scarcity.
-   * Cite your professor's past paper (CAAN) as the theoretical foundation for resolving these accuracy trade-offs.
-   * Introduce EMO as the systems framework that scales CAAN and other GRL workloads to massive datasets directly within Delta Lake.
-   * List the paper's three core systems contributions:
-     1. Unification of GRL with transactional data lakes (Delta Lake) using relational queries.
-     2. A scalable, serverless orchestration layer (EMO) using PySpark and YARN on AWS EMR.
-     3. An empirical evaluation proving EMO scales efficiently with commodity hardware.
+---
 
-3. **Section II: Related Work**:
-   * *Distributed GNN Engines*: Contrast EMO's communication-free training with high-overhead messaging engines like DistDGL.
-   * *Graph Partitioning*: Survey METIS, Louvain, and LPA as partitioning methods.
-   * *Transactional Data Lakes*: Introduce Delta Lake, Hudi, and Iceberg, highlighting their utility in machine learning pipelines.
+### Component 2: Dedicated DistDGL Evaluation & Table 12
 
-4. **Section III: EMO System Architecture**:
-   * Walk through the pipeline phases (Phase 0: Ingestion, Phase 1: Community Detection, Phase 2: Partitioning, Phase 3: GNN training, Phase 5: Reporting).
-   * Explain Delta Lake's role in enforcing transaction isolation between phases, preventing concurrent experiment conflicts, and implementing lightweight metadata checkpoints.
+#### [MODIFY] [results/table12_distdgl_comparison.tex](file:///Users/bilaltan/Desktop/emo-pipeline/results/table12_distdgl_comparison.tex)
+#### [MODIFY] [bare_conf_compsoc.tex](file:///Users/bilaltan/Desktop/emo-pipeline/bare_conf_compsoc.tex) (Section 6.D)
 
-5. **Section IV: Relational Graph Operations & CAAN Workload**:
-   * Detail how EMO expresses graph boundary analysis and CAAN auxiliary graph construction as relational algebra (joins, group-bys) in PySpark.
-   * Explain the compression of major communities into super-nodes (averaging node features) and the integration of minor communities into a global topology using YARN broadcasts.
-   * Show how parallel GNN models are trained on executors via Spark Pandas UDFs (`applyInPandas`) with Arrow-based serialization.
+- Format Table 12 to match ML-GRL Table 12 standards:
+  - Datasets: `WikiCS`, `ogbn-products`, `reddit`, `ogbn-arxiv`.
+  - Metrics: Node Accuracy (%), Link AUC (%), Execution Time (s), Inter-Node Communication Volume (GB), Memory Footprint (GB).
+  - Explicitly emphasize EMO's **0.0 GB inter-node training communication** vs. DistDGL's heavy RPC network traffic (e.g., 28.66 GB RAM / 46 GB RAM).
 
-6. **Section V: Infrastructure Orchestration & EMR Optimizations**:
-   * Discuss off-heap memory configuration (`spark.executor.memoryOverhead = 12g`) to support PyTorch/DGL tensor allocations outside JVM heap.
-   * Detail the dynamic host scanning algorithm to locate high-capacity local drives and prevent root-disk EBS OOM during CUDA compile/PyPI download.
-   * Explain executor sync patterns using `sc.install_pypi_package` over YARN.
+---
 
-7. **Section VI: Experimental Evaluation**:
-   * Compare performance on WikiCS and DeezerEurope.
-   * Include a structured LaTeX Table summarizing: Node Accuracy, Internal Accuracy, Link AUC, and Training Time for:
-     * LPA + SAGE / LPA + SAGE-CAAN
-     * Louvain + SAGE / Louvain + SAGE-CAAN
-     * Baselines: DistDGL, ARMA, ASAP, and SAGE-BL.
-   * Outline the key takeaways: Louvain + SAGE-CAAN achieves 60.31% node accuracy, recovering boundary accuracy, and executing in 41.5 seconds.
+### Component 3: CPU Cores / Executor Scalability Figure (ML-GRL Fig. 8 Style)
 
-8. **Section VII: Discussion & Future Database Extensions**:
-   * Outline future extensions:
-     * *Incremental Time-Travel GRL*: Querying Delta logs to retrain only dynamic communities.
-     * *Z-Ordering*: Physically clustering tables by `community_id` to speed up S3 reads.
+#### [NEW] [runners/create_cpu_scaling_figure.py](file:///Users/bilaltan/Desktop/emo-pipeline/runners/create_cpu_scaling_figure.py)
+#### [MODIFY] [bare_conf_compsoc.tex](file:///Users/bilaltan/Desktop/emo-pipeline/bare_conf_compsoc.tex)
 
-9. **Section VIII: Conclusion**:
-   * Reiterate that EMO bridges database query engines and GRL, presenting a scalable cloud pipeline for graph mining.
+- Write a standalone script to generate a publication-quality figure (`fig_cpu_scaling.pdf` / `fig8_cpu_cores_scaling.pdf`):
+  - **x-axis**: Number of CPU Cores / Spark Executors (e.g., 16, 32, 64 vCPUs / executors).
+  - **y-axis**: Execution Time (seconds) & Speedup multiplier across datasets (`WikiCS`, `ogbn-products`, `ogbn-papers100M`).
+  - Embed into Section 6 to visually illustrate horizontal cluster scaling.
+
+---
+
+### Component 4: Complete Ablation Study (ML-GRL Table 9 Style)
+
+#### [MODIFY] [results/table9_ablation_study.tex](file:///Users/bilaltan/Desktop/emo-pipeline/results/table9_ablation_study.tex)
+
+- Complete the multi-column ablation matrix to report:
+  1. **Full EMO Pipeline (Louvain-SAGE-CAAN + Delta Lake Opt)**
+  2. **EMO Pipeline (LPA-SAGE-CAAN + Delta Lake Opt)**
+  3. **w/o Global Graph / CAAN (Decoupled Louvain-SAGE)**
+  4. **w/o Global Graph / CAAN (Decoupled LPA-SAGE)**
+  5. **w/o S3/Delta Lake-Level Optimizations (Uncached S3 reads)**
+  6. **Full-Graph Baseline (GraphSAGE)**
+  7. **Distributed GNN Engine (DistDGL)**
+- Columns: `Configuration / Variant`, `Node Acc (%)`, `Comm Acc (%)`, `Ingestion Time (s)`, `Partition Time (s)`, `GNN Train Time (s)`, `Total Time (s)`.
+
+---
+
+## Detailed Step-by-Step Methodology for Table 9 (Ablation Study)
+
+### How We Complete Table 9:
+1. **Data Source Extraction**:
+   - Extract raw baseline timings and accuracy values from [`results/run-all_results-7.xlsx`](file:///Users/bilaltan/Desktop/emo-pipeline/results/run-all_results-7.xlsx) and [`paper_results_reference.json`](file:///Users/bilaltan/Desktop/emo-pipeline/paper_results_reference.json).
+2. **Delta Lake Optimization Delta**:
+   - Compare Phase 0 ingestion & Phase 3 data loading times with Delta Lake ACID transaction log caching enabled vs. cold uncached S3 Parquet re-reads.
+3. **Global Graph (CAAN) Delta**:
+   - Quantify the exact accuracy jump on `reddit` (52.96% $\rightarrow$ 92.73% for Louvain; 72.74% $\rightarrow$ 89.11% for LPA) to prove boundary recovery effect.
+4. **LaTeX Integration**:
+   - Format [`results/table9_ablation_study.tex`](file:///Users/bilaltan/Desktop/emo-pipeline/results/table9_ablation_study.tex) cleanly and link it directly into Section 6.C of [`bare_conf_compsoc.tex`](file:///Users/bilaltan/Desktop/emo-pipeline/bare_conf_compsoc.tex).
 
 ---
 
 ## Verification Plan
 
-### Compilation Check
-- Run a LaTeX syntax checker or compilation check on the generated file to ensure all commands, mathematical formulations, and tables are structurally valid LaTeX.
-- Command: `pdflatex -interaction=nonstopmode bare_conf_compsoc.tex` (if pdflatex is present on user's system, otherwise check brackets and tags manually).
-- We will double check all LaTeX markup to ensure correct escaping of characters (like `%`, `_`, `&`, `#`).
+### Automated Checks
+- Compile LaTeX manuscript to ensure clean build without syntax errors or broken figure/table references:
+  `pdflatex -interaction=nonstopmode bare_conf_compsoc.tex`
+- Run figure generation script:
+  `python3 runners/create_cpu_scaling_figure.py`
+
+### Visual & Structural Inspection
+- Inspect generated `fig8_cpu_cores_scaling.pdf` and ensure print-ready GFM formatting.
+- Verify LaTeX Table 9, Table 12, and Figure 8 alignment and caption accuracy.

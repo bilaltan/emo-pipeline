@@ -1,8 +1,11 @@
 \begin{table*}[!t]
-\renewcommand{\arraystretch}{1.2}
+\renewcommand{\arraystretch}{1.05}
 \caption{Performance Comparison on Node Classification across Base Models and Datasets (including empirical results for ogbn-products and reddit)}
 \label{table_nc_main}
 \centering
+\scriptsize
+\setlength{\tabcolsep}{3.2pt}
+\resizebox{\textwidth}{!}{%
 \begin{tabular}{llccccrc}
 \toprule
 \textbf{Dataset} & \textbf{Scale} & \textbf{Base Model} & \textbf{Original Acc} & \textbf{Original Time (s)} & \textbf{EMO / ML-GRL Acc} & \textbf{EMO Time (s)} & \textbf{Acc Imp. (\%)} \\
@@ -34,4 +37,5 @@ DeezerEurope & ~28K nodes & ClusterSCL & 0.5725 $\pm$ 0.001 & 181s $\pm$ 4 & 0.5
 \textbf{reddit} & \textbf{233K nodes} & \textbf{GraphSAGE (Louvain-CAAN)} & 0.9455 & 315.8s & \textbf{0.9273} & \textbf{208.2s} & \textbf{-1.92\%} \\
 \bottomrule
 \end{tabular}
+}
 \end{table*}

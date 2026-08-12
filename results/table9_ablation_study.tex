@@ -1,8 +1,11 @@
 \begin{table*}[!t]
-\renewcommand{\arraystretch}{1.2}
-\caption{Ablation Study: System & Algorithmic Component Impact on Accuracy, Throughput, and Training Time (reddit dataset)}
+\renewcommand{\arraystretch}{1.05}
+\caption{Ablation Study: System \& Algorithmic Component Impact on Accuracy, Throughput, and Training Time (reddit dataset)}
 \label{table_ablation_main}
 \centering
+\scriptsize
+\setlength{\tabcolsep}{3.2pt}
+\resizebox{\textwidth}{!}{%
 \begin{tabular}{lccccrc}
 \toprule
 \textbf{Configuration / Variant} & \textbf{Node Acc (\%)} & \textbf{Comm Acc (\%)} & \textbf{Ingestion Time (s)} & \textbf{Partition Time (s)} & \textbf{GNN Train Time (s)} & \textbf{Total Time (s)} \\
@@ -17,4 +20,5 @@
 \emph{Distributed GNN Engine (DistDGL)} & 94.80\% & — & — & 2.0s & 250.6s & 257.6s \\
 \bottomrule
 \end{tabular}
+}
 \end{table*}

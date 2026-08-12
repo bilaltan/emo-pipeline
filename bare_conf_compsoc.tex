@@ -53,7 +53,9 @@
 \documentclass[conference,compsoc]{IEEEtran}
 \usepackage{amsmath,amssymb,amsfonts}
 \usepackage{booktabs}
+\usepackage{xcolor}
 \usepackage{graphicx}
+\usepackage{listings}
 \usepackage{url}
 
 % Some/most Computer Society conferences require the compsoc mode option,
@@ -328,7 +330,7 @@
 
 % correct bad hyphenation here
 \hyphenation{op-tical net-works semi-conduc-tor}
-
+\newcommand{\todo}[1]{\textcolor{red}{*TODO: #1}}
 
 \begin{document}
 %
@@ -359,6 +361,7 @@ Email: klee76@lsu.edu}}
 
 \begin{abstract}
 Distributed Graph Representation Learning (GRL) on massive scale graphs suffers from the neighborhood explosion problem, requiring either costly synchronized network communication (e.g., DistDGL) or training in isolation on decoupled graph partitions. While decoupled training eliminates cross-worker runtime communication, it suffers from severe boundary accuracy degradation and sample scarcity in minor communities. This paper presents \textbf{EMO} (Executor-level Multi-community Orchestrator), a distributed systems framework that orchestrates decoupled GRL workloads natively on top of modern transactional Data Lakes (Delta Lake) using Apache Spark and YARN on AWS EMR. EMO models graph partitioning, boundary analysis, and community-aware auxiliary graph construction as standard relational database queries (joins, group-bys). By doing so, EMO can scale complex partitioned GNN workloads such as CAAN (Community-aware Auxiliary Networks, from past literature) with zero cross-worker training communication. EMO leverages Delta Lake's ACID transaction logs for experiment isolation, implements dynamic EBS storage redirection on EMR workers to prevent root-disk out-of-memory (OOM) crashes, and utilizes Apache Arrow for high-throughput JVM-Python data transfer. Our empirical evaluation on WikiCS and DeezerEurope datasets shows that EMO successfully scales community-decoupled GNNs, achieving up to a 2$\times$ accuracy boost over raw community GNNs by supporting CAAN auxiliary graphs, and competing with DistDGL in throughput on commodity cloud infrastructure.
+\todo{include a github repository to share your source code}
 \end{abstract}
 
 \begin{IEEEkeywords}
@@ -404,70 +407,130 @@ Decoupled GNN training relies on graph partitioning to group nodes. METIS is the
 \subsection{Transactional Data Lakes in Machine Learning}
 Modern data architectures use transactional formats like Delta Lake, Apache Hudi, or Apache Iceberg on top of cloud object storage (e.g., S3). These formats provide ACID transactions, time-travel history, and schema enforcement. EMO is the first framework to leverage Delta Lake storage contracts specifically to enforce experiment isolation and metadata checkpointing for distributed GRL.
 
-\section{EMO System Architecture}
-\subsection{Pipeline Overview \& Execution Phases}
-The EMO framework exposes two execution branches over the same transactional storage backbone. The primary branch used in this paper's scaling results is the full-graph Phase 3.7/3.8 path (cached propagation plus global classifier). The Phase 1/2 path remains available as an optional community-based branch for ablations and model variants.
+\section{EMO Model and System Architecture}
+\subsection{Problem Setup and Design Goals}
+Let $G=(V,E,X)$ denote an attributed graph with node set $V$, edge set $E$, and node features $X \in \mathbb{R}^{|V| \times d}$. Let $\pi:V\rightarrow\{1,\ldots,m\}$ map each node to a community partition. We define a boundary indicator
+\begin{equation}
+b(v)=\mathbb{1}\left[\exists u\in\mathcal{N}(v):\pi(u)\neq\pi(v)\right].
+\end{equation}
+EMO targets the joint systems objective of minimizing synchronization cost while preserving global structural context for boundary and minor-community nodes. Concretely, we optimize three design goals: (i) communication-free local compute during training-critical stages, (ii) relational recovery of cross-community context, and (iii) transactional reproducibility for large-scale multi-run experimentation.
+
+\begin{table}[!t]
+\caption{Core notation used in Sections III--V}
+\label{tab:notation_core}
+\centering
+\begin{tabular}{ll}
+\toprule
+\textbf{Symbol} & \textbf{Meaning} \\
+\midrule
+$G=(V,E,X)$ & Attributed graph (nodes, edges, features) \\
+$\pi(v)$ & Community assignment of node $v$ \\
+$b(v)$ & Boundary indicator for node $v$ \\
+$K$ & Major/minor community threshold \\
+$T_{\text{total}}$ & End-to-end runtime \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Two-Branch Execution Model}
+EMO exposes two execution branches over a shared transactional storage backbone. Branch A (the primary path in this paper) executes full-graph Phase 3.7/3.8: cached multi-hop propagation followed by a global edge-free classifier. Branch B executes Phase 1/2 community partitioning with optional community-model variants for ablations. The key architectural decision is that both branches share identical storage contracts and checkpoint semantics, enabling controlled comparisons without rewriting orchestration logic.
 
 \begin{figure*}[!t]
 \centering
-\includegraphics[width=\textwidth]{results/figures/emo_system_architecture_overview.pdf}
-\caption{EMO end-to-end system architecture with two branches. Highlighted top branch: full-graph Phase 3.7/3.8 path used for the paper's executor-scaling results. Lower branch: optional Phase 1/2 community route for partition-based variants and ablations. Both branches share the same Delta Lake transactional storage plane for ACID isolation and checkpoint reuse.}
+\includegraphics[width=\textwidth,height=0.33\textheight,keepaspectratio]{results/figures/emo_system_architecture_overview.pdf}
+\caption{EMO architecture and contribution mapping. Branch A (Phase 0 $\rightarrow$ 3.7 $\rightarrow$ 3.8 $\rightarrow$ 5) is the primary evaluation path used in this paper; Branch B supports partition-centric ablations. Both branches share a Delta Lake transactional plane. Contribution links identify C1 (transactional reproducibility), C2 (relational graph operators), and C3 (communication-efficient scaling path).}
 \label{fig_phases}
 \end{figure*}
 
-\subsection{Delta Lake Transactional Schema \& ACID Checkpoints}
-By using Delta Lake as the transactional backend, EMO establishes an isolation contract:
+\subsection{Transactional Experiment Isolation and Checkpoint Semantics}
+Delta Lake is a first-class systems component rather than a passive storage layer. EMO enforces an experiment-level namespace contract:
 \begin{equation}
-\text{Path}_{P2} = \text{delta-data/}\{dataset\}/\text{phase2\_nodes}/\{\text{exp\_id}\}_{dataset}_{alg}
+\text{Path}_{P2} = \text{delta-data/}\{dataset\}/\text{phase2\_nodes}/\{\text{exp\_id}\}_{dataset,alg}
 \end{equation}
-Different experiment runs (with different parameters or algorithms) execute in parallel without write collisions. Furthermore, checkpointing is achieved by querying the Delta log (\verb|_delta_log|) using a fast limit-1 SQL query. If the target directory has a valid transaction log, EMO skips that phase, avoiding expensive graph re-computations.
+Distinct runs (different $\text{exp\_id}$, model, or partitioner) can execute concurrently without write collisions. Phase-level resumability is decided by transactional evidence in \verb|_delta_log|; when a valid commit exists for the target phase output, EMO reuses that checkpoint and skips recomputation. This converts expensive graph preprocessing from mandatory repeated work into a deterministic cacheable stage.
 
-\subsection{Multi-Community Partitioning \& Subgraph Isolation}
-During Phase 2, EMO segregates internal nodes from boundary nodes. Internal nodes interact exclusively within their assigned community, while boundary nodes are tracked for auxiliary network augmentation.
+\subsection{Partition Contracts for Community Workloads}
+Phase 2 materializes two explicit data contracts per community: (i) intra-community subgraph artifacts for local model execution and (ii) boundary-node metadata for cross-community context recovery. This contract separates high-throughput local computation from lower-frequency global-context construction, which simplifies both scheduling and failure recovery.
 
-\section{Relational Graph Operations \& CAAN Workload}
-A key system contribution of EMO is representing graph boundary analysis and CAAN's auxiliary topology as relational database operations.
+\section{Relational Formulation for Community-Aware GRL}
+A central technical contribution of EMO is to express graph-native operations as relational plans with explicit execution semantics.
 
-\subsection{Expressing Boundary Operations in PySpark Relational Algebra}
-To identify boundary nodes (nodes having at least one neighbor in a different community), EMO performs a relational join between the edge table and the node-community mapping, comparing source and destination community IDs:
+\subsection{Graph-to-Relational Encoding}
+EMO represents graph state as normalized Delta tables: node features, directed edges, and node-to-community assignments. Boundary discovery is then a join-and-aggregate plan over these tables rather than a bespoke graph traversal kernel. A node is boundary if at least one adjacent endpoint has a different partition label:
 \begin{equation}
 \text{is\_boundary}(v) \iff \text{Deg}_{\text{orig}}(v) > \text{Deg}_{\text{intra}}(v)
 \end{equation}
-This is computed efficiently in Spark using SQL group-bys over the partitioned edge tables.
+This test is computed by joining edges with partition labels at both endpoints and aggregating mismatched edges per node.
 
-\subsection{Super-Node Abstraction \& Global Graph Topology}
-For each major community $C_i$ (size $\ge$ $K$), EMO compresses other major communities $C_j$ ($j \neq i$) into super-nodes. The feature vector of the super-node is defined as:
+\subsection{Boundary Recovery via Super-Node Abstraction}
+For each major community $C_i$ (size $\ge K$), EMO compresses every other major community $C_j$ ($j\neq i$) into a super-node with centroid feature:
 \begin{equation}
 f_{\text{super}}(C_j) = \frac{1}{|C_j|} \sum_{v \in C_j} f_v
 \end{equation}
-EMO executes this centroid calculation via a Spark SQL \verb|groupBy("community_id").mean("features")| aggregation. These super-node features, along with individual nodes from minor communities ($C < K$), are broadcasted to the executors.
+Minor communities ($|C|<K$) are kept as explicit nodes to avoid information loss from over-compression. The resulting auxiliary context set is distributed to executors through Spark broadcast variables, so each local training task receives a consistent global sketch without introducing synchronous cross-worker message passing.
 
-\subsection{Vectorized Arrow-PyTorch Execution via PySpark UDFs}
-Decoupled training is orchestrated using Spark's `applyInPandas` UDF. In each executor worker, PySpark receives the local nodes, super-nodes, and minor-node topology. Apache Arrow is used to serialize this tabular data directly into PyTorch/DGL tensors, bypassing Java-Python serialization bottlenecks.
+\subsection{Algorithmic Execution Semantics}
+Algorithm~\ref{alg:boundary_supernode} summarizes the relational workflow used for boundary detection and super-node context construction.
 
-\section{AWS EMR Cluster Optimizations}
-Deploying deep learning on Apache Spark YARN clusters presents major systems challenges, which EMO resolves through three key optimizations:
+\begin{table}[!t]
+\caption{Algorithm 1: Boundary and Super-node Construction}
+\label{alg:boundary_supernode}
+\centering
+\begin{tabular}{p{0.95\columnwidth}}
+\toprule
+\textbf{Input:} node table $N$, edge table $E$, partition map $\pi$, threshold $K$ \\
+\textbf{Output:} boundary-node table $B$, super-node table $S$, minor-node table $M$ \\
+\midrule
+1. Join $E$ with $\pi$ on source and destination endpoints. \\
+2. Mark edge-crossing events where $\pi(src)\neq\pi(dst)$. \\
+3. Aggregate crossings per node and emit boundary set $B$. \\
+4. Split communities by size: major ($|C|\ge K$) and minor ($|C|<K$). \\
+5. For each major community, compute centroid feature to build super-nodes $S$. \\
+6. Keep minor-community nodes explicit as $M$ (no centroid compression). \\
+7. Broadcast $(S, M)$ to executor-side training tasks with local partition data. \\
+\bottomrule
+\end{tabular}
+\end{table}
 
-\subsection{JVM Heap vs. PyTorch Off-Heap Memory Allocation}
-PyTorch and DGL allocate GPU or CPU tensors off-heap via C++ memory managers. Standard JVM heap settings do not account for this, leading to YARN container terminations. EMO configures high memory overhead ratios:
+\subsection{Distributed Cost Model and Execution Path}
+The dominant runtime terms are shuffle-heavy relational stages and local tensor compute. We summarize end-to-end cost as
+\begin{equation}
+T_{\text{total}} \approx T_{\text{io}} + T_{\text{shuffle}} + T_{\text{compute}} + T_{\text{sync}}.
+\end{equation}
+For Branch A and decoupled community execution, $T_{\text{sync}}$ is minimized because training-critical steps do not require iterative cross-worker neighborhood fetches. Execution is materialized with Spark \verb|applyInPandas| UDFs and Apache Arrow transfer, which reduces JVM-Python serialization overhead while preserving table-native orchestration.
+
+\section{Runtime System Design on AWS EMR}
+This section characterizes the runtime model and mitigation strategy that make EMO stable at scale on commodity clusters.
+
+\subsection{Resource Model: JVM Heap, Off-Heap Tensors, and Local Disk}
+PyTorch and DGL allocate tensors off-heap through native allocators, while Spark container limits are enforced at the YARN process level. Under-provisioned memory overhead therefore causes container termination even when JVM heap appears healthy. EMO allocates explicit overhead headroom:
 \begin{lstlisting}[basicstyle=\footnotesize\ttfamily,columns=fullflexible]
 spark.executor.memory = 28g
 spark.executor.memoryOverhead = 12g
 \end{lstlisting}
 
-\subsection{Preventing EBS Root Disk OOM via Dynamic Volume Scanning}
-EMR nodes typically have small (10 GB) root volumes (`/`). During GNN execution, PyTorch compiles CUDA kernels or downloads libraries, defaulting cache and temp paths to `/tmp` and filling up the root drive. EMO implements a dynamic scanning utility that finds attached storage partitions with the largest free capacity (e.g., `/mnt/tmp`, `/mnt1/tmp`) and overrides the environment variables:
+\subsection{Failure Modes and Mitigation Strategy}
+EMO addresses three recurring failure modes in Spark-based GRL deployments. F1: off-heap pressure triggers YARN kills; mitigation is increased memory overhead. F2: root-volume exhaustion from temporary caches and build artifacts; mitigation is dynamic redirection of HOME/TMP paths to the largest attached local volume. F3: library skew across executors; mitigation is explicit package synchronization before task launch. For F2, EMO applies runtime environment remapping:
 \begin{lstlisting}[basicstyle=\footnotesize\ttfamily,columns=fullflexible]
 os.environ['HOME'] = large_tmp
 os.environ['TMPDIR'] = large_tmp
 \end{lstlisting}
 
-\subsection{YARN Executor Package Synchronization}
-To ensure PyTorch and DGL are present in YARN containers without pre-imaging cluster nodes, EMO utilizes PySpark YARN bootstrap sync APIs (`sc.install_pypi_package`) combined with dynamic user-site search path patching (`sys.path.insert`).
+\subsection{Executor Package Consistency and Reproducibility}
+To ensure deterministic behavior without pre-imaged nodes, EMO synchronizes runtime dependencies to YARN executors using bootstrap package installation and user-site path patching. Together with Delta versioned artifacts, this yields a reproducible systems contract across repeated runs and cluster restarts.
 
 \section{Experimental Evaluation}
 \subsection{Experimental Setup \& Benchmark Datasets}
-We evaluate EMO's performance on commodity cloud infrastructure (5 AWS EMR worker nodes, 20 PySpark executors with 60 vCPUs total) across standard benchmark datasets (WikiCS, Coauthor-Physics, Coauthor-CS, DeezerEurope, Foursquare) and massive-scale real-world graphs: \textbf{ogbn-products} (2.45M nodes, 123.7M edges) and \textbf{reddit} (233K nodes, 114.6M edges, 602 feature dimensions). Base GNN architectures evaluated include GraphSAGE, GATv2, ARMA, ASAP, and GraphSAGE-CAAN.
+We evaluate EMO's performance on commodity cloud infrastructure (5 AWS EMR worker nodes, 20 PySpark executors with 60 vCPUs total) across standard benchmark datasets (WikiCS, Coauthor-Physics, Coauthor-CS, DeezerEurope, Foursquare) and massive-scale real-world graphs: \textbf{ogbn-products} (2.45M nodes, 123.7M edges) and \textbf{reddit} (233K nodes, 114.6M edges, 602 feature dimensions). Base GNN architectures evaluated include GraphSAGE, GATv2, ARMA, ASAP, and GraphSAGE-CAAN. All reported Phase 3.7/3.8 scaling experiments use two-hop propagation ($\text{num\_hops}=2$), producing concatenated representations $[x^{(0)}\Vert x^{(1)}\Vert x^{(2)}]$ before global classification.
+
+Figure~\ref{fig:exp_setup_validation} summarizes the full validation and evaluation setup, including datasets, infrastructure, fairness controls, two-hop settings, and reported metrics.
+
+\begin{figure*}[!t]
+\centering
+\includegraphics[width=\textwidth,height=0.31\textheight,keepaspectratio]{results/figures/experimental_setup_validation_evaluation.pdf}
+\caption{Validation and evaluation setup used for all reported experiments. The figure consolidates dataset coverage, EMR/Spark infrastructure, model families, fairness controls, fixed two-hop configuration for Phase 3.7/3.8 scaling, and the quality/systems/scalability metrics reported in the paper artifacts.}
+\label{fig:exp_setup_validation}
+\end{figure*}
 
 \subsection{Main Link Prediction \& Node Classification Performance}
 Tables~\ref{table_lp_main} and~\ref{table_nc_main} report the link prediction (AUC) and node classification (Accuracy) results.
@@ -478,7 +541,7 @@ Tables~\ref{table_lp_main} and~\ref{table_nc_main} report the link prediction (A
 Empirical evaluations on \textbf{ogbn-products} and \textbf{reddit} demonstrate two major systems insights:
 \begin{itemize}
     \item \textbf{Link Prediction Superiority}: On \textbf{reddit}, EMO with Louvain community partitioning achieves an outstanding link prediction AUC of \textbf{92.61\%}, significantly outperforming the full-graph GraphSAGE baseline (75.52\%, a +17.09\% boost) and DistDGL (74.03\%, a +18.58\% boost). Similarly, on \textbf{ogbn-products}, EMO's LPA-SAGE model achieves \textbf{85.29\% AUC}, outperforming DistDGL (82.16\%) and the full-graph baseline (75.61\%).
-    \item \textbf{CAAN Accuracy Recovery}: On \textbf{reddit}, raw decoupled community GNNs trained in isolation suffer from boundary isolation, dropping accuracy to 52.96\% (Louvain) and 72.74\% (LPA). Incorporating EMO's relational CAAN global super-node architecture recovers global macro-topology, skyrocketing accuracy to \textbf{92.73\%} for Louvain-CAAN (+39.77\% recovery!) and \textbf{89.11\%} for LPA-CAAN (+16.37\% recovery!), matching within 2\% of full-graph models while maintaining zero cross-worker training communication.
+    \item \textbf{CAAN Accuracy Recovery}: On \textbf{reddit}, raw decoupled community GNNs trained in isolation suffer from boundary isolation, dropping accuracy to 52.96\% (Louvain) and 72.74\% (LPA). Incorporating EMO's relational CAAN global super-node architecture recovers global macro-topology, improving accuracy to \textbf{92.73\%} for Louvain-CAAN (+39.77\% recovery) and \textbf{89.11\%} for LPA-CAAN (+16.37\% recovery), matching within 2\% of full-graph models while maintaining zero cross-worker training communication.
 \end{itemize}
 
 \subsection{Component-wise System Ablation Study}
@@ -486,7 +549,7 @@ Table~\ref{table_ablation_main} isolates the performance impact of EMO's core su
 
 \input{results/table9_ablation_study.tex}
 
-Without the Global Graph super-node topology (CaaN), isolated Louvain GNNs drop accuracy by \textbf{39.77\%} (from 92.73\% down to 52.96\%), validating that super-node centroid abstraction is indispensable for mitigating boundary degradation in power-law community graphs.
+Without the Global Graph super-node topology (CAAN), isolated Louvain GNNs drop accuracy by \textbf{39.77\%} (from 92.73\% down to 52.96\%), validating that super-node centroid abstraction is indispensable for mitigating boundary degradation in power-law community graphs.
 
 \subsection{Fair Comparison with Distributed GRL Engine (DistDGL)}
 Table~\ref{table_distdgl_main} presents a fair comparative evaluation between EMO and DistDGL under identical partition bounds ($K$) and cluster resources.
@@ -496,7 +559,7 @@ Table~\ref{table_distdgl_main} presents a fair comparative evaluation between EM
 On \textbf{reddit}, EMO's Louvain-CAAN GNN model completes training in \textbf{208.2s}, outperforming DistDGL's 250.6s runtime while eliminating 28.66 GB of parameter server memory overhead and cross-node network traffic. On \textbf{ogbn-products}, EMO delivers superior link prediction accuracy (85.29\% vs DistDGL's 82.16\%) with zero cross-worker communication.
 
 \subsection{Horizontal Scalability \& Multi-Instance Efficiency}
-Table~\ref{table_scalability_main} reports the dedicated Phase 3.7/3.8 scaling matrix on an 8-worker AWS EMR cluster with 16, 32, and 64 executor configurations. The experiment preserves full-node coverage (100\%) and constant model accuracy while varying only executor parallelism.
+Table~\ref{table_scalability_main} reports the dedicated Phase 3.7/3.8 scaling matrix on an 8-worker AWS EMR cluster with 16, 32, and 64 executor configurations under the same two-hop propagation setting ($\text{num\_hops}=2$). The experiment preserves full-node coverage (100\%) and constant model accuracy while varying only executor parallelism.
 
 For \textbf{ogbn-papers100M}, propagation time drops from 2478.3s (16 executors) to 1940.5s (32 executors) and 1892.1s (64 executors), indicating meaningful gains up to 32 executors and diminishing returns beyond that point. For \textbf{ogbn-products}, scaling benefit is modest (84.5s $\rightarrow$ 80.8s at 32 executors), while \textbf{WikiCS} degrades at larger executor counts due to coordination overhead. These results identify 32 executors as the practical operating point for large-graph runs under this CPU-only Spark configuration.
 
@@ -507,14 +570,14 @@ Across all three datasets, Phase 3.8 test accuracy remained unchanged across exe
 \begin{figure*}[!t]
 \centering
 \includegraphics[width=\textwidth]{results/phase37_scaling/phase37_paper_run1/phase37_paper_figure_main.pdf}
-\caption{Phase 3.7/3.8 executor-scaling behavior across three graph sizes. Panel A shows propagation runtime on a log scale. Panel B compares observed speedup to ideal linear scaling from 16 executors. Panel C reports parallel efficiency, highlighting diminishing returns at higher executor counts.}
+\caption{Phase 3.7/3.8 executor-scaling behavior across three graph sizes for two-hop propagated features $[x^{(0)}\Vert x^{(1)}\Vert x^{(2)}]$. Panel A shows propagation runtime on a log scale. Panel B compares observed speedup to ideal linear scaling from 16 executors. Panel C reports parallel efficiency, highlighting diminishing returns at higher executor counts.}
 \label{fig:phase37_scaling_main}
 \end{figure*}
 
 
 \section{Discussion \& Future Database Extensions}
 \subsection{Incremental Time-Travel GRL}
-Enterprise graphs constantly change. Since Delta Lake logs every write operation via transaction logs, we can utilize Time Travel queries (`AS OF`) to identify which communities have had significant structural or feature changes, triggering retraining *only* for the affected executors.
+Enterprise graphs constantly change. Since Delta Lake logs every write operation via transaction logs, we can utilize Time Travel queries (\verb|AS OF|) to identify which communities have had significant structural or feature changes, triggering retraining *only* for the affected executors.
 
 \subsection{Multi-Dimensional Z-Ordering for S3 Graph Layouts}
 We plan to Z-Order the nodes and edges tables in Delta Lake by \verb|community_id| and \verb|is_boundary|. This physical layout clustering on S3 ensures that executor workers load their target partitions with minimal S3 network requests, improving throughput.

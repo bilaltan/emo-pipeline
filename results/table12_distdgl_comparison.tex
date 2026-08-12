@@ -1,8 +1,11 @@
 \begin{table*}[!t]
-\renewcommand{\arraystretch}{1.2}
-\caption{Fair Performance & Efficiency Comparison with Distributed GRL Engine (DistDGL)}
+\renewcommand{\arraystretch}{1.05}
+\caption{Fair Performance \& Efficiency Comparison with Distributed GRL Engine (DistDGL)}
 \label{table_distdgl_main}
 \centering
+\scriptsize
+\setlength{\tabcolsep}{3.2pt}
+\resizebox{\textwidth}{!}{%
 \begin{tabular}{llcccc}
 \toprule
 \textbf{Dataset} & \textbf{Metric} & \textbf{DistDGL Baseline} & \textbf{Decoupled Community GRL} & \textbf{EMO / ML-GRL (CAAN)} & \textbf{EMO vs. DistDGL Imp.} \\
@@ -22,4 +25,5 @@ WikiCS & Accuracy (\%) & 65.34\% $\pm$ 0.52 & 79.97\% $\pm$ 0.34 & \textbf{81.04
  & Network / RAM & 28.66 GB RAM & 0.0 GB Network & 0.0 GB Network & Zero Inter-node Comm. \\
 \bottomrule
 \end{tabular}
+}
 \end{table*}
