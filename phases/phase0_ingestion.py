@@ -364,9 +364,10 @@ def run_phase0(spark, sc, datasets, run_phase0_flag, use_ogb_splits,
             print(f"  ✓ {dataset} ingested successfully in {elapsed:.1f}s!")
             continue
 
-        if dataset in ('reddit', 'flickr', 'wikics', 'coauthor-cs', 'coauthor-physics', 'deezereurope'):
+        d_lower = dataset.lower()
+        if d_lower in ('reddit', 'flickr', 'wikics', 'coauthor-cs', 'coauthor-physics', 'deezereurope'):
 
-            if dataset == 'reddit':
+            if d_lower == 'reddit':
                 from dgl.data import RedditDataset
                 ds = RedditDataset(self_loop=False)
                 g = ds[0]
@@ -379,7 +380,7 @@ def run_phase0(spark, sc, datasets, run_phase0_flag, use_ogb_splits,
                 train_idx = np.where(g.ndata['train_mask'].numpy())[0]
                 valid_idx = np.where(g.ndata['val_mask'].numpy())[0]
                 test_idx = np.where(g.ndata['test_mask'].numpy())[0]
-            elif dataset == 'flickr':
+            elif d_lower == 'flickr':
                 from dgl.data import FlickrDataset
                 ds = FlickrDataset()
                 g = ds[0]
@@ -397,7 +398,7 @@ def run_phase0(spark, sc, datasets, run_phase0_flag, use_ogb_splits,
                 train_idx = np.where(g.ndata['train_mask'].numpy())[0]
                 valid_idx = np.where(g.ndata['val_mask'].numpy())[0]
                 test_idx = np.where(g.ndata['test_mask'].numpy())[0]
-            elif dataset == 'wikics':
+            elif d_lower == 'wikics':
                 from dgl.data import WikiCSDataset
                 ds = WikiCSDataset()
                 g = ds[0]
@@ -410,7 +411,7 @@ def run_phase0(spark, sc, datasets, run_phase0_flag, use_ogb_splits,
                 train_idx = np.where(g.ndata['train_mask'][:, 0].numpy())[0]
                 valid_idx = np.where(g.ndata['val_mask'][:, 0].numpy())[0]
                 test_idx = np.where(g.ndata['test_mask'].numpy())[0]
-            elif dataset == 'coauthor-cs':
+            elif d_lower == 'coauthor-cs':
                 from dgl.data import CoauthorCSDataset
                 ds = CoauthorCSDataset()
                 g = ds[0]
@@ -426,7 +427,7 @@ def run_phase0(spark, sc, datasets, run_phase0_flag, use_ogb_splits,
                 train_idx = perm[:n_tr]
                 valid_idx = perm[n_tr:n_tr+n_va]
                 test_idx = perm[n_tr+n_va:]
-            elif dataset == 'coauthor-physics':
+            elif d_lower == 'coauthor-physics':
                 from dgl.data import CoauthorPhysicsDataset
                 ds = CoauthorPhysicsDataset()
                 g = ds[0]
@@ -442,7 +443,7 @@ def run_phase0(spark, sc, datasets, run_phase0_flag, use_ogb_splits,
                 train_idx = perm[:n_tr]
                 valid_idx = perm[n_tr:n_tr+n_va]
                 test_idx = perm[n_tr+n_va:]
-            elif dataset == 'deezereurope':
+            elif d_lower == 'deezereurope':
                 import zipfile, json, collections, ssl, urllib.request
                 import pandas as pd
                 zip_path = 'deezer_europe.zip'
@@ -585,7 +586,7 @@ def run_phase0(spark, sc, datasets, run_phase0_flag, use_ogb_splits,
         ms = StructType([StructField('id', LongType(), False),
                          StructField('split', StringType(), True)])
         if use_ogb_splits:
-            if dataset in ('reddit', 'flickr', 'wikics', 'coauthor-cs', 'coauthor-physics', 'deezereurope'):
+            if dataset.lower() in ('reddit', 'flickr', 'wikics', 'coauthor-cs', 'coauthor-physics', 'deezereurope'):
                 ids = np.concatenate([train_idx.flatten(), valid_idx.flatten(), test_idx.flatten()])
                 splits = (['train'] * len(train_idx.flatten()) +
                           ['valid'] * len(valid_idx.flatten()) +
