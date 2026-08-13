@@ -1,0 +1,372 @@
+Writable directories and free space:
+  - /mnt1/tmp: 1751.70 GB free
+  - /mnt1/spark: 1751.70 GB free
+  - /mnt/tmp: 1737.98 GB free
+  - /mnt/spark: 1737.98 GB free
+  - /mnt/var/tmp: 1737.98 GB free
+  - /tmp: 1737.98 GB free
+  - /var/tmp: 1737.98 GB free
+
+  [Spark Auto-Scaler] Dataset: WikiCS | S3 Size: 2 MB | Scale: Small/Medium
+  [Spark Auto-Scaler] YARN Cluster: 8 nodes × 496 GB RAM × 64 vCores
+  [Spark Auto-Scaler] Python RAM Budget: 5.0 GB/task (dataset-aware)
+  [Spark Auto-Scaler] Bin-Packing Solution:
+    → 128 total executors (16/node × 8 nodes)
+    → 4 cores/executor | 8g heap + 20g overhead = 28g container
+    → Total parallel tasks: 512 | Shuffle partitions: 1024
+    → Driver: 40g heap + 12g overhead
+    → Cluster utilization: 3584g / 3966g (90%)
+
+:: loading settings :: url = jar:file:/usr/lib/spark/jars/ivy-2.5.1.jar!/org/apache/ivy/core/settings/ivysettings.xml
+Ivy Default Cache set to: /mnt1/tmp/.ivy2/cache
+The jars for the packages stored in: /mnt1/tmp/.ivy2/jars
+io.delta#delta-spark_2.12 added as a dependency
+graphframes#graphframes added as a dependency
+:: resolving dependencies :: org.apache.spark#spark-submit-parent-915da338-289b-4e53-96ef-f82a2f5dcc9b;1.0
+	confs: [default]
+	found io.delta#delta-spark_2.12;3.2.0 in central
+	found io.delta#delta-storage;3.2.0 in central
+	found org.antlr#antlr4-runtime;4.9.3 in central
+	found graphframes#graphframes;0.8.3-spark3.5-s_2.12 in spark-packages
+	found org.slf4j#slf4j-api;1.7.16 in central
+:: resolution report :: resolve 122ms :: artifacts dl 5ms
+	:: modules in use:
+	graphframes#graphframes;0.8.3-spark3.5-s_2.12 from spark-packages in [default]
+	io.delta#delta-spark_2.12;3.2.0 from central in [default]
+	io.delta#delta-storage;3.2.0 from central in [default]
+	org.antlr#antlr4-runtime;4.9.3 from central in [default]
+	org.slf4j#slf4j-api;1.7.16 from central in [default]
+	---------------------------------------------------------------------
+	|                  |            modules            ||   artifacts   |
+	|       conf       | number| search|dwnlded|evicted|| number|dwnlded|
+	---------------------------------------------------------------------
+	|      default     |   5   |   0   |   0   |   0   ||   5   |   0   |
+	---------------------------------------------------------------------
+:: retrieving :: org.apache.spark#spark-submit-parent-915da338-289b-4e53-96ef-f82a2f5dcc9b
+	confs: [default]
+	0 artifacts copied, 5 already retrieved (0kB/4ms)
+Setting default log level to "WARN".
+To adjust logging level use sc.setLogLevel(newLevel). For SparkR, use setLogLevel(newLevel).
+26/08/13 02:50:38 WARN SparkConf: Note that spark.local.dir will be overridden by the value set by the cluster manager (via SPARK_LOCAL_DIRS in mesos/standalone/kubernetes and LOCAL_DIRS in YARN).
+26/08/13 02:50:39 WARN Client: Neither spark.yarn.jars nor spark.yarn.archive is set, falling back to uploading libraries under SPARK_HOME.
+26/08/13 02:50:41 WARN Client: Same path resource file:///mnt1/tmp/.ivy2/jars/io.delta_delta-spark_2.12-3.2.0.jar added multiple times to distributed cache.
+26/08/13 02:50:41 WARN Client: Same path resource file:///mnt1/tmp/.ivy2/jars/graphframes_graphframes-0.8.3-spark3.5-s_2.12.jar added multiple times to distributed cache.
+26/08/13 02:50:41 WARN Client: Same path resource file:///mnt1/tmp/.ivy2/jars/io.delta_delta-storage-3.2.0.jar added multiple times to distributed cache.
+26/08/13 02:50:41 WARN Client: Same path resource file:///mnt1/tmp/.ivy2/jars/org.antlr_antlr4-runtime-4.9.3.jar added multiple times to distributed cache.
+26/08/13 02:50:41 WARN Client: Same path resource file:///mnt1/tmp/.ivy2/jars/org.slf4j_slf4j-api-1.7.16.jar added multiple times to distributed cache.
+  ✓ SparkSession successfully configured and initialized as 'spark'.
+
+================================================================================
+  VERIFYING AND INSTALLING PYTHON ENVIRONMENT PACKAGES
+================================================================================
+  ► Syncing dependencies across all active YARN worker nodes...
+[Stage 0:>                                                     (0 + 256) / 2048][Stage 0:>                                                    (10 + 256) / 2048][Stage 0:===>                                                (120 + 256) / 2048][Stage 0:====>                                               (160 + 256) / 2048][Stage 0:====>                                               (162 + 256) / 2048][Stage 0:====>                                               (192 + 256) / 2048][Stage 0:======>                                             (251 + 257) / 2048][Stage 0:======>                                             (256 + 256) / 2048][Stage 0:======>                                             (266 + 256) / 2048][Stage 0:=======>                                            (312 + 256) / 2048][Stage 0:==========>                                         (394 + 256) / 2048][Stage 0:==========>                                         (416 + 256) / 2048][Stage 0:==========>                                         (417 + 256) / 2048][Stage 0:==========>                                         (418 + 256) / 2048][Stage 0:==========>                                         (426 + 256) / 2048][Stage 0:===========>                                        (458 + 256) / 2048][Stage 0:============>                                       (479 + 256) / 2048][Stage 0:============>                                       (490 + 256) / 2048][Stage 0:=============>                                      (512 + 256) / 2048][Stage 0:=============>                                      (514 + 256) / 2048][Stage 0:=============>                                      (516 + 256) / 2048][Stage 0:=============>                                      (528 + 256) / 2048][Stage 0:==============>                                     (559 + 256) / 2048][Stage 0:===============>                                    (628 + 256) / 2048][Stage 0:================>                                   (668 + 256) / 2048][Stage 0:=================>                                  (672 + 256) / 2048][Stage 0:=================>                                  (673 + 256) / 2048][Stage 0:=================>                                  (674 + 256) / 2048][Stage 0:=================>                                  (681 + 256) / 2048][Stage 0:=================>                                  (686 + 256) / 2048][Stage 0:==================>                                 (713 + 256) / 2048][Stage 0:==================>                                 (726 + 256) / 2048][Stage 0:==================>                                 (736 + 256) / 2048][Stage 0:==================>                                 (737 + 256) / 2048][Stage 0:==================>                                 (742 + 256) / 2048][Stage 0:===================>                                (750 + 256) / 2048][Stage 0:===================>                                (768 + 256) / 2048][Stage 0:===================>                                (771 + 256) / 2048][Stage 0:===================>                                (772 + 256) / 2048][Stage 0:===================>                                (777 + 256) / 2048][Stage 0:====================>                               (792 + 256) / 2048][Stage 0:====================>                               (825 + 256) / 2048][Stage 0:======================>                             (887 + 256) / 2048][Stage 0:=======================>                            (919 + 257) / 2048][Stage 0:=======================>                            (928 + 256) / 2048][Stage 0:=======================>                            (929 + 256) / 2048][Stage 0:=======================>                            (934 + 256) / 2048][Stage 0:=======================>                            (938 + 256) / 2048][Stage 0:=======================>                            (941 + 256) / 2048][Stage 0:========================>                           (952 + 256) / 2048][Stage 0:========================>                           (974 + 256) / 2048][Stage 0:=========================>                          (990 + 256) / 2048][Stage 0:=========================>                          (992 + 256) / 2048][Stage 0:=========================>                          (993 + 256) / 2048][Stage 0:=========================>                          (994 + 256) / 2048][Stage 0:=========================>                          (998 + 256) / 2048][Stage 0:========================>                          (1002 + 256) / 2048][Stage 0:=========================>                         (1013 + 256) / 2048][Stage 0:=========================>                         (1024 + 256) / 2048][Stage 0:=========================>                         (1025 + 256) / 2048][Stage 0:=========================>                         (1026 + 256) / 2048][Stage 0:=========================>                         (1028 + 256) / 2048][Stage 0:=========================>                         (1031 + 256) / 2048][Stage 0:=========================>                         (1036 + 256) / 2048][Stage 0:==========================>                        (1049 + 256) / 2048][Stage 0:==========================>                        (1067 + 256) / 2048][Stage 0:===========================>                       (1104 + 256) / 2048][Stage 0:============================>                      (1147 + 256) / 2048][Stage 0:=============================>                     (1180 + 256) / 2048][Stage 0:=============================>                     (1185 + 256) / 2048][Stage 0:=============================>                     (1190 + 256) / 2048][Stage 0:=============================>                     (1191 + 256) / 2048][Stage 0:=============================>                     (1192 + 256) / 2048][Stage 0:=============================>                     (1198 + 256) / 2048][Stage 0:=============================>                     (1203 + 256) / 2048][Stage 0:==============================>                    (1213 + 256) / 2048][Stage 0:==============================>                    (1224 + 256) / 2048][Stage 0:===============================>                   (1245 + 256) / 2048][Stage 0:===============================>                   (1248 + 256) / 2048][Stage 0:===============================>                   (1249 + 256) / 2048][Stage 0:===============================>                   (1250 + 256) / 2048][Stage 0:===============================>                   (1251 + 256) / 2048][Stage 0:===============================>                   (1254 + 256) / 2048][Stage 0:===============================>                   (1256 + 256) / 2048][Stage 0:===============================>                   (1258 + 256) / 2048][Stage 0:===============================>                   (1266 + 256) / 2048][Stage 0:===============================>                   (1276 + 256) / 2048][Stage 0:===============================>                   (1284 + 256) / 2048][Stage 0:================================>                  (1286 + 256) / 2048][Stage 0:================================>                  (1288 + 256) / 2048][Stage 0:================================>                  (1289 + 256) / 2048][Stage 0:================================>                  (1302 + 256) / 2048][Stage 0:================================>                  (1311 + 256) / 2048][Stage 0:=================================>                 (1326 + 256) / 2048][Stage 0:=================================>                 (1347 + 256) / 2048][Stage 0:==================================>                (1383 + 256) / 2048][Stage 0:===================================>               (1419 + 256) / 2048][Stage 0:===================================>               (1440 + 256) / 2048][Stage 0:===================================>               (1445 + 256) / 2048][Stage 0:====================================>              (1447 + 256) / 2048][Stage 0:====================================>              (1448 + 256) / 2048][Stage 0:====================================>              (1449 + 256) / 2048][Stage 0:====================================>              (1455 + 256) / 2048][Stage 0:====================================>              (1462 + 256) / 2048][Stage 0:====================================>              (1465 + 256) / 2048][Stage 0:====================================>              (1474 + 256) / 2048][Stage 0:=====================================>             (1488 + 256) / 2048][Stage 0:=====================================>             (1499 + 256) / 2048][Stage 0:=====================================>             (1504 + 256) / 2048][Stage 0:=====================================>             (1505 + 256) / 2048][Stage 0:=====================================>             (1506 + 256) / 2048][Stage 0:=====================================>             (1508 + 256) / 2048][Stage 0:=====================================>             (1509 + 256) / 2048][Stage 0:=====================================>             (1511 + 256) / 2048][Stage 0:=====================================>             (1512 + 256) / 2048][Stage 0:=====================================>             (1513 + 256) / 2048][Stage 0:=====================================>             (1516 + 256) / 2048][Stage 0:=====================================>             (1520 + 256) / 2048][Stage 0:======================================>            (1528 + 256) / 2048][Stage 0:======================================>            (1536 + 256) / 2048][Stage 0:======================================>            (1546 + 256) / 2048][Stage 0:======================================>            (1561 + 256) / 2048][Stage 0:=======================================>           (1587 + 257) / 2048][Stage 0:========================================>          (1613 + 256) / 2048][Stage 0:=========================================>         (1650 + 256) / 2048][Stage 0:=========================================>         (1674 + 256) / 2048][Stage 0:==========================================>        (1701 + 256) / 2048][Stage 0:==========================================>        (1703 + 256) / 2048][Stage 0:==========================================>        (1704 + 256) / 2048][Stage 0:==========================================>        (1706 + 256) / 2048][Stage 0:==========================================>        (1709 + 256) / 2048][Stage 0:==========================================>        (1715 + 256) / 2048][Stage 0:==========================================>        (1722 + 256) / 2048][Stage 0:===========================================>       (1728 + 256) / 2048][Stage 0:===========================================>       (1735 + 256) / 2048][Stage 0:===========================================>       (1744 + 256) / 2048][Stage 0:===========================================>       (1759 + 256) / 2048][Stage 0:===========================================>       (1761 + 256) / 2048][Stage 0:===========================================>       (1763 + 256) / 2048][Stage 0:===========================================>       (1764 + 256) / 2048][Stage 0:===========================================>       (1765 + 256) / 2048][Stage 0:===========================================>       (1766 + 256) / 2048][Stage 0:============================================>      (1767 + 256) / 2048][Stage 0:============================================>      (1769 + 256) / 2048][Stage 0:============================================>      (1771 + 256) / 2048][Stage 0:============================================>      (1775 + 256) / 2048][Stage 0:============================================>      (1780 + 256) / 2048][Stage 0:============================================>      (1784 + 256) / 2048][Stage 0:============================================>      (1791 + 256) / 2048][Stage 0:============================================>      (1796 + 252) / 2048][Stage 0:============================================>      (1801 + 247) / 2048][Stage 0:=============================================>     (1809 + 239) / 2048][Stage 0:=============================================>     (1821 + 227) / 2048][Stage 0:=============================================>     (1832 + 216) / 2048][Stage 0:==============================================>    (1849 + 199) / 2048][Stage 0:==============================================>    (1876 + 172) / 2048][Stage 0:===============================================>   (1898 + 150) / 2048][Stage 0:===============================================>   (1927 + 121) / 2048][Stage 0:================================================>  (1941 + 107) / 2048][Stage 0:================================================>  (1945 + 103) / 2048][Stage 0:=================================================>  (1952 + 96) / 2048][Stage 0:=================================================>  (1969 + 79) / 2048][Stage 0:==================================================> (1980 + 68) / 2048][Stage 0:==================================================> (1987 + 61) / 2048][Stage 0:==================================================> (1990 + 58) / 2048][Stage 0:==================================================> (2003 + 45) / 2048][Stage 0:===================================================>(2016 + 32) / 2048][Stage 0:===================================================>(2022 + 26) / 2048][Stage 0:===================================================>(2023 + 25) / 2048][Stage 0:===================================================>(2024 + 24) / 2048][Stage 0:===================================================>(2025 + 23) / 2048][Stage 0:===================================================>(2034 + 14) / 2048][Stage 0:===================================================>(2037 + 11) / 2048][Stage 0:====================================================>(2041 + 7) / 2048][Stage 0:====================================================>(2047 + 1) / 2048]                                                                                  ► Sync attempt 1/5: 8 worker node(s) verified: ['ip-172-31-67-105', 'ip-172-31-68-255', 'ip-172-31-69-15', 'ip-172-31-69-88', 'ip-172-31-71-168', 'ip-172-31-74-2', 'ip-172-31-76-246', 'ip-172-31-77-58']
+  ✓ All 8 YARN worker nodes verified and synced successfully.
+
+  === YARN Executor Package Sync Summary ===
+    ip-172-31-67-105.ec2.internal: Success (Cached)
+    ip-172-31-68-255.ec2.internal: Success (Cached)
+    ip-172-31-69-15.ec2.internal: Success (Cached)
+    ip-172-31-69-88.ec2.internal: Success (Cached)
+    ip-172-31-71-168.ec2.internal: Success (Cached)
+    ip-172-31-74-2.ec2.internal: Success (Cached)
+    ip-172-31-76-246.ec2.internal: Success (Cached)
+    ip-172-31-77-58.ec2.internal: Success (Cached)
+
+  ✓ ALL PIPELINE DEPENDENCIES VERIFIED AND READY.
+SLF4J: Failed to load class "org.slf4j.impl.StaticLoggerBinder".
+SLF4J: Defaulting to no-operation (NOP) logger implementation
+SLF4J: See http://www.slf4j.org/codes.html#StaticLoggerBinder for further details.
+[Stage 1:>                                                          (0 + 4) / 4]                                                                                [Stage 2:>                                                          (0 + 4) / 4][Stage 2:=============================>                             (2 + 2) / 4][Stage 4:>                                                        (0 + 50) / 50][Stage 4:=>                                                       (1 + 49) / 50][Stage 4:=====>                                                   (5 + 45) / 50][Stage 4:==========>                                              (9 + 41) / 50][Stage 4:===============>                                        (14 + 36) / 50][Stage 4:=================================>                      (30 + 20) / 50]                                                                                [Stage 11:====>                                                   (4 + 46) / 50][Stage 11:=========================================>             (38 + 12) / 50]                                                                                [Stage 15:>                                                         (0 + 1) / 1]                                                                                
+================================================================================
+  CLUSTER DISK SPACE COMPATIBILITY VERIFICATION
+================================================================================
+  Dataset: WikiCS | Nodes: 11,701 | Features: 300
+  Required temp workspace disk space per executor container: 10.00 GB
+  Driver temp space available (/mnt1/tmp): 1751.70 GB
+  Executor nodes disk check results:
+    ✓  ip-172-31-67-105.ec2.internal                 - Sufficient Space. Available: 1740.48 GB
+    ✓  ip-172-31-68-255.ec2.internal                 - Sufficient Space. Available: 1740.54 GB
+    ✓  ip-172-31-69-15.ec2.internal                  - Sufficient Space. Available: 1740.36 GB
+    ✓  ip-172-31-69-88.ec2.internal                  - Sufficient Space. Available: 1740.36 GB
+    ✓  ip-172-31-71-168.ec2.internal                 - Sufficient Space. Available: 1740.54 GB
+    ✓  ip-172-31-74-2.ec2.internal                   - Sufficient Space. Available: 1740.54 GB
+    ✓  ip-172-31-76-246.ec2.internal                 - Sufficient Space. Available: 1740.55 GB
+    ✓  ip-172-31-77-58.ec2.internal                  - Sufficient Space. Available: 1738.37 GB
+  ✓ ALL NODES HAVE SUFFICIENT TEMPORARY DISK SPACE TO EXECUTE GNN JOBS.
+================================================================================
+
+
+================================================================================
+  BOOTSTRAPPING EXPERIMENT CODE AND STAGE UTILITIES
+================================================================================
+  ► LOADING PIPELINE AND CONFIG FROM LOCAL REPOSITORY PATHS...
+    ✓ Packed local git repository code to /tmp/pipeline.zip and copied to /tmp/pipeline
+  ✓ Registered pipeline.zip package on Spark Context
+
+  Run Profile: paper_standard_scale
+  └─ Datasets: ['WikiCS', 'reddit', 'ogbn-arxiv', 'deezereurope']
+  └─ Algorithms: ['lpa', 'louvain']
+  └─ GNN Architecture: GCN (epochs=10, lr=0.001, hidden=256)
+  └─ Global Mapping: True | Boundary Expansion: False
+  └─ Ingestion Phase (Phase 0): True
+
+============================================================
+  PHASE 0 — Ingesting: WikiCS
+============================================================
+[Stage 18:>                                                         (0 + 4) / 4][Stage 18:==============>                                           (1 + 3) / 4]                                                                                [Stage 19:>                                                         (0 + 1) / 1]                                                                                  ✓ Delta tables already exist for 'WikiCS' — skipping download.
+    nodes: s3://us-east-1-s3-gnn/delta-data/WikiCS/nodes/
+    edges: s3://us-east-1-s3-gnn/delta-data/WikiCS/edges/
+    original_nodes: s3://us-east-1-s3-gnn/delta-data/WikiCS/original_nodes/
+    original_edges: s3://us-east-1-s3-gnn/delta-data/WikiCS/original_edges/
+
+============================================================
+  PHASE 0 — Ingesting: reddit
+============================================================
+[Stage 21:=========>        (1 + 1) / 2][Stage 22:===>              (1 + 5) / 6][Stage 21:=========>        (1 + 1) / 2][Stage 22:======>           (2 + 4) / 6][Stage 21:=========>        (1 + 1) / 2][Stage 22:=========>        (3 + 3) / 6][Stage 21:=========>        (1 + 1) / 2][Stage 22:============>     (4 + 2) / 6]                                                                                [Stage 23:>                 (0 + 1) / 1][Stage 24:=======>          (2 + 3) / 5][Stage 23:>                 (0 + 1) / 1][Stage 24:==========>       (3 + 2) / 5]                                                                                [Stage 25:===================>                                      (1 + 2) / 3][Stage 25:======>           (1 + 2) / 3][Stage 26:======>           (3 + 5) / 8]                                                                                [Stage 27:>                 (0 + 1) / 1][Stage 28:=========>        (4 + 4) / 8][Stage 27:>                 (0 + 1) / 1][Stage 28:=============>    (6 + 2) / 8]                                                                                [Stage 29:==================================>                       (3 + 2) / 5][Stage 29:==============================================>           (4 + 1) / 5]                                                                                  ✓ Delta tables already exist for 'reddit' — skipping download.
+    nodes: s3://us-east-1-s3-gnn/delta-data/reddit/nodes/
+    edges: s3://us-east-1-s3-gnn/delta-data/reddit/edges/
+    original_nodes: s3://us-east-1-s3-gnn/delta-data/reddit/original_nodes/
+    original_edges: s3://us-east-1-s3-gnn/delta-data/reddit/original_edges/
+
+============================================================
+  PHASE 0 — Ingesting: ogbn-arxiv
+============================================================
+[Stage 30:>                                                         (0 + 1) / 1][Stage 30:>                 (0 + 1) / 1][Stage 31:================> (8 + 1) / 9]                                                                                [Stage 33:>                 (0 + 1) / 1][Stage 34:============>     (6 + 3) / 9][Stage 33:>                 (0 + 1) / 1][Stage 34:================> (8 + 1) / 9]                                                                                [Stage 35:===================================================>      (8 + 1) / 9]                                                                                [Stage 36:===================================================>      (8 + 1) / 9]                                                                                  ✓ Delta tables already exist for 'ogbn-arxiv' — skipping download.
+    nodes: s3://us-east-1-s3-gnn/delta-data/ogbn-arxiv/nodes/
+    edges: s3://us-east-1-s3-gnn/delta-data/ogbn-arxiv/edges/
+    original_nodes: s3://us-east-1-s3-gnn/delta-data/ogbn-arxiv/original_nodes/
+    original_edges: s3://us-east-1-s3-gnn/delta-data/ogbn-arxiv/original_edges/
+
+============================================================
+  PHASE 0 — Ingesting: deezereurope
+============================================================
+  ✓ Delta tables already exist for 'deezereurope' — skipping download.
+    nodes: s3://us-east-1-s3-gnn/delta-data/deezereurope/nodes/
+    edges: s3://us-east-1-s3-gnn/delta-data/deezereurope/edges/
+    original_nodes: s3://us-east-1-s3-gnn/delta-data/deezereurope/original_nodes/
+    original_edges: s3://us-east-1-s3-gnn/delta-data/deezereurope/original_edges/
+
+============================================================
+  PHASE 3.7 — Delta cached feature propagation: WikiCS / lpa
+============================================================
+  Graph source=phase0; 2 mean-propagation hops; 512 Spark partitions; no Python edge UDFs.
+[Stage 45:=============================================>          (41 + 9) / 50][Stage 45:===============================================>        (42 + 8) / 50][Stage 45:==================================================>     (45 + 5) / 50][Stage 45:=====================================================>  (48 + 2) / 50]                                                                                [Stage 47:==================================================>     (45 + 5) / 50][Stage 50:>                                                         (0 + 1) / 1]                                                                                  ✓ Reusing Delta propagated-feature checkpoint: 11,701 nodes.
+
+============================================================
+  PHASE 3.7 — Delta cached feature propagation: WikiCS / louvain
+============================================================
+  Graph source=phase0; 2 mean-propagation hops; 512 Spark partitions; no Python edge UDFs.
+[Stage 62:===============================================>        (42 + 8) / 50][Stage 62:=================================================>      (44 + 6) / 50][Stage 62:===================================================>    (46 + 4) / 50][Stage 62:====================================================>   (47 + 3) / 50][Stage 62:=====================================================>  (48 + 2) / 50]                                                                                [Stage 64:=================================================>      (44 + 6) / 50]                                                                                  ✓ Reusing Delta propagated-feature checkpoint: 11,701 nodes.
+
+============================================================
+  PHASE 3.7 — Delta cached feature propagation: reddit / lpa
+============================================================
+  Graph source=phase0; 2 mean-propagation hops; 512 Spark partitions; no Python edge UDFs.
+[Stage 79:===================================================>    (46 + 4) / 50][Stage 79:======================================================> (49 + 1) / 50]                                                                                  ✓ Reusing Delta propagated-feature checkpoint: 232,965 nodes.
+
+============================================================
+  PHASE 3.7 — Delta cached feature propagation: reddit / louvain
+============================================================
+  Graph source=phase0; 2 mean-propagation hops; 512 Spark partitions; no Python edge UDFs.
+[Stage 96:=====================================>                 (34 + 16) / 50][Stage 96:=========================================>             (38 + 12) / 50][Stage 96:===================================================>    (46 + 4) / 50]                                                                                [Stage 98:=========================================>             (38 + 12) / 50]                                                                                  ✓ Reusing Delta propagated-feature checkpoint: 232,965 nodes.
+
+============================================================
+  PHASE 3.7 — Delta cached feature propagation: ogbn-arxiv / lpa
+============================================================
+  Graph source=phase0; 2 mean-propagation hops; 512 Spark partitions; no Python edge UDFs.
+[Stage 113:===================================================>   (47 + 3) / 50][Stage 113:====================================================>  (48 + 2) / 50][Stage 113:=====================================================> (49 + 1) / 50]                                                                                [Stage 115:====================================================>  (48 + 2) / 50]                                                                                  ✓ Reusing Delta propagated-feature checkpoint: 169,343 nodes.
+
+============================================================
+  PHASE 3.7 — Delta cached feature propagation: ogbn-arxiv / louvain
+============================================================
+  Graph source=phase0; 2 mean-propagation hops; 512 Spark partitions; no Python edge UDFs.
+[Stage 130:=====================================================> (49 + 1) / 50]                                                                                  ✓ Reusing Delta propagated-feature checkpoint: 169,343 nodes.
+
+============================================================
+  PHASE 3.7 — Delta cached feature propagation: deezereurope / lpa
+============================================================
+  Graph source=phase0; 2 mean-propagation hops; 512 Spark partitions; no Python edge UDFs.
+[Stage 147:====================================================>  (48 + 2) / 50][Stage 147:=====================================================> (49 + 1) / 50]                                                                                [Stage 149:=====================================================> (49 + 1) / 50]                                                                                  ✓ Reusing Delta propagated-feature checkpoint: 28,281 nodes.
+
+============================================================
+  PHASE 3.7 — Delta cached feature propagation: deezereurope / louvain
+============================================================
+  Graph source=phase0; 2 mean-propagation hops; 512 Spark partitions; no Python edge UDFs.
+[Stage 164:==================================================>    (46 + 4) / 50]                                                                                  ✓ Reusing Delta propagated-feature checkpoint: 28,281 nodes.
+
+============================================================
+  PHASE 3.8 — Global edge-free multinomial classifier: WikiCS / lpa
+============================================================
+  Training one Spark ML global model on cached propagation features; no graph edges are read.
+[Stage 180:>                                                    (0 + 256) / 512][Stage 180:=>                                                  (15 + 256) / 512][Stage 180:========>                                           (81 + 256) / 512][Stage 180:=================>                                 (177 + 256) / 512][Stage 180:=====================================>             (376 + 136) / 512][Stage 180:==============================================>     (461 + 51) / 512][Stage 180:==================================================> (496 + 16) / 512][Stage 180:====================================================>(508 + 4) / 512][Stage 181:==============================================>     (458 + 37) / 512]                                                                                  Labelled examples: train=580, valid=1,769, test=5,847
+  Fitting distributed multinomial logistic model (maxIter=30, regParam=0.0001)...
+  ✓ Global classifier complete in 13.7s; valid accuracy=0.7829, test accuracy=0.7746; iterations=30.
+
+============================================================
+  PHASE 3.8 — Global edge-free multinomial classifier: WikiCS / louvain
+============================================================
+  Training one Spark ML global model on cached propagation features; no graph edges are read.
+  Labelled examples: train=580, valid=1,769, test=5,847
+  Fitting distributed multinomial logistic model (maxIter=30, regParam=0.0001)...
+  ✓ Global classifier complete in 7.7s; valid accuracy=0.7829, test accuracy=0.7746; iterations=30.
+
+============================================================
+  PHASE 3.8 — Global edge-free multinomial classifier: reddit / lpa
+============================================================
+  Training one Spark ML global model on cached propagation features; no graph edges are read.
+[Stage 468:====>                                             (101 + 256) / 1024][Stage 468:=============>                                    (267 + 256) / 1024][Stage 468:=====================>                            (444 + 256) / 1024][Stage 468:=================================================>(1006 + 18) / 1024]                                                                                  Labelled examples: train=153,431, valid=23,831, test=55,703
+  Fitting distributed multinomial logistic model (maxIter=30, regParam=0.0001)...
+[Stage 476:=================================================> (999 + 16) / 1024]                                                                                  ✓ Global classifier complete in 13.5s; valid accuracy=0.9590, test accuracy=0.9583; iterations=30.
+
+============================================================
+  PHASE 3.8 — Global edge-free multinomial classifier: reddit / louvain
+============================================================
+  Training one Spark ML global model on cached propagation features; no graph edges are read.
+[Stage 612:===============>                                  (319 + 257) / 1024][Stage 612:=================================================> (989 + 35) / 1024]                                                                                  Labelled examples: train=153,431, valid=23,831, test=55,703
+  Fitting distributed multinomial logistic model (maxIter=30, regParam=0.0001)...
+  ✓ Global classifier complete in 12.9s; valid accuracy=0.9590, test accuracy=0.9583; iterations=30.
+
+============================================================
+  PHASE 3.8 — Global edge-free multinomial classifier: ogbn-arxiv / lpa
+============================================================
+  Training one Spark ML global model on cached propagation features; no graph edges are read.
+  Labelled examples: train=90,941, valid=29,799, test=48,603
+  Fitting distributed multinomial logistic model (maxIter=30, regParam=0.0001)...
+  ✓ Global classifier complete in 6.5s; valid accuracy=0.6947, test accuracy=0.6850; iterations=30.
+
+============================================================
+  PHASE 3.8 — Global edge-free multinomial classifier: ogbn-arxiv / louvain
+============================================================
+  Training one Spark ML global model on cached propagation features; no graph edges are read.
+  Labelled examples: train=90,941, valid=29,799, test=48,603
+  Fitting distributed multinomial logistic model (maxIter=30, regParam=0.0001)...
+  ✓ Global classifier complete in 6.4s; valid accuracy=0.6947, test accuracy=0.6850; iterations=30.
+
+============================================================
+  PHASE 3.8 — Global edge-free multinomial classifier: deezereurope / lpa
+============================================================
+  Training one Spark ML global model on cached propagation features; no graph edges are read.
+  Labelled examples: train=16,968, valid=5,656, test=5,657
+  Fitting distributed multinomial logistic model (maxIter=30, regParam=0.0001)...
+  ✓ Global classifier complete in 6.7s; valid accuracy=0.6354, test accuracy=0.6387; iterations=30.
+
+============================================================
+  PHASE 3.8 — Global edge-free multinomial classifier: deezereurope / louvain
+============================================================
+  Training one Spark ML global model on cached propagation features; no graph edges are read.
+  Labelled examples: train=16,968, valid=5,656, test=5,657
+  Fitting distributed multinomial logistic model (maxIter=30, regParam=0.0001)...
+  ✓ Global classifier complete in 6.6s; valid accuracy=0.6354, test accuracy=0.6387; iterations=30.
+
+[PHASE 5] - Metrics Analysis, Visualizations, and Excel S3 Export
+
+===============================================================================================
+  PHASE 5A — PERFORMANCE COMPARISON (NODE ACCURACY & LINK AUC)
+===============================================================================================
+
+  Dataset: WikiCS
+  _Algorithm           Node Acc   Comm Acc    Bnd Acc    Int Acc     Link AUC
+  ---------------------------------------------------------------------------
+  lpa-SIGN-LR            0.7746          —          —          —            —
+  louvain-SIGN-LR        0.7746          —          —          —            —
+
+  [WikiCS] Performance by community size bucket:
+
+  Dataset: reddit
+  _Algorithm           Node Acc   Comm Acc    Bnd Acc    Int Acc     Link AUC
+  ---------------------------------------------------------------------------
+  lpa-SIGN-LR            0.9583          —          —          —            —
+  louvain-SIGN-LR        0.9583          —          —          —            —
+
+  [reddit] Performance by community size bucket:
+
+  Dataset: ogbn-arxiv
+  _Algorithm           Node Acc   Comm Acc    Bnd Acc    Int Acc     Link AUC
+  ---------------------------------------------------------------------------
+  lpa-SIGN-LR            0.6850          —          —          —            —
+  louvain-SIGN-LR        0.6850          —          —          —            —
+
+  [ogbn-arxiv] Performance by community size bucket:
+
+  Dataset: deezereurope
+  _Algorithm           Node Acc   Comm Acc    Bnd Acc    Int Acc     Link AUC
+  ---------------------------------------------------------------------------
+  lpa-SIGN-LR            0.6387          —          —          —            —
+  louvain-SIGN-LR        0.6387          —          —          —            —
+
+  [deezereurope] Performance by community size bucket:
+
+================================================================================
+  PHASE 5B — TIMING COMPARISON
+================================================================================
+
+  Dataset: WikiCS
+  Algorithm             Phase1    Phase2    Phase3   Phase3b     Total
+  --------------------------------------------------------------------
+  BASELINE (SAGE)            —         —         —      0.0s (Node: 0.0s, Link: 0.0s)
+
+  Dataset: reddit
+  Algorithm             Phase1    Phase2    Phase3   Phase3b     Total
+  --------------------------------------------------------------------
+  BASELINE (SAGE)            —         —         —      0.0s (Node: 0.0s, Link: 0.0s)
+
+  Dataset: ogbn-arxiv
+  Algorithm             Phase1    Phase2    Phase3   Phase3b     Total
+  --------------------------------------------------------------------
+  BASELINE (SAGE)            —         —         —      0.0s (Node: 0.0s, Link: 0.0s)
+
+  Dataset: deezereurope
+  Algorithm             Phase1    Phase2    Phase3   Phase3b     Total
+  --------------------------------------------------------------------
+  BASELINE (SAGE)            —         —         —      0.0s (Node: 0.0s, Link: 0.0s)
+  XLSX → s3://us-east-1-s3-gnn/gnn-bench-out/paper_standard_scale_results.xlsx
+  Plot → s3://us-east-1-s3-gnn/gnn-bench-out/plots/paper_standard_scale/WikiCS_acc_dist.png
+  Plot → s3://us-east-1-s3-gnn/gnn-bench-out/plots/paper_standard_scale/reddit_acc_dist.png
+  Plot → s3://us-east-1-s3-gnn/gnn-bench-out/plots/paper_standard_scale/ogbn-arxiv_acc_dist.png
+  Plot → s3://us-east-1-s3-gnn/gnn-bench-out/plots/paper_standard_scale/deezereurope_acc_dist.png
+  LaTeX → s3://us-east-1-s3-gnn/gnn-bench-out/latex_tables/paper_standard_scale/table12_distdgl_comparison.tex
+  LaTeX → s3://us-east-1-s3-gnn/gnn-bench-out/latex_tables/paper_standard_scale/table13_scalability_multi_instance.tex
+  LaTeX → s3://us-east-1-s3-gnn/gnn-bench-out/latex_tables/paper_standard_scale/table3_link_prediction_main.tex
+  LaTeX → s3://us-east-1-s3-gnn/gnn-bench-out/latex_tables/paper_standard_scale/table4_node_classification_main.tex
+  LaTeX → s3://us-east-1-s3-gnn/gnn-bench-out/latex_tables/paper_standard_scale/table9_ablation_study.tex
+
+================================================================================
+  FINAL PIPELINE REPORT SUMMARY
+================================================================================
+╔══════════════════════════════════════════════════════════════╗
+║  EXPERIMENT: paper_standard_scale                           ║
+║  Global mapping: True                                        ║
+╠══════════════════════════════════════════════════════════════╣
+║   Dataset                        WikiCS                        ║
+║   Phase 0 (ingest)               4.5s                          ║
+╠══════════════════════════════════════════════════════════════╣
+║   [lpa] communities              ? raw → ? valid               ║
+║   [louvain] communities          ? raw → ? valid               ║
+║   Dataset                        reddit                        ║
+║   Phase 0 (ingest)               8.3s                          ║
+╠══════════════════════════════════════════════════════════════╣
+║   [lpa] communities              ? raw → ? valid               ║
+║   [louvain] communities          ? raw → ? valid               ║
+║   Dataset                        ogbn-arxiv                    ║
+║   Phase 0 (ingest)               6.1s                          ║
+╠══════════════════════════════════════════════════════════════╣
+║   [lpa] communities              ? raw → ? valid               ║
+║   [louvain] communities          ? raw → ? valid               ║
+║   Dataset                        deezereurope                  ║
+║   Phase 0 (ingest)               2.5s                          ║
+╠══════════════════════════════════════════════════════════════╣
+║   [lpa] communities              ? raw → ? valid               ║
+║   [louvain] communities          ? raw → ? valid               ║
+╚══════════════════════════════════════════════════════════════╝
+
+[SUCCESS] EMR Driver execution completed in 136.0 seconds.
+================================================================================
+
+Uploading execution log to: s3://us-east-1-s3-gnn/gnn-bench-out/spark-results/paper_standard_scale-8acc7195b0a6143b/logs/run_pipeline.log
+Copying S3 Excel results to: s3://us-east-1-s3-gnn/gnn-bench-out/spark-results/paper_standard_scale-8acc7195b0a6143b/excels/paper_standard_scale_results.xlsx
+Uploading LaTeX table to: s3://us-east-1-s3-gnn/gnn-bench-out/spark-results/paper_standard_scale-8acc7195b0a6143b/latex_tables/table12_distdgl_comparison.tex
+Uploading LaTeX table to: s3://us-east-1-s3-gnn/gnn-bench-out/spark-results/paper_standard_scale-8acc7195b0a6143b/latex_tables/table13_scalability_multi_instance.tex
+Uploading LaTeX table to: s3://us-east-1-s3-gnn/gnn-bench-out/spark-results/paper_standard_scale-8acc7195b0a6143b/latex_tables/table3_link_prediction_main.tex
+Uploading LaTeX table to: s3://us-east-1-s3-gnn/gnn-bench-out/spark-results/paper_standard_scale-8acc7195b0a6143b/latex_tables/table4_node_classification_main.tex
+Uploading LaTeX table to: s3://us-east-1-s3-gnn/gnn-bench-out/spark-results/paper_standard_scale-8acc7195b0a6143b/latex_tables/table9_ablation_study.tex

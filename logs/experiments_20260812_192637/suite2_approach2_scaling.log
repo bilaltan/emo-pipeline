@@ -1,0 +1,134 @@
+Writable directories and free space:
+  - /mnt1/tmp: 1756.27 GB free
+  - /mnt1/spark: 1756.27 GB free
+  - /mnt/tmp: 1738.13 GB free
+  - /mnt/spark: 1738.13 GB free
+  - /mnt/var/tmp: 1738.13 GB free
+  - /tmp: 1738.13 GB free
+  - /var/tmp: 1738.13 GB free
+
+  [Spark Auto-Scaler] Dataset: WikiCS | S3 Size: 100 MB | Scale: Large (100M Scale)
+  [Spark Auto-Scaler] YARN Cluster: 8 nodes × 496 GB RAM × 64 vCores
+  [Spark Auto-Scaler] Python RAM Budget: 10.0 GB/task (dataset-aware)
+  [Spark Auto-Scaler] Bin-Packing Solution:
+    → 64 total executors (8/node × 8 nodes)
+    → 4 cores/executor | 17g heap + 40g overhead = 57g container
+    → Total parallel tasks: 256 | Shuffle partitions: 512
+    → Driver: 40g heap + 12g overhead
+    → Cluster utilization: 3648g / 3966g (92%)
+
+:: loading settings :: url = jar:file:/usr/lib/spark/jars/ivy-2.5.1.jar!/org/apache/ivy/core/settings/ivysettings.xml
+Ivy Default Cache set to: /mnt1/tmp/.ivy2/cache
+The jars for the packages stored in: /mnt1/tmp/.ivy2/jars
+io.delta#delta-spark_2.12 added as a dependency
+graphframes#graphframes added as a dependency
+:: resolving dependencies :: org.apache.spark#spark-submit-parent-91f4c525-53c0-4ae4-a660-39b0e4677cb5;1.0
+	confs: [default]
+	found io.delta#delta-spark_2.12;3.2.0 in central
+	found io.delta#delta-storage;3.2.0 in central
+	found org.antlr#antlr4-runtime;4.9.3 in central
+	found graphframes#graphframes;0.8.3-spark3.5-s_2.12 in spark-packages
+	found org.slf4j#slf4j-api;1.7.16 in central
+:: resolution report :: resolve 152ms :: artifacts dl 5ms
+	:: modules in use:
+	graphframes#graphframes;0.8.3-spark3.5-s_2.12 from spark-packages in [default]
+	io.delta#delta-spark_2.12;3.2.0 from central in [default]
+	io.delta#delta-storage;3.2.0 from central in [default]
+	org.antlr#antlr4-runtime;4.9.3 from central in [default]
+	org.slf4j#slf4j-api;1.7.16 from central in [default]
+	---------------------------------------------------------------------
+	|                  |            modules            ||   artifacts   |
+	|       conf       | number| search|dwnlded|evicted|| number|dwnlded|
+	---------------------------------------------------------------------
+	|      default     |   5   |   0   |   0   |   0   ||   5   |   0   |
+	---------------------------------------------------------------------
+:: retrieving :: org.apache.spark#spark-submit-parent-91f4c525-53c0-4ae4-a660-39b0e4677cb5
+	confs: [default]
+	0 artifacts copied, 5 already retrieved (0kB/3ms)
+Setting default log level to "WARN".
+To adjust logging level use sc.setLogLevel(newLevel). For SparkR, use setLogLevel(newLevel).
+26/08/12 19:29:25 WARN SparkConf: Note that spark.local.dir will be overridden by the value set by the cluster manager (via SPARK_LOCAL_DIRS in mesos/standalone/kubernetes and LOCAL_DIRS in YARN).
+26/08/12 19:29:26 WARN Client: Neither spark.yarn.jars nor spark.yarn.archive is set, falling back to uploading libraries under SPARK_HOME.
+26/08/12 19:29:29 WARN Client: Same path resource file:///mnt1/tmp/.ivy2/jars/io.delta_delta-spark_2.12-3.2.0.jar added multiple times to distributed cache.
+26/08/12 19:29:29 WARN Client: Same path resource file:///mnt1/tmp/.ivy2/jars/graphframes_graphframes-0.8.3-spark3.5-s_2.12.jar added multiple times to distributed cache.
+26/08/12 19:29:29 WARN Client: Same path resource file:///mnt1/tmp/.ivy2/jars/io.delta_delta-storage-3.2.0.jar added multiple times to distributed cache.
+26/08/12 19:29:29 WARN Client: Same path resource file:///mnt1/tmp/.ivy2/jars/org.antlr_antlr4-runtime-4.9.3.jar added multiple times to distributed cache.
+26/08/12 19:29:29 WARN Client: Same path resource file:///mnt1/tmp/.ivy2/jars/org.slf4j_slf4j-api-1.7.16.jar added multiple times to distributed cache.
+  ✓ SparkSession successfully configured and initialized as 'spark'.
+
+================================================================================
+  VERIFYING AND INSTALLING PYTHON ENVIRONMENT PACKAGES
+================================================================================
+  ► Syncing dependencies across all active YARN worker nodes...
+[Stage 0:>                                                     (0 + 128) / 1024][Stage 0:=>                                                   (23 + 128) / 1024][Stage 0:==>                                                  (53 + 128) / 1024][Stage 0:====>                                                (90 + 128) / 1024][Stage 0:=====>                                               (99 + 128) / 1024][Stage 0:=====>                                              (110 + 128) / 1024][Stage 0:======>                                             (123 + 128) / 1024][Stage 0:======>                                             (124 + 128) / 1024][Stage 0:======>                                             (128 + 128) / 1024][Stage 0:========>                                           (162 + 128) / 1024][Stage 0:========>                                           (175 + 128) / 1024][Stage 0:==========>                                         (213 + 128) / 1024][Stage 0:===========>                                        (223 + 128) / 1024][Stage 0:===========>                                        (224 + 128) / 1024][Stage 0:============>                                       (238 + 128) / 1024][Stage 0:============>                                       (240 + 128) / 1024][Stage 0:============>                                       (249 + 128) / 1024][Stage 0:============>                                       (251 + 128) / 1024][Stage 0:============>                                       (254 + 128) / 1024][Stage 0:============>                                       (255 + 128) / 1024][Stage 0:=============>                                      (256 + 128) / 1024][Stage 0:==============>                                     (276 + 128) / 1024][Stage 0:===============>                                    (296 + 128) / 1024][Stage 0:===============>                                    (301 + 128) / 1024][Stage 0:=================>                                  (337 + 128) / 1024][Stage 0:=================>                                  (346 + 128) / 1024][Stage 0:=================>                                  (349 + 128) / 1024][Stage 0:=================>                                  (350 + 128) / 1024][Stage 0:==================>                                 (359 + 128) / 1024][Stage 0:==================>                                 (365 + 128) / 1024][Stage 0:==================>                                 (368 + 128) / 1024][Stage 0:===================>                                (375 + 128) / 1024][Stage 0:===================>                                (379 + 128) / 1024][Stage 0:===================>                                (382 + 128) / 1024][Stage 0:===================>                                (383 + 128) / 1024][Stage 0:===================>                                (384 + 128) / 1024][Stage 0:===================>                                (389 + 128) / 1024][Stage 0:=====================>                              (416 + 128) / 1024][Stage 0:=====================>                              (427 + 128) / 1024][Stage 0:======================>                             (434 + 128) / 1024][Stage 0:=======================>                            (457 + 128) / 1024][Stage 0:=======================>                            (470 + 128) / 1024][Stage 0:========================>                           (476 + 128) / 1024][Stage 0:========================>                           (477 + 128) / 1024][Stage 0:========================>                           (478 + 128) / 1024][Stage 0:========================>                           (486 + 128) / 1024][Stage 0:=========================>                          (493 + 128) / 1024][Stage 0:=========================>                          (495 + 128) / 1024][Stage 0:=========================>                          (496 + 128) / 1024][Stage 0:=========================>                          (497 + 128) / 1024][Stage 0:=========================>                          (504 + 128) / 1024][Stage 0:=========================>                          (506 + 128) / 1024][Stage 0:=========================>                          (509 + 128) / 1024][Stage 0:=========================>                          (510 + 128) / 1024][Stage 0:=========================>                          (511 + 128) / 1024][Stage 0:==========================>                         (512 + 128) / 1024][Stage 0:==========================>                         (515 + 128) / 1024][Stage 0:==========================>                         (518 + 128) / 1024][Stage 0:===========================>                        (546 + 128) / 1024][Stage 0:============================>                       (556 + 128) / 1024][Stage 0:============================>                       (567 + 128) / 1024][Stage 0:=============================>                      (577 + 128) / 1024][Stage 0:=============================>                      (587 + 128) / 1024][Stage 0:==============================>                     (603 + 128) / 1024][Stage 0:==============================>                     (604 + 128) / 1024][Stage 0:==============================>                     (605 + 128) / 1024][Stage 0:==============================>                     (606 + 128) / 1024][Stage 0:==============================>                     (609 + 128) / 1024][Stage 0:===============================>                    (619 + 128) / 1024][Stage 0:===============================>                    (621 + 128) / 1024][Stage 0:===============================>                    (624 + 128) / 1024][Stage 0:===============================>                    (629 + 128) / 1024][Stage 0:================================>                   (633 + 128) / 1024][Stage 0:================================>                   (636 + 128) / 1024][Stage 0:================================>                   (637 + 128) / 1024][Stage 0:================================>                   (639 + 128) / 1024][Stage 0:================================>                   (640 + 128) / 1024][Stage 0:================================>                   (644 + 128) / 1024][Stage 0:=================================>                  (657 + 128) / 1024][Stage 0:=================================>                  (669 + 128) / 1024][Stage 0:==================================>                 (680 + 128) / 1024][Stage 0:===================================>                (693 + 128) / 1024][Stage 0:===================================>                (700 + 128) / 1024][Stage 0:===================================>                (707 + 128) / 1024][Stage 0:====================================>               (720 + 128) / 1024][Stage 0:====================================>               (727 + 128) / 1024][Stage 0:=====================================>              (732 + 128) / 1024][Stage 0:=====================================>              (734 + 128) / 1024][Stage 0:=====================================>              (737 + 128) / 1024][Stage 0:=====================================>              (743 + 128) / 1024][Stage 0:=====================================>              (747 + 128) / 1024][Stage 0:======================================>             (749 + 128) / 1024][Stage 0:======================================>             (751 + 128) / 1024][Stage 0:======================================>             (758 + 128) / 1024][Stage 0:======================================>             (760 + 128) / 1024][Stage 0:======================================>             (763 + 128) / 1024][Stage 0:======================================>             (765 + 128) / 1024][Stage 0:======================================>             (765 + 129) / 1024][Stage 0:======================================>             (766 + 128) / 1024][Stage 0:======================================>             (767 + 128) / 1024][Stage 0:=======================================>            (768 + 128) / 1024][Stage 0:=======================================>            (769 + 128) / 1024][Stage 0:=======================================>            (771 + 128) / 1024][Stage 0:=======================================>            (785 + 128) / 1024][Stage 0:========================================>           (799 + 128) / 1024][Stage 0:========================================>           (807 + 128) / 1024][Stage 0:=========================================>          (816 + 128) / 1024][Stage 0:==========================================>         (828 + 128) / 1024][Stage 0:==========================================>         (835 + 128) / 1024][Stage 0:==========================================>         (838 + 128) / 1024][Stage 0:===========================================>        (850 + 128) / 1024][Stage 0:===========================================>        (857 + 128) / 1024][Stage 0:===========================================>        (861 + 128) / 1024][Stage 0:===========================================>        (862 + 128) / 1024][Stage 0:============================================>       (869 + 128) / 1024][Stage 0:============================================>       (875 + 128) / 1024][Stage 0:============================================>       (877 + 128) / 1024][Stage 0:============================================>       (879 + 128) / 1024][Stage 0:============================================>       (882 + 128) / 1024][Stage 0:============================================>       (886 + 128) / 1024][Stage 0:=============================================>      (891 + 128) / 1024][Stage 0:=============================================>      (893 + 128) / 1024][Stage 0:=============================================>      (894 + 128) / 1024][Stage 0:=============================================>      (895 + 128) / 1024][Stage 0:=============================================>      (896 + 128) / 1024][Stage 0:=============================================>      (899 + 125) / 1024][Stage 0:==============================================>     (908 + 116) / 1024][Stage 0:==============================================>     (917 + 107) / 1024][Stage 0:================================================>    (930 + 94) / 1024][Stage 0:================================================>    (939 + 85) / 1024][Stage 0:=================================================>   (950 + 74) / 1024][Stage 0:=================================================>   (955 + 69) / 1024][Stage 0:=================================================>   (964 + 60) / 1024][Stage 0:==================================================>  (968 + 56) / 1024][Stage 0:==================================================>  (977 + 47) / 1024][Stage 0:===================================================> (986 + 38) / 1024][Stage 0:===================================================> (988 + 36) / 1024][Stage 0:===================================================> (990 + 34) / 1024][Stage 0:===================================================> (995 + 29) / 1024][Stage 0:==================================================> (1000 + 24) / 1024][Stage 0:===================================================>(1005 + 19) / 1024][Stage 0:===================================================>(1007 + 17) / 1024][Stage 0:===================================================>(1008 + 16) / 1024][Stage 0:===================================================>(1010 + 14) / 1024][Stage 0:===================================================>(1014 + 10) / 1024][Stage 0:====================================================>(1021 + 3) / 1024][Stage 0:====================================================>(1022 + 2) / 1024][Stage 0:====================================================>(1023 + 1) / 1024]                                                                                  ► Sync attempt 1/5: 8 worker node(s) verified: ['ip-172-31-67-105', 'ip-172-31-68-255', 'ip-172-31-69-15', 'ip-172-31-69-88', 'ip-172-31-71-168', 'ip-172-31-74-2', 'ip-172-31-76-246', 'ip-172-31-77-58']
+  ✓ All 8 YARN worker nodes verified and synced successfully.
+
+  === YARN Executor Package Sync Summary ===
+    ip-172-31-67-105.ec2.internal: Success (Cached)
+    ip-172-31-68-255.ec2.internal: Success (Cached)
+    ip-172-31-69-15.ec2.internal: Success (Cached)
+    ip-172-31-69-88.ec2.internal: Success (Cached)
+    ip-172-31-71-168.ec2.internal: Success (Cached)
+    ip-172-31-74-2.ec2.internal: Success (Cached)
+    ip-172-31-76-246.ec2.internal: Success (Cached)
+    ip-172-31-77-58.ec2.internal: Success (Cached)
+
+  ✓ ALL PIPELINE DEPENDENCIES VERIFIED AND READY.
+SLF4J: Failed to load class "org.slf4j.impl.StaticLoggerBinder".
+SLF4J: Defaulting to no-operation (NOP) logger implementation
+SLF4J: See http://www.slf4j.org/codes.html#StaticLoggerBinder for further details.
+
+================================================================================
+  CLUSTER DISK SPACE COMPATIBILITY VERIFICATION
+================================================================================
+  Dataset: WikiCS | Nodes: 200,000 | Features: 128
+  Required temp workspace disk space per executor container: 10.00 GB
+  Driver temp space available (/mnt1/tmp): 1756.27 GB
+  Executor nodes disk check results:
+    ✓  ip-172-31-67-105.ec2.internal                 - Sufficient Space. Available: 1748.95 GB
+    ✓  ip-172-31-68-255.ec2.internal                 - Sufficient Space. Available: 1748.96 GB
+    ✓  ip-172-31-69-15.ec2.internal                  - Sufficient Space. Available: 1748.96 GB
+    ✓  ip-172-31-69-88.ec2.internal                  - Sufficient Space. Available: 1748.95 GB
+    ✓  ip-172-31-71-168.ec2.internal                 - Sufficient Space. Available: 1748.96 GB
+    ✓  ip-172-31-74-2.ec2.internal                   - Sufficient Space. Available: 1748.95 GB
+    ✓  ip-172-31-76-246.ec2.internal                 - Sufficient Space. Available: 1748.96 GB
+    ✓  ip-172-31-77-58.ec2.internal                  - Sufficient Space. Available: 1748.53 GB
+  ✓ ALL NODES HAVE SUFFICIENT TEMPORARY DISK SPACE TO EXECUTE GNN JOBS.
+================================================================================
+
+
+================================================================================
+  BOOTSTRAPPING EXPERIMENT CODE AND STAGE UTILITIES
+================================================================================
+  ► LOADING PIPELINE AND CONFIG FROM LOCAL REPOSITORY PATHS...
+    ✓ Packed local git repository code to /tmp/pipeline.zip and copied to /tmp/pipeline
+  ✓ Registered pipeline.zip package on Spark Context
+
+  Run Profile: paper_approach2_scaling
+  └─ Datasets: ['WikiCS', 'ogbn-products', 'ogbn-papers100M']
+  └─ Algorithms: ['lpa']
+  └─ GNN Architecture: GCN (epochs=10, lr=0.001, hidden=256)
+  └─ Global Mapping: True | Boundary Expansion: False
+  └─ Ingestion Phase (Phase 0): False
+[Phase 0 SKIPPED]  RUN_PHASE0 = False
+  → Set RUN_PHASE0 = True in experiment_config.py when using a new dataset.
+
+============================================================
+  PHASE 3.7 — Delta cached feature propagation: WikiCS / lpa
+============================================================
+  Graph source=phase0; 2 mean-propagation hops; 512 Spark partitions; no Python edge UDFs.
+Traceback (most recent call last):
+  File "/home/hadoop/emo-pipeline/runners/run_emr.py", line 1777, in <module>
+    main()
+  File "/home/hadoop/emo-pipeline/runners/run_emr.py", line 1386, in main
+    run_phase37(
+  File "/home/hadoop/emo-pipeline/pipeline/phases/phase37_feature_propagation.py", line 89, in run_phase37
+    nodes, edges = _load_graph(spark, paths, graph_source)
+  File "/home/hadoop/emo-pipeline/pipeline/phases/phase37_feature_propagation.py", line 33, in _load_graph
+    nodes = (spark.read.format("delta").load(paths["original_nodes"])
+  File "/usr/lib/spark/python/pyspark/sql/readwriter.py", line 307, in load
+    return self._df(self._jreader.load(path))
+  File "/usr/lib/spark/python/lib/py4j-0.10.9.7-src.zip/py4j/java_gateway.py", line 1322, in __call__
+  File "/usr/lib/spark/python/pyspark/errors/exceptions/captured.py", line 185, in deco
+    raise converted from None
+pyspark.errors.exceptions.captured.AnalysisException: [PATH_NOT_FOUND] Path does not exist: s3://us-east-1-s3-gnn/delta-data/WikiCS/original_nodes.

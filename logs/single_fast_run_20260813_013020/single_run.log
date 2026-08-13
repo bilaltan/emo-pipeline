@@ -1,0 +1,214 @@
+Writable directories and free space:
+  - /mnt1/tmp: 1750.57 GB free
+  - /mnt1/spark: 1750.57 GB free
+  - /mnt/tmp: 1738.02 GB free
+  - /mnt/spark: 1738.02 GB free
+  - /mnt/var/tmp: 1738.02 GB free
+  - /tmp: 1738.02 GB free
+  - /var/tmp: 1738.02 GB free
+
+  [Spark Auto-Scaler] Dataset: WikiCS | S3 Size: 100 MB | Scale: Large (100M Scale)
+  [Spark Auto-Scaler] YARN Cluster: 8 nodes × 496 GB RAM × 64 vCores
+  [Spark Auto-Scaler] Python RAM Budget: 10.0 GB/task (dataset-aware)
+  [Spark Auto-Scaler] Bin-Packing Solution:
+    → 64 total executors (8/node × 8 nodes)
+    → 4 cores/executor | 17g heap + 40g overhead = 57g container
+    → Total parallel tasks: 256 | Shuffle partitions: 512
+    → Driver: 40g heap + 12g overhead
+    → Cluster utilization: 3648g / 3966g (92%)
+
+:: loading settings :: url = jar:file:/usr/lib/spark/jars/ivy-2.5.1.jar!/org/apache/ivy/core/settings/ivysettings.xml
+Ivy Default Cache set to: /mnt1/tmp/.ivy2/cache
+The jars for the packages stored in: /mnt1/tmp/.ivy2/jars
+io.delta#delta-spark_2.12 added as a dependency
+graphframes#graphframes added as a dependency
+:: resolving dependencies :: org.apache.spark#spark-submit-parent-7f5dd323-6abf-4993-badf-cdfe95df21c2;1.0
+	confs: [default]
+	found io.delta#delta-spark_2.12;3.2.0 in central
+	found io.delta#delta-storage;3.2.0 in central
+	found org.antlr#antlr4-runtime;4.9.3 in central
+	found graphframes#graphframes;0.8.3-spark3.5-s_2.12 in spark-packages
+	found org.slf4j#slf4j-api;1.7.16 in central
+:: resolution report :: resolve 139ms :: artifacts dl 5ms
+	:: modules in use:
+	graphframes#graphframes;0.8.3-spark3.5-s_2.12 from spark-packages in [default]
+	io.delta#delta-spark_2.12;3.2.0 from central in [default]
+	io.delta#delta-storage;3.2.0 from central in [default]
+	org.antlr#antlr4-runtime;4.9.3 from central in [default]
+	org.slf4j#slf4j-api;1.7.16 from central in [default]
+	---------------------------------------------------------------------
+	|                  |            modules            ||   artifacts   |
+	|       conf       | number| search|dwnlded|evicted|| number|dwnlded|
+	---------------------------------------------------------------------
+	|      default     |   5   |   0   |   0   |   0   ||   5   |   0   |
+	---------------------------------------------------------------------
+:: retrieving :: org.apache.spark#spark-submit-parent-7f5dd323-6abf-4993-badf-cdfe95df21c2
+	confs: [default]
+	0 artifacts copied, 5 already retrieved (0kB/3ms)
+Setting default log level to "WARN".
+To adjust logging level use sc.setLogLevel(newLevel). For SparkR, use setLogLevel(newLevel).
+26/08/13 01:30:25 WARN SparkConf: Note that spark.local.dir will be overridden by the value set by the cluster manager (via SPARK_LOCAL_DIRS in mesos/standalone/kubernetes and LOCAL_DIRS in YARN).
+26/08/13 01:30:26 WARN Client: Neither spark.yarn.jars nor spark.yarn.archive is set, falling back to uploading libraries under SPARK_HOME.
+26/08/13 01:30:29 WARN Client: Same path resource file:///mnt1/tmp/.ivy2/jars/io.delta_delta-spark_2.12-3.2.0.jar added multiple times to distributed cache.
+26/08/13 01:30:29 WARN Client: Same path resource file:///mnt1/tmp/.ivy2/jars/graphframes_graphframes-0.8.3-spark3.5-s_2.12.jar added multiple times to distributed cache.
+26/08/13 01:30:29 WARN Client: Same path resource file:///mnt1/tmp/.ivy2/jars/io.delta_delta-storage-3.2.0.jar added multiple times to distributed cache.
+26/08/13 01:30:29 WARN Client: Same path resource file:///mnt1/tmp/.ivy2/jars/org.antlr_antlr4-runtime-4.9.3.jar added multiple times to distributed cache.
+26/08/13 01:30:29 WARN Client: Same path resource file:///mnt1/tmp/.ivy2/jars/org.slf4j_slf4j-api-1.7.16.jar added multiple times to distributed cache.
+  ✓ SparkSession successfully configured and initialized as 'spark'.
+
+================================================================================
+  VERIFYING AND INSTALLING PYTHON ENVIRONMENT PACKAGES
+================================================================================
+  ► Syncing dependencies across all active YARN worker nodes...
+[Stage 0:>                                                     (0 + 128) / 1024][Stage 0:=====>                                              (106 + 128) / 1024][Stage 0:======>                                             (121 + 128) / 1024][Stage 0:======>                                             (128 + 128) / 1024][Stage 0:========>                                           (162 + 128) / 1024][Stage 0:===========>                                        (236 + 128) / 1024][Stage 0:============>                                       (238 + 128) / 1024][Stage 0:============>                                       (253 + 128) / 1024][Stage 0:=============>                                      (256 + 128) / 1024][Stage 0:=============>                                      (260 + 128) / 1024][Stage 0:================>                                   (325 + 128) / 1024][Stage 0:==================>                                 (363 + 128) / 1024][Stage 0:==================>                                 (366 + 128) / 1024][Stage 0:===================>                                (375 + 128) / 1024][Stage 0:===================>                                (382 + 128) / 1024][Stage 0:===================>                                (384 + 128) / 1024][Stage 0:=====================>                              (427 + 128) / 1024][Stage 0:=======================>                            (464 + 128) / 1024][Stage 0:========================>                           (478 + 128) / 1024][Stage 0:========================>                           (491 + 128) / 1024][Stage 0:=========================>                          (498 + 128) / 1024][Stage 0:=========================>                          (509 + 128) / 1024][Stage 0:==========================>                         (512 + 128) / 1024][Stage 0:==========================>                         (529 + 130) / 1024][Stage 0:=============================>                      (575 + 128) / 1024][Stage 0:==============================>                     (601 + 128) / 1024][Stage 0:==============================>                     (606 + 128) / 1024][Stage 0:==============================>                     (608 + 128) / 1024][Stage 0:===============================>                    (624 + 128) / 1024][Stage 0:================================>                   (636 + 128) / 1024][Stage 0:================================>                   (639 + 128) / 1024][Stage 0:================================>                   (640 + 128) / 1024][Stage 0:================================>                   (644 + 128) / 1024][Stage 0:==================================>                 (682 + 128) / 1024][Stage 0:===================================>                (707 + 128) / 1024][Stage 0:====================================>               (728 + 128) / 1024][Stage 0:=====================================>              (734 + 128) / 1024][Stage 0:=====================================>              (736 + 128) / 1024][Stage 0:=====================================>              (746 + 128) / 1024][Stage 0:======================================>             (756 + 128) / 1024][Stage 0:======================================>             (766 + 128) / 1024][Stage 0:======================================>             (767 + 128) / 1024][Stage 0:=======================================>            (768 + 128) / 1024][Stage 0:=======================================>            (785 + 128) / 1024][Stage 0:=========================================>          (821 + 128) / 1024][Stage 0:==========================================>         (843 + 128) / 1024][Stage 0:===========================================>        (860 + 128) / 1024][Stage 0:===========================================>        (864 + 128) / 1024][Stage 0:============================================>       (872 + 128) / 1024][Stage 0:============================================>       (877 + 128) / 1024][Stage 0:============================================>       (883 + 128) / 1024][Stage 0:=============================================>      (892 + 128) / 1024][Stage 0:=============================================>      (895 + 128) / 1024][Stage 0:=============================================>      (896 + 128) / 1024][Stage 0:=============================================>      (902 + 122) / 1024][Stage 0:================================================>    (933 + 91) / 1024][Stage 0:=================================================>   (960 + 64) / 1024][Stage 0:==================================================>  (981 + 43) / 1024][Stage 0:===================================================> (990 + 34) / 1024][Stage 0:===================================================> (991 + 33) / 1024][Stage 0:===================================================> (994 + 30) / 1024][Stage 0:==================================================> (1003 + 21) / 1024][Stage 0:===================================================>(1006 + 18) / 1024][Stage 0:===================================================>(1008 + 16) / 1024][Stage 0:===================================================>(1013 + 11) / 1024][Stage 0:====================================================>(1019 + 5) / 1024][Stage 0:====================================================>(1022 + 2) / 1024][Stage 0:====================================================>(1023 + 1) / 1024]                                                                                  ► Sync attempt 1/5: 8 worker node(s) verified: ['ip-172-31-67-105', 'ip-172-31-68-255', 'ip-172-31-69-15', 'ip-172-31-69-88', 'ip-172-31-71-168', 'ip-172-31-74-2', 'ip-172-31-76-246', 'ip-172-31-77-58']
+  ✓ All 8 YARN worker nodes verified and synced successfully.
+
+  === YARN Executor Package Sync Summary ===
+    ip-172-31-67-105.ec2.internal: Success (Cached)
+    ip-172-31-68-255.ec2.internal: Success (Cached)
+    ip-172-31-69-15.ec2.internal: Success (Cached)
+    ip-172-31-69-88.ec2.internal: Success (Cached)
+    ip-172-31-71-168.ec2.internal: Success (Cached)
+    ip-172-31-74-2.ec2.internal: Success (Cached)
+    ip-172-31-76-246.ec2.internal: Success (Cached)
+    ip-172-31-77-58.ec2.internal: Success (Cached)
+
+  ✓ ALL PIPELINE DEPENDENCIES VERIFIED AND READY.
+SLF4J: Failed to load class "org.slf4j.impl.StaticLoggerBinder".
+SLF4J: Defaulting to no-operation (NOP) logger implementation
+SLF4J: See http://www.slf4j.org/codes.html#StaticLoggerBinder for further details.
+
+================================================================================
+  CLUSTER DISK SPACE COMPATIBILITY VERIFICATION
+================================================================================
+  Dataset: WikiCS | Nodes: 200,000 | Features: 128
+  Required temp workspace disk space per executor container: 10.00 GB
+  Driver temp space available (/mnt1/tmp): 1750.57 GB
+  Executor nodes disk check results:
+    ✓  ip-172-31-67-105.ec2.internal                 - Sufficient Space. Available: 1742.98 GB
+    ✓  ip-172-31-68-255.ec2.internal                 - Sufficient Space. Available: 1743.05 GB
+    ✓  ip-172-31-69-15.ec2.internal                  - Sufficient Space. Available: 1742.87 GB
+    ✓  ip-172-31-69-88.ec2.internal                  - Sufficient Space. Available: 1742.87 GB
+    ✓  ip-172-31-71-168.ec2.internal                 - Sufficient Space. Available: 1743.05 GB
+    ✓  ip-172-31-74-2.ec2.internal                   - Sufficient Space. Available: 1743.04 GB
+    ✓  ip-172-31-76-246.ec2.internal                 - Sufficient Space. Available: 1743.05 GB
+    ✓  ip-172-31-77-58.ec2.internal                  - Sufficient Space. Available: 1742.07 GB
+  ✓ ALL NODES HAVE SUFFICIENT TEMPORARY DISK SPACE TO EXECUTE GNN JOBS.
+================================================================================
+
+
+================================================================================
+  BOOTSTRAPPING EXPERIMENT CODE AND STAGE UTILITIES
+================================================================================
+  ► LOADING PIPELINE AND CONFIG FROM LOCAL REPOSITORY PATHS...
+    ✓ Packed local git repository code to /tmp/pipeline.zip and copied to /tmp/pipeline
+  ✓ Registered pipeline.zip package on Spark Context
+
+  Run Profile: fast_single_pass
+  └─ Datasets: ['WikiCS']
+  └─ Algorithms: ['lpa']
+  └─ GNN Architecture: GCN (epochs=10, lr=0.001, hidden=256)
+  └─ Global Mapping: True | Boundary Expansion: False
+  └─ Ingestion Phase (Phase 0): True
+
+============================================================
+  PHASE 0 — Ingesting: WikiCS
+============================================================
+Downloading /mnt1/tmp/.dgl/wiki_cs.zip from https://data.dgl.ai/dataset/wiki_cs.zip...
+Extracting file to /mnt1/tmp/.dgl/wiki_cs_58d9b421
+  Saving original (directed) graph: 11,701 nodes | 431,726 edges ...
+  Feature dimension: 300 | Ingesting in chunks of 3,333 nodes...
+[Stage 2:>                                                      (0 + 128) / 512][Stage 2:>                                                      (2 + 130) / 512][Stage 2:===>                                                  (32 + 128) / 512][Stage 2:==============>                                      (136 + 128) / 512][Stage 2:==========================>                          (252 + 128) / 512][Stage 2:=========================================>           (403 + 109) / 512][Stage 2:======================================================>(510 + 2) / 512]                                                                                [Stage 4:=============================>                       (287 + 128) / 512][Stage 4:=================================================>    (473 + 39) / 512][Stage 4:======================================================>(511 + 1) / 512]                                                                                [Stage 6:=======================================>             (377 + 128) / 512][Stage 6:======================================================>(509 + 3) / 512]                                                                                [Stage 8:===================================================>  (493 + 19) / 512]                                                                                  Original nodes written → s3://us-east-1-s3-gnn/delta-data/WikiCS/original_nodes/
+[Stage 10:================================================>    (470 + 42) / 512]                                                                                  Original edges written → s3://us-east-1-s3-gnn/delta-data/WikiCS/original_edges/
+  Nodes: 11,701 | Edges (both dirs): 431,206
+
+==================================================
+  GRAPH INTEGRITY VALIDATION
+==================================================
+Nodes count (raw): 11,701
+Edges count (raw): 431,206
+Self-loops detected: 0 (Clean)
+Unique undirected pairs: 215,603
+Expected symmetrized count: 431,206
+Actual symmetrized count: 431,206
+  → STATUS: Graph is a clean, simple, symmetric undirected graph.
+==================================================
+
+[Stage 12:=============================================>       (443 + 69) / 512]                                                                                [Stage 14:===============================================>     (457 + 55) / 512][Stage 14:=====================================================>(511 + 1) / 512]                                                                                [Stage 16:=============================================>       (441 + 71) / 512]                                                                                [Stage 18:=====================================>              (372 + 128) / 512][Stage 18:=====================================================>(510 + 2) / 512]                                                                                  Nodes written.
+[Stage 20:=========================================>          (409 + 103) / 512]                                                                                  Edges written.
+[Stage 22:>                                                     (0 + 128) / 512][Stage 22:===========>                                        (114 + 128) / 512][Stage 22:================================>                   (316 + 129) / 512][Stage 22:=====================================================>(503 + 9) / 512]                                                                                  Masks written.
+  ✓ Skipping synchronous Delta OPTIMIZE/VACUUM to prevent S3 compaction delays.
+  Sweeping and purging raw dataset caches for 'WikiCS' across all candidate volumes...
+    ✓ Purged leftover zip archive: /mnt1/tmp/.dgl/reddit.zip
+  ✓ WikiCS ingested in 34.6s
+
+============================================================
+  PHASE 3.7 — Delta cached feature propagation: WikiCS / lpa
+============================================================
+  Graph source=phase0; 2 mean-propagation hops; 512 Spark partitions; no Python edge UDFs.
+[Stage 26:>                                                       (0 + 50) / 50][Stage 26:==>                                                     (2 + 48) / 50][Stage 26:===================>                                   (18 + 32) / 50][Stage 26:=================================>                     (30 + 20) / 50]                                                                                [Stage 39:=======================>                               (21 + 29) / 50][Stage 39:========================>                              (22 + 28) / 50][Stage 39:=======================================>               (36 + 14) / 50][Stage 39:===================================================>    (46 + 4) / 50]                                                                                [Stage 40:=====================================================>(510 + 2) / 512]                                                                                  Input graph: 11,701 nodes, 431,206 directed propagation edges.
+  Hop 1/2: Spark vector mean aggregation and Delta checkpoint...
+[Stage 58:=============>(511 + 1) / 512][Stage 59:========>   (369 + 127) / 512]                                                                                [Stage 63:======>                                              (74 + 129) / 650][Stage 63:=====================>                              (272 + 128) / 650][Stage 63:=======================================>            (490 + 130) / 650][Stage 63:=====================================================>(649 + 1) / 650][Stage 66:=============>                                      (128 + 128) / 512][Stage 66:=====================>                              (216 + 128) / 512][Stage 66:================================>                   (318 + 128) / 512][Stage 66:==============================================>      (449 + 63) / 512]                                                                                  Hop 2/2: Spark vector mean aggregation and Delta checkpoint...
+[Stage 87:============================>                       (283 + 128) / 512][Stage 87:=============================================>       (442 + 70) / 512]                                                                                [Stage 111:====================================================>(525 + 6) / 531][Stage 115:===================>                               (200 + 128) / 512][Stage 115:==================================>                (350 + 127) / 512][Stage 115:====================================================>(508 + 4) / 512]                                                                                  ✓ Propagation coverage verified: 11,701/11,701 nodes; 2 Delta hops materialized in 26.7s.
+    Classifier features are cached at s3://us-east-1-s3-gnn/delta-data/WikiCS/phase37_propagation/fast_single_pass_WikiCS_lpa/phase0/features_k2.
+
+============================================================
+  PHASE 3.8 — Global edge-free multinomial classifier: WikiCS / lpa
+============================================================
+  Training one Spark ML global model on cached propagation features; no graph edges are read.
+  Labelled examples: train=580, valid=1,769, test=5,847
+  Fitting distributed multinomial logistic model (maxIter=30, regParam=0.0001)...
+  ✓ Global classifier complete in 9.6s; valid accuracy=0.7829, test accuracy=0.7746; iterations=30.
+
+[PHASE 5] - Metrics Analysis, Visualizations, and Excel S3 Export
+
+===============================================================================================
+  PHASE 5A — PERFORMANCE COMPARISON (NODE ACCURACY & LINK AUC)
+===============================================================================================
+
+  Dataset: WikiCS
+  _Algorithm           Node Acc   Comm Acc    Bnd Acc    Int Acc     Link AUC
+  ---------------------------------------------------------------------------
+  lpa-SIGN-LR            0.7746          —          —          —            —
+
+  [WikiCS] Performance by community size bucket:
+
+================================================================================
+  PHASE 5B — TIMING COMPARISON
+================================================================================
+
+  Dataset: WikiCS
+  Algorithm             Phase1    Phase2    Phase3   Phase3b     Total
+  --------------------------------------------------------------------
+  BASELINE (SAGE)            —         —         —      0.0s (Node: 0.0s, Link: 0.0s)
+  XLSX → s3://us-east-1-s3-gnn/gnn-bench-out/fast_single_pass_results.xlsx
+  Plot → s3://us-east-1-s3-gnn/gnn-bench-out/plots/fast_single_pass/WikiCS_acc_dist.png
+  LaTeX → s3://us-east-1-s3-gnn/gnn-bench-out/latex_tables/fast_single_pass/table12_distdgl_comparison.tex
+  LaTeX → s3://us-east-1-s3-gnn/gnn-bench-out/latex_tables/fast_single_pass/table13_scalability_multi_instance.tex
+  LaTeX → s3://us-east-1-s3-gnn/gnn-bench-out/latex_tables/fast_single_pass/table3_link_prediction_main.tex
+  LaTeX → s3://us-east-1-s3-gnn/gnn-bench-out/latex_tables/fast_single_pass/table4_node_classification_main.tex
+  LaTeX → s3://us-east-1-s3-gnn/gnn-bench-out/latex_tables/fast_single_pass/table9_ablation_study.tex
+
+================================================================================
+  FINAL PIPELINE REPORT SUMMARY
+================================================================================
+╔══════════════════════════════════════════════════════════════╗
+║  EXPERIMENT: fast_single_pass                               ║
+║  Global mapping: True                                        ║
+╠══════════════════════════════════════════════════════════════╣
+║   Dataset                        WikiCS                        ║
+║   Phase 0 (ingest)               34.6s                         ║
+╠══════════════════════════════════════════════════════════════╣
+║   [lpa] communities              ? raw → ? valid               ║
+╚══════════════════════════════════════════════════════════════╝
+
+[SUCCESS] EMR Driver execution completed in 71.5 seconds.
+================================================================================
+
+Uploading execution log to: s3://us-east-1-s3-gnn/gnn-bench-out/spark-results/fast_single_pass-29fd5e5f1a1c099f/logs/run_pipeline.log
+Copying S3 Excel results to: s3://us-east-1-s3-gnn/gnn-bench-out/spark-results/fast_single_pass-29fd5e5f1a1c099f/excels/fast_single_pass_results.xlsx
+Uploading LaTeX table to: s3://us-east-1-s3-gnn/gnn-bench-out/spark-results/fast_single_pass-29fd5e5f1a1c099f/latex_tables/table12_distdgl_comparison.tex
+Uploading LaTeX table to: s3://us-east-1-s3-gnn/gnn-bench-out/spark-results/fast_single_pass-29fd5e5f1a1c099f/latex_tables/table13_scalability_multi_instance.tex
+Uploading LaTeX table to: s3://us-east-1-s3-gnn/gnn-bench-out/spark-results/fast_single_pass-29fd5e5f1a1c099f/latex_tables/table3_link_prediction_main.tex
+Uploading LaTeX table to: s3://us-east-1-s3-gnn/gnn-bench-out/spark-results/fast_single_pass-29fd5e5f1a1c099f/latex_tables/table4_node_classification_main.tex
+Uploading LaTeX table to: s3://us-east-1-s3-gnn/gnn-bench-out/spark-results/fast_single_pass-29fd5e5f1a1c099f/latex_tables/table9_ablation_study.tex
