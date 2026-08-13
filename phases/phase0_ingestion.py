@@ -549,9 +549,12 @@ def run_phase0(spark, sc, datasets, run_phase0_flag, use_ogb_splits,
         m = all_s != all_d
         all_s, all_d = all_s[m], all_d[m]
         lo, hi = np.minimum(all_s, all_d), np.maximum(all_s, all_d)
-        canon  = np.unique(np.stack([lo, hi], axis=1), axis=0)
-        src_f  = np.concatenate([canon[:, 0], canon[:, 1]])
-        dst_f  = np.concatenate([canon[:, 1], canon[:, 0]])
+        packed = (lo.astype(np.int64) << 32) | (hi.astype(np.int64) & 0xFFFFFFFF)
+        unique_packed = np.unique(packed)
+        canon_lo = (unique_packed >> 32).astype(np.int64)
+        canon_hi = (unique_packed & 0xFFFFFFFF).astype(np.int64)
+        src_f  = np.concatenate([canon_lo, canon_hi])
+        dst_f  = np.concatenate([canon_hi, canon_lo])
         print(f"  Nodes: {n_nodes:,} | Edges (both dirs): {len(src_f):,}")
 
         from pipeline.utils.graph_validator import validate_graph_properties
