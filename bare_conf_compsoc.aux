@@ -58,27 +58,26 @@
 \@writefile{toc}{\contentsline {subsection}{\numberline {6.2}Main Link Prediction \& Node Classification Performance}{5}{}\protected@file@percent }
 \@writefile{toc}{\contentsline {subsection}{\numberline {6.3}Component-wise System Ablation Study}{5}{}\protected@file@percent }
 \@writefile{toc}{\contentsline {subsection}{\numberline {6.4}Fair Comparison with Distributed GRL Engine (DistDGL)}{5}{}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsection}{\numberline {6.5}Horizontal Scalability \& Multi-Instance Efficiency}{5}{}\protected@file@percent }
 \@writefile{lof}{\contentsline {figure}{\numberline {2}{\ignorespaces Validation and evaluation setup used for all reported experiments. The figure consolidates dataset coverage, EMR/Spark infrastructure, model families, fairness controls, fixed two-hop configuration for Phase 3.7/3.8 scaling, and the quality/systems/scalability metrics reported in the paper artifacts.}}{6}{}\protected@file@percent }
 \newlabel{fig:exp_setup_validation}{{2}{6}{}{figure.2}{}}
 \@writefile{lot}{\contentsline {table}{\numberline {3}{\ignorespaces Performance Comparison on Link Prediction across Base Models and Datasets (including empirical results for ogbn-products and reddit)}}{6}{}\protected@file@percent }
 \newlabel{table_lp_main}{{3}{6}{}{table.3}{}}
-\@writefile{toc}{\contentsline {section}{\numberline {7}Discussion \& Future Database Extensions}{6}{}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsection}{\numberline {7.1}Incremental Time-Travel GRL}{6}{}\protected@file@percent }
-\citation{zhang2022gamlp}
+\@writefile{toc}{\contentsline {subsection}{\numberline {6.5}Horizontal Scalability \& Multi-Instance Efficiency}{6}{}\protected@file@percent }
 \@writefile{lot}{\contentsline {table}{\numberline {4}{\ignorespaces Performance Comparison on Node Classification across Base Models and Datasets (including empirical results for ogbn-products and reddit)}}{7}{}\protected@file@percent }
 \newlabel{table_nc_main}{{4}{7}{}{table.4}{}}
 \@writefile{lot}{\contentsline {table}{\numberline {5}{\ignorespaces Ablation Study: System \& Algorithmic Component Impact on Accuracy, Throughput, and Training Time (reddit dataset)}}{7}{}\protected@file@percent }
 \newlabel{table_ablation_main}{{5}{7}{}{table.5}{}}
 \@writefile{lot}{\contentsline {table}{\numberline {6}{\ignorespaces Fair Performance \& Efficiency Comparison with Distributed GRL Engine (DistDGL)}}{7}{}\protected@file@percent }
 \newlabel{table_distdgl_main}{{6}{7}{}{table.6}{}}
-\@writefile{toc}{\contentsline {subsection}{\numberline {7.2}Multi-Dimensional Z-Ordering for S3 Graph Layouts}{7}{}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsection}{\numberline {7.3}Limitations}{7}{}\protected@file@percent }
+\citation{zhang2022gamlp}
 \@writefile{lot}{\contentsline {table}{\numberline {7}{\ignorespaces Phase 3.7/3.8 Executor-Scaling Results on AWS EMR with Two-Hop Propagation ($\text  {num\_hops}=2$) (8 workers, 16/32/64 executors)}}{8}{}\protected@file@percent }
 \newlabel{table_scalability_main}{{7}{8}{}{table.7}{}}
 \@writefile{lof}{\contentsline {figure}{\numberline {3}{\ignorespaces ML-GRL CPU cores / executor-scaling behavior across three graph scale classes for two-hop propagated features $[x^{(0)}\Vert x^{(1)}\Vert x^{(2)}]$. Panel (a) shows end-to-end propagation runtime on a log scale. Panel (b) compares observed speedup to ideal linear scaling from 16 executors (64 vCPUs) up to 64 executors (256 vCPUs).}}{8}{}\protected@file@percent }
 \newlabel{fig:phase37_scaling_main}{{3}{8}{}{figure.3}{}}
-\@writefile{toc}{\contentsline {section}{\numberline {8}Conclusion}{8}{}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {7}Discussion \& Future Database Extensions}{8}{}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {7.1}Incremental Time-Travel GRL}{8}{}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {7.2}Multi-Dimensional Z-Ordering for S3 Graph Layouts}{8}{}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {7.3}Limitations}{8}{}\protected@file@percent }
 \bibcite{hamilton2017graphsage}{1}
 \bibcite{velickovic2018gat}{2}
 \bibcite{zheng2020distdgl}{3}
@@ -98,5 +97,6 @@
 \bibcite{zhang2021fedsage}{17}
 \bibcite{zhang2022gamlp}{18}
 \bibcite{huang2021cs}{19}
+\@writefile{toc}{\contentsline {section}{\numberline {8}Conclusion}{9}{}\protected@file@percent }
 \@writefile{toc}{\contentsline {section}{References}{9}{}\protected@file@percent }
 \gdef \@abspage@last{9}

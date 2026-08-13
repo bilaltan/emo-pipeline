@@ -178,6 +178,14 @@ def main():
                         help="Force Delta Lake ingestion phase")
     parser.add_argument("--no-phase0", action="store_false", dest="run_phase0",
                         help="Skip Delta Lake ingestion phase")
+    parser.add_argument("--run-phase1", action="store_true", default=None,
+                        help="Run Phase 1: Community detection")
+    parser.add_argument("--no-phase1", action="store_false", dest="run_phase1",
+                        help="Skip Phase 1: Community detection")
+    parser.add_argument("--run-phase2", action="store_true", default=None,
+                        help="Run Phase 2: Partitioning & subgraph generation")
+    parser.add_argument("--no-phase2", action="store_false", dest="run_phase2",
+                        help="Skip Phase 2: Partitioning & subgraph generation")
     parser.add_argument("--force-reingest", action="store_true", default=None,
                         help="Force Phase 0 to re-download and overwrite existing Delta tables")
     parser.add_argument("--force-rerun", action="store_true", default=None,
@@ -192,15 +200,15 @@ def main():
                         help="Enable 1-hop boundary node expansion for local subgraphs")
     parser.add_argument("--global-mapping", type=str, default=None, choices=["true", "false"],
                         help="Use global OGB masks for local GNN UDF training")
-    parser.add_argument("--run-phase3", action="store_true", default=True,
+    parser.add_argument("--run-phase3", action="store_true", default=None,
                         help="Run Phase 3: Standard parallel UDF training")
     parser.add_argument("--no-phase3", action="store_false", dest="run_phase3",
                         help="Skip Phase 3: Standard parallel UDF training")
-    parser.add_argument("--run-phase3b", action="store_true", default=True,
+    parser.add_argument("--run-phase3b", action="store_true", default=None,
                         help="Run Phase 3b: GNN parallel training with CaaN Global Graph")
     parser.add_argument("--no-phase3b", action="store_false", dest="run_phase3b",
                         help="Skip Phase 3b: GNN parallel training with CaaN Global Graph")
-    parser.add_argument("--run-phase4", action="store_true", default=True,
+    parser.add_argument("--run-phase4", action="store_true", default=None,
                         help="Run Phase 4 & 4b-4g: Full-graph baselines")
     parser.add_argument("--no-phase4", action="store_false", dest="run_phase4",
                         help="Skip Phase 4 & 4b-4g: Full-graph baselines")
@@ -1164,6 +1172,11 @@ def main():
     TASK_TYPE = args.task_type if args.task_type is not None else getattr(config, 'TASK_TYPE', 'both')
     
     RUN_PHASE0 = args.run_phase0 if args.run_phase0 is not None else getattr(config, 'RUN_PHASE0', True)
+    RUN_PHASE1 = args.run_phase1 if args.run_phase1 is not None else getattr(config, 'RUN_PHASE1', True)
+    RUN_PHASE2 = args.run_phase2 if args.run_phase2 is not None else getattr(config, 'RUN_PHASE2', True)
+    RUN_PHASE3 = args.run_phase3 if args.run_phase3 is not None else getattr(config, 'RUN_PHASE3', True)
+    RUN_PHASE3B = args.run_phase3b if args.run_phase3b is not None else getattr(config, 'RUN_PHASE3B', True)
+    RUN_PHASE4 = args.run_phase4 if args.run_phase4 is not None else getattr(config, 'RUN_PHASE4', True)
     FORCE_REINGEST = args.force_reingest if args.force_reingest is not None else getattr(config, 'FORCE_REINGEST', False)
     USE_OGB_SPLITS = (args.use_ogb_splits == "true") if args.use_ogb_splits is not None else getattr(config, 'USE_OGB_SPLITS', True)
     MIN_COMMUNITY_SIZE = args.min_community_size if args.min_community_size is not None else getattr(config, 'MIN_COMMUNITY_SIZE', 10)
@@ -1255,7 +1268,7 @@ def main():
     FORCE_RERUN = args.force_rerun if args.force_rerun is not None else getattr(config, 'FORCE_RERUN', False)
 
     # Phase 1: Partition assignment / Community detection
-    if getattr(config, 'RUN_PHASE1', True):
+    if RUN_PHASE1:
         run_phase1(
             spark, sc,
             datasets     = DATASETS_TO_RUN,
@@ -1283,7 +1296,7 @@ def main():
         )
 
     # Phase 2: Subgraph generation
-    if getattr(config, 'RUN_PHASE2', True):
+    if RUN_PHASE2:
         run_phase2(
             spark, sc,
             datasets            = DATASETS_TO_RUN,
@@ -1412,7 +1425,7 @@ def main():
         )
 
     # Phase 3: Parallel GNN UDF Training
-    if getattr(args, 'run_phase3', True) and getattr(config, 'RUN_PHASE3', True):
+    if RUN_PHASE3:
         run_phase3(
             spark, sc,
             datasets           = DATASETS_TO_RUN,
@@ -1436,7 +1449,7 @@ def main():
         )
 
     # Phase 3b: Parallel GNN Training with CaaN Global Graph
-    if ALGORITHMS_TO_RUN and args.run_phase3b and getattr(config, 'RUN_PHASE3B', True):
+    if ALGORITHMS_TO_RUN and RUN_PHASE3B:
         print("\n[PHASE 3b] - Parallel GNN Training with CaaN Global Graph")
         run_phase3b(
             spark, sc,
@@ -1457,7 +1470,7 @@ def main():
         )
 
     # Phase 4: Full-Graph Baseline
-    if getattr(args, 'run_phase4', True):
+    if RUN_PHASE4:
         # 1. GraphSAGE Baseline
         if getattr(config, 'RUN_PHASE4', True) and 'sage' in config.GNN_MODELS:
             datasets_for_4 = []

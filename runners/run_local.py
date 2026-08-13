@@ -118,10 +118,18 @@ def main():
     parser.add_argument("--task-type", type=str, default="both", choices=["both", "node_classification", "link_prediction"],
                         help="GNN evaluation task types to execute")
     
-    parser.add_argument("--run-phase0", action="store_true", default=True,
+    parser.add_argument("--run-phase0", action="store_true", default=None,
                         help="Force Delta Lake ingestion phase")
     parser.add_argument("--no-phase0", action="store_false", dest="run_phase0",
                         help="Skip Delta Lake ingestion phase")
+    parser.add_argument("--run-phase1", action="store_true", default=None,
+                        help="Run Phase 1: Community detection")
+    parser.add_argument("--no-phase1", action="store_false", dest="run_phase1",
+                        help="Skip Phase 1: Community detection")
+    parser.add_argument("--run-phase2", action="store_true", default=None,
+                        help="Run Phase 2: Partitioning & subgraph generation")
+    parser.add_argument("--no-phase2", action="store_false", dest="run_phase2",
+                        help="Skip Phase 2: Partitioning & subgraph generation")
     parser.add_argument("--force-reingest", action="store_true", default=False,
                         help="Force Phase 0 to re-download and overwrite existing Delta tables")
     parser.add_argument("--use-ogb-splits", type=str, default="true", choices=["true", "false"],
@@ -134,15 +142,15 @@ def main():
                         help="Enable 1-hop boundary node expansion for local subgraphs")
     parser.add_argument("--global-mapping", type=str, default="true", choices=["true", "false"],
                         help="Use global OGB masks for local GNN UDF training")
-    parser.add_argument("--run-phase3", action="store_true", default=True,
+    parser.add_argument("--run-phase3", action="store_true", default=None,
                         help="Run Phase 3: Standard parallel UDF training")
     parser.add_argument("--no-phase3", action="store_false", dest="run_phase3",
                         help="Skip Phase 3: Standard parallel UDF training")
-    parser.add_argument("--run-phase3b", action="store_true", default=True,
+    parser.add_argument("--run-phase3b", action="store_true", default=None,
                         help="Run Phase 3b: GNN parallel training with CaaN Global Graph")
     parser.add_argument("--no-phase3b", action="store_false", dest="run_phase3b",
                         help="Skip Phase 3b: GNN parallel training with CaaN Global Graph")
-    parser.add_argument("--run-phase4", action="store_true", default=True,
+    parser.add_argument("--run-phase4", action="store_true", default=None,
                         help="Run Phase 4 & 4b-4g: Full-graph baselines")
     parser.add_argument("--no-phase4", action="store_false", dest="run_phase4",
                         help="Skip Phase 4 & 4b-4g: Full-graph baselines")
@@ -248,7 +256,12 @@ def main():
     ALGORITHMS_TO_RUN = [a.strip() for a in args.algorithms.split(",") if a.strip()]
     TASK_TYPE = args.task_type
     
-    RUN_PHASE0 = args.run_phase0
+    RUN_PHASE0 = args.run_phase0 if args.run_phase0 is not None else getattr(config, 'RUN_PHASE0', True)
+    RUN_PHASE1 = args.run_phase1 if args.run_phase1 is not None else getattr(config, 'RUN_PHASE1', True)
+    RUN_PHASE2 = args.run_phase2 if args.run_phase2 is not None else getattr(config, 'RUN_PHASE2', True)
+    RUN_PHASE3 = args.run_phase3 if args.run_phase3 is not None else getattr(config, 'RUN_PHASE3', True)
+    RUN_PHASE3B = args.run_phase3b if args.run_phase3b is not None else getattr(config, 'RUN_PHASE3B', True)
+    RUN_PHASE4 = args.run_phase4 if args.run_phase4 is not None else getattr(config, 'RUN_PHASE4', True)
     FORCE_REINGEST = args.force_reingest
     USE_OGB_SPLITS = (args.use_ogb_splits == "true")
     MIN_COMMUNITY_SIZE = args.min_community_size
@@ -317,49 +330,51 @@ def main():
     FORCE_RERUN = getattr(config, 'FORCE_RERUN', False)
 
     # Phase 1: Community Detection
-    run_phase1(
-        spark, sc,
-        datasets     = DATASETS_TO_RUN,
-        algorithms   = ALGORITHMS_TO_RUN,
-        lpa_max_iter = config.LPA_MAX_ITER,
-        resolution   = getattr(config, 'RESOLUTION', 1.0),
-        random_seed  = config.RANDOM_SEED,
-        min_size     = MIN_COMMUNITY_SIZE,
-        dataset_cfg  = config.DATASET_CFG,
-        get_paths_fn = get_paths_fn,
-        timing       = timing,
-        results      = phase1_results,
-        metis_k      = getattr(config, 'METIS_K', 100),
-        force_rerun  = FORCE_RERUN
-    )
+    if RUN_PHASE1:
+        run_phase1(
+            spark, sc,
+            datasets     = DATASETS_TO_RUN,
+            algorithms   = ALGORITHMS_TO_RUN,
+            lpa_max_iter = config.LPA_MAX_ITER,
+            resolution   = getattr(config, 'RESOLUTION', 1.0),
+            random_seed  = config.RANDOM_SEED,
+            min_size     = MIN_COMMUNITY_SIZE,
+            dataset_cfg  = config.DATASET_CFG,
+            get_paths_fn = get_paths_fn,
+            timing       = timing,
+            results      = phase1_results,
+            metis_k      = getattr(config, 'METIS_K', 100),
+            force_rerun  = FORCE_RERUN
+        )
 
-    # Print Phase 1 stats
-    print_phase1_stats(
-        spark,
-        datasets     = DATASETS_TO_RUN,
-        algorithms   = ALGORITHMS_TO_RUN,
-        min_size     = MIN_COMMUNITY_SIZE,
-        get_paths_fn = get_paths_fn,
-        results      = phase1_results
-    )
+        # Print Phase 1 stats
+        print_phase1_stats(
+            spark,
+            datasets     = DATASETS_TO_RUN,
+            algorithms   = ALGORITHMS_TO_RUN,
+            min_size     = MIN_COMMUNITY_SIZE,
+            get_paths_fn = get_paths_fn,
+            results      = phase1_results
+        )
 
     # Phase 2: Induced Subgraph Extraction
-    run_phase2(
-        spark, sc,
-        datasets           = DATASETS_TO_RUN,
-        algorithms         = ALGORITHMS_TO_RUN,
-        use_global_mapping = USE_GLOBAL_MAPPING,
-        min_size           = MIN_COMMUNITY_SIZE,
-        get_paths_fn       = get_paths_fn,
-        timing             = timing,
-        results            = phase2_results,
-        tiny_comm_handling = TINY_COMM_HANDLING,
-        expand_boundary_nodes = EXPAND_BOUNDARY_NODES,
-        force_rerun        = FORCE_RERUN
-    )
+    if RUN_PHASE2:
+        run_phase2(
+            spark, sc,
+            datasets           = DATASETS_TO_RUN,
+            algorithms         = ALGORITHMS_TO_RUN,
+            use_global_mapping = USE_GLOBAL_MAPPING,
+            min_size           = MIN_COMMUNITY_SIZE,
+            get_paths_fn       = get_paths_fn,
+            timing             = timing,
+            results            = phase2_results,
+            tiny_comm_handling = TINY_COMM_HANDLING,
+            expand_boundary_nodes = EXPAND_BOUNDARY_NODES,
+            force_rerun        = FORCE_RERUN
+        )
 
     # Phase 3: Parallel GNN UDF Training
-    if getattr(args, 'run_phase3', True):
+    if RUN_PHASE3:
         run_phase3(
             spark, sc,
             datasets           = DATASETS_TO_RUN,
@@ -378,7 +393,7 @@ def main():
         )
 
     # Phase 3b: CaaN Global Graph GNN Training
-    if args.run_phase3b and getattr(config, 'RUN_PHASE3B', True):
+    if RUN_PHASE3B:
         run_phase3b(
             spark, sc,
             datasets           = DATASETS_TO_RUN,

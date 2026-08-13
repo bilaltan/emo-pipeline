@@ -1,4 +1,4 @@
-This is pdfTeX, Version 3.141592653-2.6-1.40.29 (TeX Live 2026) (preloaded format=pdflatex 2026.3.1)  12 AUG 2026 23:14
+This is pdfTeX, Version 3.141592653-2.6-1.40.29 (TeX Live 2026) (preloaded format=pdflatex 2026.3.1)  13 AUG 2026 00:26
 entering extended mode
  restricted \write18 enabled.
  %&-line parsing enabled.
@@ -439,24 +439,18 @@ Underfull \hbox (badness 10000) in paragraph at lines 450--450
  \OT1/ptm/b/n/11.04124 3.3. Trans-ac-tional Ex-per-i-ment Iso-la-tion and
  []
 
-
-Overfull \hbox (26.34613pt too wide) detected at line 454
-[][][] \OT1/cmr/m/n/10 = []\OMS/cmsy/m/n/10 f\OML/cmm/m/it/10 dataset\OMS/cmsy/
-m/n/10 g\OML/cmm/m/it/10 =[]=\OMS/cmsy/m/n/10 f[]g[]
- []
-
 LaTeX Font Info:    Trying to load font information for OT1+pcr on input line 4
-55.
+57.
 (/usr/local/texlive/2026basic/texmf-dist/tex/latex/psnfss/ot1pcr.fd
 File: ot1pcr.fd 2001/06/04 font definitions for OT1/pcr.
 )
-Underfull \hbox (badness 2197) in paragraph at lines 454--456
+Underfull \hbox (badness 2197) in paragraph at lines 456--458
 \OT1/ptm/m/n/10.03749 Distinct runs (dif-fer-ent $[]$, model, or par-ti-tioner)
 
  []
 
 
-Underfull \hbox (badness 1997) in paragraph at lines 460--460
+Underfull \hbox (badness 1997) in paragraph at lines 462--462
  \OT1/ptm/b/n/12.045 4. Re-la-tional For-mu-la-tion for Community-
  []
 
@@ -467,7 +461,7 @@ File: results/figures/experimental_setup_validation_evaluation.pdf Graphic file
  (type pdf)
 <use results/figures/experimental_setup_validation_evaluation.pdf>
 Package pdftex.def Info: results/figures/experimental_setup_validation_evaluati
-on.pdf  used on input line 538.
+on.pdf  used on input line 540.
 (pdftex.def)             Requested size: 484.33768pt x 202.13072pt.
 
 (./results/table3_link_prediction_main.tex
@@ -475,46 +469,52 @@ LaTeX Font Info:    Calculating math sizes for size <7.02625> on input line 42.
 
 )
 (./results/table4_node_classification_main.tex)
-Underfull \hbox (badness 3612) in paragraph at lines 552--553
+Underfull \hbox (badness 3612) in paragraph at lines 554--555
 []\OT1/ptm/b/n/10.03749 CAAN Ac-cu-racy Re-cov-ery\OT1/ptm/m/n/10.03749 : On \O
 T1/ptm/b/n/10.03749 red-dit\OT1/ptm/m/n/10.03749 , raw
  []
 
 
-Underfull \hbox (badness 3449) in paragraph at lines 552--553
+Underfull \hbox (badness 3449) in paragraph at lines 554--555
 \OT1/ptm/m/n/10.03749 de-cou-pled com-mu-nity GNNs trained in iso-la-
  []
 
 
-Underfull \hbox (badness 3930) in paragraph at lines 552--553
+Underfull \hbox (badness 3930) in paragraph at lines 554--555
 \OT1/ptm/m/n/10.03749 tion suf-fer from bound-ary iso-la-tion, drop-ping
  []
 
 
-Underfull \hbox (badness 2005) in paragraph at lines 552--553
+Underfull \hbox (badness 2005) in paragraph at lines 554--555
 \OT1/ptm/m/n/10.03749 and 72.74% (LPA). In-cor-po-rat-ing EMO's re-la-
+ []
+
+
+Underfull \hbox (badness 2512) in paragraph at lines 562--563
+\OT1/ptm/m/n/10.03749 bound-ary degra-da-tion in power-law com-mu-nity
  []
 
 (./results/table9_ablation_study.tex) (./results/table12_distdgl_comparison.tex
 ) [5]
-Underfull \hbox (badness 1603) in paragraph at lines 575--576
+Underfull \vbox (badness 2951) has occurred while \output is active []
+
+ [6 <./results/figures/experimental_setup_validation_evaluation.pdf>]
+Underfull \hbox (badness 1603) in paragraph at lines 581--582
 []\OT1/ptm/m/n/10.03749 Across all three datasets, Phase 3.8 test ac-cu-racy
  []
 
 (./results/table13_scalability_multi_instance.tex)
-<results/figures/fig8_cpu_cores_scaling.pdf, id=139, 713.6189pt x 297.45128pt>
+<results/figures/fig8_cpu_cores_scaling.pdf, id=254, 713.6189pt x 297.45128pt>
 File: results/figures/fig8_cpu_cores_scaling.pdf Graphic file (type pdf)
 <use results/figures/fig8_cpu_cores_scaling.pdf>
 Package pdftex.def Info: results/figures/fig8_cpu_cores_scaling.pdf  used on in
-put line 581.
+put line 587.
 (pdftex.def)             Requested size: 505.89pt x 210.86963pt.
 
 Underfull \vbox (badness 10000) has occurred while \output is active []
 
- [6 <./results/figures/experimental_setup_validation_evaluation.pdf>] [7]
-Underfull \vbox (badness 10000) has occurred while \output is active []
-
- [8 <./results/figures/fig8_cpu_cores_scaling.pdf>]
+ [7]
+[8 <./results/figures/fig8_cpu_cores_scaling.pdf>]
 
 ** Conference Paper **
 Before submitting the final camera ready copy, remember to:
@@ -535,7 +535,7 @@ L3 programming layer <2026-01-19>
 Here is how much of TeX's memory you used:
  6588 strings out of 469006
  103871 string characters out of 5454814
- 550238 words of memory out of 5000000
+ 549266 words of memory out of 5000000
  35166 multiletter control sequences out of 15000+600000
  685150 words of font info for 156 fonts, out of 8000000 for 9000
  322 hyphenation exceptions out of 8191
@@ -559,7 +559,7 @@ xmf-dist/fonts/type1/urw/courier/ucrr8a.pfb></usr/local/texlive/2026basic/texmf
 /fonts/type1/urw/times/utmbi8a.pfb></usr/local/texlive/2026basic/texmf-dist/fon
 ts/type1/urw/times/utmr8a.pfb></usr/local/texlive/2026basic/texmf-dist/fonts/ty
 pe1/urw/times/utmri8a.pfb>
-Output written on bare_conf_compsoc.pdf (9 pages, 316839 bytes).
+Output written on bare_conf_compsoc.pdf (9 pages, 321848 bytes).
 PDF statistics:
  401 PDF objects out of 1000 (max. 8388607)
  100 compressed objects within 1 object stream

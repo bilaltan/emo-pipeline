@@ -35,8 +35,8 @@ N_BASELINE_RUNS   = 1          # number of runs per baseline for mean ± std
 #   'lpa'     = distributed Spark (fast, lower community quality)
 #   'louvain' = driver/igraph   (moderate quality, pulls graph to driver RAM)
 #   'igraph_lpa' = driver/igraph   (LPA using igraph)
-RUN_PHASE1         = False            # Reuse the completed LPA checkpoint for the Phase 3 retry
-ALGORITHMS_TO_RUN  = ['lpa']  # subset of ['lpa', 'louvain', 'igraph_lpa']
+RUN_PHASE1         = True            # Reuse the completed LPA checkpoint for the Phase 3 retry
+ALGORITHMS_TO_RUN  = ['lpa', 'louvain']  # subset of ['lpa', 'louvain', 'igraph_lpa']
 LPA_MAX_ITER       = 6
 RESOLUTION         = 1.0              # louvain / leiden resolution parameter
 MIN_COMMUNITY_SIZE = 1000             # communities smaller than this are excluded
@@ -47,7 +47,7 @@ MIN_COMMUNITY_SIZE = 1000             # communities smaller than this are exclud
 #   Required for valid global accuracy comparison (Pipelines.txt §5).
 # USE_GLOBAL_MAPPING = False (ablation only):
 #   Per-community 70/15/15 random split inside UDF → NOT globally comparable.
-RUN_PHASE2         = False            # Reuse the completed bounded Phase 2 subgraphs
+RUN_PHASE2         = True            # Reuse the completed bounded Phase 2 subgraphs
 # Phase 2.5 writes a lossless, shard-addressable node/adjacency graph store.
 # Enable this once to prepare the direct-parquet Phase 3 redesign; it does not
 # change the current sampled-community Phase 3 path yet.
@@ -86,18 +86,18 @@ PHASE36_REPARTITION_BY_UNIT = True      # Pre-cluster by (src_shard, seed_block)
 # Delta. The Phase 0 source runs the original 111M-node graph and its
 # symmetrized ~3.23B propagation edges. Its cache is separate from the prior
 # validated Phase 2 cache, so this is a new full-graph materialization.
-RUN_PHASE37        = True
+RUN_PHASE37        = False
 PHASE37_GRAPH_SOURCE = 'phase0'
 PHASE37_NUM_HOPS   = 2
 PHASE37_NUM_PARTITIONS = 512
 # Phase 3.8 evaluates one globally optimized Spark ML classifier on Phase 3.7
 # features. It is an edge-free, distributed linear probe; it does not create
 # independent partition models and therefore reports a valid global metric.
-RUN_PHASE38        = True
+RUN_PHASE38        = False
 PHASE38_MAX_ITER   = 30
 PHASE38_REG_PARAM  = 0.0001
 PHASE38_ELASTIC_NET_PARAM = 0.0
-RUN_PHASE3         = False
+RUN_PHASE3         = True
 USE_GLOBAL_MAPPING = True
 
 # Emits Phase 3 driver/executor timing markers to diagnose slow or stalled runs.
@@ -120,7 +120,7 @@ GCN_HIDDEN_DIM    = 256
 GCN_NUM_EPOCHS    = 10
 GCN_LR            = 0.001
 GCN_DROPOUT       = 0.5
-RUN_PHASE3B       = False              # Phase 3b: CaaN Global Graph GNN Training
+RUN_PHASE3B       = True              # Phase 3b: CaaN Global Graph GNN Training
 
 # ── New Advanced Features ──────────────────────────────────────────────────────
 # Tiny community handling: 'drop' (ignore them), 'misc' (group them all into community_id = -1)

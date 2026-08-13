@@ -450,7 +450,9 @@ EMO exposes two execution branches over a shared transactional storage backbone.
 \subsection{Transactional Experiment Isolation and Checkpoint Semantics}
 Delta Lake is a first-class systems component rather than a passive storage layer. EMO enforces an experiment-level namespace contract:
 \begin{equation}
-\text{Path}_{P2} = \text{delta-data/}\{dataset\}/\text{phase2\_nodes}/\{\text{exp\_id}\}_{dataset,alg}
+\resizebox{0.95\linewidth}{!}{$
+\mathrm{Path}_{P2} = \mathrm{delta\text{-}data/}\{dataset\}/\mathrm{phase2\_nodes}/\{\mathrm{exp\_id}\}_{dataset,alg}
+$}
 \end{equation}
 Distinct runs (different $\text{exp\_id}$, model, or partitioner) can execute concurrently without write collisions. Phase-level resumability is decided by transactional evidence in \verb|_delta_log|; when a valid commit exists for the target phase output, EMO reuses that checkpoint and skips recomputation. This converts expensive graph preprocessing from mandatory repeated work into a deterministic cacheable stage.
 
@@ -554,18 +556,22 @@ Empirical evaluations on \textbf{ogbn-products} and \textbf{reddit} demonstrate 
 \end{itemize}
 
 \subsection{Component-wise System Ablation Study}
-Table~\ref{table_ablation_main} isolates the performance impact of EMO's core subsystems on the \textbf{reddit} graph.
+Table~\ref{table_ablation_main} isolates the performance impact of EMO's core subsystems on the \textbf{reddit} graph across both algorithmic and data lake architecture components.
+
+\begin{itemize}
+    \item \textbf{Global Graph Super-Node Topology (CAAN)}: Without CAAN context recovery, isolated Louvain GNNs drop accuracy by \textbf{39.77\%} (from 92.73\% down to 52.96\%), validating that super-node centroid abstraction is indispensable for mitigating boundary degradation in power-law community graphs.
+    \item \textbf{Delta Lake Transaction Log Caching}: Executing the pipeline with forced cold S3 reads (bypassing Delta transaction log caching) increases ingestion and total pipeline latency from 2254.2s to 3842.1s (+1587.9s I/O overhead), demonstrating a \textbf{1.7$\times$ speedup} enabled by Delta Lake's ACID log caching and schema enforcement.
+    \item \textbf{Community Threshold Granularity ($K$)}: Sweeping the minor community threshold $K$ shows that finer community granularity ($K=100$, 92.81\% accuracy; $K=500$, 92.76\% accuracy) preserves structural context better than aggressive over-clustering ($K=5000$, 91.45\% accuracy) while adding modest compute overhead.
+\end{itemize}
 
 \input{results/table9_ablation_study.tex}
-
-Without the Global Graph super-node topology (CAAN), isolated Louvain GNNs drop accuracy by \textbf{39.77\%} (from 92.73\% down to 52.96\%), validating that super-node centroid abstraction is indispensable for mitigating boundary degradation in power-law community graphs.
 
 \subsection{Fair Comparison with Distributed GRL Engine (DistDGL)}
 Table~\ref{table_distdgl_main} presents a fair comparative evaluation between EMO and DistDGL under identical partition bounds ($K$) and cluster resources.
 
 \input{results/table12_distdgl_comparison.tex}
 
-On \textbf{reddit}, EMO's Louvain-CAAN GNN model completes training in \textbf{208.2s}, outperforming DistDGL's 250.6s runtime while eliminating 28.66 GB of parameter server memory overhead and cross-node network traffic. On \textbf{ogbn-products}, EMO delivers superior link prediction accuracy (85.29\% vs DistDGL's 82.16\%) with zero cross-worker communication.
+On \textbf{reddit}, EMO's Louvain-CAAN GNN model completes training in \textbf{208.2s}, outperforming DistDGL's 250.6s runtime while eliminating 28.66 GB of parameter server memory overhead and cross-node network traffic. On \textbf{ogbn-products}, EMO delivers superior link prediction accuracy (85.29\% vs DistDGL's 82.16\%) and achieves \textbf{71.85\% Node Accuracy} under Louvain-CAAN (recovering \textbf{99.6\%} of DistDGL's 72.17\% accuracy) with zero cross-worker communication.
 
 \subsection{Horizontal Scalability \& Multi-Instance Efficiency}
 Table~\ref{table_scalability_main} reports the dedicated Phase 3.7/3.8 scaling matrix on an 8-worker AWS EMR cluster with 16, 32, and 64 executor configurations under the same two-hop propagation setting ($\text{num\_hops}=2$). The experiment preserves full-node coverage (100\%) and constant model accuracy while varying only executor parallelism.

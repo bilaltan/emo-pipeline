@@ -16,9 +16,16 @@
 \emph{w/o Global Graph (Decoupled Louvain-SAGE)} & 52.96\% & 49.21\% & 1852.6s & 66.3s & 382.4s & 2428.4s \\
 \emph{w/o Global Graph (Decoupled LPA-SAGE)} & 72.74\% & 76.37\% & 1852.6s & 65.4s & 626.9s & 2635.9s \\
 \midrule
+\emph{w/o Delta Lake Optimizations (Cold S3 Reads)} & 92.73\% & 93.38\% & 3440.5s & 66.3s & 208.2s & 3842.1s \\
+\midrule
+\emph{Community Threshold $K=100$ (Louvain-CAAN)} & 92.81\% & 93.42\% & 1852.6s & 66.3s & 364.5s & 2410.5s \\
+\emph{Community Threshold $K=500$ (Louvain-CAAN)} & 92.76\% & 93.40\% & 1852.6s & 66.3s & 259.1s & 2305.1s \\
+\emph{Community Threshold $K=5000$ (Louvain-CAAN)} & 91.45\% & 91.89\% & 1852.6s & 66.3s & 134.2s & 2120.3s \\
+\midrule
 \emph{Full-Graph Baseline (GraphSAGE)} & 94.55\% & — & — & — & 315.8s & 315.8s \\
 \emph{Distributed GNN Engine (DistDGL)} & 94.80\% & — & — & 2.0s & 250.6s & 257.6s \\
 \bottomrule
 \end{tabular}
 }
 \end{table*}
+
