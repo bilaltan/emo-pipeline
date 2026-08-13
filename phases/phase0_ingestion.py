@@ -353,17 +353,13 @@ def run_phase0(spark, sc, datasets, run_phase0_flag, use_ogb_splits,
                     df_m.write.format('delta').mode('overwrite' if s == 0 else 'append').save(p['masks'])
                 print(f"  ✓ Masks written to Delta Lake.")
 
-            # Compact & Vacuum
-            print(f"  Compacting Delta tables for {dataset}...")
-            spark.conf.set("spark.databricks.delta.retentionDurationCheck.enabled", "false")
-            for table_key in ['original_nodes', 'original_edges', 'nodes', 'edges', 'masks']:
-                try:
-                    spark.sql(f"OPTIMIZE '{p[table_key]}'")
-                    spark.sql(f"VACUUM '{p[table_key]}' RETAIN 0 HOURS")
-                except Exception as ex:
-                    print(f"    ⚠ Warning vacuuming {p[table_key]}: {ex}")
+            # Skip slow OPTIMIZE & VACUUM over S3 to prevent executor heartbeat timeouts
+            print(f"  ✓ Skipping synchronous Delta OPTIMIZE/VACUUM to prevent S3 compaction delays.")
             
             elapsed = time.time() - t_total
+            timing[('phase0', dataset)] = elapsed
+            print(f"  ✓ {dataset} ingested successfully in {elapsed:.1f}s!")
+            continue
             timing[('phase0', dataset)] = elapsed
             print(f"  ✓ {dataset} ingested successfully in {elapsed:.1f}s!")
             continue
@@ -629,18 +625,8 @@ def run_phase0(spark, sc, datasets, run_phase0_flag, use_ogb_splits,
             df_m.write.format('delta').mode('overwrite' if s == 0 else 'append').save(p['masks'])
         print(f"  Masks written.")
 
-        # Compact the Delta tables
-        print(f"  Compacting Delta tables (running OPTIMIZE & VACUUM) for {dataset}...")
-        spark.conf.set("spark.databricks.delta.retentionDurationCheck.enabled", "false")
-        for table_key in ['original_nodes', 'original_edges', 'nodes', 'edges', 'masks']:
-            table_path = p[table_key]
-            try:
-                t_opt = time.time()
-                spark.sql(f"OPTIMIZE '{table_path}'")
-                spark.sql(f"VACUUM '{table_path}' RETAIN 0 HOURS")
-                print(f"    ✓ Compacted & Cleaned: {table_path} ({time.time() - t_opt:.1f}s)")
-            except Exception as e:
-                print(f"    ⚠ Warning: Could not optimize/vacuum {table_path}: {e}")
+        # Skip slow OPTIMIZE & VACUUM over S3 to prevent executor heartbeat timeouts
+        print(f"  ✓ Skipping synchronous Delta OPTIMIZE/VACUUM to prevent S3 compaction delays.")
 
         # Clean up local raw downloaded files across ALL candidate storage volumes
         import shutil
