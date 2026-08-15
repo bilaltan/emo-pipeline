@@ -70,7 +70,7 @@ def upload_code_to_s3(s3_bucket=S3_BUCKET):
     print(f"=== Uploading Local Code Files to s3://{s3_bucket}/pipeline/ ===")
 
     include_dirs = ["phases", "utils", "runners", "models", "data", "scripts"]
-    include_files = ["experiment_config.py", "pipeline_controller.py", "upload_to_s3.py", "run_emr_experiments.sh"]
+    include_files = ["experiment_config.py", "pipeline_controller.py", "upload_to_s3.py", "run_emr_experiments.sh", "run_all_experiments_master.sh", "run_all.sh"]
 
     for root_file in include_files:
         local_path = os.path.join(PROJECT_ROOT, root_file)

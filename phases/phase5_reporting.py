@@ -643,6 +643,7 @@ def export_latex_tables(results_dir="results"):
       - table9_ablation_study.tex
       - table12_distdgl_comparison.tex
       - table13_scalability_multi_instance.tex
+      - table_phase_timeline.tex
     """
     os.makedirs(results_dir, exist_ok=True)
     print(f"\n[Phase 5] Exporting / verifying LaTeX paper tables in '{results_dir}/'...")
@@ -651,7 +652,8 @@ def export_latex_tables(results_dir="results"):
         "table4_node_classification_main.tex",
         "table9_ablation_study.tex",
         "table12_distdgl_comparison.tex",
-        "table13_scalability_multi_instance.tex"
+        "table13_scalability_multi_instance.tex",
+        "table_phase_timeline.tex"
     ]
     for tf in table_files:
         path = os.path.join(results_dir, tf)
@@ -659,4 +661,8 @@ def export_latex_tables(results_dir="results"):
             print(f"  ✓ {tf} is ready in {path}")
         else:
             print(f"  ! {tf} missing, creating initial skeleton...")
+
+if __name__ == '__main__':
+    export_latex_tables()
+
 
