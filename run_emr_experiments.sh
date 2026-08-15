@@ -306,7 +306,7 @@ if [[ "$TARGET" == "scaling" || "$TARGET" == "sweep" || "$TARGET" == "full_sweep
         for DS in "${SWEEP_DATASETS[@]}"; do
             echo "► Running $DS with $E Executors..."
             SCALING_LOG="$LOG_DIR/${DS}_scaling_e${E}.log"
-            $RUNNER \
+            if $RUNNER \
               --experiment-name "scaling_sweep_${DS}_e${E}" \
               --datasets "$DS" \
               --algorithms "louvain" \
@@ -319,10 +319,13 @@ if [[ "$TARGET" == "scaling" || "$TARGET" == "sweep" || "$TARGET" == "full_sweep
               --force-rerun \
               --global-mapping "true" \
               --task-type "both" \
-              2>&1 | tee "$SCALING_LOG"
-            echo "  ✓ $DS ($E Executors) completed."
+              2>&1 | tee "$SCALING_LOG"; then
+                echo "  ✓ $DS ($E Executors) completed successfully."
+            else
+                echo "  ⚠ [Notice] $DS ($E Executors) encountered an error. Proceeding to next dataset. Log: $SCALING_LOG"
+            fi
         done
-        echo "✓ All datasets finished for $E Executors."
+        echo "✓ Finished pass for $E Executors."
     done
     echo "✓ Full Multi-Executor Scaling Sweep Completed across 8, 16, and 32 Executors!"
 fi
