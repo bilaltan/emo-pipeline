@@ -10,7 +10,19 @@ import time
 import argparse
 import subprocess
 import shutil
-import sys
+
+# Forward-compatibility shim for NumPy 1.x / 2.x cross-node pickle compatibility
+try:
+    import numpy.core as _np_core
+    if 'numpy._core' not in sys.modules:
+        sys.modules['numpy._core'] = _np_core
+        sys.modules['numpy._core.numeric'] = _np_core.numeric
+        sys.modules['numpy._core.multiarray'] = _np_core.multiarray
+        sys.modules['numpy._core._multiarray_umath'] = getattr(_np_core, '_multiarray_umath', _np_core)
+        sys.modules['numpy._core._exceptions'] = getattr(_np_core, '_exceptions', _np_core)
+        sys.modules['numpy._core.umath'] = getattr(_np_core, 'umath', _np_core)
+except Exception:
+    pass
 
 class TeeStream(object):
     def __init__(self, file_handle, original_stream):

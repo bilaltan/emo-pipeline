@@ -1,7 +1,21 @@
 import os
+import sys
 import time
 import pandas as pd
 import numpy as np
+
+# Forward-compatibility shim for NumPy 1.x / 2.x cross-node pickle compatibility
+try:
+    import numpy.core as _np_core
+    if 'numpy._core' not in sys.modules:
+        sys.modules['numpy._core'] = _np_core
+        sys.modules['numpy._core.numeric'] = _np_core.numeric
+        sys.modules['numpy._core.multiarray'] = _np_core.multiarray
+        sys.modules['numpy._core._multiarray_umath'] = getattr(_np_core, '_multiarray_umath', _np_core)
+        sys.modules['numpy._core._exceptions'] = getattr(_np_core, '_exceptions', _np_core)
+        sys.modules['numpy._core.umath'] = getattr(_np_core, 'umath', _np_core)
+except Exception:
+    pass
 
 _DS_CACHE = {}
 
@@ -461,15 +475,36 @@ def make_caan_udf(super_nodes_dict_bc, minor_node_to_idx_bc, minor_feats_arr_bc,
         task_type = str(pdf['_task_type'].iloc[0]) if '_task_type' in pdf.columns else 'node_classification'
         model_type = str(pdf['_model_type'].iloc[0]) if '_model_type' in pdf.columns else 'sage'
         
+        import sys
+        try:
+            import numpy.core as _np_core
+            if 'numpy._core' not in sys.modules:
+                sys.modules['numpy._core'] = _np_core
+                sys.modules['numpy._core.numeric'] = _np_core.numeric
+                sys.modules['numpy._core.multiarray'] = _np_core.multiarray
+                sys.modules['numpy._core._multiarray_umath'] = getattr(_np_core, '_multiarray_umath', _np_core)
+                sys.modules['numpy._core._exceptions'] = getattr(_np_core, '_exceptions', _np_core)
+                sys.modules['numpy._core.umath'] = getattr(_np_core, 'umath', _np_core)
+        except Exception:
+            pass
+
         super_nodes_dict = super_nodes_dict_bc.value
         minor_node_to_idx = minor_node_to_idx_bc.value
-        minor_feats_arr = minor_feats_arr_bc.value
-        minor_labels_arr = minor_labels_arr_bc.value
-        minor_splits_arr = minor_splits_arr_bc.value
-        minor_ids_arr = minor_ids_arr_bc.value
+        raw_minor_feats = minor_feats_arr_bc.value
+        raw_minor_labels = minor_labels_arr_bc.value
+        raw_minor_splits = minor_splits_arr_bc.value
+        raw_minor_ids = minor_ids_arr_bc.value
         caan_adj = caan_adj_bc.value
         node_to_comm = node_to_comm_bc.value
         major_comms = major_comms_bc.value
+        
+        local_feats = np.stack(pdf['features'].values).astype(np.float32)
+        feat_dim = local_feats.shape[1]
+
+        minor_feats_arr = np.array(raw_minor_feats, dtype=np.float32) if len(raw_minor_feats) > 0 else np.empty((0, feat_dim), dtype=np.float32)
+        minor_labels_arr = np.array(raw_minor_labels, dtype=np.int64) if len(raw_minor_labels) > 0 else np.empty((0,), dtype=np.int64)
+        minor_splits_arr = np.array(raw_minor_splits, dtype=object) if len(raw_minor_splits) > 0 else np.empty((0,), dtype=object)
+        minor_ids_arr = np.array(raw_minor_ids, dtype=np.int64) if len(raw_minor_ids) > 0 else np.empty((0,), dtype=np.int64)
         
         local_ids = pdf['id'].values
         n_local = len(local_ids)
@@ -480,7 +515,6 @@ def make_caan_udf(super_nodes_dict_bc, minor_node_to_idx_bc, minor_feats_arr_bc,
         # Warm-start logic safety floor
         if base_weights_bc is not None and model_type == 'sage':
             num_epochs = max(2, num_epochs)
-        local_feats = np.stack(pdf['features'].values).astype(np.float32)
         local_labels = np.array([int(v) if not pd.isna(v) else -1 for v in pdf['label'].values], dtype=np.int64)
         local_splits = list(pdf['split'].values)
         local_bnd = np.array([bool(v) if not (pd.isna(v) or v is None) else False for v in pdf['is_boundary'].values], dtype=bool)
@@ -489,10 +523,9 @@ def make_caan_udf(super_nodes_dict_bc, minor_node_to_idx_bc, minor_feats_arr_bc,
         super_ids = []
         for cid, feat in super_nodes_dict.items():
             if cid != comm_id:
-                super_feats.append(feat)
+                super_feats.append(np.array(feat, dtype=np.float32) if not isinstance(feat, np.ndarray) else feat)
                 super_ids.append(-1000 - cid)
                 
-        feat_dim = local_feats.shape[1]
         if len(super_feats) > 0:
             super_feats = np.stack(super_feats).astype(np.float32)
         else:
@@ -828,9 +861,11 @@ def make_caan_udf(super_nodes_dict_bc, minor_node_to_idx_bc, minor_feats_arr_bc,
             if base_embeddings_bc is not None and base_node_map_bc is not None:
                 try:
                     global_node_map = base_node_map_bc.value
+                    raw_emb = base_embeddings_bc.value
+                    emb_arr = np.array(raw_emb, dtype=np.float32) if not isinstance(raw_emb, np.ndarray) else raw_emb
                     emb_idx = [global_node_map.get(int(nid), -1) for nid in local_ids]
                     emb_idx_clean = [idx if idx != -1 else 0 for idx in emb_idx]
-                    global_emb_t = torch.tensor(base_embeddings_bc.value[emb_idx_clean], dtype=torch.float32)
+                    global_emb_t = torch.tensor(emb_arr[emb_idx_clean], dtype=torch.float32)
                     valid_emb_mask = torch.tensor([idx != -1 for idx in emb_idx], dtype=torch.bool)
                 except Exception:
                     pass
@@ -1138,7 +1173,7 @@ def run_phase3b(spark, sc, datasets, algorithms, use_global_mapping,
             )
             
             super_nodes_dict = {
-                row['community_id']: np.array(row['mean_features'], dtype=np.float32)
+                int(row['community_id']): [float(x) for x in row['mean_features']]
                 for row in mean_df.collect()
             }
             
@@ -1147,23 +1182,34 @@ def run_phase3b(spark, sc, datasets, algorithms, use_global_mapping,
             minor_nodes_dict = {}
             for _, row in minor_nodes_pd.iterrows():
                 minor_nodes_dict[int(row['id'])] = {
-                    'features': np.array(row['features'], dtype=np.float32),
+                    'features': [float(x) for x in row['features']],
                     'label': int(row['label']) if not pd.isna(row['label']) else -1,
                     'split': str(row['split'])
                 }
                 
             # Map-side broadcast edge mapping (completely shuffless!)
             node_to_comm_pd = comms_df.toPandas()
-            node_to_comm = dict(zip(node_to_comm_pd['id'].astype(int), node_to_comm_pd['community_id'].astype(int)))
+            node_to_comm = {int(k): int(v) for k, v in zip(node_to_comm_pd['id'], node_to_comm_pd['community_id'])}
 
             node_to_comm_bc = sc.broadcast(node_to_comm)
-            major_comms_bc = sc.broadcast(set(major_comms))
+            major_comms_bc = sc.broadcast(set(int(x) for x in major_comms))
 
             def map_edges(iterator):
+                import sys
+                try:
+                    import numpy.core as _np_core
+                    if 'numpy._core' not in sys.modules:
+                        sys.modules['numpy._core'] = _np_core
+                        sys.modules['numpy._core.numeric'] = _np_core.numeric
+                        sys.modules['numpy._core.multiarray'] = _np_core.multiarray
+                        sys.modules['numpy._core._multiarray_umath'] = getattr(_np_core, '_multiarray_umath', _np_core)
+                        sys.modules['numpy._core._exceptions'] = getattr(_np_core, '_exceptions', _np_core)
+                except Exception:
+                    pass
                 n2c = node_to_comm_bc.value
                 maj = major_comms_bc.value
                 for row in iterator:
-                    u, v = row.src, row.dst
+                    u, v = int(row.src), int(row.dst)
                     u_comm = n2c.get(u, -1)
                     v_comm = n2c.get(v, -1)
                     u_mapped = -1000 - u_comm if u_comm in maj else u
@@ -1183,15 +1229,15 @@ def run_phase3b(spark, sc, datasets, algorithms, use_global_mapping,
             
             feat_dim = cfg['in_feats']
             if len(minor_ids) > 0:
-                minor_feats_arr = np.stack([minor_nodes_dict[nid]['features'] for nid in minor_ids]).astype(np.float32)
-                minor_labels_arr = np.array([minor_nodes_dict[nid]['label'] for nid in minor_ids], dtype=np.int64)
-                minor_splits_arr = np.array([minor_nodes_dict[nid]['split'] for nid in minor_ids], dtype=object)
-                minor_ids_arr = np.array(minor_ids, dtype=np.int64)
+                minor_feats_list = [minor_nodes_dict[nid]['features'] for nid in minor_ids]
+                minor_labels_list = [int(minor_nodes_dict[nid]['label']) for nid in minor_ids]
+                minor_splits_list = [str(minor_nodes_dict[nid]['split']) for nid in minor_ids]
+                minor_ids_list = [int(nid) for nid in minor_ids]
             else:
-                minor_feats_arr = np.empty((0, feat_dim), dtype=np.float32)
-                minor_labels_arr = np.empty((0,), dtype=np.int64)
-                minor_splits_arr = np.empty((0,), dtype=object)
-                minor_ids_arr = np.empty((0,), dtype=np.int64)
+                minor_feats_list = []
+                minor_labels_list = []
+                minor_splits_list = []
+                minor_ids_list = []
                 
             from collections import defaultdict
             caan_adj = defaultdict(list)
@@ -1200,13 +1246,13 @@ def run_phase3b(spark, sc, datasets, algorithms, use_global_mapping,
                 
             super_nodes_dict_bc = sc.broadcast(super_nodes_dict)
             minor_node_to_idx_bc = sc.broadcast(minor_node_to_idx)
-            minor_feats_arr_bc = sc.broadcast(minor_feats_arr)
-            minor_labels_arr_bc = sc.broadcast(minor_labels_arr)
-            minor_splits_arr_bc = sc.broadcast(minor_splits_arr)
-            minor_ids_arr_bc = sc.broadcast(minor_ids_arr)
+            minor_feats_arr_bc = sc.broadcast(minor_feats_list)
+            minor_labels_arr_bc = sc.broadcast(minor_labels_list)
+            minor_splits_arr_bc = sc.broadcast(minor_splits_list)
+            minor_ids_arr_bc = sc.broadcast(minor_ids_list)
             caan_adj_bc = sc.broadcast(dict(caan_adj))
             node_to_comm_bc = sc.broadcast(node_to_comm)
-            major_comms_bc = sc.broadcast(major_comms)
+            major_comms_bc = sc.broadcast(set(int(x) for x in major_comms))
             
             caan_components = {
                 'super_nodes_dict': super_nodes_dict,
@@ -1389,7 +1435,7 @@ def run_phase3b(spark, sc, datasets, algorithms, use_global_mapping,
                     # Broadcast state dict and embeddings safely
                     base_weights_bc = sc.broadcast(base_model.state_dict())
                     if len(node_map) <= 5_000_000:
-                        base_embeddings_bc = sc.broadcast(global_embeddings)
+                        base_embeddings_bc = sc.broadcast(global_embeddings.tolist() if isinstance(global_embeddings, np.ndarray) else global_embeddings)
                         base_node_map_bc = sc.broadcast(node_map)
                     else:
                         base_embeddings_bc = None

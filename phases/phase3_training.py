@@ -1,7 +1,22 @@
 import os
+import sys
 import time
 import pandas as pd
 import numpy as np
+
+# Forward-compatibility shim for NumPy 1.x / 2.x cross-node pickle compatibility
+try:
+    import numpy.core as _np_core
+    if 'numpy._core' not in sys.modules:
+        sys.modules['numpy._core'] = _np_core
+        sys.modules['numpy._core.numeric'] = _np_core.numeric
+        sys.modules['numpy._core.multiarray'] = _np_core.multiarray
+        sys.modules['numpy._core._multiarray_umath'] = getattr(_np_core, '_multiarray_umath', _np_core)
+        sys.modules['numpy._core._exceptions'] = getattr(_np_core, '_exceptions', _np_core)
+        sys.modules['numpy._core.umath'] = getattr(_np_core, 'umath', _np_core)
+except Exception:
+    pass
+
 from pipeline.utils.common import _patch_torch_load
 
 def _make_result_schema():
@@ -563,9 +578,11 @@ def _train_gnn_community_single(pdf, comm_edges_pdf=None, base_weights_bc=None, 
         if base_embeddings_bc is not None and base_node_map_bc is not None:
             try:
                 global_node_map = base_node_map_bc.value
+                raw_emb = base_embeddings_bc.value
+                emb_arr = np.array(raw_emb, dtype=np.float32) if not isinstance(raw_emb, np.ndarray) else raw_emb
                 emb_idx = [global_node_map.get(int(nid), -1) for nid in all_nodes]
                 emb_idx_clean = [idx if idx != -1 else 0 for idx in emb_idx]
-                global_emb_t = torch.tensor(base_embeddings_bc.value[emb_idx_clean], dtype=torch.float32)
+                global_emb_t = torch.tensor(emb_arr[emb_idx_clean], dtype=torch.float32)
                 valid_emb_mask = torch.tensor([idx != -1 for idx in emb_idx], dtype=torch.bool)
             except Exception:
                 pass
@@ -1199,7 +1216,7 @@ def run_phase3(spark, sc, datasets, algorithms, use_global_mapping,
                     # Broadcast state dict and embeddings safely
                     base_weights_bc = sc.broadcast(base_model.state_dict())
                     if len(node_map) <= 5_000_000:
-                        base_embeddings_bc = sc.broadcast(global_embeddings)
+                        base_embeddings_bc = sc.broadcast(global_embeddings.tolist() if isinstance(global_embeddings, np.ndarray) else global_embeddings)
                         base_node_map_bc = sc.broadcast(node_map)
                     else:
                         base_embeddings_bc = None

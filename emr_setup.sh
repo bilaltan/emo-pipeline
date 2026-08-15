@@ -59,7 +59,7 @@ python3 -m pip install --user --upgrade pip
 
 echo "=== 4. Installing Core Python Packages ==="
 # Install core numpy, pyarrow, and OGB
-python3 -m pip install --user numpy pyarrow ogb boto3
+python3 -m pip install --user "numpy<2.0.0" pyarrow ogb boto3
 
 # Install graph community detection algorithms (igraph, leidenalg)
 python3 -m pip install --user igraph leidenalg
