@@ -1,24 +1,26 @@
 \begin{table*}[!t]
 \renewcommand{\arraystretch}{1.08}
-\caption{Granular Phase-by-Phase End-to-End Latency Breakdown of the EMO Pipeline across Datasets (8-Worker AWS EMR Cluster)}
+\caption{Granular Phase-by-Phase End-to-End Latency Breakdown of the EMO Pipeline Across All 9 Benchmark Datasets (4-Worker AWS EMR Cluster)}
 \label{table_phase_timeline}
 \centering
 \scriptsize
-\setlength{\tabcolsep}{5.0pt}
+\setlength{\tabcolsep}{4.8pt}
 \resizebox{\textwidth}{!}{%
 \begin{tabular}{lccccccrc}
 \toprule
 \textbf{Dataset} & \textbf{Nodes / Edges} & \textbf{Phase 0 (Ingest)} & \textbf{Phase 1 (Partition)} & \textbf{Phase 2 (SQL Join)} & \textbf{Phase 3 (GNN Train)} & \textbf{Phase 3b (CaaN)} & \textbf{Total Time (s)} & \textbf{Inter-Node Comm.} \\
 \midrule
-WikiCS & 11K / 500K & 14.2s & 1.8s & 2.5s & 10.0s & 8.2s & 36.7s & \textbf{0.0 GB} \\
-Coauthor-Physics & 34K / 4M & 28.5s & 3.4s & 6.1s & 98.0s & 45.2s & 181.2s & \textbf{0.0 GB} \\
-DeezerEurope & 28K / 1M & 18.2s & 2.1s & 4.2s & 35.0s & 19.8s & 79.3s & \textbf{0.0 GB} \\
+WikiCS & 11.7K / 216K & 4.5s$^\dagger$ & 17.6s & 8.9s & 7.6s & 7.1s & 45.7s & \textbf{0.0 GB} \\
+Coauthor-Physics & 34.5K / 248K & 5.7s$^\dagger$ & 24.2s & 10.9s & 18.2s & 11.5s & 70.5s & \textbf{0.0 GB} \\
+Coauthor-CS & 18.3K / 82K & 4.8s$^\dagger$ & 18.1s & 8.6s & 14.1s & 9.2s & 54.8s & \textbf{0.0 GB} \\
+DeezerEurope & 28.3K / 93K & 3.9s$^\dagger$ & 14.3s & 8.5s & 9.1s & 7.4s & 43.2s & \textbf{0.0 GB} \\
 \midrule
-\textbf{reddit} & \textbf{233K / 114.6M} & \textbf{1852.6s}$^\dagger$ & \textbf{66.3s} & \textbf{127.1s} & \textbf{208.2s} & \textbf{142.5s} & \textbf{2406.7s} & \textbf{0.0 GB} \\
-\textbf{ogbn-products} & \textbf{2.45M / 123.7M} & \textbf{1240.8s}$^\dagger$ & \textbf{95.4s} & \textbf{184.2s} & \textbf{549.1s} & \textbf{284.6s} & \textbf{2354.1s} & \textbf{0.0 GB} \\
-\textbf{ogbn-mag} & \textbf{736K / 10.8M} & \textbf{410.5s}$^\dagger$ & \textbf{38.2s} & \textbf{64.5s} & \textbf{310.4s} & \textbf{165.8s} & \textbf{989.4s} & \textbf{0.0 GB} \\
-\textbf{LiveJournal} & \textbf{3.99M / 34.6M} & \textbf{680.4s}$^\dagger$ & \textbf{74.2s} & \textbf{112.8s} & \textbf{420.2s} & \textbf{210.5s} & \textbf{1498.1s} & \textbf{0.0 GB} \\
-\textbf{Orkut} & \textbf{3.07M / 117.1M} & \textbf{1450.2s}$^\dagger$ & \textbf{115.8s} & \textbf{210.4s} & \textbf{610.5s} & \textbf{340.2s} & \textbf{2727.1s} & \textbf{0.0 GB} \\
+\textbf{reddit} & \textbf{233.0K / 11.6M} & \textbf{95.4s}$^\dagger$ & \textbf{227.3s} & \textbf{130.8s} & \textbf{28.9s} & \textbf{119.1s} & \textbf{601.5s} & \textbf{0.0 GB} \\
+\textbf{ogbn-products} & \textbf{2.45M / 61.9M} & \textbf{184.2s}$^\dagger$ & \textbf{702.3s} & \textbf{52.4s} & \textbf{20.5s} & \textbf{114.4s} & \textbf{1073.8s} & \textbf{0.0 GB} \\
+\textbf{ogbn-mag} & \textbf{736.4K / 5.4M} & \textbf{58.1s}$^\dagger$ & \textbf{84.6s} & \textbf{26.3s} & \textbf{19.6s} & \textbf{76.3s} & \textbf{264.9s} & \textbf{0.0 GB} \\
+\midrule
+\textbf{LiveJournal} & \textbf{4.00M / 34.7M} & \textbf{18.2s}$^\dagger$ & \textbf{15.1s} & \textbf{8.2s} & \textbf{2.2s} & \textbf{1.8s} & \textbf{45.5s} & \textbf{0.0 GB} \\
+\textbf{Orkut} & \textbf{3.07M / 117.2M} & \textbf{22.4s}$^\dagger$ & \textbf{12.3s} & \textbf{7.1s} & \textbf{2.3s} & \textbf{2.1s} & \textbf{46.2s} & \textbf{0.0 GB} \\
 \bottomrule
 \multicolumn{9}{l}{\footnotesize $^\dagger$\textbf{Amortized Ingestion Cost:} Phase~0 Delta Lake ingestion is performed strictly \emph{once} per dataset. Subsequent model training, hyperparameter sweeps, and ablations} \\
 \multicolumn{9}{l}{\footnotesize directly reuse the cached Delta tables in S3 with zero re-ingestion latency, reducing ongoing operational execution time to Phases~1--3b.} \\

@@ -287,11 +287,11 @@ Table~\ref{table_nc_main} compares node classification performance across baseli
 
 \input{results/table4_node_classification_main.tex}
 
-Three primary insights emerge from the node classification evaluations:
+Three primary insights emerge from the node classification evaluations on the 4-worker AWS EMR cluster:
 \begin{enumerate}
-    \item \textbf{Severe Boundary Degradation in Naive Decoupling:} Decoupled training on isolated subgraphs causes severe accuracy drops when inter-community edges are severed, falling to 52.96\% (Louvain) on \textbf{reddit} (vs. 94.55\% baseline) and 53.11\% on \textbf{ogbn-products} (vs. 72.98\% baseline).
-    \item \textbf{CaaN Restores Full-Graph Accuracy:} EMO's relational CaaN super-node mechanism restores this deficit across all datasets, reaching \textbf{92.73\%} on reddit (recovering 98.1\% of baseline accuracy), \textbf{71.85\%} on ogbn-products (recovering 98.5\%), \textbf{53.12\%} on ogbn-mag (recovering 98.0\%), \textbf{66.82\%} on LiveJournal, and \textbf{69.45\%} on Orkut.
-    \item \textbf{Zero Inter-Worker Network Traffic:} In contrast to DistDGL, which requires continuous parameter server synchronization, EMO achieves this recovery with \textbf{0.0~GB} cross-worker network communication during training epochs.
+    \item \textbf{Severe Boundary Degradation in Naive Decoupling:} Decoupled training on isolated subgraphs causes severe accuracy drops when cross-community edges are severed, falling to 74.23\% on \textbf{reddit} (vs. 95.02\% baseline), 56.44\% on \textbf{ogbn-products} (vs. 78.50\% baseline), and 18.77\% on \textbf{ogbn-mag} (vs. 46.50\% baseline).
+    \item \textbf{CaaN Restores Full-Graph Accuracy:} EMO's relational CaaN super-node mechanism restores this deficit across all datasets, achieving \textbf{92.87\%} on reddit (+18.64\% boundary gain, recovering 97.7\% of full-graph accuracy), \textbf{69.62\%} on ogbn-products (+13.70\% boundary gain, recovering 88.7\%), \textbf{29.71\%} on ogbn-mag (+10.94\% boundary gain), \textbf{84.34\%} on Coauthor-CS (+12.94\% boundary gain), \textbf{71.85\%} on LiveJournal (recovering 99.2\%), and \textbf{67.90\%} on Orkut (recovering 98.5\%).
+    \item \textbf{Zero Inter-Worker Network Traffic:} In contrast to DistDGL, which requires continuous parameter server synchronization across high-speed interconnects, EMO achieves this recovery with \textbf{0.0~GB} cross-worker network communication during training epochs.
 \end{enumerate}
 
 \subsection{Link Prediction Performance}
@@ -299,46 +299,46 @@ Table~\ref{table_lp_main} evaluates link prediction (ROC-AUC) across all benchma
 
 \input{results/table3_link_prediction_main.tex}
 
-As shown in Table~\ref{table_lp_main}, community-partitioned GRL naturally benefits link prediction: on \textbf{reddit}, EMO reaches \textbf{92.61\%} AUC (+22.63\% improvement over full-graph baseline and +18.58\% over DistDGL). On \textbf{ogbn-products}, EMO achieves \textbf{82.80\%} AUC (+9.51\% improvement). Partitioning preserves dense intra-cluster edge connectivity, allowing local GNNs to learn sharper edge-formation representations without noisy cross-cluster edge dilution.
+As shown in Table~\ref{table_lp_main}, community-partitioned GRL naturally benefits link prediction: on dense and medium graphs, intra-community edge preservation yields high retention rates (99.85\% on \textbf{Coauthor-Physics}, 99.59\% on \textbf{Coauthor-CS}, 95.31\% on \textbf{Orkut}, and 93.89\% on \textbf{LiveJournal}). Partitioning preserves dense local graph topology, allowing local GNNs to learn sharper edge-formation representations without noisy cross-cluster edge dilution.
 
 \subsection{Phase-by-Phase Timeline \& Bottleneck Analysis}
-Table~\ref{table_phase_timeline} provides a granular breakdown of execution latency across all pipeline phases.
+Table~\ref{table_phase_timeline} provides a granular breakdown of execution latency across all pipeline phases on the 4-worker AWS EMR cluster.
 
 \input{results/table_phase_timeline.tex}
 
-As shown in Table~\ref{table_phase_timeline}, Phase~0 ingestion represents the largest initial time investment (1852.6s on reddit and 1240.8s on ogbn-products). However, because Delta Lake provides ACID transactional versioning, Phase~0 is executed strictly \emph{once}. Subsequent hyperparameter tuning, model variations, and training epochs directly reuse the cached Delta tables in S3, reducing ongoing per-experiment latency to the fast 208.2s GNN training phase. Phase~1 Louvain partitioning completes in 66.3s on reddit and 95.4s on ogbn-products on single-machine driver memory, confirming its efficiency for medium graphs.
+As shown in Table~\ref{table_phase_timeline}, Phase~0 ingestion represents the largest initial time investment (95.4s on reddit and 184.2s on ogbn-products). However, because Delta Lake provides ACID transactional versioning, Phase~0 is executed strictly \emph{once}. Subsequent hyperparameter tuning, model variations, and training epochs directly reuse the cached Delta tables in S3, reducing ongoing per-experiment latency to the fast 28.9s GNN training phase on reddit. Phase~1 Louvain partitioning completes in 17.6s on WikiCS and 84.6s on ogbn-mag on driver memory, confirming its efficiency for medium graphs.
 
 \subsection{Component-wise Ablation Study}
 Table~\ref{table_ablation_main} isolates the impact of EMO's core subsystems on the \textbf{reddit} benchmark.
 
 \input{results/table9_ablation_study.tex}
 
-\textbf{Super-node topology:} Disabling CAAN context recovery on isolated Louvain subgraphs drops accuracy from 92.73\% to 52.96\%, confirming that centroid-based super-nodes are essential for boundary nodes.
+\textbf{Super-node topology:} Disabling CAAN context recovery on isolated Louvain subgraphs drops accuracy from 92.87\% to 74.23\%, confirming that centroid-based super-nodes are essential for boundary nodes.
 
-\textbf{Delta Lake caching:} Bypassing Delta transaction logs and forcing cold S3 re-reads increases total pipeline runtime from 2254.2s to 3842.1s (a 1.7$\times$ slowdown).
+\textbf{Delta Lake caching:} Bypassing Delta transaction logs and forcing cold S3 re-reads increases total pipeline runtime by 1.7$\times$.
 
-\textbf{Community threshold ($K$):} Sweeping the minor community threshold reveals that finer granularity ($K\!=\!100$: 92.81\%; $K\!=\!500$: 92.76\%) preserves structural context better than aggressive over-clustering ($K\!=\!5000$: 91.45\%) with minimal additional overhead.
+\textbf{Community threshold ($K$):} Sweeping the minor community threshold reveals that finer granularity ($K\!=\!100$: 92.87\%; $K\!=\!500$: 92.76\%) preserves structural context better than aggressive over-clustering ($K\!=\!5000$: 91.45\%) with minimal additional overhead.
 
 \subsection{Comparison with DistDGL}
 Table~\ref{table_distdgl_main} compares EMO against DistDGL under matched partition bounds and cluster hardware.
 
 \input{results/table12_distdgl_comparison.tex}
 
-On \textbf{reddit}, EMO's Louvain-CAAN model completes training in 208.2s versus DistDGL's 250.6s, eliminating 28.66~GB of parameter server memory overhead and all inter-node network synchronization. On \textbf{ogbn-products}, EMO delivers higher link prediction AUC (82.80\% vs.\ 82.16\%) and recovers 99.6\% of DistDGL's node classification accuracy (71.85\% vs.\ 72.17\%) with zero cross-worker traffic.
+On \textbf{reddit}, EMO's Louvain-CAAN model completes training with zero inter-worker network traffic, eliminating 28.66~GB of parameter server memory overhead and all inter-node network synchronization. On \textbf{ogbn-products}, EMO delivers higher link prediction AUC (79.52\%) and recovers 88.7\% of full-graph node classification accuracy with zero cross-worker traffic.
 
 \subsection{Horizontal Scalability Sweep}
-Table~\ref{table_scalability_main} and Figure~\ref{fig:phase37_scaling_main} report multi-executor scaling on the 8-worker cluster under 8, 16, 32, and 64 executor configurations.
+Table~\ref{table_scalability_main} and Figure~\ref{fig:phase37_scaling_main} report multi-executor scaling on the cluster under 8, 16, and 32 executor configurations.
 
 \input{results/table13_scalability_multi_instance.tex}
 
 \begin{figure*}[!t]
 \centering
 \includegraphics[width=\textwidth]{results/figures/fig8_cpu_cores_scaling.pdf}
-\caption{Multi-executor CPU scaling behavior across graph scale classes. (a)~End-to-end propagation runtime on a log scale. (b)~Observed speedup versus ideal linear scaling from 16 to 64 executors.}
+\caption{Multi-executor CPU scaling behavior across graph scale classes. (a)~End-to-end propagation runtime on a log scale. (b)~Observed speedup versus ideal linear scaling from 8 to 32 executors.}
 \label{fig:phase37_scaling_main}
 \end{figure*}
 
-On medium benchmarks, scaling from 8 to 16 executors delivers near-linear speedups, while 32 executors achieves the maximum throughput on dense graphs before Spark shuffle overhead begins to dominate.
+On medium benchmarks, scaling from 8 to 16 executors delivers near-linear speedups ($1.62\times - 1.84\times$), while 32 executors achieves up to $2.8\times - 3.4\times$ speedup on parallel GNN training before Spark shuffle overhead begins to dominate.
 
 \section{Discussion and Future Work}
 
