@@ -232,17 +232,17 @@ if [[ "$TARGET" == "orkut" || "$TARGET" == "all" ]]; then
     echo "✓ Orkut run complete. Log: $LOG_FILE"
 fi
 
-# Target: STANDARDS (WikiCS, Coauthor-Physics, DeezerEurope)
+# Target: STANDARDS (WikiCS, Coauthor-Physics, Coauthor-CS, DeezerEurope)
 if [[ "$TARGET" == "standards" || "$TARGET" == "all" ]]; then
     EXEC_COUNT=$(get_best_executors "WikiCS")
     echo ""
     echo "=========================================================================="
-    echo " [EXECUTION] Running Standards: WikiCS, Coauthor-Physics, DeezerEurope (Executors: $EXEC_COUNT)"
+    echo " [EXECUTION] Running Standards: WikiCS, Coauthor-Physics, Coauthor-CS, DeezerEurope (Executors: $EXEC_COUNT)"
     echo "=========================================================================="
     LOG_FILE="$LOG_DIR/standards_louvain_caan_e${EXEC_COUNT}.log"
     $RUNNER \
       --experiment-name "paper_standards_louvain_caan" \
-      --datasets "WikiCS,Coauthor-Physics,DeezerEurope" \
+      --datasets "WikiCS,Coauthor-Physics,Coauthor-CS,DeezerEurope" \
       --algorithms "louvain" \
       --executor-instances "$EXEC_COUNT" \
       --run-phase0 \
@@ -266,8 +266,8 @@ if [[ "$TARGET" == "timing" ]]; then
     LOG_FILE="$LOG_DIR/phase_latency_breakdown_e${EXEC_COUNT}.log"
     $RUNNER \
       --experiment-name "paper_timing_breakdown" \
-      --datasets "WikiCS,Coauthor-Physics,reddit,ogbn-products" \
-      --algorithms "louvain,lpa" \
+      --datasets "WikiCS,Coauthor-Physics,Coauthor-CS,DeezerEurope,reddit,ogbn-products,ogbn-mag,LiveJournal,Orkut" \
+      --algorithms "louvain" \
       --executor-instances "$EXEC_COUNT" \
       --force-reingest \
       --run-phase0 \
@@ -281,41 +281,55 @@ if [[ "$TARGET" == "timing" ]]; then
     echo "✓ Timing breakdown complete. Log: $LOG_FILE"
 fi
 
-# Target: SCALING (Automated 8 -> 16 -> 32 Multi-Executor Scaling Sweep)
-if [[ "$TARGET" == "scaling" || "$TARGET" == "sweep" ]]; then
+# Target: SCALING / FULL_SWEEP (8 -> 16 -> 32 Multi-Executor Scaling Sweep across ALL Small & Medium Datasets)
+if [[ "$TARGET" == "scaling" || "$TARGET" == "sweep" || "$TARGET" == "full_sweep" ]]; then
     echo ""
     echo "=========================================================================="
     echo " [EXECUTION] Multi-Executor Scalability Sweep (8 -> 16 -> 32 Executors)"
+    echo " All Small & Medium Datasets: WikiCS, Coauthor-Physics, Coauthor-CS, DeezerEurope, reddit, ogbn-products, ogbn-mag, LiveJournal, Orkut"
     echo "=========================================================================="
+    
+    SWEEP_DATASETS=("WikiCS" "Coauthor-Physics" "Coauthor-CS" "DeezerEurope" "reddit" "ogbn-products" "ogbn-mag" "LiveJournal" "Orkut")
+    
     for E in 8 16 32; do
-        echo "► Testing Cluster Scaling with $E Executors on reddit & ogbn-products..."
-        SCALING_LOG="$LOG_DIR/scaling_sweep_e${E}.log"
-        $RUNNER \
-          --experiment-name "scaling_sweep_e${E}" \
-          --datasets "reddit,ogbn-products" \
-          --algorithms "louvain" \
-          --executor-instances "$E" \
-          --run-phase1 \
-          --run-phase2 \
-          --run-phase3 \
-          --run-phase3b \
-          --global-mapping "true" \
-          --task-type "both" \
-          2>&1 | tee "$SCALING_LOG"
-        echo "  ✓ $E Executors run finished."
+        echo ""
+        echo "══════════════════════════════════════════════════════════════════════════"
+        echo " ► [STAGE: $E EXECUTORS] Running full benchmark suite with $E Executors"
+        echo "══════════════════════════════════════════════════════════════════════════"
+        for DS in "${SWEEP_DATASETS[@]}"; do
+            echo "► Running $DS with $E Executors..."
+            SCALING_LOG="$LOG_DIR/${DS}_scaling_e${E}.log"
+            $RUNNER \
+              --experiment-name "scaling_sweep_${DS}_e${E}" \
+              --datasets "$DS" \
+              --algorithms "louvain" \
+              --executor-instances "$E" \
+              --run-phase0 \
+              --run-phase1 \
+              --run-phase2 \
+              --run-phase3 \
+              --run-phase3b \
+              --global-mapping "true" \
+              --task-type "both" \
+              2>&1 | tee "$SCALING_LOG"
+            echo "  ✓ $DS ($E Executors) completed."
+        done
+        echo "✓ All datasets finished for $E Executors."
     done
-    echo "✓ Multi-Executor Scaling Sweep Completed!"
+    echo "✓ Full Multi-Executor Scaling Sweep Completed across 8, 16, and 32 Executors!"
 fi
 
-# ── 5. Upload Output Tables & Excel to S3 ──────────────────────────────────────
+# ── 5. Compile Master Excel Report & Upload to S3 ──────────────────────────────
 echo ""
 echo "=========================================================================="
-echo " Uploading Results & Logs to S3..."
+echo " Compiling Master EMR 4-Worker Cluster Excel Report & Uploading to S3..."
 echo "=========================================================================="
+python3 runners/generate_emr_excel_report.py || true
 python3 upload_to_s3.py 2>/dev/null || true
 
 echo ""
 echo "=========================================================================="
 echo " All Requested Experiments Completed Successfully!"
+echo " Results Excel: results/emr_4worker_cluster_results.xlsx"
 echo " Logs directory: $LOG_DIR"
 echo "=========================================================================="
