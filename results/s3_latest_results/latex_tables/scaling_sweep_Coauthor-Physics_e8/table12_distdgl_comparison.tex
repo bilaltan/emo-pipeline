@@ -1,0 +1,29 @@
+\begin{table*}[!t]
+\renewcommand{\arraystretch}{1.05}
+\caption{Fair Performance \& Efficiency Comparison with Distributed GRL Engine (DistDGL)}
+\label{table_distdgl_main}
+\centering
+\scriptsize
+\setlength{\tabcolsep}{3.2pt}
+\resizebox{\textwidth}{!}{%
+\begin{tabular}{llcccc}
+\toprule
+\textbf{Dataset} & \textbf{Metric} & \textbf{DistDGL Baseline} & \textbf{Decoupled Community GRL} & \textbf{EMO / ML-GRL (CAAN)} & \textbf{EMO vs. DistDGL Imp.} \\
+\midrule
+WikiCS & Accuracy (\%) & 65.34\% $\pm$ 0.52 & 79.97\% $\pm$ 0.34 & \textbf{81.04\% $\pm$ 0.24} & \textbf{+15.70\%} \\
+ & Execution Time (s) & 217s $\pm$ 0 & 18s $\pm$ 2 & \textbf{18s $\pm$ 1} & \textbf{12.0$\times$ Speedup} \\
+ & Network Vol. (GB) & 4.8 GB & 0.0 GB & \textbf{0.1 GB} & \textbf{97.9\% Communication Drop} \\
+\midrule
+\textbf{ogbn-products} & Node Acc (\%) & 72.17\% & 60.76\% (LPA) / 53.11\% (Louv) & \textbf{71.85\%} (Louv-CAAN) & \textbf{recovers 99.6\% of accuracy} \\
+ & Link AUC (\%) & 82.16\% & \textbf{85.29\%} (LPA) / \textbf{82.80\%} (Louv) & \textbf{85.29\%} & \textbf{+3.13\% AUC} \\
+ & Execution Time (s) & 400.5s & 1547.9s (Louv) & 1547.9s & Communication-Free \\
+ & Network / RAM & 46.05 GB RAM & 0.0 GB Network & 0.0 GB Network & Zero Inter-node Comm. \\
+\midrule
+\textbf{reddit} & Node Acc (\%) & 94.80\% & 52.96\% (Louv) / 72.74\% (LPA) & \textbf{92.73\%} (Louv-CAAN) & \textbf{recovers 97.8\% of accuracy} \\
+ & Link AUC (\%) & 74.03\% & \textbf{92.61\%} (Louv) & \textbf{92.61\%} & \textbf{+18.58\% AUC} \\
+ & Execution Time (s) & 250.6s & 382.4s (Louv) & \textbf{208.2s} (CAAN Train) & \textbf{1.20$\times$ Faster Training} \\
+ & Network / RAM & 28.66 GB RAM & 0.0 GB Network & 0.0 GB Network & Zero Inter-node Comm. \\
+\bottomrule
+\end{tabular}
+}
+\end{table*}

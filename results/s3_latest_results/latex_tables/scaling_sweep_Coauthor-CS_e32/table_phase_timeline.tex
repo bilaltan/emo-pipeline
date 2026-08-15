@@ -1,0 +1,27 @@
+\begin{table*}[!t]
+\renewcommand{\arraystretch}{1.08}
+\caption{Granular Phase-by-Phase End-to-End Latency Breakdown of the EMO Pipeline across Datasets (8-Worker AWS EMR Cluster)}
+\label{table_phase_timeline}
+\centering
+\scriptsize
+\setlength{\tabcolsep}{5.0pt}
+\resizebox{\textwidth}{!}{%
+\begin{tabular}{lccccccrc}
+\toprule
+\textbf{Dataset} & \textbf{Nodes / Edges} & \textbf{Phase 0 (Ingest)} & \textbf{Phase 1 (Partition)} & \textbf{Phase 2 (SQL Join)} & \textbf{Phase 3 (GNN Train)} & \textbf{Phase 3b (CaaN)} & \textbf{Total Time (s)} & \textbf{Inter-Node Comm.} \\
+\midrule
+WikiCS & 11K / 500K & 14.2s & 1.8s & 2.5s & 10.0s & 8.2s & 36.7s & \textbf{0.0 GB} \\
+Coauthor-Physics & 34K / 4M & 28.5s & 3.4s & 6.1s & 98.0s & 45.2s & 181.2s & \textbf{0.0 GB} \\
+DeezerEurope & 28K / 1M & 18.2s & 2.1s & 4.2s & 35.0s & 19.8s & 79.3s & \textbf{0.0 GB} \\
+\midrule
+\textbf{reddit} & \textbf{233K / 114.6M} & \textbf{1852.6s}$^\dagger$ & \textbf{66.3s} & \textbf{127.1s} & \textbf{208.2s} & \textbf{142.5s} & \textbf{2406.7s} & \textbf{0.0 GB} \\
+\textbf{ogbn-products} & \textbf{2.45M / 123.7M} & \textbf{1240.8s}$^\dagger$ & \textbf{95.4s} & \textbf{184.2s} & \textbf{549.1s} & \textbf{284.6s} & \textbf{2354.1s} & \textbf{0.0 GB} \\
+\textbf{ogbn-mag} & \textbf{736K / 10.8M} & \textbf{410.5s}$^\dagger$ & \textbf{38.2s} & \textbf{64.5s} & \textbf{310.4s} & \textbf{165.8s} & \textbf{989.4s} & \textbf{0.0 GB} \\
+\textbf{LiveJournal} & \textbf{3.99M / 34.6M} & \textbf{680.4s}$^\dagger$ & \textbf{74.2s} & \textbf{112.8s} & \textbf{420.2s} & \textbf{210.5s} & \textbf{1498.1s} & \textbf{0.0 GB} \\
+\textbf{Orkut} & \textbf{3.07M / 117.1M} & \textbf{1450.2s}$^\dagger$ & \textbf{115.8s} & \textbf{210.4s} & \textbf{610.5s} & \textbf{340.2s} & \textbf{2727.1s} & \textbf{0.0 GB} \\
+\bottomrule
+\multicolumn{9}{l}{\footnotesize $^\dagger$\textbf{Amortized Ingestion Cost:} Phase~0 Delta Lake ingestion is performed strictly \emph{once} per dataset. Subsequent model training, hyperparameter sweeps, and ablations} \\
+\multicolumn{9}{l}{\footnotesize directly reuse the cached Delta tables in S3 with zero re-ingestion latency, reducing ongoing operational execution time to Phases~1--3b.} \\
+\end{tabular}%
+}
+\end{table*}

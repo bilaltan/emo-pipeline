@@ -1,0 +1,47 @@
+\begin{table*}[!t]
+\renewcommand{\arraystretch}{1.08}
+\caption{Link Prediction Performance (ROC-AUC \%): Baselines vs. EMO (Partition-Centric Community GRL)}
+\label{table_lp_main}
+\centering
+\scriptsize
+\setlength{\tabcolsep}{4.5pt}
+\resizebox{\textwidth}{!}{%
+\begin{tabular}{llccccrc}
+\toprule
+\textbf{Dataset} & \textbf{Scale (Edges)} & \textbf{Base Model} & \textbf{Baseline AUC (\%)} & \textbf{Baseline Time (s)} & \textbf{EMO AUC (\%)} & \textbf{EMO Time (s)} & \textbf{AUC Imp. (\%)} \\
+\midrule
+WikiCS & ~500K & GraphSAGE & 0.6517 $\pm$ 0.003 & 42s $\pm$ 1 & 0.7768 $\pm$ 0.001 & 29s $\pm$ 1 & +19.20\% \\
+WikiCS & ~500K & ARMA & 0.8634 $\pm$ 0.014 & 265s $\pm$ 3 & 0.9102 $\pm$ 0.000 & 34s $\pm$ 2 & +5.42\% \\
+WikiCS & ~500K & ASAP & 0.8773 $\pm$ 0.000 & 64s $\pm$ 8 & 0.9096 $\pm$ 0.001 & 33s $\pm$ 1 & +3.68\% \\
+\midrule
+Coauthor-Physics & ~4M & GraphSAGE & 0.6134 $\pm$ 0.012 & 306s $\pm$ 2 & 0.6549 $\pm$ 0.003 & 256s $\pm$ 4 & +6.77\% \\
+Coauthor-Physics & ~4M & ARMA & 0.7574 $\pm$ 0.029 & 581s $\pm$ 1 & 0.8589 $\pm$ 0.001 & 376s $\pm$ 20 & +13.40\% \\
+Coauthor-Physics & ~4M & ASAP & 0.7489 $\pm$ 0.005 & 654s $\pm$ 19 & 0.7960 $\pm$ 0.000 & 512s $\pm$ 17 & +6.29\% \\
+\midrule
+Coauthor-CS & ~2M & GraphSAGE & 0.6172 $\pm$ 0.005 & 132s $\pm$ 1 & 0.6935 $\pm$ 0.001 & 107s $\pm$ 5 & +12.36\% \\
+Coauthor-CS & ~2M & ARMA & 0.7442 $\pm$ 0.005 & 136s $\pm$ 4 & 0.8919 $\pm$ 0.001 & 108s $\pm$ 20 & +19.85\% \\
+Coauthor-CS & ~2M & ASAP & 0.7578 $\pm$ 0.005 & 135s $\pm$ 5 & 0.7935 $\pm$ 0.005 & 112s $\pm$ 14 & +4.71\% \\
+\midrule
+DeezerEurope & ~1M & GraphSAGE & 0.5136 $\pm$ 0.005 & 59s $\pm$ 0 & 0.5821 $\pm$ 0.003 & 22s $\pm$ 1 & +13.34\% \\
+DeezerEurope & ~1M & ARMA & 0.6575 $\pm$ 0.007 & 95s $\pm$ 3 & 0.7369 $\pm$ 0.002 & 68s $\pm$ 2 & +12.08\% \\
+DeezerEurope & ~1M & ASAP & 0.7920 $\pm$ 0.005 & 133s $\pm$ 6 & 0.8259 $\pm$ 0.001 & 69s $\pm$ 1 & +4.28\% \\
+\midrule
+Foursquare & ~3M & GraphSAGE & 0.6497 $\pm$ 0.014 & 141s $\pm$ 12 & 0.9589 $\pm$ 0.001 & 95s $\pm$ 6 & +47.59\% \\
+Foursquare & ~3M & ARMA & 0.8100 $\pm$ 0.013 & 312s $\pm$ 10 & 0.9673 $\pm$ 0.000 & 245s $\pm$ 13 & +19.42\% \\
+Foursquare & ~3M & ASAP & 0.8392 $\pm$ 0.002 & 291s $\pm$ 4 & 0.9399 $\pm$ 0.002 & 221s $\pm$ 23 & +12.00\% \\
+\midrule
+\textbf{reddit} & \textbf{114.6M} & GraphSAGE (LPA) & 0.7552 & 315.8s & \textbf{0.7823} & 626.9s & \textbf{+3.59\%} \\
+\textbf{reddit} & \textbf{114.6M} & GraphSAGE (\textbf{Louvain [Default]}) & 0.7552 & 315.8s & \textbf{0.9261} & \textbf{208.2s} & \textbf{+22.63\%} \\
+\midrule
+\textbf{ogbn-products} & \textbf{123.7M} & GraphSAGE (LPA) & 0.7561 & 455.2s & \textbf{0.8529} & 2196.5s & \textbf{+12.80\%} \\
+\textbf{ogbn-products} & \textbf{123.7M} & GraphSAGE (\textbf{Louvain [Default]}) & 0.7561 & 455.2s & \textbf{0.8280} & \textbf{549.1s} & \textbf{+9.51\%} \\
+\midrule
+\textbf{ogbn-mag} & \textbf{10.8M} & GraphSAGE (\textbf{Louvain [Default]}) & 0.7340 & 320.0s & \textbf{0.8415} & \textbf{310.4s} & \textbf{+14.65\%} \\
+\midrule
+\textbf{LiveJournal} & \textbf{34.6M} & GraphSAGE (\textbf{Louvain [Default]}) & 0.7680 & 580.0s & \textbf{0.8842} & \textbf{420.2s} & \textbf{+15.13\%} \\
+\midrule
+\textbf{Orkut} & \textbf{117.1M} & GraphSAGE (\textbf{Louvain [Default]}) & 0.7820 & 890.0s & \textbf{0.8910} & \textbf{610.5s} & \textbf{+13.94\%} \\
+\bottomrule
+\end{tabular}%
+}
+\end{table*}
