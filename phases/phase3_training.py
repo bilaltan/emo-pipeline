@@ -178,16 +178,47 @@ def _train_gnn_community_single(pdf, comm_edges_pdf=None, base_weights_bc=None, 
     mlp_epochs = int(pdf['_mlp_epochs'].iloc[0]) if '_mlp_epochs' in pdf.columns else 5
     diagnostic(f"dependencies ready after {time.time() - worker_start:.1f}s; model={model_type}; task={task_type}")
 
-    # Fast C-vectorized node mapping
-    all_nodes = pdf['id'].values.astype(np.int64)
-    n_nodes   = len(all_nodes)
+    # Support both bundled single-row community representations and multi-row frames
+    if '_id_list' in pdf.columns and len(pdf) == 1:
+        raw_ids = pdf['_id_list'].iloc[0]
+        if raw_ids is None or len(raw_ids) == 0:
+            return pd.DataFrame([{
+                'community_id':   int(comm_id),
+                'n_nodes':        0,
+                'n_edges':        0,
+                'n_train':        0,
+                'n_val':          0,
+                'n_test':         0,
+                'n_boundary':     0,
+                'n_internal':     0,
+                'comm_test_acc':  0.0,
+                'boundary_acc':   0.0,
+                'internal_acc':   0.0,
+                'comm_link_auc':  0.5,
+                'size_bucket':    'empty',
+                'load_time_s':    0.0,
+                'node_train_time_s': 0.0,
+                'link_train_time_s': 0.0,
+                'peak_mem_mb':    0.0,
+            }])
+        all_nodes = np.array(raw_ids, dtype=np.int64)
+        raw_labels = pdf['_label_list'].iloc[0]
+        raw_feats  = pdf['_features_list'].iloc[0]
+        split_arr  = list(pdf['_split_list'].iloc[0])
+        bnd_arr    = np.array([bool(v) if not (pd.isna(v) or v is None) else False for v in pdf['_is_boundary_list'].iloc[0]], dtype=bool)
+        label_arr  = np.array([int(v) if not pd.isna(v) else -1 for v in raw_labels], dtype=np.int64)
+    else:
+        all_nodes = pdf['id'].values.astype(np.int64)
+        raw_labels = pdf['label'].values
+        raw_feats  = pdf['features'].values
+        split_arr  = list(pdf['split'].values)
+        bnd_arr    = np.array([bool(v) if not (pd.isna(v) or v is None) else False for v in pdf['is_boundary'].values], dtype=bool)
+        label_arr  = np.array([int(v) if not pd.isna(v) else -1 for v in raw_labels], dtype=np.int64)
+
+    n_nodes = len(all_nodes)
 
     # Fast-Path for Micro-Communities (< 5 nodes) — instant evaluation without PyTorch setup
     if n_nodes < 5:
-        label_arr = np.array([int(v) if not pd.isna(v) else -1 for v in pdf['label'].values], dtype=np.int64)
-        split_arr = list(pdf['split'].values)
-        bnd_arr   = np.array([bool(v) if not (pd.isna(v) or v is None) else False for v in pdf['is_boundary'].values], dtype=bool)
-
         has_lbl = label_arr >= 0
         train_m = np.array([s == 'train' for s in split_arr]) & has_lbl
         test_m  = np.array([s == 'test'  for s in split_arr]) & has_lbl
@@ -231,19 +262,15 @@ def _train_gnn_community_single(pdf, comm_edges_pdf=None, base_weights_bc=None, 
             'peak_mem_mb':    0.0,
         }])
 
-
     # Final RAM safety floor for the small amount of variation left by Spark-side sampling.
     if n_nodes > max_nodes_per_community:
-        pdf = pdf.iloc[:max_nodes_per_community]
-        all_nodes = pdf['id'].values.astype(np.int64)
+        all_nodes = all_nodes[:max_nodes_per_community]
+        label_arr = label_arr[:max_nodes_per_community]
+        split_arr = split_arr[:max_nodes_per_community]
+        bnd_arr   = bnd_arr[:max_nodes_per_community]
         n_nodes   = len(all_nodes)
-
-    # Use full configured num_epochs (e.g. 30 epochs)
-    num_epochs = num_epochs
-    
-    # Warm-start logic safety floor
-    if base_weights_bc is not None and model_type == 'sage':
-        num_epochs = max(2, num_epochs)
+        if len(raw_feats) > max_nodes_per_community:
+            raw_feats = raw_feats[:max_nodes_per_community]
 
     sorted_ids = np.sort(all_nodes)
     sort_idx   = np.argsort(all_nodes)
@@ -303,17 +330,15 @@ def _train_gnn_community_single(pdf, comm_edges_pdf=None, base_weights_bc=None, 
     t_load = time.time() - t_start
     t_dgl_conv_start = time.time()
 
-    raw_feats = pdf['features'].values
     if len(raw_feats) > 0 and isinstance(raw_feats[0], (np.ndarray, list, tuple)):
         feat_arr = np.ascontiguousarray(np.vstack(raw_feats), dtype=np.float32)
-    else:
+    elif len(raw_feats) > 0:
         feat_arr = np.stack(raw_feats).astype(np.float32)
+    else:
+        feat_arr = np.zeros((len(all_nodes), 128), dtype=np.float32)
 
     feat_norms = np.linalg.norm(feat_arr, axis=1, keepdims=True)
     feat_arr  = feat_arr / np.where(feat_norms > 0, feat_norms, 1.0)
-    label_arr = np.array([int(v) if not pd.isna(v) else -1 for v in pdf['label'].values], dtype=np.int64)
-    split_arr = list(pdf['split'].values)
-    bnd_arr   = np.array([bool(v) if not (pd.isna(v) or v is None) else False for v in pdf['is_boundary'].values], dtype=bool)
 
     if n_edges > max_edges_per_community:
         np.random.seed(42)
@@ -1243,7 +1268,18 @@ def run_phase3(spark, sc, datasets, algorithms, use_global_mapping,
                         F.collect_list('dst').alias('_dst_list')
                     ))
 
-                nodes_df_meta = (retained_nodes
+                nodes_agg = (retained_nodes
+                    .groupBy('community_id')
+                    .agg(
+                        F.collect_list('id').alias('_id_list'),
+                        F.collect_list('label').alias('_label_list'),
+                        F.collect_list('features').alias('_features_list'),
+                        F.collect_list('split').alias('_split_list'),
+                        F.collect_list('is_boundary').alias('_is_boundary_list')
+                    ))
+
+                community_bundles = (nodes_agg
+                    .join(edges_agg, on='community_id', how='left')
                     .withColumn('_num_classes', F.lit(int(cfg['num_classes'])))
                     .withColumn('_hidden',      F.lit(int(gcn_cfg['hidden_dim'])))
                     .withColumn('_epochs',      F.lit(int(gcn_cfg['num_epochs'])))
@@ -1254,11 +1290,10 @@ def run_phase3(spark, sc, datasets, algorithms, use_global_mapping,
                     .withColumn('_max_nodes',   F.lit(int(max_nodes_per_community)))
                     .withColumn('_max_edges',   F.lit(int(max_edges_per_community)))
                     .withColumn('_mlp_epochs',  F.lit(int(mlp_epochs)))
-                    .withColumn('_phase3_diagnostics', F.lit(bool(diagnostics)))
-                    .join(edges_agg, on='community_id', how='left'))
+                    .withColumn('_phase3_diagnostics', F.lit(bool(diagnostics))))
 
                 sc.setJobDescription(f'phase3_{dataset}_{alg}_{model_type}')
-                comm_results = (nodes_df_meta
+                comm_results = (community_bundles
                                 .repartition(num_bins, 'community_id')
                                 .groupBy('community_id')
                                 .applyInPandas(_train_gnn_community_single_wrapper, schema=result_schema)
