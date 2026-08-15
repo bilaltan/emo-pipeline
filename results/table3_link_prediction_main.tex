@@ -1,6 +1,6 @@
 \begin{table*}[!t]
 \renewcommand{\arraystretch}{1.08}
-\caption{Link Prediction Performance (ROC-AUC): Full Graph Baselines vs. EMO (Partition-Centric Community GRL) on 4-Worker AWS EMR Cluster}
+\caption{Link Prediction Performance (ROC-AUC): Full Graph Baselines vs. EMO (Partition-Centric Community GRL) on Self-Collected AWS EMR Cluster Runs}
 \label{table_lp_main}
 \centering
 \scriptsize
@@ -8,19 +8,19 @@
 \resizebox{\textwidth}{!}{%
 \begin{tabular}{llccccrc}
 \toprule
-\textbf{Dataset} & \textbf{Scale (Edges)} & \textbf{Partitioning} & \textbf{Model Architecture} & \textbf{Baseline ROC-AUC} & \textbf{Phase 3 Decoupled} & \textbf{EMO + CaaN (3b)} & \textbf{ROC-AUC Retention (\%)} \\
+\textbf{Dataset} & \textbf{Scale (Edges)} & \textbf{Partitioning} & \textbf{Model Architecture} & \textbf{Baseline ROC-AUC} & \textbf{Phase 3 Decoupled} & \textbf{ROC-AUC Retention (\%)} & \textbf{Actual Link Time (s)} \\
 \midrule
-WikiCS & 216.1K & Louvain & GraphSAGE Link Predictor & 0.8920 & 0.7412 & \textbf{0.7592} & 85.11\% \\
-Coauthor-Physics & 248.0K & Louvain & GraphSAGE Link Predictor & 0.9610 & 0.9416 & \textbf{0.9596} & 99.85\% \\
-Coauthor-CS & 81.9K & Louvain & GraphSAGE Link Predictor & 0.9450 & 0.9231 & \textbf{0.9411} & 99.59\% \\
-DeezerEurope & 92.8K & Louvain & GraphSAGE Link Predictor & 0.8230 & 0.6244 & \textbf{0.6424} & 78.06\% \\
+WikiCS & 216.1K & Louvain & GraphSAGE Link Predictor & 0.8920 & 0.7412 & 83.10\% & 4.4s \\
+Coauthor-Physics & 248.0K & Louvain & GraphSAGE Link Predictor & 0.9610 & 0.9416 & 97.98\% & 10.1s \\
+Coauthor-CS & 81.9K & Louvain & GraphSAGE Link Predictor & 0.9450 & 0.9231 & 97.68\% & 7.9s \\
+DeezerEurope & 92.8K & Louvain & GraphSAGE Link Predictor & 0.8230 & 0.6244 & 75.87\% & 5.0s \\
 \midrule
-\textbf{reddit} & \textbf{11.61M} & Louvain & GraphSAGE Link Predictor & 0.9710 & 0.6951 & \textbf{0.7131} & 73.44\% \\
-\textbf{ogbn-products} & \textbf{61.86M} & Louvain & GraphSAGE Link Predictor & 0.9140 & 0.7772 & \textbf{0.7952} & 87.00\% \\
-\textbf{ogbn-mag} & \textbf{5.42M} & Louvain & GraphSAGE Link Predictor & 0.8650 & 0.7174 & \textbf{0.7354} & 85.02\% \\
+\textbf{reddit} & \textbf{11.61M} & Louvain & GraphSAGE Link Predictor & 0.9710 & 0.6951 & 71.59\% & \textbf{16.1s} \\
+\textbf{ogbn-products} & \textbf{61.86M} & Louvain & GraphSAGE Link Predictor & 0.9140 & 0.7772 & 85.03\% & \textbf{11.3s} \\
+\textbf{ogbn-mag} & \textbf{5.42M} & Louvain & GraphSAGE Link Predictor & 0.8650 & 0.7174 & 82.94\% & \textbf{10.8s} \\
 \midrule
-\textbf{LiveJournal} & \textbf{34.68M} & Louvain & GraphSAGE Link Predictor & 0.8840 & 0.8120 & \textbf{0.8300} & 93.89\% \\
-\textbf{Orkut} & \textbf{117.19M} & Louvain & GraphSAGE Link Predictor & 0.8520 & 0.7940 & \textbf{0.8120} & 95.31\% \\
+\textbf{LiveJournal} & \textbf{34.68M} & Louvain & GraphSAGE Link Predictor & 0.8840 & 0.8120 & 91.86\% & \textbf{1.2s} \\
+\textbf{Orkut} & \textbf{117.19M} & Louvain & GraphSAGE Link Predictor & 0.8520 & 0.7940 & 93.19\% & \textbf{1.2s} \\
 \bottomrule
 \end{tabular}%
 }
