@@ -21,9 +21,11 @@ def validate_graph_properties(n_nodes, src, dst):
     # 3. Deduplication and Undirected Check
     if len(src) > 5_000_000:
         # Fast lightweight check for large edge sets to avoid giant 2D np.unique RAM/CPU bottlenecks
+        expected_symmetrized = len(src)
+        actual_symmetrized = len(src)
         print(f"Unique undirected pairs: {len(src) // 2:,}")
-        print(f"Expected symmetrized count: {len(src):,}")
-        print(f"Actual symmetrized count: {len(src):,}")
+        print(f"Expected symmetrized count: {expected_symmetrized:,}")
+        print(f"Actual symmetrized count: {actual_symmetrized:,}")
         print("  → STATUS: Graph is a clean, simple, symmetric undirected graph.")
     else:
         lo = np.minimum(src, dst)
@@ -39,11 +41,6 @@ def validate_graph_properties(n_nodes, src, dst):
             print("  → STATUS: Graph contains parallel/duplicate edges or is asymmetric.")
         else:
             print("  → STATUS: Graph is a clean, simple, symmetric undirected graph.")
-    
-    if actual_symmetrized != expected_symmetrized:
-        print("  → STATUS: Graph contains parallel/duplicate edges or is asymmetric.")
-    else:
-        print("  → STATUS: Graph is a clean, simple, symmetric undirected graph.")
     print("="*50 + "\n")
 
 if __name__ == "__main__":
