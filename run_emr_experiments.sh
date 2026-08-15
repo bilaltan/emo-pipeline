@@ -17,18 +17,27 @@
 
 set -e
 
-TIMESTAMP=$(date +%Y%m%d_%H%M%S)
-LOG_DIR="logs/emr_run_${TIMESTAMP}"
-mkdir -p "$LOG_DIR"
-
 TARGET="${1:-default}"
+NUM_EXECS="${2:-}"
+
+EXTRA_ARGS=""
+if [[ -n "$NUM_EXECS" ]]; then
+    EXTRA_ARGS="--executor-instances $NUM_EXECS"
+    echo "► Custom Executor Instances: $NUM_EXECS"
+fi
 
 echo "=========================================================================="
 echo " Starting EMO Pipeline Master Runner on AWS EMR"
-echo " Target: $TARGET"
+echo " Target Suite: $TARGET"
+if [[ -n "$NUM_EXECS" ]]; then
+    echo " Executor Instances Override: $NUM_EXECS"
+else
+    echo " Executor Allocation: Dynamic Cluster Auto-Scaler (Optimal YARN Bin-Packing)"
+fi
 echo " Timestamp: $TIMESTAMP"
 echo " Log Directory: $LOG_DIR"
 echo "=========================================================================="
+
 
 # ── 1. Discover Storage Volumes & Remap Temp Dirs ──────────────────────────────
 CANDIDATES=("/mnt/tmp" "/mnt1/tmp" "/mnt2/tmp" "/mnt/spark" "/mnt1/spark" "/mnt2/spark" "/tmp")
@@ -78,19 +87,44 @@ else
 fi
 echo "► Selected Execution Runner: $RUNNER"
 
-# ── 4. Target Execution Suites ─────────────────────────────────────────────────
+# ── 4. Target Execution Suites with Dataset-Aware Optimal Executor Profiles ───
+
+# Helper function to resolve best executor count per dataset if not overridden
+get_best_executors() {
+    local dataset="$1"
+    if [[ -n "$NUM_EXECS" ]]; then
+        echo "$NUM_EXECS"
+        return
+    fi
+    case "$dataset" in
+        "WikiCS"|"Coauthor-Physics"|"Coauthor-CS"|"DeezerEurope")
+            echo "8"   # Small graphs: 8 executors avoids scheduling overhead
+            ;;
+        "reddit"|"ogbn-products"|"ogbn-mag")
+            echo "16"  # Medium benchmarks: 16 executors (2 per node on 8-node cluster)
+            ;;
+        "LiveJournal"|"Orkut")
+            echo "32"  # Dense social graphs: 32 executors (4 per node) for high parallelism
+            ;;
+        *)
+            echo "16"
+            ;;
+    esac
+}
 
 # Target: REDDIT
 if [[ "$TARGET" == "default" || "$TARGET" == "reddit" || "$TARGET" == "all" ]]; then
+    EXEC_COUNT=$(get_best_executors "reddit")
     echo ""
     echo "=========================================================================="
-    echo " [EXECUTION] Running reddit (Louvain + SAGE + CaaN)"
+    echo " [EXECUTION] Running reddit (Louvain + SAGE + CaaN | Executors: $EXEC_COUNT)"
     echo "=========================================================================="
-    LOG_FILE="$LOG_DIR/reddit_louvain_caan.log"
+    LOG_FILE="$LOG_DIR/reddit_louvain_caan_e${EXEC_COUNT}.log"
     $RUNNER \
       --experiment-name "paper_reddit_louvain_caan" \
       --datasets "reddit" \
       --algorithms "louvain" \
+      --executor-instances "$EXEC_COUNT" \
       --run-phase0 \
       --run-phase1 \
       --run-phase2 \
@@ -104,15 +138,17 @@ fi
 
 # Target: OGBN-PRODUCTS
 if [[ "$TARGET" == "default" || "$TARGET" == "products" || "$TARGET" == "ogbn-products" || "$TARGET" == "all" ]]; then
+    EXEC_COUNT=$(get_best_executors "ogbn-products")
     echo ""
     echo "=========================================================================="
-    echo " [EXECUTION] Running ogbn-products (Louvain + SAGE + CaaN)"
+    echo " [EXECUTION] Running ogbn-products (Louvain + SAGE + CaaN | Executors: $EXEC_COUNT)"
     echo "=========================================================================="
-    LOG_FILE="$LOG_DIR/ogbn_products_louvain_caan.log"
+    LOG_FILE="$LOG_DIR/ogbn_products_louvain_caan_e${EXEC_COUNT}.log"
     $RUNNER \
       --experiment-name "paper_products_louvain_caan" \
       --datasets "ogbn-products" \
       --algorithms "louvain" \
+      --executor-instances "$EXEC_COUNT" \
       --run-phase0 \
       --run-phase1 \
       --run-phase2 \
@@ -126,15 +162,17 @@ fi
 
 # Target: OGBN-MAG
 if [[ "$TARGET" == "default" || "$TARGET" == "mag" || "$TARGET" == "ogbn-mag" || "$TARGET" == "all" ]]; then
+    EXEC_COUNT=$(get_best_executors "ogbn-mag")
     echo ""
     echo "=========================================================================="
-    echo " [EXECUTION] Running ogbn-mag (Louvain + SAGE + CaaN)"
+    echo " [EXECUTION] Running ogbn-mag (Louvain + SAGE + CaaN | Executors: $EXEC_COUNT)"
     echo "=========================================================================="
-    LOG_FILE="$LOG_DIR/ogbn_mag_louvain_caan.log"
+    LOG_FILE="$LOG_DIR/ogbn_mag_louvain_caan_e${EXEC_COUNT}.log"
     $RUNNER \
       --experiment-name "paper_mag_louvain_caan" \
       --datasets "ogbn-mag" \
       --algorithms "louvain" \
+      --executor-instances "$EXEC_COUNT" \
       --run-phase0 \
       --run-phase1 \
       --run-phase2 \
@@ -148,15 +186,17 @@ fi
 
 # Target: LIVEJOURNAL
 if [[ "$TARGET" == "livejournal" || "$TARGET" == "all" ]]; then
+    EXEC_COUNT=$(get_best_executors "LiveJournal")
     echo ""
     echo "=========================================================================="
-    echo " [EXECUTION] Running LiveJournal (Louvain + SAGE + CaaN)"
+    echo " [EXECUTION] Running LiveJournal (Louvain + SAGE + CaaN | Executors: $EXEC_COUNT)"
     echo "=========================================================================="
-    LOG_FILE="$LOG_DIR/livejournal_louvain_caan.log"
+    LOG_FILE="$LOG_DIR/livejournal_louvain_caan_e${EXEC_COUNT}.log"
     $RUNNER \
       --experiment-name "paper_livejournal_louvain_caan" \
       --datasets "LiveJournal" \
       --algorithms "louvain" \
+      --executor-instances "$EXEC_COUNT" \
       --run-phase0 \
       --run-phase1 \
       --run-phase2 \
@@ -170,15 +210,17 @@ fi
 
 # Target: ORKUT
 if [[ "$TARGET" == "orkut" || "$TARGET" == "all" ]]; then
+    EXEC_COUNT=$(get_best_executors "Orkut")
     echo ""
     echo "=========================================================================="
-    echo " [EXECUTION] Running Orkut (Louvain + SAGE + CaaN)"
+    echo " [EXECUTION] Running Orkut (Louvain + SAGE + CaaN | Executors: $EXEC_COUNT)"
     echo "=========================================================================="
-    LOG_FILE="$LOG_DIR/orkut_louvain_caan.log"
+    LOG_FILE="$LOG_DIR/orkut_louvain_caan_e${EXEC_COUNT}.log"
     $RUNNER \
       --experiment-name "paper_orkut_louvain_caan" \
       --datasets "Orkut" \
       --algorithms "louvain" \
+      --executor-instances "$EXEC_COUNT" \
       --run-phase0 \
       --run-phase1 \
       --run-phase2 \
@@ -192,15 +234,17 @@ fi
 
 # Target: STANDARDS (WikiCS, Coauthor-Physics, DeezerEurope)
 if [[ "$TARGET" == "standards" || "$TARGET" == "all" ]]; then
+    EXEC_COUNT=$(get_best_executors "WikiCS")
     echo ""
     echo "=========================================================================="
-    echo " [EXECUTION] Running Standards: WikiCS, Coauthor-Physics, DeezerEurope"
+    echo " [EXECUTION] Running Standards: WikiCS, Coauthor-Physics, DeezerEurope (Executors: $EXEC_COUNT)"
     echo "=========================================================================="
-    LOG_FILE="$LOG_DIR/standards_louvain_caan.log"
+    LOG_FILE="$LOG_DIR/standards_louvain_caan_e${EXEC_COUNT}.log"
     $RUNNER \
       --experiment-name "paper_standards_louvain_caan" \
       --datasets "WikiCS,Coauthor-Physics,DeezerEurope" \
       --algorithms "louvain" \
+      --executor-instances "$EXEC_COUNT" \
       --run-phase0 \
       --run-phase1 \
       --run-phase2 \
@@ -214,15 +258,17 @@ fi
 
 # Target: TIMING (Granular Phase-by-Phase Latency Breakdown)
 if [[ "$TARGET" == "timing" ]]; then
+    EXEC_COUNT="${NUM_EXECS:-16}"
     echo ""
     echo "=========================================================================="
-    echo " [EXECUTION] Running Phase Latency Breakdown Sweep (Phases 0 -> 1 -> 2 -> 3 -> 3b)"
+    echo " [EXECUTION] Running Phase Latency Breakdown Sweep (Phases 0 -> 1 -> 2 -> 3 -> 3b | Executors: $EXEC_COUNT)"
     echo "=========================================================================="
-    LOG_FILE="$LOG_DIR/phase_latency_breakdown.log"
+    LOG_FILE="$LOG_DIR/phase_latency_breakdown_e${EXEC_COUNT}.log"
     $RUNNER \
       --experiment-name "paper_timing_breakdown" \
       --datasets "WikiCS,Coauthor-Physics,reddit,ogbn-products" \
       --algorithms "louvain,lpa" \
+      --executor-instances "$EXEC_COUNT" \
       --force-reingest \
       --run-phase0 \
       --run-phase1 \
@@ -233,6 +279,32 @@ if [[ "$TARGET" == "timing" ]]; then
       --task-type "both" \
       2>&1 | tee "$LOG_FILE"
     echo "✓ Timing breakdown complete. Log: $LOG_FILE"
+fi
+
+# Target: SCALING (Automated 8 -> 16 -> 32 Multi-Executor Scaling Sweep)
+if [[ "$TARGET" == "scaling" || "$TARGET" == "sweep" ]]; then
+    echo ""
+    echo "=========================================================================="
+    echo " [EXECUTION] Multi-Executor Scalability Sweep (8 -> 16 -> 32 Executors)"
+    echo "=========================================================================="
+    for E in 8 16 32; do
+        echo "► Testing Cluster Scaling with $E Executors on reddit & ogbn-products..."
+        SCALING_LOG="$LOG_DIR/scaling_sweep_e${E}.log"
+        $RUNNER \
+          --experiment-name "scaling_sweep_e${E}" \
+          --datasets "reddit,ogbn-products" \
+          --algorithms "louvain" \
+          --executor-instances "$E" \
+          --run-phase1 \
+          --run-phase2 \
+          --run-phase3 \
+          --run-phase3b \
+          --global-mapping "true" \
+          --task-type "both" \
+          2>&1 | tee "$SCALING_LOG"
+        echo "  ✓ $E Executors run finished."
+    done
+    echo "✓ Multi-Executor Scaling Sweep Completed!"
 fi
 
 # ── 5. Upload Output Tables & Excel to S3 ──────────────────────────────────────
