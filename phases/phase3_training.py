@@ -217,11 +217,19 @@ def _train_gnn_community_single(pdf, comm_edges_pdf=None, base_weights_bc=None, 
                 'peak_mem_mb':    0.0,
             }])
         all_nodes = np.array(raw_ids, dtype=np.int64)
-        raw_labels = pdf['_label_list'].iloc[0]
-        raw_feats  = pdf['_features_list'].iloc[0]
-        split_arr  = list(pdf['_split_list'].iloc[0])
-        bnd_arr    = np.array([bool(v) if not (pd.isna(v) or v is None) else False for v in pdf['_is_boundary_list'].iloc[0]], dtype=bool)
+        raw_labels = pdf['_label_list'].iloc[0] if '_label_list' in pdf.columns else []
+        raw_feats  = pdf['_features_list'].iloc[0] if '_features_list' in pdf.columns else []
+        split_arr  = list(pdf['_split_list'].iloc[0]) if '_split_list' in pdf.columns else []
+        bnd_arr    = np.array([bool(v) if not (pd.isna(v) or v is None) else False for v in pdf['_is_boundary_list'].iloc[0]], dtype=bool) if '_is_boundary_list' in pdf.columns else np.zeros(len(all_nodes), dtype=bool)
         label_arr  = np.array([int(v) if not pd.isna(v) else -1 for v in raw_labels], dtype=np.int64)
+
+        n_nodes = len(all_nodes)
+        if len(label_arr) != n_nodes:
+            label_arr = np.resize(label_arr, (n_nodes,))
+        if len(split_arr) != n_nodes:
+            split_arr = split_arr[:n_nodes] if len(split_arr) > n_nodes else split_arr + ['none'] * (n_nodes - len(split_arr))
+        if len(bnd_arr) != n_nodes:
+            bnd_arr = np.resize(bnd_arr, (n_nodes,))
     else:
         all_nodes = pdf['id'].values.astype(np.int64)
         raw_labels = pdf['label'].values
@@ -229,8 +237,7 @@ def _train_gnn_community_single(pdf, comm_edges_pdf=None, base_weights_bc=None, 
         split_arr  = list(pdf['split'].values)
         bnd_arr    = np.array([bool(v) if not (pd.isna(v) or v is None) else False for v in pdf['is_boundary'].values], dtype=bool)
         label_arr  = np.array([int(v) if not pd.isna(v) else -1 for v in raw_labels], dtype=np.int64)
-
-    n_nodes = len(all_nodes)
+        n_nodes    = len(all_nodes)
 
     # Fast-Path for Micro-Communities (< 5 nodes) — instant evaluation without PyTorch setup
     if n_nodes < 5:
@@ -1292,7 +1299,12 @@ def run_phase3(spark, sc, datasets, algorithms, use_global_mapping,
                         F.collect_list('dst').alias('_dst_list')
                     ))
 
-                nodes_agg = (retained_nodes
+                nodes_prepared = (retained_nodes
+                    .withColumn('label', F.coalesce(F.col('label'), F.lit(-1)))
+                    .withColumn('split', F.coalesce(F.col('split'), F.lit('none')))
+                    .withColumn('is_boundary', F.coalesce(F.col('is_boundary'), F.lit(False))))
+
+                nodes_agg = (nodes_prepared
                     .groupBy('community_id')
                     .agg(
                         F.collect_list('id').alias('_id_list'),
