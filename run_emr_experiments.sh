@@ -130,6 +130,7 @@ if [[ "$TARGET" == "default" || "$TARGET" == "reddit" || "$TARGET" == "all" ]]; 
       --run-phase2 \
       --run-phase3 \
       --run-phase3b \
+      --force-rerun \
       --global-mapping "true" \
       --task-type "both" \
       2>&1 | tee "$LOG_FILE"
@@ -154,6 +155,7 @@ if [[ "$TARGET" == "default" || "$TARGET" == "products" || "$TARGET" == "ogbn-pr
       --run-phase2 \
       --run-phase3 \
       --run-phase3b \
+      --force-rerun \
       --global-mapping "true" \
       --task-type "both" \
       2>&1 | tee "$LOG_FILE"
@@ -178,6 +180,7 @@ if [[ "$TARGET" == "default" || "$TARGET" == "mag" || "$TARGET" == "ogbn-mag" ||
       --run-phase2 \
       --run-phase3 \
       --run-phase3b \
+      --force-rerun \
       --global-mapping "true" \
       --task-type "both" \
       2>&1 | tee "$LOG_FILE"
@@ -202,6 +205,7 @@ if [[ "$TARGET" == "livejournal" || "$TARGET" == "all" ]]; then
       --run-phase2 \
       --run-phase3 \
       --run-phase3b \
+      --force-rerun \
       --global-mapping "true" \
       --task-type "both" \
       2>&1 | tee "$LOG_FILE"
@@ -226,6 +230,7 @@ if [[ "$TARGET" == "orkut" || "$TARGET" == "all" ]]; then
       --run-phase2 \
       --run-phase3 \
       --run-phase3b \
+      --force-rerun \
       --global-mapping "true" \
       --task-type "both" \
       2>&1 | tee "$LOG_FILE"
@@ -250,6 +255,7 @@ if [[ "$TARGET" == "standards" || "$TARGET" == "all" ]]; then
       --run-phase2 \
       --run-phase3 \
       --run-phase3b \
+      --force-rerun \
       --global-mapping "true" \
       --task-type "both" \
       2>&1 | tee "$LOG_FILE"
@@ -270,6 +276,7 @@ if [[ "$TARGET" == "timing" ]]; then
       --algorithms "louvain" \
       --executor-instances "$EXEC_COUNT" \
       --force-reingest \
+      --force-rerun \
       --run-phase0 \
       --run-phase1 \
       --run-phase2 \
@@ -309,6 +316,7 @@ if [[ "$TARGET" == "scaling" || "$TARGET" == "sweep" || "$TARGET" == "full_sweep
               --run-phase2 \
               --run-phase3 \
               --run-phase3b \
+              --force-rerun \
               --global-mapping "true" \
               --task-type "both" \
               2>&1 | tee "$SCALING_LOG"

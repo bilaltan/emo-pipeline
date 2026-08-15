@@ -24,7 +24,7 @@ GNN_MODELS = ['sage']
 # False = skip (Delta tables already exist).
 RUN_PHASE0        = True
 FORCE_REINGEST    = False   # Set to False to use existing S3 Delta tables
-FORCE_RERUN       = False # Preserve the validated Phase 2.6/2.7 checkpoints
+FORCE_RERUN       = True    # Force clean, fresh training and evaluation for all phases
 USE_OGB_SPLITS    = True    # True = OGB official splits | False = stratified 60/20/20
 RANDOM_SEED       = 42
 N_BASELINE_RUNS   = 1          # number of runs per baseline for mean ± std
