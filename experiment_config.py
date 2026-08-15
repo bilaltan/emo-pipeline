@@ -170,6 +170,10 @@ DATASET_CFG = {
     'coauthor-cs':     {'in_feats': 6805, 'num_classes': 15},
     'coauthor-physics':{'in_feats': 8415, 'num_classes': 5},
     'deezereurope':    {'in_feats': 128, 'num_classes': 2},
+    'livejournal':     {'in_feats': 128, 'num_classes': 100},
+    'LiveJournal':     {'in_feats': 128, 'num_classes': 100},
+    'orkut':           {'in_feats': 128, 'num_classes': 100},
+    'Orkut':           {'in_feats': 128, 'num_classes': 100},
 }
 
 # Bundled GCN config dict (passed to pipeline functions)

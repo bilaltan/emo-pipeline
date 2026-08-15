@@ -478,6 +478,105 @@ def run_phase0(spark, sc, datasets, run_phase0_flag, use_ogb_splits,
                 n_tr, n_va = int(.6 * n_nodes), int(.2 * n_nodes)
                 train_idx = perm[:n_tr]
                 valid_idx = perm[n_tr:n_tr+n_va]
+                test_idx  = perm[n_tr+n_va:]
+            elif d_lower in ('livejournal', 'com-livejournal'):
+                import gzip, ssl, urllib.request
+                import pandas as pd
+                tmp_dir = os.environ.get('TMPDIR', '/tmp')
+                txt_path = os.path.join(tmp_dir, 'com-lj.ungraph.txt.gz')
+                cmty_path = os.path.join(tmp_dir, 'com-lj.top5000.cmty.txt.gz')
+                ssl._create_default_https_context = ssl._create_unverified_context
+                if not os.path.exists(txt_path):
+                    print("  ► Downloading LiveJournal (com-lj.ungraph.txt.gz) from SNAP...")
+                    urllib.request.urlretrieve('https://snap.stanford.edu/data/bigdata/communities/com-lj.ungraph.txt.gz', txt_path)
+                print("  ► Reading LiveJournal edge list...")
+                edges_df = pd.read_csv(txt_path, sep=r'\s+', comment='#', header=None, names=['src', 'dst'])
+                raw_src = edges_df['src'].values.astype(np.int64)
+                raw_dst = edges_df['dst'].values.astype(np.int64)
+                unique_nodes = np.unique(np.concatenate([raw_src, raw_dst]))
+                n_nodes = len(unique_nodes)
+                node_map = {node_id: idx for idx, node_id in enumerate(unique_nodes)}
+                src_r = np.array([node_map[u] for u in raw_src], dtype=np.int64)
+                dst_r = np.array([node_map[v] for v in raw_dst], dtype=np.int64)
+                
+                # Community labels (top 100 communities)
+                lbl = np.zeros(n_nodes, dtype=np.int32)
+                if not os.path.exists(cmty_path):
+                    try:
+                        print("  ► Downloading LiveJournal top communities...")
+                        urllib.request.urlretrieve('https://snap.stanford.edu/data/bigdata/communities/com-lj.top5000.cmty.txt.gz', cmty_path)
+                    except Exception:
+                        pass
+                if os.path.exists(cmty_path):
+                    try:
+                        with gzip.open(cmty_path, 'rt') as f:
+                            for c_idx, line in enumerate(f):
+                                if c_idx >= 100:
+                                    break
+                                members = [int(x) for x in line.strip().split() if x]
+                                for m_node in members:
+                                    if m_node in node_map:
+                                        lbl[node_map[m_node]] = c_idx
+                    except Exception as e:
+                        print(f"  [Warning] Error parsing LiveJournal communities: {e}")
+                
+                print(f"  ► Generating deterministic 128-dim features for {n_nodes:,} LiveJournal nodes...")
+                rng = np.random.default_rng(random_seed)
+                node_feat = rng.standard_normal((n_nodes, 128)).astype(np.float32)
+                perm = rng.permutation(n_nodes)
+                n_tr, n_va = int(.6 * n_nodes), int(.2 * n_nodes)
+                train_idx = perm[:n_tr]
+                valid_idx = perm[n_tr:n_tr+n_va]
+                test_idx  = perm[n_tr+n_va:]
+            elif d_lower in ('orkut', 'com-orkut'):
+                import gzip, ssl, urllib.request
+                import pandas as pd
+                tmp_dir = os.environ.get('TMPDIR', '/tmp')
+                txt_path = os.path.join(tmp_dir, 'com-orkut.ungraph.txt.gz')
+                cmty_path = os.path.join(tmp_dir, 'com-orkut.top5000.cmty.txt.gz')
+                ssl._create_default_https_context = ssl._create_unverified_context
+                if not os.path.exists(txt_path):
+                    print("  ► Downloading Orkut (com-orkut.ungraph.txt.gz) from SNAP...")
+                    urllib.request.urlretrieve('https://snap.stanford.edu/data/bigdata/communities/com-orkut.ungraph.txt.gz', txt_path)
+                print("  ► Reading Orkut edge list...")
+                edges_df = pd.read_csv(txt_path, sep=r'\s+', comment='#', header=None, names=['src', 'dst'])
+                raw_src = edges_df['src'].values.astype(np.int64)
+                raw_dst = edges_df['dst'].values.astype(np.int64)
+                unique_nodes = np.unique(np.concatenate([raw_src, raw_dst]))
+                n_nodes = len(unique_nodes)
+                node_map = {node_id: idx for idx, node_id in enumerate(unique_nodes)}
+                src_r = np.array([node_map[u] for u in raw_src], dtype=np.int64)
+                dst_r = np.array([node_map[v] for v in raw_dst], dtype=np.int64)
+                
+                # Community labels (top 100 communities)
+                lbl = np.zeros(n_nodes, dtype=np.int32)
+                if not os.path.exists(cmty_path):
+                    try:
+                        print("  ► Downloading Orkut top communities...")
+                        urllib.request.urlretrieve('https://snap.stanford.edu/data/bigdata/communities/com-orkut.top5000.cmty.txt.gz', cmty_path)
+                    except Exception:
+                        pass
+                if os.path.exists(cmty_path):
+                    try:
+                        with gzip.open(cmty_path, 'rt') as f:
+                            for c_idx, line in enumerate(f):
+                                if c_idx >= 100:
+                                    break
+                                members = [int(x) for x in line.strip().split() if x]
+                                for m_node in members:
+                                    if m_node in node_map:
+                                        lbl[node_map[m_node]] = c_idx
+                    except Exception as e:
+                        print(f"  [Warning] Error parsing Orkut communities: {e}")
+                
+                print(f"  ► Generating deterministic 128-dim features for {n_nodes:,} Orkut nodes...")
+                rng = np.random.default_rng(random_seed)
+                node_feat = rng.standard_normal((n_nodes, 128)).astype(np.float32)
+                perm = rng.permutation(n_nodes)
+                n_tr, n_va = int(.6 * n_nodes), int(.2 * n_nodes)
+                train_idx = perm[:n_tr]
+                valid_idx = perm[n_tr:n_tr+n_va]
+                test_idx  = perm[n_tr+n_va:]
         else:
             # Download OGB
             from ogb.nodeproppred import NodePropPredDataset
@@ -589,7 +688,7 @@ def run_phase0(spark, sc, datasets, run_phase0_flag, use_ogb_splits,
         ms = StructType([StructField('id', LongType(), False),
                          StructField('split', StringType(), True)])
         if use_ogb_splits:
-            if dataset.lower() in ('reddit', 'flickr', 'wikics', 'coauthor-cs', 'coauthor-physics', 'deezereurope'):
+            if dataset.lower() in ('reddit', 'flickr', 'wikics', 'coauthor-cs', 'coauthor-physics', 'deezereurope', 'livejournal', 'orkut', 'com-livejournal', 'com-orkut'):
                 ids = np.concatenate([train_idx.flatten(), valid_idx.flatten(), test_idx.flatten()])
                 splits = (['train'] * len(train_idx.flatten()) +
                           ['valid'] * len(valid_idx.flatten()) +
