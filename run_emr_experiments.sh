@@ -330,6 +330,33 @@ if [[ "$TARGET" == "scaling" || "$TARGET" == "sweep" || "$TARGET" == "full_sweep
     echo "✓ Full Multi-Executor Scaling Sweep Completed across 8, 16, and 32 Executors!"
 fi
 
+# Target: CUSTOM DATASET (Direct name or comma-separated list, e.g. "Orkut", "LiveJournal,Orkut", "WikiCS")
+KNOWN_TARGETS=" default reddit products ogbn-products mag ogbn-mag livejournal orkut standards timing scaling sweep full_sweep all "
+if [[ ! "$KNOWN_TARGETS" =~ " $TARGET " ]]; then
+    EXEC_COUNT="${NUM_EXECS:-16}"
+    echo ""
+    echo "=========================================================================="
+    echo " [EXECUTION] Running Custom Dataset Target: $TARGET (Executors: $EXEC_COUNT)"
+    echo "=========================================================================="
+    SAFE_NAME=$(echo "$TARGET" | tr ',' '_')
+    LOG_FILE="$LOG_DIR/custom_${SAFE_NAME}_e${EXEC_COUNT}.log"
+    $RUNNER \
+      --experiment-name "custom_${SAFE_NAME}" \
+      --datasets "$TARGET" \
+      --algorithms "louvain" \
+      --executor-instances "$EXEC_COUNT" \
+      --run-phase0 \
+      --run-phase1 \
+      --run-phase2 \
+      --run-phase3 \
+      --run-phase3b \
+      --force-rerun \
+      --global-mapping "true" \
+      --task-type "both" \
+      2>&1 | tee "$LOG_FILE"
+    echo "✓ Custom dataset run complete. Log: $LOG_FILE"
+fi
+
 # ── 5. Compile Master Excel Report & Upload to S3 ──────────────────────────────
 echo ""
 echo "=========================================================================="
