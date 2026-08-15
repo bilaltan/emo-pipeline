@@ -982,7 +982,14 @@ def run_phase3(spark, sc, datasets, algorithms, use_global_mapping,
     result_schema = _make_result_schema()
 
     for dataset in datasets:
-        cfg = dataset_cfg[dataset]
+        cfg = dataset_cfg.get(dataset)
+        if cfg is None:
+            for k, v in dataset_cfg.items():
+                if str(k).lower() == str(dataset).lower() or str(k).lower().replace('_', '-') == str(dataset).lower().replace('_', '-'):
+                    cfg = v
+                    break
+        if cfg is None:
+            cfg = {'in_feats': 128, 'num_classes': 10}
         for alg in algorithms:
             p_alg = get_paths_fn(dataset, alg)
 

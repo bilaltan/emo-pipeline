@@ -157,24 +157,47 @@ SKIP_PKG_SYNC     = False        # Required after worker replacement/restart; ve
 #  DERIVED CONFIG — do not edit below this line
 # ══════════════════════════════════════════════════════════════════════════════
 
-# Dataset-specific architecture configs (auto-applied per dataset)
-DATASET_CFG = {
+# Dataset-specific architecture configs (auto-applied per dataset, case-insensitive)
+class _CaseInsensitiveDict(dict):
+    def __getitem__(self, key):
+        if key in self:
+            return super().__getitem__(key)
+        for k in self:
+            if str(k).lower() == str(key).lower() or str(k).lower().replace('_', '-') == str(key).lower().replace('_', '-'):
+                return super().__getitem__(k)
+        raise KeyError(key)
+
+    def get(self, key, default=None):
+        try:
+            return self[key]
+        except KeyError:
+            return default
+
+_RAW_DATASET_CFG = {
     'ogbn-products':   {'in_feats': 100, 'num_classes': 47},
     'ogbn-arxiv':      {'in_feats': 128, 'num_classes': 40},
     'ogbn-mag':        {'in_feats': 128, 'num_classes': 349},
     'ogbn-papers100M': {'in_feats': 128, 'num_classes': 172},
     'ogbn-proteins':   {'in_feats': 8, 'num_classes': 112},
     'reddit':          {'in_feats': 602, 'num_classes': 41},
+    'Reddit':          {'in_feats': 602, 'num_classes': 41},
     'flickr':          {'in_feats': 500, 'num_classes': 7},
+    'Flickr':          {'in_feats': 500, 'num_classes': 7},
     'wikics':          {'in_feats': 300, 'num_classes': 10},
+    'WikiCS':          {'in_feats': 300, 'num_classes': 10},
     'coauthor-cs':     {'in_feats': 6805, 'num_classes': 15},
+    'Coauthor-CS':     {'in_feats': 6805, 'num_classes': 15},
     'coauthor-physics':{'in_feats': 8415, 'num_classes': 5},
+    'Coauthor-Physics':{'in_feats': 8415, 'num_classes': 5},
     'deezereurope':    {'in_feats': 128, 'num_classes': 2},
+    'DeezerEurope':    {'in_feats': 128, 'num_classes': 2},
     'livejournal':     {'in_feats': 128, 'num_classes': 100},
     'LiveJournal':     {'in_feats': 128, 'num_classes': 100},
     'orkut':           {'in_feats': 128, 'num_classes': 100},
     'Orkut':           {'in_feats': 128, 'num_classes': 100},
 }
+
+DATASET_CFG = _CaseInsensitiveDict(_RAW_DATASET_CFG)
 
 # Bundled GCN config dict (passed to pipeline functions)
 GCN_CFG = {

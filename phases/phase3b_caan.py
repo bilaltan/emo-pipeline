@@ -71,8 +71,17 @@ def _train_minor_global_caan(dataset, gcn_cfg, dataset_cfg, caan_components, mod
     if len(minor_ids) == 0:
         return None
         
-    feat_dim = dataset_cfg[dataset]['in_feats']
-    num_classes = dataset_cfg[dataset]['num_classes']
+    cfg = dataset_cfg.get(dataset)
+    if cfg is None:
+        for k, v in dataset_cfg.items():
+            if str(k).lower() == str(dataset).lower() or str(k).lower().replace('_', '-') == str(dataset).lower().replace('_', '-'):
+                cfg = v
+                break
+    if cfg is None:
+        cfg = {'in_feats': 128, 'num_classes': 10}
+
+    feat_dim = int(cfg['in_feats'])
+    num_classes = int(cfg['num_classes'])
     hidden_dim = gcn_cfg['hidden_dim']
     num_epochs = gcn_cfg['num_epochs']
     lr = gcn_cfg['lr']
@@ -1121,7 +1130,14 @@ def run_phase3b(spark, sc, datasets, algorithms, use_global_mapping,
     result_schema = _make_result_schema()
     
     for dataset in datasets:
-        cfg = dataset_cfg[dataset]
+        cfg = dataset_cfg.get(dataset)
+        if cfg is None:
+            for k, v in dataset_cfg.items():
+                if str(k).lower() == str(dataset).lower() or str(k).lower().replace('_', '-') == str(dataset).lower().replace('_', '-'):
+                    cfg = v
+                    break
+        if cfg is None:
+            cfg = {'in_feats': 128, 'num_classes': 10}
         p = get_paths_fn(dataset)
         
         # Load raw nodes and edges
