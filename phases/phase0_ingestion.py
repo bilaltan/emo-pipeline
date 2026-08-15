@@ -365,7 +365,7 @@ def run_phase0(spark, sc, datasets, run_phase0_flag, use_ogb_splits,
             continue
 
         d_lower = dataset.lower()
-        if d_lower in ('reddit', 'flickr', 'wikics', 'coauthor-cs', 'coauthor-physics', 'deezereurope'):
+        if d_lower in ('reddit', 'flickr', 'wikics', 'coauthor-cs', 'coauthor-physics', 'deezereurope', 'livejournal', 'com-livejournal', 'orkut', 'com-orkut'):
 
             if d_lower == 'reddit':
                 from dgl.data import RedditDataset

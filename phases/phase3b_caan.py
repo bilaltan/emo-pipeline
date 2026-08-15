@@ -1380,8 +1380,8 @@ def run_phase3b(spark, sc, datasets, algorithms, use_global_mapping,
                     else:
                         large_comm_pdf = nodes_w_comm.filter(F.col('community_id') == largest_comm_id).toPandas()
                     
-                    in_feats = len(large_comm_pdf['features'].iloc[0])
-                    num_classes = int(cfg['num_classes'])
+                    in_feats = len(large_comm_pdf['features'].iloc[0]) if len(large_comm_pdf) > 0 else int(cfg.get('in_feats', 128))
+                    num_classes = int(cfg.get('num_classes', 10))
                     hidden_dim = int(gcn_cfg['hidden_dim'])
                     
                     # Map nodes
