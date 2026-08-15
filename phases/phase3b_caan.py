@@ -39,6 +39,8 @@ def _load_communities_data_batch(nodes_url, edges_url, comm_ids):
     try:
         nodes_ds = _get_dataset(nodes_url)
         nodes_pdf = nodes_ds.to_table(filter=(ds.field("community_id").isin(comm_ids)), use_threads=True).to_pandas()
+        if len(nodes_pdf) > 0 and 'id' in nodes_pdf.columns:
+            nodes_pdf = nodes_pdf.drop_duplicates(subset=['id', 'community_id']).reset_index(drop=True)
     except Exception as e:
         print(f"  ⚠ CAAN _load_communities_data_batch NODES ERROR: {e}")
         nodes_pdf = pd.DataFrame()
@@ -46,6 +48,8 @@ def _load_communities_data_batch(nodes_url, edges_url, comm_ids):
     try:
         edges_ds = _get_dataset(edges_url)
         edges_pdf = edges_ds.to_table(filter=(ds.field("community_id").isin(comm_ids)), use_threads=True).to_pandas()
+        if len(edges_pdf) > 0 and 'src' in edges_pdf.columns and 'dst' in edges_pdf.columns:
+            edges_pdf = edges_pdf.drop_duplicates().reset_index(drop=True)
     except Exception as e:
         print(f"  ⚠ CAAN _load_communities_data_batch EDGES ERROR: {e}")
         edges_pdf = pd.DataFrame()
@@ -507,6 +511,9 @@ def make_caan_udf(super_nodes_dict_bc, minor_node_to_idx_bc, minor_feats_arr_bc,
         node_to_comm = node_to_comm_bc.value
         major_comms = major_comms_bc.value
         
+        if len(pdf) > 0 and 'id' in pdf.columns:
+            pdf = pdf.drop_duplicates(subset=['id']).reset_index(drop=True)
+
         local_feats = np.stack(pdf['features'].values).astype(np.float32)
         feat_dim = local_feats.shape[1]
 
