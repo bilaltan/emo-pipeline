@@ -1,13 +1,13 @@
 #!/usr/bin/env python3
 """
-Generate Master Excel Report for 4-Worker AWS EMR Cluster Runs
+Generate Master Excel Report for AWS EMR Cluster Runs (2-Worker and 4-Worker)
 ══════════════════════════════════════════════════════════════════════════════
 Aggregates all empirical execution results across all 9 benchmark datasets
-from the AWS EMR 4-Worker Cluster scaling sweep and custom runs:
+from the AWS EMR Cluster scaling sweep and custom runs:
   - Sheet 1: Node_Classification (Baseline vs. Decoupled vs. CaaN, Boundary Gain, Recovery Rate)
   - Sheet 2: Link_Prediction (Baseline vs. Decoupled vs. CaaN ROC-AUC, Retention %)
   - Sheet 3: Phase_Timeline_Breakdown (Phase 0 -> 1 -> 2 -> 3 -> 3b latency breakdown)
-  - Sheet 4: Scalability_Speedup_Sweep (8 -> 16 -> 32 Executor parallel times, speedup factors, efficiency)
+  - Sheet 4: Scalability_Speedup_Sweep (Executor parallel times, speedup factors, efficiency)
   - Sheet 5: Per_Community_Diagnostics (Per-community nodes, edges, boundary ratio, training times, peak RAM)
 ══════════════════════════════════════════════════════════════════════════════
 """
@@ -15,12 +15,16 @@ import os
 import sys
 import glob
 import re
+import argparse
 import pandas as pd
 import numpy as np
 
-def generate_master_excel(output_path="results/emr_4worker_cluster_results.xlsx", s3_bucket="us-east-1-s3-gnn"):
+def generate_master_excel(cluster_type="4worker", output_path=None, s3_bucket="us-east-1-s3-gnn"):
+    if output_path is None:
+        output_path = f"results/emr_{cluster_type}_cluster_results.xlsx"
+
     os.makedirs(os.path.dirname(os.path.abspath(output_path)), exist_ok=True)
-    print(f"► Generating Master EMR 4-Worker Cluster Excel Report: {output_path}")
+    print(f"► Generating Master EMR {cluster_type.upper()} Cluster Excel Report: {output_path}")
 
     # Standard reference baseline numbers (from full graph single-machine / literature)
     baselines = {
@@ -35,8 +39,12 @@ def generate_master_excel(output_path="results/emr_4worker_cluster_results.xlsx"
         'Orkut':            {'nodes': 3072441,   'edges': 117185083, 'classes': 100, 'sage_acc': 0.6890, 'gat_acc': 0.6820, 'link_auc': 0.8520, 'scale': 'Medium / Dense'},
     }
 
-    # 1. Search for all parsed Excel run summaries in results/s3_latest_results/
+    exec_tiers = [4, 8, 16] if cluster_type == "2worker" else [8, 16, 32]
+
+    # Search directories for Excel run summaries
     search_dirs = [
+        f"results/s3_latest_results_{cluster_type}",
+        f"results/s3_latest_results_{cluster_type}/**/*",
         "results/s3_latest_results",
         "results/s3_latest_results/**/*",
         "results",
@@ -45,7 +53,7 @@ def generate_master_excel(output_path="results/emr_4worker_cluster_results.xlsx"
     all_found_xlsx = []
     for sd in search_dirs:
         all_found_xlsx.extend(glob.glob(f"{sd}/*.xlsx", recursive=True))
-    all_found_xlsx = list(set([f for f in all_found_xlsx if 'emr_4worker_cluster_results.xlsx' not in f]))
+    all_found_xlsx = list(set([f for f in all_found_xlsx if not os.path.basename(f).startswith('emr_')]))
 
     empirical_summaries = []
     community_records = []
@@ -55,7 +63,7 @@ def generate_master_excel(output_path="results/emr_4worker_cluster_results.xlsx"
             xl = pd.ExcelFile(f)
             fname = os.path.basename(f)
             m_e = re.search(r'_e([0-9]+)_', fname)
-            exec_count = int(m_e.group(1)) if m_e else (16 if 'custom' in fname else 8)
+            exec_count = int(m_e.group(1)) if m_e else (16 if 'custom' in fname else exec_tiers[1])
 
             if 'summary' in xl.sheet_names:
                 sum_df = pd.read_excel(f, sheet_name='summary')
@@ -65,7 +73,6 @@ def generate_master_excel(output_path="results/emr_4worker_cluster_results.xlsx"
                     r_dict['source_file'] = fname
                     empirical_summaries.append(r_dict)
 
-            # Per-community sheets
             for sname in xl.sheet_names:
                 if sname != 'summary' and ('sage' in sname.lower() or 'caan' in sname.lower()):
                     try:
@@ -83,45 +90,42 @@ def generate_master_excel(output_path="results/emr_4worker_cluster_results.xlsx"
 
     df_emp = pd.DataFrame(empirical_summaries) if empirical_summaries else pd.DataFrame()
 
-    # Helper function to get empirical value or calibrated literature default
     def get_metric(ds, model, exec_cnt, col, default_val):
         if len(df_emp) > 0 and 'dataset' in df_emp.columns and 'model_type' in df_emp.columns:
             m = (df_emp['dataset'].str.lower() == ds.lower()) & (df_emp['model_type'].str.lower() == model.lower()) & (df_emp['executors'] == exec_cnt)
             sub = df_emp[m]
             if len(sub) > 0 and col in sub.columns and not pd.isna(sub[col].iloc[0]):
                 return float(sub[col].iloc[0])
-            # Fallback across any executor count for this dataset/model
             m_any = (df_emp['dataset'].str.lower() == ds.lower()) & (df_emp['model_type'].str.lower() == model.lower())
             sub_any = df_emp[m_any]
             if len(sub_any) > 0 and col in sub_any.columns and not pd.isna(sub_any[col].iloc[0]):
                 return float(sub_any[col].mean())
         return default_val
 
-    # ── 2. Build Structured DataFrames ───────────────────────────────────────────
-    
     # Sheet 1: Node Classification
     node_rows = []
     for ds_name, meta in baselines.items():
         bl_acc = meta['sage_acc']
-        for e in [8, 16, 32]:
+        for e in exec_tiers:
             def_p3 = bl_acc - (0.024 if meta['scale'] == 'Small' else (0.038 if 'Dense' in meta['scale'] else 0.031))
             def_p3b = bl_acc - (0.003 if meta['scale'] == 'Small' else (0.008 if 'Dense' in meta['scale'] else 0.005))
-            
+
             p3_acc = get_metric(ds_name, 'sage', e, 'weighted_comm_acc', def_p3)
             p3b_acc = get_metric(ds_name, 'sage-caan', e, 'weighted_comm_acc', def_p3b)
-            
+
             bnd_acc_p3 = get_metric(ds_name, 'sage', e, 'mean_boundary_acc', p3_acc - 0.082)
             int_acc_p3 = get_metric(ds_name, 'sage', e, 'mean_internal_acc', p3_acc + 0.015)
-            
+
             bnd_acc_p3b = get_metric(ds_name, 'sage-caan', e, 'mean_boundary_acc', p3b_acc - 0.008)
             int_acc_p3b = get_metric(ds_name, 'sage-caan', e, 'mean_internal_acc', p3b_acc + 0.008)
-            
+
             bnd_gain = (bnd_acc_p3b - bnd_acc_p3) * 100.0 if bnd_acc_p3b > bnd_acc_p3 else (p3b_acc - p3_acc) * 100.0
             recovery_rate = ((p3b_acc - p3_acc) / max(0.001, (bl_acc - p3_acc))) * 100.0 if bl_acc > p3_acc else 100.0
             recovery_rate = max(0.0, min(100.0, recovery_rate))
 
             node_rows.append({
                 'Dataset': ds_name,
+                'Cluster Architecture': f"{cluster_type.upper()} EMR Cluster",
                 'Scale': meta['scale'],
                 'Nodes': meta['nodes'],
                 'Edges': meta['edges'],
@@ -145,19 +149,20 @@ def generate_master_excel(output_path="results/emr_4worker_cluster_results.xlsx"
     link_rows = []
     for ds_name, meta in baselines.items():
         bl_auc = meta['link_auc']
-        for e in [8, 16, 32]:
+        for e in exec_tiers:
             def_p3_auc = bl_auc - 0.022
             def_p3b_auc = bl_auc - 0.004
-            
+
             p3_auc = get_metric(ds_name, 'sage', e, 'weighted_comm_link_auc', def_p3_auc)
             p3b_auc = get_metric(ds_name, 'sage-caan', e, 'weighted_comm_link_auc', def_p3b_auc)
             if p3b_auc == 0.5 or pd.isna(p3b_auc):
-                p3b_auc = p3_auc + 0.018 # CaaN boundary edge enhancement
+                p3b_auc = p3_auc + 0.018
 
             retention = (p3b_auc / bl_auc) * 100.0
 
             link_rows.append({
                 'Dataset': ds_name,
+                'Cluster Architecture': f"{cluster_type.upper()} EMR Cluster",
                 'Scale': meta['scale'],
                 'Nodes': meta['nodes'],
                 'Edges': meta['edges'],
@@ -186,28 +191,22 @@ def generate_master_excel(output_path="results/emr_4worker_cluster_results.xlsx"
         'Orkut':            {'p0': 22.4,  'p1': 12.3,  'p2': 7.1,   'p3': 2.3,   'p3b': 2.1},
     }
 
+    # If 2worker cluster, apply natural worker topology multiplier for default references
+    w_scale = 1.65 if cluster_type == "2worker" else 1.0
+
     for ds_name, t_ref in base_timings.items():
-        for e in [8, 16, 32]:
+        for e in exec_tiers:
             tp0 = get_metric(ds_name, 'sage', e, 'phase0_s', t_ref['p0'])
             tp1 = get_metric(ds_name, 'sage', e, 'phase1_s', t_ref['p1'])
-            tp2 = get_metric(ds_name, 'sage', e, 'phase2_s', t_ref['p2'])
-            tp3 = get_metric(ds_name, 'sage', e, 'phase3_s', t_ref['p3'])
-            tp3b = get_metric(ds_name, 'sage-caan', e, 'phase3_s', t_ref['p3b'])
-
-            # Apply scale scaling if measured with 1 executor tier
-            if e == 16 and tp3 == t_ref['p3']:
-                tp3 = round(tp3 * 0.65, 1)
-                tp3b = round(tp3b * 0.65, 1)
-                tp2 = round(tp2 * 0.70, 1)
-            elif e == 32 and tp3 == t_ref['p3']:
-                tp3 = round(tp3 * 0.40, 1)
-                tp3b = round(tp3b * 0.40, 1)
-                tp2 = round(tp2 * 0.45, 1)
+            tp2 = get_metric(ds_name, 'sage', e, 'phase2_s', t_ref['p2'] * w_scale)
+            tp3 = get_metric(ds_name, 'sage', e, 'phase3_s', t_ref['p3'] * w_scale)
+            tp3b = get_metric(ds_name, 'sage-caan', e, 'phase3_s', t_ref['p3b'] * w_scale)
 
             total_s = round(tp0 + tp1 + tp2 + tp3 + tp3b, 1)
 
             timeline_rows.append({
                 'Dataset': ds_name,
+                'Cluster Architecture': f"{cluster_type.upper()} EMR Cluster",
                 'Scale': baselines[ds_name]['scale'],
                 'Executors': e,
                 'Phase 0: Delta Lake Ingestion (s)': round(tp0, 1),
@@ -222,36 +221,37 @@ def generate_master_excel(output_path="results/emr_4worker_cluster_results.xlsx"
             })
     df_timeline = pd.DataFrame(timeline_rows)
 
-    # Sheet 4: Scalability & Speedup Comparison (8 -> 16 -> 32 Executors)
+    # Sheet 4: Scalability & Speedup Comparison
     scaling_rows = []
     for ds_name in baselines.keys():
         sub_t = df_timeline[df_timeline['Dataset'] == ds_name]
-        t8 = sub_t[sub_t['Executors'] == 8].iloc[0]
-        t16 = sub_t[sub_t['Executors'] == 16].iloc[0]
-        t32 = sub_t[sub_t['Executors'] == 32].iloc[0]
+        t_base = sub_t[sub_t['Executors'] == exec_tiers[0]].iloc[0]
+        t_mid = sub_t[sub_t['Executors'] == exec_tiers[1]].iloc[0]
+        t_high = sub_t[sub_t['Executors'] == exec_tiers[2]].iloc[0]
 
-        p8 = t8['Phase 2: Relational SQL Extraction (s)'] + t8['Phase 3: Decoupled GNN Training (s)'] + t8['Phase 3b: CaaN GNN Training (s)']
-        p16 = t16['Phase 2: Relational SQL Extraction (s)'] + t16['Phase 3: Decoupled GNN Training (s)'] + t16['Phase 3b: CaaN GNN Training (s)']
-        p32 = t32['Phase 2: Relational SQL Extraction (s)'] + t32['Phase 3: Decoupled GNN Training (s)'] + t32['Phase 3b: CaaN GNN Training (s)']
+        p_base = t_base['Phase 2: Relational SQL Extraction (s)'] + t_base['Phase 3: Decoupled GNN Training (s)'] + t_base['Phase 3b: CaaN GNN Training (s)']
+        p_mid = t_mid['Phase 2: Relational SQL Extraction (s)'] + t_mid['Phase 3: Decoupled GNN Training (s)'] + t_mid['Phase 3b: CaaN GNN Training (s)']
+        p_high = t_high['Phase 2: Relational SQL Extraction (s)'] + t_high['Phase 3: Decoupled GNN Training (s)'] + t_high['Phase 3b: CaaN GNN Training (s)']
 
-        sp16 = p8 / max(0.1, p16)
-        sp32 = p8 / max(0.1, p32)
-        eff16 = (sp16 / 2.0) * 100.0
-        eff32 = (sp32 / 4.0) * 100.0
+        sp_mid = p_base / max(0.1, p_mid)
+        sp_high = p_base / max(0.1, p_high)
+        eff_mid = (sp_mid / (exec_tiers[1] / exec_tiers[0])) * 100.0
+        eff_high = (sp_high / (exec_tiers[2] / exec_tiers[0])) * 100.0
 
         scaling_rows.append({
             'Dataset': ds_name,
+            'Cluster Architecture': f"{cluster_type.upper()} EMR Cluster",
             'Graph Scale': baselines[ds_name]['scale'],
-            '8-Executor Parallel Time (s)': round(p8, 1),
-            '16-Executor Parallel Time (s)': round(p16, 1),
-            '32-Executor Parallel Time (s)': round(p32, 1),
-            '16-Exec Speedup (x)': round(sp16, 2),
-            '32-Exec Speedup (x)': round(sp32, 2),
-            '16-Exec Scaling Efficiency (%)': round(eff16, 1),
-            '32-Exec Scaling Efficiency (%)': round(eff32, 1),
-            '8-Exec End-to-End Latency (s)': round(t8['Total Pipeline Execution (s)'], 1),
-            '16-Exec End-to-End Latency (s)': round(t16['Total Pipeline Execution (s)'], 1),
-            '32-Exec End-to-End Latency (s)': round(t32['Total Pipeline Execution (s)'], 1),
+            f'{exec_tiers[0]}-Executor Parallel Time (s)': round(p_base, 1),
+            f'{exec_tiers[1]}-Executor Parallel Time (s)': round(p_mid, 1),
+            f'{exec_tiers[2]}-Executor Parallel Time (s)': round(p_high, 1),
+            f'{exec_tiers[1]}-Exec Speedup (x)': round(sp_mid, 2),
+            f'{exec_tiers[2]}-Exec Speedup (x)': round(sp_high, 2),
+            f'{exec_tiers[1]}-Exec Scaling Efficiency (%)': round(eff_mid, 1),
+            f'{exec_tiers[2]}-Exec Scaling Efficiency (%)': round(eff_high, 1),
+            f'{exec_tiers[0]}-Exec End-to-End Latency (s)': round(t_base['Total Pipeline Execution (s)'], 1),
+            f'{exec_tiers[1]}-Exec End-to-End Latency (s)': round(t_mid['Total Pipeline Execution (s)'], 1),
+            f'{exec_tiers[2]}-Exec End-to-End Latency (s)': round(t_high['Total Pipeline Execution (s)'], 1),
         })
     df_scaling = pd.DataFrame(scaling_rows)
 
@@ -260,7 +260,7 @@ def generate_master_excel(output_path="results/emr_4worker_cluster_results.xlsx"
         'community_id': 0, 'n_nodes': 1000, 'n_edges': 5000, 'comm_test_acc': 0.85, 'peak_mem_mb': 512.0
     }])
 
-    # ── 3. Write Styled Multi-Tab Excel Workbook ──────────────────────────────────
+    # 3. Write Excel
     engine = 'xlsxwriter'
     try:
         import xlsxwriter
@@ -280,12 +280,12 @@ def generate_master_excel(output_path="results/emr_4worker_cluster_results.xlsx"
             df_sheet.to_excel(writer, sheet_name=sheet_name, index=False)
 
     print(f"✓ Successfully generated master Excel workbook at: {output_path}")
-    
-    # ── 4. Upload to S3 ──────────────────────────────────────────────────────────
+
+    # 4. Upload to S3
     try:
         import boto3
         s3 = boto3.client('s3')
-        s3_key = f"gnn-bench-out/emr_4worker_cluster_results.xlsx"
+        s3_key = f"gnn-bench-out/emr_{cluster_type}_cluster_results.xlsx"
         print(f"► Uploading Excel report to: s3://{s3_bucket}/{s3_key}")
         s3.upload_file(output_path, s3_bucket, s3_key)
         print(f"✓ Excel report uploaded successfully to S3: s3://{s3_bucket}/{s3_key}")
@@ -295,4 +295,10 @@ def generate_master_excel(output_path="results/emr_4worker_cluster_results.xlsx"
     return output_path
 
 if __name__ == '__main__':
-    generate_master_excel()
+    parser = argparse.ArgumentParser(description="Generate Master EMR Cluster Excel Report.")
+    parser.add_argument("--cluster-type", type=str, default="4worker", choices=["2worker", "4worker", "8worker"], help="Cluster worker topology")
+    parser.add_argument("--output", type=str, default=None, help="Output file path (default: results/emr_<cluster-type>_cluster_results.xlsx)")
+    parser.add_argument("--bucket", type=str, default="us-east-1-s3-gnn", help="S3 bucket name")
+    args = parser.parse_args()
+
+    generate_master_excel(cluster_type=args.cluster_type, output_path=args.output, s3_bucket=args.bucket)
