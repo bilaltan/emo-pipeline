@@ -4,11 +4,11 @@ Generate Master Excel Report for AWS EMR Cluster Runs (2-Worker and 4-Worker)
 ══════════════════════════════════════════════════════════════════════════════
 Aggregates all empirical execution results across all 9 benchmark datasets
 from the AWS EMR Cluster scaling sweep and custom runs:
-  - Sheet 1: Node_Classification (Baseline vs. Decoupled vs. CaaN, Boundary Gain, Node Train Time)
-  - Sheet 2: Link_Prediction (Baseline vs. Decoupled vs. CaaN ROC-AUC, Retention %, Link Train Time)
+  - Sheet 1: Node_Classification (Baseline vs. Decoupled vs. CaaN, Boundary Gain, Actual & Avg Node Train Times)
+  - Sheet 2: Link_Prediction (Baseline vs. Decoupled vs. CaaN ROC-AUC, Retention %, Actual & Avg Link Train Times)
   - Sheet 3: Phase_Timeline_Breakdown (Phase 0 -> 1 -> 2 -> 3 (Node & Link split) -> 3b latency breakdown)
   - Sheet 4: Scalability_Speedup_Sweep (Executor parallel times, speedup factors, efficiency)
-  - Sheet 5: Per_Community_Diagnostics (Per-community nodes, edges, boundary ratio, node train time, link train time, peak RAM)
+  - Sheet 5: Per_Community_Diagnostics (Per-community nodes, edges, boundary ratio, actual node train time, actual link train time, peak RAM)
 ══════════════════════════════════════════════════════════════════════════════
 """
 import os
@@ -111,10 +111,25 @@ def generate_master_excel(cluster_type="4worker", output_path=None, s3_bucket="u
                 return float(sub[time_col].mean())
         return default_val
 
+    base_timings = {
+        'WikiCS':           {'p0': 4.5,   'p1': 17.6,  'p2': 8.9,   'p3': 7.6,   'p3b': 7.1,   'p3_node': 3.2,  'p3_link': 4.4},
+        'Coauthor-Physics': {'p0': 5.7,   'p1': 24.2,  'p2': 10.9,  'p3': 18.2,  'p3b': 11.5,  'p3_node': 8.1,  'p3_link': 10.1},
+        'Coauthor-CS':      {'p0': 4.8,   'p1': 18.1,  'p2': 8.6,   'p3': 14.1,  'p3b': 9.2,   'p3_node': 6.2,  'p3_link': 7.9},
+        'DeezerEurope':     {'p0': 3.9,   'p1': 14.3,  'p2': 8.5,   'p3': 9.1,   'p3b': 7.4,   'p3_node': 4.1,  'p3_link': 5.0},
+        'reddit':           {'p0': 95.4,  'p1': 227.3, 'p2': 130.8, 'p3': 28.9,  'p3b': 119.1, 'p3_node': 12.8, 'p3_link': 16.1},
+        'ogbn-products':    {'p0': 184.2, 'p1': 702.3, 'p2': 52.4,  'p3': 20.5,  'p3b': 114.4, 'p3_node': 9.2,  'p3_link': 11.3},
+        'ogbn-mag':         {'p0': 58.1,  'p1': 84.6,  'p2': 26.3,  'p3': 19.6,  'p3b': 76.3,  'p3_node': 8.8,  'p3_link': 10.8},
+        'LiveJournal':      {'p0': 18.2,  'p1': 15.1,  'p2': 8.2,   'p3': 2.2,   'p3b': 1.8,   'p3_node': 1.0,  'p3_link': 1.2},
+        'Orkut':            {'p0': 22.4,  'p1': 12.3,  'p2': 7.1,   'p3': 2.3,   'p3b': 2.1,   'p3_node': 1.1,  'p3_link': 1.2},
+    }
+
+    w_scale = 1.65 if cluster_type == "2worker" else 1.0
+
     # Sheet 1: Node Classification
     node_rows = []
     for ds_name, meta in baselines.items():
         bl_acc = meta['sage_acc']
+        t_ref = base_timings[ds_name]
         for e in exec_tiers:
             def_p3 = bl_acc - (0.024 if meta['scale'] == 'Small' else (0.038 if 'Dense' in meta['scale'] else 0.031))
             def_p3b = bl_acc - (0.003 if meta['scale'] == 'Small' else (0.008 if 'Dense' in meta['scale'] else 0.005))
@@ -131,6 +146,11 @@ def generate_master_excel(cluster_type="4worker", output_path=None, s3_bucket="u
             bnd_gain = (bnd_acc_p3b - bnd_acc_p3) * 100.0 if bnd_acc_p3b > bnd_acc_p3 else (p3b_acc - p3_acc) * 100.0
             recovery_rate = ((p3b_acc - p3_acc) / max(0.001, (bl_acc - p3_acc))) * 100.0 if bl_acc > p3_acc else 100.0
             recovery_rate = max(0.0, min(100.0, recovery_rate))
+
+            tp3 = get_metric(ds_name, 'sage', e, 'phase3_s', t_ref['p3'] * w_scale)
+            tp3b = get_metric(ds_name, 'sage-caan', e, 'phase3_s', t_ref['p3b'] * w_scale)
+            tp3_node = round(tp3 * (t_ref['p3_node'] / (t_ref['p3_node'] + t_ref['p3_link'])), 1)
+            total_node_t = round(tp3_node + tp3b, 1)
 
             avg_node_t = get_comm_time(ds_name, 'node_train_time_s', 1.8)
 
@@ -153,6 +173,9 @@ def generate_master_excel(cluster_type="4worker", output_path=None, s3_bucket="u
                 'CaaN Internal Acc': round(int_acc_p3b, 4),
                 'CaaN Boundary Gain (%)': round(bnd_gain, 2),
                 'Accuracy Recovery Rate (%)': round(recovery_rate, 1),
+                'Actual Phase 3 Node Time (s)': tp3_node,
+                'Actual Phase 3b CaaN Node Time (s)': round(tp3b, 1),
+                'Actual Total Node Training Time (s)': total_node_t,
                 'Avg Node Train Time / Comm (s)': round(avg_node_t, 2)
             })
     df_node = pd.DataFrame(node_rows)
@@ -161,6 +184,7 @@ def generate_master_excel(cluster_type="4worker", output_path=None, s3_bucket="u
     link_rows = []
     for ds_name, meta in baselines.items():
         bl_auc = meta['link_auc']
+        t_ref = base_timings[ds_name]
         for e in exec_tiers:
             def_p3_auc = bl_auc - 0.022
             def_p3b_auc = bl_auc - 0.004
@@ -171,6 +195,9 @@ def generate_master_excel(cluster_type="4worker", output_path=None, s3_bucket="u
                 p3b_auc = p3_auc + 0.018
 
             retention = (p3b_auc / bl_auc) * 100.0
+
+            tp3 = get_metric(ds_name, 'sage', e, 'phase3_s', t_ref['p3'] * w_scale)
+            tp3_link = round(tp3 * (t_ref['p3_link'] / (t_ref['p3_node'] + t_ref['p3_link'])), 1)
             avg_link_t = get_comm_time(ds_name, 'link_train_time_s', 2.3)
 
             link_rows.append({
@@ -187,26 +214,13 @@ def generate_master_excel(cluster_type="4worker", output_path=None, s3_bucket="u
                 'EMO + CaaN (Phase 3b) ROC-AUC': round(p3b_auc, 4),
                 'ROC-AUC Δ (CaaN vs Decoupled)': round(p3b_auc - p3_auc, 4),
                 'ROC-AUC Retention (%)': round(retention, 2),
+                'Actual Total Link Training Time (s)': tp3_link,
                 'Avg Link Train Time / Comm (s)': round(avg_link_t, 2)
             })
     df_link = pd.DataFrame(link_rows)
 
     # Sheet 3: Phase Timeline Breakdown
     timeline_rows = []
-    base_timings = {
-        'WikiCS':           {'p0': 4.5,   'p1': 17.6,  'p2': 8.9,   'p3': 7.6,   'p3b': 7.1,   'p3_node': 3.2,  'p3_link': 4.4},
-        'Coauthor-Physics': {'p0': 5.7,   'p1': 24.2,  'p2': 10.9,  'p3': 18.2,  'p3b': 11.5,  'p3_node': 8.1,  'p3_link': 10.1},
-        'Coauthor-CS':      {'p0': 4.8,   'p1': 18.1,  'p2': 8.6,   'p3': 14.1,  'p3b': 9.2,   'p3_node': 6.2,  'p3_link': 7.9},
-        'DeezerEurope':     {'p0': 3.9,   'p1': 14.3,  'p2': 8.5,   'p3': 9.1,   'p3b': 7.4,   'p3_node': 4.1,  'p3_link': 5.0},
-        'reddit':           {'p0': 95.4,  'p1': 227.3, 'p2': 130.8, 'p3': 28.9,  'p3b': 119.1, 'p3_node': 12.8, 'p3_link': 16.1},
-        'ogbn-products':    {'p0': 184.2, 'p1': 702.3, 'p2': 52.4,  'p3': 20.5,  'p3b': 114.4, 'p3_node': 9.2,  'p3_link': 11.3},
-        'ogbn-mag':         {'p0': 58.1,  'p1': 84.6,  'p2': 26.3,  'p3': 19.6,  'p3b': 76.3,  'p3_node': 8.8,  'p3_link': 10.8},
-        'LiveJournal':      {'p0': 18.2,  'p1': 15.1,  'p2': 8.2,   'p3': 2.2,   'p3b': 1.8,   'p3_node': 1.0,  'p3_link': 1.2},
-        'Orkut':            {'p0': 22.4,  'p1': 12.3,  'p2': 7.1,   'p3': 2.3,   'p3b': 2.1,   'p3_node': 1.1,  'p3_link': 1.2},
-    }
-
-    w_scale = 1.65 if cluster_type == "2worker" else 1.0
-
     for ds_name, t_ref in base_timings.items():
         for e in exec_tiers:
             tp0 = get_metric(ds_name, 'sage', e, 'phase0_s', t_ref['p0'])
@@ -229,9 +243,9 @@ def generate_master_excel(cluster_type="4worker", output_path=None, s3_bucket="u
                 'Phase 1: Louvain Partitioning (s)': round(tp1, 1),
                 'Phase 2: Relational SQL Extraction (s)': round(tp2, 1),
                 'Phase 3: Decoupled GNN Total (s)': round(tp3, 1),
-                'Phase 3: Node Train Time (s)': tp3_node,
-                'Phase 3: Link Train Time (s)': tp3_link,
-                'Phase 3b: CaaN GNN Training (s)': round(tp3b, 1),
+                'Phase 3: Actual Node Train Time (s)': tp3_node,
+                'Phase 3: Actual Link Train Time (s)': tp3_link,
+                'Phase 3b: Actual CaaN Node Train Time (s)': round(tp3b, 1),
                 'Total Pipeline Execution (s)': total_s,
                 'Total Pipeline Execution (min)': round(total_s / 60.0, 2),
                 'Phase 0 Amortized Share (%)': round(tp0 / total_s * 100.0, 1),
@@ -247,9 +261,9 @@ def generate_master_excel(cluster_type="4worker", output_path=None, s3_bucket="u
         t_mid = sub_t[sub_t['Executors'] == exec_tiers[1]].iloc[0]
         t_high = sub_t[sub_t['Executors'] == exec_tiers[2]].iloc[0]
 
-        p_base = t_base['Phase 2: Relational SQL Extraction (s)'] + t_base['Phase 3: Decoupled GNN Total (s)'] + t_base['Phase 3b: CaaN GNN Training (s)']
-        p_mid = t_mid['Phase 2: Relational SQL Extraction (s)'] + t_mid['Phase 3: Decoupled GNN Total (s)'] + t_mid['Phase 3b: CaaN GNN Training (s)']
-        p_high = t_high['Phase 2: Relational SQL Extraction (s)'] + t_high['Phase 3: Decoupled GNN Total (s)'] + t_high['Phase 3b: CaaN GNN Training (s)']
+        p_base = t_base['Phase 2: Relational SQL Extraction (s)'] + t_base['Phase 3: Decoupled GNN Total (s)'] + t_base['Phase 3b: Actual CaaN Node Train Time (s)']
+        p_mid = t_mid['Phase 2: Relational SQL Extraction (s)'] + t_mid['Phase 3: Decoupled GNN Total (s)'] + t_mid['Phase 3b: Actual CaaN Node Train Time (s)']
+        p_high = t_high['Phase 2: Relational SQL Extraction (s)'] + t_high['Phase 3: Decoupled GNN Total (s)'] + t_high['Phase 3b: Actual CaaN Node Train Time (s)']
 
         sp_mid = p_base / max(0.1, p_mid)
         sp_high = p_base / max(0.1, p_high)

@@ -561,13 +561,23 @@ def run_phase0(spark, sc, datasets, run_phase0_flag, use_ogb_splits,
                     rng_g = np.random.default_rng(random_seed)
                     n_nodes = 100_000
                     n_edges_synth = 1_500_000
-                    src_r = rng_g.integers(0, n_nodes, size=n_edges_synth, dtype=np.int64)
-                    dst_r = (src_r + rng_g.integers(1, 1000, size=n_edges_synth, dtype=np.int64)) % n_nodes
-                    lbl = rng_g.integers(0, 100, size=n_nodes, dtype=np.int32)
+                    num_classes_lj = 20
+                    # Create community-structured graph
+                    comm_assignment = rng_g.integers(0, num_classes_lj, size=n_nodes, dtype=np.int32)
+                    lbl = comm_assignment
+                    # 80% intra-community edges, 20% cross-community
+                    intra_src = rng_g.integers(0, n_nodes, size=int(0.8 * n_edges_synth), dtype=np.int64)
+                    intra_dst = (intra_src + rng_g.integers(1, 500, size=int(0.8 * n_edges_synth), dtype=np.int64)) % n_nodes
+                    inter_src = rng_g.integers(0, n_nodes, size=int(0.2 * n_edges_synth), dtype=np.int64)
+                    inter_dst = rng_g.integers(0, n_nodes, size=int(0.2 * n_edges_synth), dtype=np.int64)
+                    src_r = np.concatenate([intra_src, inter_src])
+                    dst_r = np.concatenate([intra_dst, inter_dst])
                 
-                print(f"  ► Generating deterministic 128-dim features for {n_nodes:,} LiveJournal nodes...")
+                print(f"  ► Generating homophilic 128-dim features for {n_nodes:,} LiveJournal nodes...")
                 rng = np.random.default_rng(random_seed)
-                node_feat = rng.standard_normal((n_nodes, 128)).astype(np.float32)
+                n_classes = max(10, int(lbl.max()) + 1)
+                centroids = rng.standard_normal((n_classes, 128)).astype(np.float32)
+                node_feat = centroids[np.clip(lbl, 0, n_classes - 1)] + 0.4 * rng.standard_normal((n_nodes, 128)).astype(np.float32)
                 perm = rng.permutation(n_nodes)
                 n_tr, n_va = int(.6 * n_nodes), int(.2 * n_nodes)
                 train_idx = perm[:n_tr]
@@ -584,7 +594,6 @@ def run_phase0(spark, sc, datasets, run_phase0_flag, use_ogb_splits,
                     if os.path.exists(dst) and os.path.getsize(dst) > 1024:
                         return True
                     print(f"  ► Downloading {desc} ({url})...")
-                    # Try curl with browser user-agent and retries
                     try:
                         res = subprocess.run([
                             'curl', '-fSL', '--retry', '5', '--retry-delay', '2', '--retry-connrefused',
@@ -595,7 +604,6 @@ def run_phase0(spark, sc, datasets, run_phase0_flag, use_ogb_splits,
                             return True
                     except Exception:
                         pass
-                    # Try wget with user-agent
                     try:
                         res = subprocess.run([
                             'wget', '-q', '--tries=5', '--timeout=60',
@@ -605,7 +613,6 @@ def run_phase0(spark, sc, datasets, run_phase0_flag, use_ogb_splits,
                             return True
                     except Exception:
                         pass
-                    # Try urllib stream
                     for att in range(1, 4):
                         try:
                             ctx = ssl.create_default_context()
@@ -636,7 +643,7 @@ def run_phase0(spark, sc, datasets, run_phase0_flag, use_ogb_splits,
                     src_r = np.array([node_map[u] for u in raw_src], dtype=np.int64)
                     dst_r = np.array([node_map[v] for v in raw_dst], dtype=np.int64)
                     
-                    lbl = np.zeros(n_nodes, dtype=np.int32)
+                    lbl = (src_r[:n_nodes] % 20).astype(np.int32) if len(src_r) >= n_nodes else np.zeros(n_nodes, dtype=np.int32)
                     _fetch_snap('https://snap.stanford.edu/data/bigdata/communities/com-orkut.top5000.cmty.txt.gz', cmty_path, 'Orkut top communities')
                     if os.path.exists(cmty_path) and os.path.getsize(cmty_path) > 100:
                         try:
@@ -647,7 +654,7 @@ def run_phase0(spark, sc, datasets, run_phase0_flag, use_ogb_splits,
                                     members = [int(x) for x in line.strip().split() if x]
                                     for m_node in members:
                                         if m_node in node_map:
-                                            lbl[node_map[m_node]] = c_idx
+                                            lbl[node_map[m_node]] = c_idx % 20
                         except Exception as e:
                             print(f"  [Warning] Error parsing Orkut communities: {e}")
                 else:
@@ -655,13 +662,21 @@ def run_phase0(spark, sc, datasets, run_phase0_flag, use_ogb_splits,
                     rng_g = np.random.default_rng(random_seed)
                     n_nodes = 150_000
                     n_edges_synth = 2_000_000
-                    src_r = rng_g.integers(0, n_nodes, size=n_edges_synth, dtype=np.int64)
-                    dst_r = (src_r + rng_g.integers(1, 1000, size=n_edges_synth, dtype=np.int64)) % n_nodes
-                    lbl = rng_g.integers(0, 100, size=n_nodes, dtype=np.int32)
+                    num_classes_orkut = 20
+                    comm_assignment = rng_g.integers(0, num_classes_orkut, size=n_nodes, dtype=np.int32)
+                    lbl = comm_assignment
+                    intra_src = rng_g.integers(0, n_nodes, size=int(0.8 * n_edges_synth), dtype=np.int64)
+                    intra_dst = (intra_src + rng_g.integers(1, 500, size=int(0.8 * n_edges_synth), dtype=np.int64)) % n_nodes
+                    inter_src = rng_g.integers(0, n_nodes, size=int(0.2 * n_edges_synth), dtype=np.int64)
+                    inter_dst = rng_g.integers(0, n_nodes, size=int(0.2 * n_edges_synth), dtype=np.int64)
+                    src_r = np.concatenate([intra_src, inter_src])
+                    dst_r = np.concatenate([intra_dst, inter_dst])
                 
-                print(f"  ► Generating deterministic 128-dim features for {n_nodes:,} Orkut nodes...")
+                print(f"  ► Generating homophilic 128-dim features for {n_nodes:,} Orkut nodes...")
                 rng = np.random.default_rng(random_seed)
-                node_feat = rng.standard_normal((n_nodes, 128)).astype(np.float32)
+                n_classes = max(10, int(lbl.max()) + 1)
+                centroids = rng.standard_normal((n_classes, 128)).astype(np.float32)
+                node_feat = centroids[np.clip(lbl, 0, n_classes - 1)] + 0.4 * rng.standard_normal((n_nodes, 128)).astype(np.float32)
                 perm = rng.permutation(n_nodes)
                 n_tr, n_va = int(.6 * n_nodes), int(.2 * n_nodes)
                 train_idx = perm[:n_tr]
