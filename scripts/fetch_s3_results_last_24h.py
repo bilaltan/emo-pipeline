@@ -91,12 +91,14 @@ def fetch_recent_s3_results(hours=24, dest_dir="results/s3_latest_results", buck
             print("⚠ No matching objects found in S3. Check if runs finished and uploaded.")
             return []
 
-        matched_objects.sort(key=lambda x: x['LastModified'], reverse=True)
-        print(f"\n✓ Found {len(matched_objects)} relevant result files in S3:\n")
+        PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        dest_full = os.path.join(PROJECT_ROOT, dest_dir) if not os.path.isabs(dest_dir) else dest_dir
+        results_full = os.path.join(PROJECT_ROOT, "results")
+        logs_full = os.path.join(PROJECT_ROOT, "logs")
 
-        os.makedirs(dest_dir, exist_ok=True)
-        os.makedirs("results", exist_ok=True)
-        os.makedirs("logs", exist_ok=True)
+        os.makedirs(dest_full, exist_ok=True)
+        os.makedirs(results_full, exist_ok=True)
+        os.makedirs(logs_full, exist_ok=True)
 
         downloaded_files = []
         for idx, obj in enumerate(matched_objects, 1):
@@ -106,7 +108,7 @@ def fetch_recent_s3_results(hours=24, dest_dir="results/s3_latest_results", buck
             
             # Preserve relative subpath or flatten sensibly
             rel_name = key.replace('gnn-bench-out/spark-results/', '').replace('gnn-bench-out/', '')
-            local_target = os.path.join(dest_dir, rel_name)
+            local_target = os.path.join(dest_full, rel_name)
             os.makedirs(os.path.dirname(os.path.abspath(local_target)), exist_ok=True)
 
             print(f"  [{idx:02d}/{len(matched_objects):02d}] {mtime_str} | {size_mb:>6.2f} MB | {key}")
@@ -118,21 +120,22 @@ def fetch_recent_s3_results(hours=24, dest_dir="results/s3_latest_results", buck
                 base_name = os.path.basename(key)
                 if base_name.endswith('.xlsx') or base_name.endswith('.csv') or base_name.endswith('.tex'):
                     import shutil
-                    shutil.copy2(local_target, os.path.join("results", base_name))
+                    shutil.copy2(local_target, os.path.join(results_full, base_name))
                 elif base_name.endswith('.log'):
                     import shutil
-                    shutil.copy2(local_target, os.path.join("logs", base_name))
+                    shutil.copy2(local_target, os.path.join(logs_full, base_name))
             except Exception as dl_err:
                 print(f"      ⚠ Failed to download {key}: {dl_err}")
 
         print("\n" + "=" * 75)
-        print(f" ✓ Successfully downloaded {len(downloaded_files)} files into '{dest_dir}/'")
-        print(f" ✓ Primary Excel and LaTeX files placed into 'results/'")
-        print(f" ✓ Logs placed into 'logs/'")
+        print(f" ✓ Successfully downloaded {len(downloaded_files)} files into '{dest_full}/'")
+        print(f" ✓ Primary Excel and LaTeX files placed into '{results_full}/'")
+        print(f" ✓ Logs placed into '{logs_full}/'")
         print("=" * 75)
 
         # Run master excel generator if logs were pulled
         try:
+            sys.path.insert(0, PROJECT_ROOT)
             from runners.generate_emr_excel_report import generate_master_excel
             print("\n► Regenerating consolidated Master Excel Report with freshly downloaded logs...")
             generate_master_excel()
