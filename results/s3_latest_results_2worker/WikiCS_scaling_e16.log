@@ -1,0 +1,267 @@
+Writable directories and free space:
+  - /mnt1/tmp: 1754.67 GB free
+  - /mnt1/spark: 1754.67 GB free
+  - /mnt/tmp: 1737.83 GB free
+  - /mnt/spark: 1737.83 GB free
+  - /mnt/var/tmp: 1737.83 GB free
+  - /tmp: 1737.83 GB free
+  - /var/tmp: 1737.83 GB free
+
+  [Spark Auto-Scaler] Dataset: WikiCS | S3 Size: 2 MB | Scale: Small/Medium
+  [Spark Auto-Scaler] YARN Cluster: 2 nodes × 496 GB RAM × 64 vCores
+  [Spark Auto-Scaler] Python RAM Budget: 5.0 GB/task (dataset-aware)
+  [Spark Auto-Scaler] Bin-Packing Solution:
+    → 16 total executors (CLI override)
+    → 4 cores/executor | 8g heap + 20g overhead = 28g container
+    → Total parallel tasks: 64 | Shuffle partitions: 200
+    → Driver: 40g heap + 12g overhead
+    → Cluster utilization: 448g / 992g (45%)
+
+Picked up JAVA_TOOL_OPTIONS: --add-opens=java.base/java.nio=ALL-UNNAMED --add-opens=java.base/sun.nio.ch=ALL-UNNAMED --add-opens=java.base/java.lang=ALL-UNNAMED --add-opens=java.base/java.util=ALL-UNNAMED --add-opens=java.base/java.util.concurrent=ALL-UNNAMED --add-opens=java.base/java.security=ALL-UNNAMED --add-opens=java.base/sun.security.action=ALL-UNNAMED --add-opens=java.base/math=ALL-UNNAMED
+WARNING: package math not in java.base
+Picked up JAVA_TOOL_OPTIONS: --add-opens=java.base/java.nio=ALL-UNNAMED --add-opens=java.base/sun.nio.ch=ALL-UNNAMED --add-opens=java.base/java.lang=ALL-UNNAMED --add-opens=java.base/java.util=ALL-UNNAMED --add-opens=java.base/java.util.concurrent=ALL-UNNAMED --add-opens=java.base/java.security=ALL-UNNAMED --add-opens=java.base/sun.security.action=ALL-UNNAMED --add-opens=java.base/math=ALL-UNNAMED
+WARNING: package math not in java.base
+:: loading settings :: url = jar:file:/usr/lib/spark/jars/ivy-2.5.1.jar!/org/apache/ivy/core/settings/ivysettings.xml
+Ivy Default Cache set to: /mnt1/tmp/.ivy2/cache
+The jars for the packages stored in: /mnt1/tmp/.ivy2/jars
+io.delta#delta-spark_2.12 added as a dependency
+graphframes#graphframes added as a dependency
+:: resolving dependencies :: org.apache.spark#spark-submit-parent-ec07bfe5-afd0-44f8-815a-025e293a725c;1.0
+	confs: [default]
+	found io.delta#delta-spark_2.12;3.2.0 in central
+	found io.delta#delta-storage;3.2.0 in central
+	found org.antlr#antlr4-runtime;4.9.3 in central
+	found graphframes#graphframes;0.8.3-spark3.5-s_2.12 in spark-packages
+	found org.slf4j#slf4j-api;1.7.16 in central
+:: resolution report :: resolve 125ms :: artifacts dl 5ms
+	:: modules in use:
+	graphframes#graphframes;0.8.3-spark3.5-s_2.12 from spark-packages in [default]
+	io.delta#delta-spark_2.12;3.2.0 from central in [default]
+	io.delta#delta-storage;3.2.0 from central in [default]
+	org.antlr#antlr4-runtime;4.9.3 from central in [default]
+	org.slf4j#slf4j-api;1.7.16 from central in [default]
+	---------------------------------------------------------------------
+	|                  |            modules            ||   artifacts   |
+	|       conf       | number| search|dwnlded|evicted|| number|dwnlded|
+	---------------------------------------------------------------------
+	|      default     |   5   |   0   |   0   |   0   ||   5   |   0   |
+	---------------------------------------------------------------------
+:: retrieving :: org.apache.spark#spark-submit-parent-ec07bfe5-afd0-44f8-815a-025e293a725c
+	confs: [default]
+	0 artifacts copied, 5 already retrieved (0kB/3ms)
+Setting default log level to "WARN".
+To adjust logging level use sc.setLogLevel(newLevel). For SparkR, use setLogLevel(newLevel).
+26/08/15 17:32:09 WARN SparkConf: Note that spark.local.dir will be overridden by the value set by the cluster manager (via SPARK_LOCAL_DIRS in mesos/standalone/kubernetes and LOCAL_DIRS in YARN).
+26/08/15 17:32:10 WARN Client: Neither spark.yarn.jars nor spark.yarn.archive is set, falling back to uploading libraries under SPARK_HOME.
+26/08/15 17:32:12 WARN Client: Same path resource file:///mnt1/tmp/.ivy2/jars/io.delta_delta-spark_2.12-3.2.0.jar added multiple times to distributed cache.
+26/08/15 17:32:12 WARN Client: Same path resource file:///mnt1/tmp/.ivy2/jars/graphframes_graphframes-0.8.3-spark3.5-s_2.12.jar added multiple times to distributed cache.
+26/08/15 17:32:12 WARN Client: Same path resource file:///mnt1/tmp/.ivy2/jars/io.delta_delta-storage-3.2.0.jar added multiple times to distributed cache.
+26/08/15 17:32:12 WARN Client: Same path resource file:///mnt1/tmp/.ivy2/jars/org.antlr_antlr4-runtime-4.9.3.jar added multiple times to distributed cache.
+26/08/15 17:32:12 WARN Client: Same path resource file:///mnt1/tmp/.ivy2/jars/org.slf4j_slf4j-api-1.7.16.jar added multiple times to distributed cache.
+  ✓ SparkSession successfully configured and initialized as 'spark'.
+
+================================================================================
+  VERIFYING AND INSTALLING PYTHON ENVIRONMENT PACKAGES
+================================================================================
+  ► Syncing dependencies across all active YARN worker nodes...
+[Stage 0:>                                                       (0 + 64) / 256][Stage 0:==>                                                    (13 + 64) / 256][Stage 0:=============>                                         (64 + 64) / 256][Stage 0:===============>                                       (71 + 64) / 256][Stage 0:====================>                                  (97 + 64) / 256][Stage 0:===========================>                          (128 + 64) / 256][Stage 0:===========================>                          (131 + 64) / 256][Stage 0:============================>                         (137 + 64) / 256][Stage 0:=================================>                    (159 + 64) / 256][Stage 0:=======================================>              (186 + 64) / 256][Stage 0:========================================>             (192 + 64) / 256][Stage 0:========================================>             (193 + 63) / 256][Stage 0:=========================================>            (195 + 61) / 256][Stage 0:==========================================>           (200 + 56) / 256][Stage 0:===========================================>          (206 + 50) / 256][Stage 0:=================================================>    (233 + 23) / 256]                                                                                  ► Sync attempt 1/5: 2 worker node(s) verified: ['ip-172-31-75-147', 'ip-172-31-78-174']
+  ✓ All 2 YARN worker nodes verified and synced successfully.
+
+  === YARN Executor Package Sync Summary ===
+    ip-172-31-75-147.ec2.internal: Success (Cached)
+    ip-172-31-78-174.ec2.internal: Success (Cached)
+
+  ✓ ALL PIPELINE DEPENDENCIES VERIFIED AND READY.
+SLF4J: Failed to load class "org.slf4j.impl.StaticLoggerBinder".
+SLF4J: Defaulting to no-operation (NOP) logger implementation
+SLF4J: See http://www.slf4j.org/codes.html#StaticLoggerBinder for further details.
+[Stage 1:>                                                          (0 + 4) / 4][Stage 1:==============>                                            (1 + 3) / 4]                                                                                [Stage 2:>                                                          (0 + 4) / 4][Stage 2:==============>                                            (1 + 3) / 4][Stage 2:============================================>              (3 + 1) / 4][Stage 4:>                                                        (0 + 50) / 50][Stage 4:==============>                                         (13 + 37) / 50][Stage 4:=================>                                      (16 + 34) / 50][Stage 4:========================>                               (22 + 28) / 50][Stage 4:============================>                           (25 + 25) / 50]                                                                                [Stage 11:>                                                       (0 + 50) / 50][Stage 11:========>                                               (8 + 42) / 50]                                                                                [Stage 15:>                                                         (0 + 1) / 1]                                                                                
+================================================================================
+  CLUSTER DISK SPACE COMPATIBILITY VERIFICATION
+================================================================================
+  Dataset: WikiCS | Nodes: 11,701 | Features: 300
+  Required temp workspace disk space per executor container: 10.00 GB
+  Driver temp space available (/mnt1/tmp): 1754.67 GB
+  Executor nodes disk check results:
+    ✓  ip-172-31-75-147.ec2.internal                 - Sufficient Space. Available: 1731.44 GB
+    ✓  ip-172-31-78-174.ec2.internal                 - Sufficient Space. Available: 1738.40 GB
+  ✓ ALL NODES HAVE SUFFICIENT TEMPORARY DISK SPACE TO EXECUTE GNN JOBS.
+================================================================================
+
+
+================================================================================
+  BOOTSTRAPPING EXPERIMENT CODE AND STAGE UTILITIES
+================================================================================
+  ► LOADING PIPELINE AND CONFIG FROM LOCAL REPOSITORY PATHS...
+    ✓ Packed local git repository code to /tmp/pipeline.zip and copied to /tmp/pipeline
+  ✓ Registered pipeline.zip package on Spark Context
+
+  Run Profile: scaling_sweep_2worker_WikiCS_e16
+  └─ Datasets: ['WikiCS']
+  └─ Algorithms: ['louvain']
+  └─ GNN Architecture: GCN (epochs=10, lr=0.001, hidden=256)
+  └─ Global Mapping: True | Boundary Expansion: False
+  └─ Ingestion Phase (Phase 0): True
+
+============================================================
+  PHASE 0 — Ingesting: WikiCS
+============================================================
+  ✓ Delta tables already exist for 'WikiCS' — skipping download.
+    nodes: s3://us-east-1-s3-gnn/delta-data/WikiCS/nodes/
+    edges: s3://us-east-1-s3-gnn/delta-data/WikiCS/edges/
+    original_nodes: s3://us-east-1-s3-gnn/delta-data/WikiCS/original_nodes/
+    original_edges: s3://us-east-1-s3-gnn/delta-data/WikiCS/original_edges/
+
+============================================================
+  PHASE 1 — Community Detection: WikiCS
+============================================================
+[Stage 31:=>                                                     (4 + 64) / 205][Stage 31:==>                                                    (8 + 64) / 205][Stage 31:=========>                                            (36 + 64) / 205][Stage 31:=============>                                        (51 + 64) / 205][Stage 31:======================>                               (87 + 64) / 205][Stage 31:=============================>                       (115 + 64) / 205][Stage 31:=====================================>               (146 + 59) / 205][Stage 31:==================================================>  (194 + 11) / 205]                                                                                  Graph loaded: 11,701 nodes | 431,206 edges  [5.7s]
+
+  ── [LOUVAIN] ──────────────────────────────
+  Collecting edges to driver ...
+  Mapping node IDs using vectorized binary search ...
+  Building igraph (11,364 nodes) ...
+  Running louvain (resolution=1.0) ...
+[Stage 48:===>                                                  (12 + 64) / 200][Stage 48:=====================>                                (78 + 65) / 200][Stage 48:===========================================>         (166 + 29) / 200]                                                                                  ✓ [louvain] 34 communities | NMI=0.4537 | 5.0s
+
+======================================================================
+  PHASE 1 SUMMARY
+======================================================================
+
+  Dataset: WikiCS
+  Algorithm        #Comms      NMI    Runtime
+  ------------ ---------- -------- ----------
+  louvain              34   0.4537       5.0s
+
+  [louvain] Community assignment details:
+    Vertices assigned: 11,364 / 11,701 (97.1% coverage)
+    Unassigned vertices: 337
+    Total communities: 34 | Valid (≥1000): 3
+    Size stats: min=2  max=2,016  avg=334.2  median=3
+    Size buckets: 1-9:17 | 10-99:2 | 100-999:12 | 1K-9999:3
+    Top-10 largest: c18=2,016, c25=1,372, c24=1,317, c19=971, c26=878, c21=697, c27=631, c23=606, c30=542, c22=512
+
+============================================================
+  PHASE 2 — Partitioning: WikiCS
+============================================================
+
+  ── [LOUVAIN]  tag=scaling_sweep_2worker_WikiCS_e16_WikiCS_louvain ──
+  Raw=34  Valid(≥1000)=3  min=1,317  max=2,016  avg=1568.3
+[Stage 192:=============================>                      (124 + 64) / 216][Stage 192:=============================================>      (190 + 26) / 216]                                                                                [Stage 209:====================================================>(255 + 1) / 256]                                                                                [Stage 212:====================================>               (152 + 64) / 216]                                                                                [Stage 223:(255 + 1) / 256][Stage 224:(48 + 63) / 256][Stage 225:>(0 + 0) / 200][Stage 223:(255 + 1) / 256][Stage 224:(99 + 63) / 256][Stage 225:>(0 + 0) / 200][Stage 223:(255 + 1) / 256][Stage 224:(129 + 63) / 256][Stage 225:>(0 + 0) / 200][Stage 223:(255 + 1) / 256][Stage 224:(177 + 63) / 256][Stage 225:>(0 + 0) / 200]                                                                                [Stage 232:======>     (139 + 64) / 256][Stage 234:>               (0 + 0) / 50]                                                                                [Stage 235:==========> (184 + 32) / 216][Stage 237:>                (0 + 1) / 1]                                                                                  Edges kept: 101,776 (23.6%)  Boundary nodes: 3,488  Internal: 1,217
+[Stage 251:=================================>                  (138 + 64) / 216][Stage 251:====================================================>(215 + 1) / 216]                                                                                  Shuffle overhead (groupBy community_id): 1.8s
+[Stage 267:(111 + 64) / 256][Stage 268:>(0 + 0) / 256][Stage 269:>(0 + 0) / 200][Stage 267:(139 + 64) / 256][Stage 268:>(0 + 0) / 256][Stage 269:>(0 + 0) / 200][Stage 267:(180 + 64) / 256][Stage 268:>(0 + 0) / 256][Stage 269:>(0 + 0) / 200][Stage 267:(240 + 16) / 256][Stage 268:(34 + 48) / 256][Stage 269:>(0 + 0) / 200][Stage 268:(232 + 24) / 256][Stage 269:(93 + 36) / 200][Stage 270:>(0 + 5) / 200]                                                                                [Stage 276:=========>  (200 + 56) / 256][Stage 278:>               (0 + 8) / 50]                                                                                [Stage 279:==========> (195 + 21) / 216][Stage 281:>                (0 + 1) / 1]                                                                                  ✓ [louvain] Phase 2 done in 20.7s
+  [Phase 3 setup] Loading Phase 2 Delta tables for WikiCS/louvain...
+  [Phase 3 setup] Cached 4,705 node rows and 101,776 edge rows in 2.0s (nodes partitions=2, edges partitions=2).
+  [Phase 3 setup] Community layout computed in 0.1s: 3 communities; largest community_id:nodes = 18:2,016, 25:1,372, 24:1,317.
+
+============================================================
+  PHASE 3 — GNN Training: WikiCS / louvain / sage
+  tag=scaling_sweep_2worker_WikiCS_e16_WikiCS_louvain
+  task=both; epochs=10; diagnostics=on
+============================================================
+  [Driver Warmstart] Extracting representative community for driver-side pre-training...
+  ✓ Driver-side base model trained successfully on Comm 18 (2,016 nodes).
+  [Manifest Architecture] Reusing cached community manifest...
+  [Phase 3 safety] Hash-sampling up to ~8,000 nodes/community (hard cap 10,000); retaining ~1/4 eligible edges before aggregation (UDF hard edge cap 30,000).
+[Stage 336:===================>                                     (1 + 2) / 3][Stage 336:======================================>                  (2 + 1) / 3]                                                                                  ✓ Mean comm acc = 0.7320
+  ✓ Weighted comm acc = 0.7599
+  ✓ Mean comm link AUC = 0.7255
+  ✓ Weighted comm link AUC = 0.7242
+  ✓ Wall time: 8.6s
+    - Avg Load time: 0.00s
+    - Avg Node Train: 0.82s
+    - Avg Link Train: 1.20s
+    ✓ Saved Spark result frame: s3://us-east-1-s3-gnn/gnn-bench-results/phase3/scaling_sweep_2worker_WikiCS_e16/WikiCS_louvain_sage
+
+[PHASE 3b] - Parallel GNN Training with CaaN Global Graph
+  Dataset: WikiCS | Algorithm: louvain
+    - Major communities (>= 1000): 3
+    - Minor communities (< 1000): 31
+[Stage 372:>                                                        (0 + 3) / 3]                                                                                    - Computing global CAAN edges map-side (shuffless RDD partitioning)...
+[Stage 381:>                                                     (0 + 64) / 256][Stage 381:=========>                                           (46 + 64) / 256][Stage 381:==============>                                      (70 + 64) / 256][Stage 381:=======================>                            (117 + 64) / 256][Stage 381:============================>                       (141 + 64) / 256][Stage 381:======================================>             (190 + 64) / 256][Stage 381:============================================>       (220 + 36) / 256]                                                                                
+============================================================
+  PHASE 3b — GNN Training (CaaN): WikiCS / louvain / sage
+  tag=scaling_sweep_2worker_WikiCS_e16_WikiCS_louvain
+============================================================
+  [Driver Warmstart] Extracting representative community for driver-side pre-training...
+  ✓ Driver-side base model trained successfully on Comm 18 (2,016 nodes).
+[Stage 401:===================>                                     (1 + 2) / 3][Stage 401:======================================>                  (2 + 1) / 3]                                                                                  ✓ Mean CaaN comm acc = 0.7320
+  ✓ Weighted CaaN comm acc = 0.7599
+  ✓ Wall time: 6.0s
+    ✓ Saved S3 checkpoint: s3://us-east-1-s3-gnn/gnn-bench-checkpoint/phase3b/scaling_sweep_2worker_WikiCS_e16/WikiCS_louvain_sage.parquet
+
+[PHASE 5] - Metrics Analysis, Visualizations, and Excel S3 Export
+
+===============================================================================================
+  PHASE 5A — PERFORMANCE COMPARISON (NODE ACCURACY & LINK AUC)
+===============================================================================================
+
+  Dataset: WikiCS
+  _Algorithm           Node Acc   Comm Acc    Bnd Acc    Int Acc     Link AUC
+  ---------------------------------------------------------------------------
+  louvain-sage           0.7599     0.7320     0.7140     0.7715       0.7242
+  louvain-sage-caan      0.7599     0.7320     0.7140     0.7715       0.5000
+
+  [WikiCS] Performance by community size bucket:
+    louvain-sage:
+    louvain-sage-caan:
+      large   : n=3  acc=0.7320  auc=0.5000
+
+================================================================================
+  PHASE 5B — TIMING COMPARISON
+================================================================================
+
+  Dataset: WikiCS
+  Algorithm             Phase1    Phase2    Phase3   Phase3b     Total
+  --------------------------------------------------------------------
+  louvain-sage            5.0s     20.7s      8.6s      6.0s     40.3s
+  BASELINE (SAGE)            —         —         —      0.0s (Node: 0.0s, Link: 0.0s)
+  XLSX → s3://us-east-1-s3-gnn/gnn-bench-out/scaling_sweep_2worker_WikiCS_e16_results.xlsx
+  Plot → s3://us-east-1-s3-gnn/gnn-bench-out/plots/scaling_sweep_2worker_WikiCS_e16/WikiCS_acc_dist.png
+  Plot → s3://us-east-1-s3-gnn/gnn-bench-out/plots/scaling_sweep_2worker_WikiCS_e16/WikiCS_boundary_internal.png
+  Plot → s3://us-east-1-s3-gnn/gnn-bench-out/plots/scaling_sweep_2worker_WikiCS_e16/WikiCS_timing.png
+  LaTeX → s3://us-east-1-s3-gnn/gnn-bench-out/latex_tables/scaling_sweep_2worker_WikiCS_e16/table12_distdgl_comparison.tex
+  LaTeX → s3://us-east-1-s3-gnn/gnn-bench-out/latex_tables/scaling_sweep_2worker_WikiCS_e16/table13_scalability_multi_instance.tex
+  LaTeX → s3://us-east-1-s3-gnn/gnn-bench-out/latex_tables/scaling_sweep_2worker_WikiCS_e16/table9_ablation_study.tex
+  LaTeX → s3://us-east-1-s3-gnn/gnn-bench-out/latex_tables/scaling_sweep_2worker_WikiCS_e16/table3_link_prediction_main.tex
+  LaTeX → s3://us-east-1-s3-gnn/gnn-bench-out/latex_tables/scaling_sweep_2worker_WikiCS_e16/table4_node_classification_main.tex
+  LaTeX → s3://us-east-1-s3-gnn/gnn-bench-out/latex_tables/scaling_sweep_2worker_WikiCS_e16/table_phase_timeline.tex
+  LaTeX → s3://us-east-1-s3-gnn/gnn-bench-out/latex_tables/scaling_sweep_2worker_WikiCS_e16/table_scalability_sweep.tex
+
+================================================================================
+  FINAL PIPELINE REPORT SUMMARY
+================================================================================
+╔══════════════════════════════════════════════════════════════╗
+║  EXPERIMENT: scaling_sweep_2worker_WikiCS_e16               ║
+║  Global mapping: True                                        ║
+╠══════════════════════════════════════════════════════════════╣
+║   Dataset                        WikiCS                        ║
+║   Phase 0 (ingest)               2.8s                          ║
+║   Phase 1 [louvain]              5.0s                          ║
+║   Phase 2 [louvain]              20.7s                         ║
+║   Phase 3 [louvain-sage]         8.6s                          ║
+║   Phase 3b [louvain-sage-caan]   6.0s                          ║
+╠══════════════════════════════════════════════════════════════╣
+║   [louvain-sage] global acc      0.7599                        ║
+║   [louvain-sage] boundary acc    0.7140                        ║
+║   [louvain-sage] internal acc    0.7715                        ║
+║   [louvain-sage] link AUC        0.7242                        ║
+║   [louvain-sage-caan] global acc 0.7599                        ║
+║   [louvain-sage-caan] boundary acc 0.7140                      ║
+║   [louvain-sage-caan] internal acc 0.7715                      ║
+║   [louvain-sage-caan] link AUC   0.5000                        ║
+║   [louvain] communities          34 raw → 3 valid              ║
+╚══════════════════════════════════════════════════════════════╝
+
+[SUCCESS] EMR Driver execution completed in 68.3 seconds.
+================================================================================
+
+Uploading execution log to: s3://us-east-1-s3-gnn/gnn-bench-out/spark-results/scaling_sweep_2worker_WikiCS_e16-41d4154448d9aa92/logs/run_pipeline.log
+Copying S3 Excel results to: s3://us-east-1-s3-gnn/gnn-bench-out/spark-results/scaling_sweep_2worker_WikiCS_e16-41d4154448d9aa92/excels/scaling_sweep_2worker_WikiCS_e16_results.xlsx
+Uploading LaTeX table to: s3://us-east-1-s3-gnn/gnn-bench-out/spark-results/scaling_sweep_2worker_WikiCS_e16-41d4154448d9aa92/latex_tables/table12_distdgl_comparison.tex
+Uploading LaTeX table to: s3://us-east-1-s3-gnn/gnn-bench-out/spark-results/scaling_sweep_2worker_WikiCS_e16-41d4154448d9aa92/latex_tables/table13_scalability_multi_instance.tex
+Uploading LaTeX table to: s3://us-east-1-s3-gnn/gnn-bench-out/spark-results/scaling_sweep_2worker_WikiCS_e16-41d4154448d9aa92/latex_tables/table9_ablation_study.tex
+Uploading LaTeX table to: s3://us-east-1-s3-gnn/gnn-bench-out/spark-results/scaling_sweep_2worker_WikiCS_e16-41d4154448d9aa92/latex_tables/table3_link_prediction_main.tex
+Uploading LaTeX table to: s3://us-east-1-s3-gnn/gnn-bench-out/spark-results/scaling_sweep_2worker_WikiCS_e16-41d4154448d9aa92/latex_tables/table4_node_classification_main.tex
+Uploading LaTeX table to: s3://us-east-1-s3-gnn/gnn-bench-out/spark-results/scaling_sweep_2worker_WikiCS_e16-41d4154448d9aa92/latex_tables/table_phase_timeline.tex
+Uploading LaTeX table to: s3://us-east-1-s3-gnn/gnn-bench-out/spark-results/scaling_sweep_2worker_WikiCS_e16-41d4154448d9aa92/latex_tables/table_scalability_sweep.tex

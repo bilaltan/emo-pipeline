@@ -1,0 +1,208 @@
+
+  [Spark Auto-Scaler] Dataset: reddit | S3 Size: 976 MB | Scale: Very Large/Massive (100M+ Scale)
+  [Spark Auto-Scaler] YARN Cluster: 4 nodes × 496 GB RAM × 64 vCores
+  [Spark Auto-Scaler] Python RAM Budget: 10.0 GB/task (dataset-aware)
+  [Spark Auto-Scaler] Bin-Packing Solution:
+    → 8 total executors (CLI override)
+    → 4 cores/executor | 17g heap + 40g overhead = 57g container
+    → Total parallel tasks: 32 | Shuffle partitions: 200
+    → Driver: 40g heap + 12g overhead
+    → Cluster utilization: 456g / 1983g (23%)
+
+  ✓ SparkSession successfully configured and initialized as 'spark'.
+
+================================================================================
+  VERIFYING AND INSTALLING PYTHON ENVIRONMENT PACKAGES
+================================================================================
+  ► Syncing dependencies across all active YARN worker nodes...
+  ► Sync attempt 1/5: 4 worker node(s) verified: ['ip-172-31-68-47', 'ip-172-31-70-38', 'ip-172-31-75-147', 'ip-172-31-78-174']
+  ✓ All 4 YARN worker nodes verified and synced successfully.
+
+  === YARN Executor Package Sync Summary ===
+    ip-172-31-68-47.ec2.internal: Success (Cached)
+    ip-172-31-70-38.ec2.internal: Success (Cached)
+    ip-172-31-75-147.ec2.internal: Success (Cached)
+    ip-172-31-78-174.ec2.internal: Success (Cached)
+
+  ✓ ALL PIPELINE DEPENDENCIES VERIFIED AND READY.
+
+================================================================================
+  CLUSTER DISK SPACE COMPATIBILITY VERIFICATION
+================================================================================
+  Dataset: reddit | Nodes: 232,965 | Features: 602
+  Required temp workspace disk space per executor container: 10.00 GB
+  Driver temp space available (/mnt1/tmp): 1754.67 GB
+  Executor nodes disk check results:
+    ✓  ip-172-31-68-47.ec2.internal                  - Sufficient Space. Available: 1743.97 GB
+    ✓  ip-172-31-70-38.ec2.internal                  - Sufficient Space. Available: 1743.90 GB
+    ✓  ip-172-31-75-147.ec2.internal                 - Sufficient Space. Available: 1741.77 GB
+    ✓  ip-172-31-78-174.ec2.internal                 - Sufficient Space. Available: 1743.96 GB
+  ✓ ALL NODES HAVE SUFFICIENT TEMPORARY DISK SPACE TO EXECUTE GNN JOBS.
+================================================================================
+
+
+================================================================================
+  BOOTSTRAPPING EXPERIMENT CODE AND STAGE UTILITIES
+================================================================================
+  ► LOADING PIPELINE AND CONFIG FROM LOCAL REPOSITORY PATHS...
+    ✓ Packed local git repository code to /tmp/pipeline.zip and copied to /tmp/pipeline
+  ✓ Registered pipeline.zip package on Spark Context
+
+  Run Profile: scaling_sweep_reddit_e8
+  └─ Datasets: ['reddit']
+  └─ Algorithms: ['louvain']
+  └─ GNN Architecture: GCN (epochs=10, lr=0.001, hidden=256)
+  └─ Global Mapping: True | Boundary Expansion: False
+  └─ Ingestion Phase (Phase 0): True
+
+============================================================
+  PHASE 0 — Ingesting: reddit
+============================================================
+  ✓ Delta tables already exist for 'reddit' — skipping download.
+    nodes: s3://us-east-1-s3-gnn/delta-data/reddit/nodes/
+    edges: s3://us-east-1-s3-gnn/delta-data/reddit/edges/
+    original_nodes: s3://us-east-1-s3-gnn/delta-data/reddit/original_nodes/
+    original_edges: s3://us-east-1-s3-gnn/delta-data/reddit/original_edges/
+
+============================================================
+  PHASE 1 — Community Detection: reddit
+============================================================
+  Graph loaded: 232,965 nodes | 114,615,892 edges  [56.9s]
+
+  ── [LOUVAIN] ──────────────────────────────
+  Collecting edges to driver ...
+  Mapping node IDs using vectorized binary search ...
+  Building igraph (232,965 nodes) ...
+  Running louvain (resolution=1.0) ...
+  ✓ [louvain] 23 communities | NMI=0.8044 | 236.0s
+
+======================================================================
+  PHASE 1 SUMMARY
+======================================================================
+
+  Dataset: reddit
+  Algorithm        #Comms      NMI    Runtime
+  ------------ ---------- -------- ----------
+  louvain              23   0.8044     236.0s
+
+  [louvain] Community assignment details:
+    Vertices assigned: 232,965 / 232,965 (100.0% coverage)
+    Total communities: 23 | Valid (≥1000): 21
+    Size stats: min=15  max=33,672  avg=10128.9  median=5,217
+    Size buckets: 10-99:1 | 100-999:1 | 1K-9999:13 | 10K+:8
+    Top-10 largest: c9=33,672, c1=28,481, c4=27,249, c0=20,533, c2=19,800, c6=14,335, c14=12,585, c5=12,033, c17=9,549, c16=8,622
+
+============================================================
+  PHASE 2 — Partitioning: reddit
+============================================================
+
+  ── [LOUVAIN]  tag=scaling_sweep_reddit_e8_reddit_louvain ──
+  Raw=23  Valid(≥1000)=21  min=1,670  max=33,672  avg=11081.8
+  Edges kept: 94,618,632 (82.6%)  Boundary nodes: 189,903  Internal: 42,814
+  Shuffle overhead (groupBy community_id): 30.2s
+  ✓ [louvain] Phase 2 done in 218.8s
+  [Phase 3 setup] Loading Phase 2 Delta tables for reddit/louvain...
+  [Phase 3 setup] Cached 232,717 node rows and 94,618,632 edge rows in 12.5s (nodes partitions=140, edges partitions=46).
+  [Phase 3 setup] Community layout computed in 0.2s: 21 communities; largest community_id:nodes = 9:33,672, 1:28,481, 4:27,249, 0:20,533, 2:19,800.
+
+============================================================
+  PHASE 3 — GNN Training: reddit / louvain / sage
+  tag=scaling_sweep_reddit_e8_reddit_louvain
+  task=both; epochs=10; diagnostics=on
+============================================================
+  [Driver Warmstart] Extracting representative community for driver-side pre-training...
+  ✓ Driver-side base model trained successfully on Comm 17 (9,549 nodes).
+  [Manifest Architecture] Reusing cached community manifest...
+  [Phase 3 safety] Hash-sampling up to ~8,000 nodes/community (hard cap 10,000); retaining ~1/4 eligible edges before aggregation (UDF hard edge cap 30,000).
+  ✓ Mean comm acc = 0.7464
+  ✓ Weighted comm acc = 0.7277
+  ✓ Mean comm link AUC = 0.6950
+  ✓ Weighted comm link AUC = 0.6926
+  ✓ Wall time: 32.6s
+    - Avg Load time: 0.03s
+    - Avg Node Train: 1.85s
+    - Avg Link Train: 2.57s
+    ✓ Saved Spark result frame: s3://us-east-1-s3-gnn/gnn-bench-results/phase3/scaling_sweep_reddit_e8/reddit_louvain_sage
+
+[PHASE 3b] - Parallel GNN Training with CaaN Global Graph
+  Dataset: reddit | Algorithm: louvain
+    - Major communities (>= 1000): 21
+    - Minor communities (< 1000): 2
+    - Computing global CAAN edges map-side (shuffless RDD partitioning)...
+
+============================================================
+  PHASE 3b — GNN Training (CaaN): reddit / louvain / sage
+  tag=scaling_sweep_reddit_e8_reddit_louvain
+============================================================
+  [Driver Warmstart] Extracting representative community for driver-side pre-training...
+  ✓ Driver-side base model trained successfully on Comm 9 (33,672 nodes).
+  ✓ Mean CaaN comm acc = 0.9369
+  ✓ Weighted CaaN comm acc = 0.9287
+  ✓ Wall time: 119.1s
+    ✓ Saved S3 checkpoint: s3://us-east-1-s3-gnn/gnn-bench-checkpoint/phase3b/scaling_sweep_reddit_e8/reddit_louvain_sage.parquet
+
+[PHASE 5] - Metrics Analysis, Visualizations, and Excel S3 Export
+
+===============================================================================================
+  PHASE 5A — PERFORMANCE COMPARISON (NODE ACCURACY & LINK AUC)
+===============================================================================================
+
+  Dataset: reddit
+  _Algorithm           Node Acc   Comm Acc    Bnd Acc    Int Acc     Link AUC
+  ---------------------------------------------------------------------------
+  louvain-sage           0.7277     0.7464     0.7423     0.7522       0.6926
+  louvain-sage-caan      0.9287     0.9369     0.9364     0.9231       0.5000
+
+  [reddit] Performance by community size bucket:
+    louvain-sage:
+    louvain-sage-caan:
+      large   : n=21  acc=0.9369  auc=0.5000
+
+================================================================================
+  PHASE 5B — TIMING COMPARISON
+================================================================================
+
+  Dataset: reddit
+  Algorithm             Phase1    Phase2    Phase3   Phase3b     Total
+  --------------------------------------------------------------------
+  louvain-sage          236.0s    218.8s     32.6s    119.1s    606.6s
+  BASELINE (SAGE)            —         —         —      0.0s (Node: 0.0s, Link: 0.0s)
+  XLSX → s3://us-east-1-s3-gnn/gnn-bench-out/scaling_sweep_reddit_e8_results.xlsx
+  Plot → s3://us-east-1-s3-gnn/gnn-bench-out/plots/scaling_sweep_reddit_e8/reddit_acc_dist.png
+  Plot → s3://us-east-1-s3-gnn/gnn-bench-out/plots/scaling_sweep_reddit_e8/reddit_boundary_internal.png
+  Plot → s3://us-east-1-s3-gnn/gnn-bench-out/plots/scaling_sweep_reddit_e8/reddit_timing.png
+  LaTeX → s3://us-east-1-s3-gnn/gnn-bench-out/latex_tables/scaling_sweep_reddit_e8/table12_distdgl_comparison.tex
+  LaTeX → s3://us-east-1-s3-gnn/gnn-bench-out/latex_tables/scaling_sweep_reddit_e8/table13_scalability_multi_instance.tex
+  LaTeX → s3://us-east-1-s3-gnn/gnn-bench-out/latex_tables/scaling_sweep_reddit_e8/table9_ablation_study.tex
+  LaTeX → s3://us-east-1-s3-gnn/gnn-bench-out/latex_tables/scaling_sweep_reddit_e8/table3_link_prediction_main.tex
+  LaTeX → s3://us-east-1-s3-gnn/gnn-bench-out/latex_tables/scaling_sweep_reddit_e8/table4_node_classification_main.tex
+  LaTeX → s3://us-east-1-s3-gnn/gnn-bench-out/latex_tables/scaling_sweep_reddit_e8/table_phase_timeline.tex
+
+================================================================================
+  FINAL PIPELINE REPORT SUMMARY
+================================================================================
+╔══════════════════════════════════════════════════════════════╗
+║  EXPERIMENT: scaling_sweep_reddit_e8                        ║
+║  Global mapping: True                                        ║
+╠══════════════════════════════════════════════════════════════╣
+║   Dataset                        reddit                        ║
+║   Phase 0 (ingest)               2.6s                          ║
+║   Phase 1 [louvain]              236.0s                        ║
+║   Phase 2 [louvain]              218.8s                        ║
+║   Phase 3 [louvain-sage]         32.6s                         ║
+║   Phase 3b [louvain-sage-caan]   119.1s                        ║
+╠══════════════════════════════════════════════════════════════╣
+║   [louvain-sage] global acc      0.7277                        ║
+║   [louvain-sage] boundary acc    0.7423                        ║
+║   [louvain-sage] internal acc    0.7522                        ║
+║   [louvain-sage] link AUC        0.6926                        ║
+║   [louvain-sage-caan] global acc 0.9287                        ║
+║   [louvain-sage-caan] boundary acc 0.9364                      ║
+║   [louvain-sage-caan] internal acc 0.9231                      ║
+║   [louvain-sage-caan] link AUC   0.5000                        ║
+║   [louvain] communities          23 raw → 21 valid             ║
+╚══════════════════════════════════════════════════════════════╝
+
+[SUCCESS] EMR Driver execution completed in 713.8 seconds.
+================================================================================
+

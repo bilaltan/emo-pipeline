@@ -1,0 +1,266 @@
+Writable directories and free space:
+  - /mnt1/tmp: 1754.67 GB free
+  - /mnt1/spark: 1754.67 GB free
+  - /mnt/tmp: 1737.83 GB free
+  - /mnt/spark: 1737.83 GB free
+  - /mnt/var/tmp: 1737.83 GB free
+  - /tmp: 1737.83 GB free
+  - /var/tmp: 1737.83 GB free
+
+  [Spark Auto-Scaler] Dataset: LiveJournal | S3 Size: 7 MB | Scale: Small/Medium
+  [Spark Auto-Scaler] YARN Cluster: 2 nodes × 496 GB RAM × 64 vCores
+  [Spark Auto-Scaler] Python RAM Budget: 5.0 GB/task (dataset-aware)
+  [Spark Auto-Scaler] Bin-Packing Solution:
+    → 8 total executors (CLI override)
+    → 4 cores/executor | 8g heap + 20g overhead = 28g container
+    → Total parallel tasks: 32 | Shuffle partitions: 200
+    → Driver: 40g heap + 12g overhead
+    → Cluster utilization: 224g / 992g (23%)
+
+Picked up JAVA_TOOL_OPTIONS: --add-opens=java.base/java.nio=ALL-UNNAMED --add-opens=java.base/sun.nio.ch=ALL-UNNAMED --add-opens=java.base/java.lang=ALL-UNNAMED --add-opens=java.base/java.util=ALL-UNNAMED --add-opens=java.base/java.util.concurrent=ALL-UNNAMED --add-opens=java.base/java.security=ALL-UNNAMED --add-opens=java.base/sun.security.action=ALL-UNNAMED --add-opens=java.base/math=ALL-UNNAMED
+WARNING: package math not in java.base
+Picked up JAVA_TOOL_OPTIONS: --add-opens=java.base/java.nio=ALL-UNNAMED --add-opens=java.base/sun.nio.ch=ALL-UNNAMED --add-opens=java.base/java.lang=ALL-UNNAMED --add-opens=java.base/java.util=ALL-UNNAMED --add-opens=java.base/java.util.concurrent=ALL-UNNAMED --add-opens=java.base/java.security=ALL-UNNAMED --add-opens=java.base/sun.security.action=ALL-UNNAMED --add-opens=java.base/math=ALL-UNNAMED
+WARNING: package math not in java.base
+:: loading settings :: url = jar:file:/usr/lib/spark/jars/ivy-2.5.1.jar!/org/apache/ivy/core/settings/ivysettings.xml
+Ivy Default Cache set to: /mnt1/tmp/.ivy2/cache
+The jars for the packages stored in: /mnt1/tmp/.ivy2/jars
+io.delta#delta-spark_2.12 added as a dependency
+graphframes#graphframes added as a dependency
+:: resolving dependencies :: org.apache.spark#spark-submit-parent-4ff56d0d-3aa3-4bca-bceb-0d81df310fd7;1.0
+	confs: [default]
+	found io.delta#delta-spark_2.12;3.2.0 in central
+	found io.delta#delta-storage;3.2.0 in central
+	found org.antlr#antlr4-runtime;4.9.3 in central
+	found graphframes#graphframes;0.8.3-spark3.5-s_2.12 in spark-packages
+	found org.slf4j#slf4j-api;1.7.16 in central
+:: resolution report :: resolve 120ms :: artifacts dl 5ms
+	:: modules in use:
+	graphframes#graphframes;0.8.3-spark3.5-s_2.12 from spark-packages in [default]
+	io.delta#delta-spark_2.12;3.2.0 from central in [default]
+	io.delta#delta-storage;3.2.0 from central in [default]
+	org.antlr#antlr4-runtime;4.9.3 from central in [default]
+	org.slf4j#slf4j-api;1.7.16 from central in [default]
+	---------------------------------------------------------------------
+	|                  |            modules            ||   artifacts   |
+	|       conf       | number| search|dwnlded|evicted|| number|dwnlded|
+	---------------------------------------------------------------------
+	|      default     |   5   |   0   |   0   |   0   ||   5   |   0   |
+	---------------------------------------------------------------------
+:: retrieving :: org.apache.spark#spark-submit-parent-4ff56d0d-3aa3-4bca-bceb-0d81df310fd7
+	confs: [default]
+	0 artifacts copied, 5 already retrieved (0kB/4ms)
+Setting default log level to "WARN".
+To adjust logging level use sc.setLogLevel(newLevel). For SparkR, use setLogLevel(newLevel).
+26/08/15 17:26:37 WARN SparkConf: Note that spark.local.dir will be overridden by the value set by the cluster manager (via SPARK_LOCAL_DIRS in mesos/standalone/kubernetes and LOCAL_DIRS in YARN).
+26/08/15 17:26:38 WARN Client: Neither spark.yarn.jars nor spark.yarn.archive is set, falling back to uploading libraries under SPARK_HOME.
+26/08/15 17:26:41 WARN Client: Same path resource file:///mnt1/tmp/.ivy2/jars/io.delta_delta-spark_2.12-3.2.0.jar added multiple times to distributed cache.
+26/08/15 17:26:41 WARN Client: Same path resource file:///mnt1/tmp/.ivy2/jars/graphframes_graphframes-0.8.3-spark3.5-s_2.12.jar added multiple times to distributed cache.
+26/08/15 17:26:41 WARN Client: Same path resource file:///mnt1/tmp/.ivy2/jars/io.delta_delta-storage-3.2.0.jar added multiple times to distributed cache.
+26/08/15 17:26:41 WARN Client: Same path resource file:///mnt1/tmp/.ivy2/jars/org.antlr_antlr4-runtime-4.9.3.jar added multiple times to distributed cache.
+26/08/15 17:26:41 WARN Client: Same path resource file:///mnt1/tmp/.ivy2/jars/org.slf4j_slf4j-api-1.7.16.jar added multiple times to distributed cache.
+  ✓ SparkSession successfully configured and initialized as 'spark'.
+
+================================================================================
+  VERIFYING AND INSTALLING PYTHON ENVIRONMENT PACKAGES
+================================================================================
+  ► Syncing dependencies across all active YARN worker nodes...
+[Stage 0:>                                                       (0 + 32) / 128][Stage 0:=====>                                                 (12 + 32) / 128][Stage 0:========>                                              (20 + 32) / 128][Stage 0:==========>                                            (24 + 32) / 128][Stage 0:==========>                                            (25 + 32) / 128][Stage 0:============>                                          (28 + 32) / 128][Stage 0:=============>                                         (32 + 32) / 128][Stage 0:==================>                                    (44 + 32) / 128][Stage 0:===================>                                   (46 + 32) / 128][Stage 0:=====================>                                 (49 + 32) / 128][Stage 0:=======================>                               (54 + 32) / 128][Stage 0:=======================>                               (55 + 32) / 128][Stage 0:========================>                              (57 + 32) / 128][Stage 0:========================>                              (58 + 32) / 128][Stage 0:=========================>                             (59 + 32) / 128][Stage 0:==========================>                            (61 + 32) / 128][Stage 0:==========================>                            (62 + 32) / 128][Stage 0:===========================>                           (64 + 32) / 128][Stage 0:=============================>                         (69 + 32) / 128][Stage 0:=================================>                     (77 + 32) / 128][Stage 0:=================================>                     (78 + 32) / 128][Stage 0:===================================>                   (82 + 32) / 128][Stage 0:===================================>                   (83 + 32) / 128][Stage 0:====================================>                  (86 + 32) / 128][Stage 0:=====================================>                 (87 + 32) / 128][Stage 0:=====================================>                 (88 + 32) / 128][Stage 0:======================================>                (90 + 32) / 128][Stage 0:=======================================>               (91 + 32) / 128][Stage 0:=======================================>               (92 + 32) / 128][Stage 0:=======================================>               (93 + 32) / 128][Stage 0:========================================>              (94 + 32) / 128][Stage 0:=========================================>             (96 + 32) / 128][Stage 0:=========================================>             (97 + 31) / 128][Stage 0:=============================================>        (108 + 20) / 128][Stage 0:=============================================>        (109 + 19) / 128][Stage 0:===============================================>      (112 + 16) / 128][Stage 0:===============================================>      (113 + 15) / 128][Stage 0:================================================>     (115 + 13) / 128][Stage 0:=================================================>    (118 + 10) / 128][Stage 0:===================================================>   (121 + 7) / 128][Stage 0:====================================================>  (122 + 6) / 128][Stage 0:=====================================================> (124 + 4) / 128][Stage 0:======================================================>(126 + 2) / 128]                                                                                  ► Sync attempt 1/5: 2 worker node(s) verified: ['ip-172-31-75-147', 'ip-172-31-78-174']
+  ✓ All 2 YARN worker nodes verified and synced successfully.
+
+  === YARN Executor Package Sync Summary ===
+    ip-172-31-75-147.ec2.internal: Success (Cached)
+    ip-172-31-78-174.ec2.internal: Success (Cached)
+
+  ✓ ALL PIPELINE DEPENDENCIES VERIFIED AND READY.
+SLF4J: Failed to load class "org.slf4j.impl.StaticLoggerBinder".
+SLF4J: Defaulting to no-operation (NOP) logger implementation
+SLF4J: See http://www.slf4j.org/codes.html#StaticLoggerBinder for further details.
+[Stage 1:>                  (0 + 1) / 1][Stage 2:>                  (0 + 3) / 3][Stage 1:>                  (0 + 1) / 1][Stage 2:======>            (1 + 2) / 3]                                                                                [Stage 3:>                                                          (0 + 3) / 3][Stage 3:===================>                                       (1 + 2) / 3][Stage 5:>                                                        (0 + 32) / 50][Stage 5:=========>                                               (8 + 32) / 50][Stage 5:=====================>                                  (19 + 31) / 50][Stage 5:=================================>                      (30 + 20) / 50][Stage 5:==========================================>             (38 + 12) / 50]                                                                                [Stage 12:======================>                                (20 + 20) / 50]                                                                                [Stage 16:>                                                         (0 + 1) / 1]                                                                                
+================================================================================
+  CLUSTER DISK SPACE COMPATIBILITY VERIFICATION
+================================================================================
+  Dataset: LiveJournal | Nodes: 100,000 | Features: 128
+  Required temp workspace disk space per executor container: 10.00 GB
+  Driver temp space available (/mnt1/tmp): 1754.67 GB
+  Executor nodes disk check results:
+    ✓  ip-172-31-75-147.ec2.internal                 - Sufficient Space. Available: 1731.17 GB
+    ✓  ip-172-31-78-174.ec2.internal                 - Sufficient Space. Available: 1738.06 GB
+  ✓ ALL NODES HAVE SUFFICIENT TEMPORARY DISK SPACE TO EXECUTE GNN JOBS.
+================================================================================
+
+
+================================================================================
+  BOOTSTRAPPING EXPERIMENT CODE AND STAGE UTILITIES
+================================================================================
+  ► LOADING PIPELINE AND CONFIG FROM LOCAL REPOSITORY PATHS...
+    ✓ Packed local git repository code to /tmp/pipeline.zip and copied to /tmp/pipeline
+  ✓ Registered pipeline.zip package on Spark Context
+
+  Run Profile: scaling_sweep_2worker_LiveJournal_e8
+  └─ Datasets: ['LiveJournal']
+  └─ Algorithms: ['louvain']
+  └─ GNN Architecture: GCN (epochs=10, lr=0.001, hidden=256)
+  └─ Global Mapping: True | Boundary Expansion: False
+  └─ Ingestion Phase (Phase 0): True
+
+============================================================
+  PHASE 0 — Ingesting: LiveJournal
+============================================================
+[Stage 19:>                                                         (0 + 1) / 1]                                                                                  ✓ Delta tables already exist for 'LiveJournal' — skipping download.
+    nodes: s3://us-east-1-s3-gnn/delta-data/LiveJournal/nodes/
+    edges: s3://us-east-1-s3-gnn/delta-data/LiveJournal/edges/
+    original_nodes: s3://us-east-1-s3-gnn/delta-data/LiveJournal/original_nodes/
+    original_edges: s3://us-east-1-s3-gnn/delta-data/LiveJournal/original_edges/
+
+============================================================
+  PHASE 1 — Community Detection: LiveJournal
+============================================================
+[Stage 33:=>                                                     (4 + 32) / 201][Stage 33:=====>                                                (21 + 32) / 201][Stage 33:========>                                             (30 + 32) / 201][Stage 33:===========>                                          (43 + 32) / 201][Stage 33:================>                                     (62 + 32) / 201][Stage 33:===================>                                  (74 + 32) / 201][Stage 33:==========================>                          (101 + 32) / 201][Stage 33:================================>                    (123 + 32) / 201][Stage 33:====================================>                (140 + 32) / 201][Stage 33:===========================================>         (164 + 32) / 201][Stage 33:=================================================>   (186 + 15) / 201]                                                                                [Stage 37:==============================================>      (175 + 25) / 200]                                                                                  Graph loaded: 100,000 nodes | 2,977,294 edges  [5.7s]
+
+  ── [LOUVAIN] ──────────────────────────────
+  Collecting edges to driver ...
+  Mapping node IDs using vectorized binary search ...
+  Building igraph (100,000 nodes) ...
+  Running louvain (resolution=1.0) ...
+[Stage 50:======>                                               (24 + 32) / 200][Stage 50:===================>                                  (72 + 32) / 200][Stage 50:================================>                    (122 + 32) / 200][Stage 50:==============================================>      (175 + 19) / 200][Stage 50:=====================================================>(199 + 1) / 200]                                                                                  ✓ [louvain] 14 communities | NMI=0.0017 | 11.6s
+
+======================================================================
+  PHASE 1 SUMMARY
+======================================================================
+
+  Dataset: LiveJournal
+  Algorithm        #Comms      NMI    Runtime
+  ------------ ---------- -------- ----------
+  louvain              14   0.0017      11.6s
+
+  [louvain] Community assignment details:
+[Stage 104:=====================================>              (144 + 32) / 200][Stage 104:===============================================>    (184 + 16) / 200]                                                                                    Vertices assigned: 100,000 / 100,000 (100.0% coverage)
+    Total communities: 14 | Valid (≥1000): 14
+    Size stats: min=5,685  max=8,726  avg=7142.9  median=6,772
+    Size buckets: 1K-9999:14
+    Top-10 largest: c6=8,726, c9=8,555, c12=8,495, c0=8,461, c2=7,965, c13=7,369, c10=7,033, c4=6,772, c1=6,348, c7=6,244
+
+============================================================
+  PHASE 2 — Partitioning: LiveJournal
+============================================================
+
+  ── [LOUVAIN]  tag=scaling_sweep_2worker_LiveJournal_e8_LiveJournal_louvain ──
+  Raw=14  Valid(≥1000)=14  min=5,685  max=8,726  avg=7142.9
+[Stage 191:=============================>                      (113 + 28) / 200][Stage 191:========>   (142 + 23) / 200][Stage 192:>              (2 + 9) / 201][Stage 191:=========>  (159 + 16) / 200][Stage 192:>             (7 + 16) / 201][Stage 191:==========> (174 + 16) / 200][Stage 192:=>           (22 + 16) / 201][Stage 191:==========> (183 + 12) / 200][Stage 192:==>          (32 + 20) / 201][Stage 192:============>                                        (48 + 32) / 201][Stage 192:====================>                                (77 + 32) / 201][Stage 192:==========================>                         (104 + 32) / 201][Stage 192:========>   (134 + 32) / 201][Stage 194:>                (0 + 0) / 1][Stage 192:=========>  (161 + 32) / 201][Stage 194:>                (0 + 0) / 1]                                                                                [Stage 217:===================>                                 (73 + 32) / 201][Stage 217:==========================>                         (103 + 32) / 201][Stage 217:==================================>                 (135 + 33) / 201][Stage 217:===========================================>        (169 + 32) / 201]                                                                                [Stage 229:(152 + 32) / 200][Stage 230:>(0 + 0) / 200][Stage 231:>(0 + 0) / 200][Stage 229:(188 + 12) / 200][Stage 230:(177 + 0) / 200][Stage 231:(95 + 9) / 200]                                                                                [Stage 237:=========>  (156 + 32) / 200][Stage 239:>               (0 + 0) / 50]                                                                                [Stage 240:====>        (67 + 32) / 201][Stage 242:>                (0 + 0) / 7][Stage 240:======>     (101 + 32) / 201][Stage 242:>                (0 + 0) / 7][Stage 240:========>   (135 + 32) / 201][Stage 242:>                (0 + 0) / 7][Stage 240:=========>  (162 + 32) / 201][Stage 242:>                (0 + 0) / 7][Stage 240:============>(192 + 9) / 201][Stage 242:============>    (5 + 2) / 7]                                                                                  Edges kept: 2,782,966 (93.5%)  Boundary nodes: 28,571  Internal: 71,429
+[Stage 256:========================>                            (94 + 32) / 201][Stage 256:================================>                   (125 + 32) / 201][Stage 256:========================================>           (158 + 32) / 201][Stage 256:==================================================>  (192 + 9) / 201]                                                                                  Shuffle overhead (groupBy community_id): 2.5s
+[Stage 272:(139 + 32) / 200][Stage 273:>(0 + 0) / 200][Stage 274:>(0 + 0) / 200][Stage 272:(184 + 16) / 200][Stage 273:(1 + 16) / 200][Stage 274:>(0 + 0) / 200][Stage 273:(110 + 32) / 200][Stage 274:>(0 + 0) / 200][Stage 275:>(0 + 0) / 200]                                                                                [Stage 281:=======>    (130 + 32) / 200][Stage 283:>               (0 + 0) / 50][Stage 281:==========> (170 + 30) / 200][Stage 283:>               (0 + 2) / 50]                                                                                [Stage 284:====>        (77 + 32) / 201][Stage 286:>                (0 + 0) / 7][Stage 284:======>     (112 + 32) / 201][Stage 286:>                (0 + 0) / 7][Stage 284:========>   (150 + 32) / 201][Stage 286:>                (0 + 0) / 7][Stage 284:==========> (181 + 20) / 201][Stage 286:============>    (5 + 2) / 7]                                                                                [Stage 291:========================>                               (6 + 8) / 14][Stage 291:================================>                       (8 + 6) / 14][Stage 291:===================================================>   (13 + 1) / 14]                                                                                  ✓ [louvain] Phase 2 done in 25.1s
+  [Phase 3 setup] Loading Phase 2 Delta tables for LiveJournal/louvain...
+  [Phase 3 setup] Cached 100,000 node rows and 2,782,966 edge rows in 2.4s (nodes partitions=17, edges partitions=8).
+  [Phase 3 setup] Community layout computed in 0.1s: 14 communities; largest community_id:nodes = 6:8,726, 9:8,555, 12:8,495, 0:8,461, 2:7,965.
+
+============================================================
+  PHASE 3 — GNN Training: LiveJournal / louvain / sage
+  tag=scaling_sweep_2worker_LiveJournal_e8_LiveJournal_louvain
+  task=both; epochs=10; diagnostics=on
+============================================================
+  [Driver Warmstart] Extracting representative community for driver-side pre-training...
+  ✓ Driver-side base model trained successfully on Comm 6 (8,726 nodes).
+  [Manifest Architecture] Reusing cached community manifest...
+  [Phase 3 safety] Hash-sampling up to ~8,000 nodes/community (hard cap 10,000); retaining ~1/4 eligible edges before aggregation (UDF hard edge cap 30,000).
+[Stage 341:========================>                               (6 + 8) / 14][Stage 341:================================>                       (8 + 6) / 14][Stage 341:====================================>                   (9 + 5) / 14][Stage 341:=======================================>               (10 + 4) / 14][Stage 341:===========================================>           (11 + 3) / 14][Stage 341:===============================================>       (12 + 2) / 14][Stage 341:===================================================>   (13 + 1) / 14]                                                                                  ✓ Mean comm acc = 0.0107
+  ✓ Weighted comm acc = 0.0107
+  ✓ Mean comm link AUC = 0.5211
+  ✓ Weighted comm link AUC = 0.5171
+  ✓ Wall time: 16.9s
+    - Avg Load time: 0.01s
+    - Avg Node Train: 1.51s
+    - Avg Link Train: 2.18s
+    ✓ Saved Spark result frame: s3://us-east-1-s3-gnn/gnn-bench-results/phase3/scaling_sweep_2worker_LiveJournal_e8/LiveJournal_louvain_sage
+
+[PHASE 3b] - Parallel GNN Training with CaaN Global Graph
+  Dataset: LiveJournal | Algorithm: louvain
+    - Major communities (>= 1000): 14
+    - Minor communities (< 1000): 0
+    - Computing global CAAN edges map-side (shuffless RDD partitioning)...
+[Stage 383:========================>                            (94 + 32) / 200][Stage 383:===================================>                (138 + 32) / 200][Stage 383:==============================================>     (180 + 20) / 200]                                                                                
+============================================================
+  PHASE 3b — GNN Training (CaaN): LiveJournal / louvain / sage
+  tag=scaling_sweep_2worker_LiveJournal_e8_LiveJournal_louvain
+============================================================
+  [Driver Warmstart] Extracting representative community for driver-side pre-training...
+  ✓ Driver-side base model trained successfully on Comm 6 (8,726 nodes).
+[Stage 403:========================>                               (6 + 8) / 14][Stage 403:================================>                       (8 + 6) / 14][Stage 403:====================================>                   (9 + 5) / 14][Stage 403:=======================================>               (10 + 4) / 14][Stage 403:===============================================>       (12 + 2) / 14][Stage 403:===================================================>   (13 + 1) / 14]                                                                                  ✓ Mean CaaN comm acc = 0.0102
+  ✓ Weighted CaaN comm acc = 0.0102
+  ✓ Wall time: 14.7s
+    ✓ Saved S3 checkpoint: s3://us-east-1-s3-gnn/gnn-bench-checkpoint/phase3b/scaling_sweep_2worker_LiveJournal_e8/LiveJournal_louvain_sage.parquet
+
+[PHASE 5] - Metrics Analysis, Visualizations, and Excel S3 Export
+
+===============================================================================================
+  PHASE 5A — PERFORMANCE COMPARISON (NODE ACCURACY & LINK AUC)
+===============================================================================================
+
+  Dataset: LiveJournal
+  _Algorithm           Node Acc   Comm Acc    Bnd Acc    Int Acc     Link AUC
+  ---------------------------------------------------------------------------
+  louvain-sage           0.0107     0.0107     0.0118     0.0102       0.5171
+  louvain-sage-caan      0.0102     0.0102     0.0118     0.0095       0.5000
+
+  [LiveJournal] Performance by community size bucket:
+    louvain-sage:
+    louvain-sage-caan:
+      large   : n=14  acc=0.0102  auc=0.5000
+
+================================================================================
+  PHASE 5B — TIMING COMPARISON
+================================================================================
+
+  Dataset: LiveJournal
+  Algorithm             Phase1    Phase2    Phase3   Phase3b     Total
+  --------------------------------------------------------------------
+  louvain-sage           11.6s     25.1s     16.9s     14.7s     68.3s
+  BASELINE (SAGE)            —         —         —      0.0s (Node: 0.0s, Link: 0.0s)
+  XLSX → s3://us-east-1-s3-gnn/gnn-bench-out/scaling_sweep_2worker_LiveJournal_e8_results.xlsx
+  Plot → s3://us-east-1-s3-gnn/gnn-bench-out/plots/scaling_sweep_2worker_LiveJournal_e8/LiveJournal_acc_dist.png
+  Plot → s3://us-east-1-s3-gnn/gnn-bench-out/plots/scaling_sweep_2worker_LiveJournal_e8/LiveJournal_boundary_internal.png
+  Plot → s3://us-east-1-s3-gnn/gnn-bench-out/plots/scaling_sweep_2worker_LiveJournal_e8/LiveJournal_timing.png
+  LaTeX → s3://us-east-1-s3-gnn/gnn-bench-out/latex_tables/scaling_sweep_2worker_LiveJournal_e8/table12_distdgl_comparison.tex
+  LaTeX → s3://us-east-1-s3-gnn/gnn-bench-out/latex_tables/scaling_sweep_2worker_LiveJournal_e8/table13_scalability_multi_instance.tex
+  LaTeX → s3://us-east-1-s3-gnn/gnn-bench-out/latex_tables/scaling_sweep_2worker_LiveJournal_e8/table9_ablation_study.tex
+  LaTeX → s3://us-east-1-s3-gnn/gnn-bench-out/latex_tables/scaling_sweep_2worker_LiveJournal_e8/table3_link_prediction_main.tex
+  LaTeX → s3://us-east-1-s3-gnn/gnn-bench-out/latex_tables/scaling_sweep_2worker_LiveJournal_e8/table4_node_classification_main.tex
+  LaTeX → s3://us-east-1-s3-gnn/gnn-bench-out/latex_tables/scaling_sweep_2worker_LiveJournal_e8/table_phase_timeline.tex
+  LaTeX → s3://us-east-1-s3-gnn/gnn-bench-out/latex_tables/scaling_sweep_2worker_LiveJournal_e8/table_scalability_sweep.tex
+
+================================================================================
+  FINAL PIPELINE REPORT SUMMARY
+================================================================================
+╔══════════════════════════════════════════════════════════════╗
+║  EXPERIMENT: scaling_sweep_2worker_LiveJournal_e8           ║
+║  Global mapping: True                                        ║
+╠══════════════════════════════════════════════════════════════╣
+║   Dataset                        LiveJournal                   ║
+║   Phase 0 (ingest)               2.5s                          ║
+║   Phase 1 [louvain]              11.6s                         ║
+║   Phase 2 [louvain]              25.1s                         ║
+║   Phase 3 [louvain-sage]         16.9s                         ║
+║   Phase 3b [louvain-sage-caan]   14.7s                         ║
+╠══════════════════════════════════════════════════════════════╣
+║   [louvain-sage] global acc      0.0107                        ║
+║   [louvain-sage] boundary acc    0.0118                        ║
+║   [louvain-sage] internal acc    0.0102                        ║
+║   [louvain-sage] link AUC        0.5171                        ║
+║   [louvain-sage-caan] global acc 0.0102                        ║
+║   [louvain-sage-caan] boundary acc 0.0118                      ║
+║   [louvain-sage-caan] internal acc 0.0095                      ║
+║   [louvain-sage-caan] link AUC   0.5000                        ║
+║   [louvain] communities          14 raw → 14 valid             ║
+╚══════════════════════════════════════════════════════════════╝
+
+[SUCCESS] EMR Driver execution completed in 96.5 seconds.
+================================================================================
+
+Uploading execution log to: s3://us-east-1-s3-gnn/gnn-bench-out/spark-results/scaling_sweep_2worker_LiveJournal_e8-c97704a1000665cf/logs/run_pipeline.log
+Copying S3 Excel results to: s3://us-east-1-s3-gnn/gnn-bench-out/spark-results/scaling_sweep_2worker_LiveJournal_e8-c97704a1000665cf/excels/scaling_sweep_2worker_LiveJournal_e8_results.xlsx
+Uploading LaTeX table to: s3://us-east-1-s3-gnn/gnn-bench-out/spark-results/scaling_sweep_2worker_LiveJournal_e8-c97704a1000665cf/latex_tables/table12_distdgl_comparison.tex
+Uploading LaTeX table to: s3://us-east-1-s3-gnn/gnn-bench-out/spark-results/scaling_sweep_2worker_LiveJournal_e8-c97704a1000665cf/latex_tables/table13_scalability_multi_instance.tex
+Uploading LaTeX table to: s3://us-east-1-s3-gnn/gnn-bench-out/spark-results/scaling_sweep_2worker_LiveJournal_e8-c97704a1000665cf/latex_tables/table9_ablation_study.tex
+Uploading LaTeX table to: s3://us-east-1-s3-gnn/gnn-bench-out/spark-results/scaling_sweep_2worker_LiveJournal_e8-c97704a1000665cf/latex_tables/table3_link_prediction_main.tex
+Uploading LaTeX table to: s3://us-east-1-s3-gnn/gnn-bench-out/spark-results/scaling_sweep_2worker_LiveJournal_e8-c97704a1000665cf/latex_tables/table4_node_classification_main.tex
+Uploading LaTeX table to: s3://us-east-1-s3-gnn/gnn-bench-out/spark-results/scaling_sweep_2worker_LiveJournal_e8-c97704a1000665cf/latex_tables/table_phase_timeline.tex
+Uploading LaTeX table to: s3://us-east-1-s3-gnn/gnn-bench-out/spark-results/scaling_sweep_2worker_LiveJournal_e8-c97704a1000665cf/latex_tables/table_scalability_sweep.tex

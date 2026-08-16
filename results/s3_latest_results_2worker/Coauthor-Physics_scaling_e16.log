@@ -1,0 +1,266 @@
+Writable directories and free space:
+  - /mnt1/tmp: 1754.67 GB free
+  - /mnt1/spark: 1754.67 GB free
+  - /mnt/tmp: 1737.83 GB free
+  - /mnt/spark: 1737.83 GB free
+  - /mnt/var/tmp: 1737.83 GB free
+  - /tmp: 1737.83 GB free
+  - /var/tmp: 1737.83 GB free
+
+  [Spark Auto-Scaler] Dataset: Coauthor-Physics | S3 Size: 2 MB | Scale: Small/Medium
+  [Spark Auto-Scaler] YARN Cluster: 2 nodes × 496 GB RAM × 64 vCores
+  [Spark Auto-Scaler] Python RAM Budget: 5.0 GB/task (dataset-aware)
+  [Spark Auto-Scaler] Bin-Packing Solution:
+    → 16 total executors (CLI override)
+    → 4 cores/executor | 8g heap + 20g overhead = 28g container
+    → Total parallel tasks: 64 | Shuffle partitions: 200
+    → Driver: 40g heap + 12g overhead
+    → Cluster utilization: 448g / 992g (45%)
+
+Picked up JAVA_TOOL_OPTIONS: --add-opens=java.base/java.nio=ALL-UNNAMED --add-opens=java.base/sun.nio.ch=ALL-UNNAMED --add-opens=java.base/java.lang=ALL-UNNAMED --add-opens=java.base/java.util=ALL-UNNAMED --add-opens=java.base/java.util.concurrent=ALL-UNNAMED --add-opens=java.base/java.security=ALL-UNNAMED --add-opens=java.base/sun.security.action=ALL-UNNAMED --add-opens=java.base/math=ALL-UNNAMED
+WARNING: package math not in java.base
+Picked up JAVA_TOOL_OPTIONS: --add-opens=java.base/java.nio=ALL-UNNAMED --add-opens=java.base/sun.nio.ch=ALL-UNNAMED --add-opens=java.base/java.lang=ALL-UNNAMED --add-opens=java.base/java.util=ALL-UNNAMED --add-opens=java.base/java.util.concurrent=ALL-UNNAMED --add-opens=java.base/java.security=ALL-UNNAMED --add-opens=java.base/sun.security.action=ALL-UNNAMED --add-opens=java.base/math=ALL-UNNAMED
+WARNING: package math not in java.base
+:: loading settings :: url = jar:file:/usr/lib/spark/jars/ivy-2.5.1.jar!/org/apache/ivy/core/settings/ivysettings.xml
+Ivy Default Cache set to: /mnt1/tmp/.ivy2/cache
+The jars for the packages stored in: /mnt1/tmp/.ivy2/jars
+io.delta#delta-spark_2.12 added as a dependency
+graphframes#graphframes added as a dependency
+:: resolving dependencies :: org.apache.spark#spark-submit-parent-d45d949c-aa94-42aa-80ec-8c7dedfd925f;1.0
+	confs: [default]
+	found io.delta#delta-spark_2.12;3.2.0 in central
+	found io.delta#delta-storage;3.2.0 in central
+	found org.antlr#antlr4-runtime;4.9.3 in central
+	found graphframes#graphframes;0.8.3-spark3.5-s_2.12 in spark-packages
+	found org.slf4j#slf4j-api;1.7.16 in central
+:: resolution report :: resolve 122ms :: artifacts dl 4ms
+	:: modules in use:
+	graphframes#graphframes;0.8.3-spark3.5-s_2.12 from spark-packages in [default]
+	io.delta#delta-spark_2.12;3.2.0 from central in [default]
+	io.delta#delta-storage;3.2.0 from central in [default]
+	org.antlr#antlr4-runtime;4.9.3 from central in [default]
+	org.slf4j#slf4j-api;1.7.16 from central in [default]
+	---------------------------------------------------------------------
+	|                  |            modules            ||   artifacts   |
+	|       conf       | number| search|dwnlded|evicted|| number|dwnlded|
+	---------------------------------------------------------------------
+	|      default     |   5   |   0   |   0   |   0   ||   5   |   0   |
+	---------------------------------------------------------------------
+:: retrieving :: org.apache.spark#spark-submit-parent-d45d949c-aa94-42aa-80ec-8c7dedfd925f
+	confs: [default]
+	0 artifacts copied, 5 already retrieved (0kB/4ms)
+Setting default log level to "WARN".
+To adjust logging level use sc.setLogLevel(newLevel). For SparkR, use setLogLevel(newLevel).
+26/08/15 17:34:29 WARN SparkConf: Note that spark.local.dir will be overridden by the value set by the cluster manager (via SPARK_LOCAL_DIRS in mesos/standalone/kubernetes and LOCAL_DIRS in YARN).
+26/08/15 17:34:30 WARN Client: Neither spark.yarn.jars nor spark.yarn.archive is set, falling back to uploading libraries under SPARK_HOME.
+26/08/15 17:34:32 WARN Client: Same path resource file:///mnt1/tmp/.ivy2/jars/io.delta_delta-spark_2.12-3.2.0.jar added multiple times to distributed cache.
+26/08/15 17:34:32 WARN Client: Same path resource file:///mnt1/tmp/.ivy2/jars/graphframes_graphframes-0.8.3-spark3.5-s_2.12.jar added multiple times to distributed cache.
+26/08/15 17:34:32 WARN Client: Same path resource file:///mnt1/tmp/.ivy2/jars/io.delta_delta-storage-3.2.0.jar added multiple times to distributed cache.
+26/08/15 17:34:32 WARN Client: Same path resource file:///mnt1/tmp/.ivy2/jars/org.antlr_antlr4-runtime-4.9.3.jar added multiple times to distributed cache.
+26/08/15 17:34:32 WARN Client: Same path resource file:///mnt1/tmp/.ivy2/jars/org.slf4j_slf4j-api-1.7.16.jar added multiple times to distributed cache.
+  ✓ SparkSession successfully configured and initialized as 'spark'.
+
+================================================================================
+  VERIFYING AND INSTALLING PYTHON ENVIRONMENT PACKAGES
+================================================================================
+  ► Syncing dependencies across all active YARN worker nodes...
+[Stage 0:>                                                       (0 + 64) / 256][Stage 0:====>                                                  (22 + 64) / 256][Stage 0:=============>                                         (64 + 64) / 256][Stage 0:=============>                                         (65 + 64) / 256][Stage 0:================>                                      (75 + 64) / 256][Stage 0:=====================>                                (102 + 64) / 256][Stage 0:===========================>                          (128 + 64) / 256][Stage 0:============================>                         (134 + 64) / 256][Stage 0:==============================>                       (145 + 64) / 256][Stage 0:==================================>                   (162 + 64) / 256][Stage 0:=======================================>              (188 + 64) / 256][Stage 0:========================================>             (192 + 64) / 256][Stage 0:========================================>             (193 + 63) / 256][Stage 0:=========================================>            (198 + 58) / 256][Stage 0:===========================================>          (207 + 49) / 256][Stage 0:=============================================>        (215 + 41) / 256][Stage 0:==================================================>   (238 + 18) / 256][Stage 0:======================================================>(254 + 2) / 256]                                                                                  ► Sync attempt 1/5: 2 worker node(s) verified: ['ip-172-31-75-147', 'ip-172-31-78-174']
+  ✓ All 2 YARN worker nodes verified and synced successfully.
+
+  === YARN Executor Package Sync Summary ===
+    ip-172-31-75-147.ec2.internal: Success (Cached)
+    ip-172-31-78-174.ec2.internal: Success (Cached)
+
+  ✓ ALL PIPELINE DEPENDENCIES VERIFIED AND READY.
+SLF4J: Failed to load class "org.slf4j.impl.StaticLoggerBinder".
+SLF4J: Defaulting to no-operation (NOP) logger implementation
+SLF4J: See http://www.slf4j.org/codes.html#StaticLoggerBinder for further details.
+[Stage 1:>                                                          (0 + 1) / 1][Stage 1:>                  (0 + 1) / 1][Stage 2:>                  (0 + 3) / 3]                                                                                [Stage 3:>                                                          (0 + 3) / 3][Stage 3:===================>                                       (1 + 2) / 3][Stage 3:=======================================>                   (2 + 1) / 3][Stage 5:>                                                        (0 + 50) / 50][Stage 5:==>                                                      (2 + 48) / 50][Stage 5:======>                                                  (6 + 44) / 50][Stage 5:===========>                                            (10 + 40) / 50][Stage 5:==============>                                         (13 + 37) / 50][Stage 5:===================>                                    (17 + 33) / 50][Stage 5:=======================>                                (21 + 29) / 50][Stage 5:=========================>                              (23 + 27) / 50][Stage 5:======================================>                 (34 + 16) / 50]                                                                                [Stage 12:=======>                                                (7 + 43) / 50][Stage 12:===================================================>    (46 + 4) / 50]                                                                                
+================================================================================
+  CLUSTER DISK SPACE COMPATIBILITY VERIFICATION
+================================================================================
+  Dataset: Coauthor-Physics | Nodes: 34,493 | Features: 8415
+  Required temp workspace disk space per executor container: 10.00 GB
+  Driver temp space available (/mnt1/tmp): 1754.67 GB
+  Executor nodes disk check results:
+    ✓  ip-172-31-75-147.ec2.internal                 - Sufficient Space. Available: 1731.00 GB
+    ✓  ip-172-31-78-174.ec2.internal                 - Sufficient Space. Available: 1738.00 GB
+  ✓ ALL NODES HAVE SUFFICIENT TEMPORARY DISK SPACE TO EXECUTE GNN JOBS.
+================================================================================
+
+
+================================================================================
+  BOOTSTRAPPING EXPERIMENT CODE AND STAGE UTILITIES
+================================================================================
+  ► LOADING PIPELINE AND CONFIG FROM LOCAL REPOSITORY PATHS...
+    ✓ Packed local git repository code to /tmp/pipeline.zip and copied to /tmp/pipeline
+  ✓ Registered pipeline.zip package on Spark Context
+
+  Run Profile: scaling_sweep_2worker_Coauthor-Physics_e16
+  └─ Datasets: ['Coauthor-Physics']
+  └─ Algorithms: ['louvain']
+  └─ GNN Architecture: GCN (epochs=10, lr=0.001, hidden=256)
+  └─ Global Mapping: True | Boundary Expansion: False
+  └─ Ingestion Phase (Phase 0): True
+
+============================================================
+  PHASE 0 — Ingesting: Coauthor-Physics
+============================================================
+[Stage 18:>                                                         (0 + 1) / 1]                                                                                [Stage 19:>                                                         (0 + 1) / 1][Stage 19:>                 (0 + 1) / 1][Stage 20:============>     (2 + 1) / 3]                                                                                  ✓ Delta tables already exist for 'Coauthor-Physics' — skipping download.
+    nodes: s3://us-east-1-s3-gnn/delta-data/Coauthor-Physics/nodes/
+    edges: s3://us-east-1-s3-gnn/delta-data/Coauthor-Physics/edges/
+    original_nodes: s3://us-east-1-s3-gnn/delta-data/Coauthor-Physics/original_nodes/
+    original_edges: s3://us-east-1-s3-gnn/delta-data/Coauthor-Physics/original_edges/
+
+============================================================
+  PHASE 1 — Community Detection: Coauthor-Physics
+============================================================
+[Stage 27:========================>                              (22 + 28) / 50]                                                                                [Stage 33:>                                                     (0 + 64) / 1113][Stage 33:>                                                    (20 + 64) / 1113][Stage 33:=>                                                   (23 + 64) / 1113][Stage 33:=>                                                   (39 + 64) / 1113][Stage 33:==>                                                  (60 + 64) / 1113][Stage 33:===>                                                 (64 + 64) / 1113][Stage 33:===>                                                 (83 + 64) / 1113][Stage 33:=====>                                              (110 + 64) / 1113][Stage 33:=====>                                              (124 + 64) / 1113][Stage 33:======>                                             (129 + 64) / 1113][Stage 33:=======>                                            (152 + 64) / 1113][Stage 33:=======>                                            (170 + 64) / 1113][Stage 33:========>                                           (188 + 64) / 1113][Stage 33:=========>                                          (206 + 64) / 1113][Stage 33:==========>                                         (231 + 64) / 1113][Stage 33:===========>                                        (247 + 64) / 1113][Stage 33:============>                                       (275 + 64) / 1113][Stage 33:=============>                                      (295 + 64) / 1113][Stage 33:===============>                                    (323 + 64) / 1113][Stage 33:================>                                   (347 + 64) / 1113][Stage 33:=================>                                  (366 + 64) / 1113][Stage 33:==================>                                 (397 + 64) / 1113][Stage 33:===================>                                (417 + 64) / 1113][Stage 33:====================>                               (440 + 64) / 1113][Stage 33:=====================>                              (469 + 64) / 1113][Stage 33:======================>                             (491 + 64) / 1113][Stage 33:========================>                           (520 + 64) / 1113][Stage 33:=========================>                          (541 + 64) / 1113][Stage 33:==========================>                         (566 + 64) / 1113][Stage 33:===========================>                        (595 + 64) / 1113][Stage 33:============================>                       (617 + 64) / 1113][Stage 33:=============================>                      (642 + 64) / 1113][Stage 33:===============================>                    (667 + 64) / 1113][Stage 33:================================>                   (690 + 64) / 1113][Stage 33:=================================>                  (719 + 65) / 1113][Stage 33:==================================>                 (740 + 64) / 1113][Stage 33:====================================>               (771 + 64) / 1113][Stage 33:=====================================>              (793 + 64) / 1113][Stage 33:======================================>             (815 + 64) / 1113][Stage 33:=======================================>            (846 + 64) / 1113][Stage 33:========================================>           (871 + 64) / 1113][Stage 33:==========================================>         (901 + 64) / 1113][Stage 33:===========================================>        (925 + 64) / 1113][Stage 33:============================================>       (948 + 64) / 1113][Stage 33:=============================================>      (977 + 64) / 1113][Stage 33:=============================================>     (1003 + 64) / 1113][Stage 33:===============================================>   (1032 + 64) / 1113][Stage 33:================================================>  (1060 + 53) / 1113][Stage 33:==================================================>(1093 + 20) / 1113]                                                                                  Graph loaded: 34,493 nodes | 495,924 edges  [15.1s]
+
+  ── [LOUVAIN] ──────────────────────────────
+  Collecting edges to driver ...
+  Mapping node IDs using vectorized binary search ...
+  Building igraph (34,493 nodes) ...
+  Running louvain (resolution=1.0) ...
+[Stage 50:>                                                      (0 + 64) / 200][Stage 50:=================>                                    (65 + 64) / 200][Stage 50:=================================>                   (126 + 57) / 200][Stage 50:===================================================>  (191 + 9) / 200]                                                                                  ✓ [louvain] 30 communities | NMI=0.4513 | 5.5s
+
+======================================================================
+  PHASE 1 SUMMARY
+======================================================================
+
+  Dataset: Coauthor-Physics
+  Algorithm        #Comms      NMI    Runtime
+  ------------ ---------- -------- ----------
+  louvain              30   0.4513       5.5s
+
+  [louvain] Community assignment details:
+[Stage 104:=============================>                      (112 + 64) / 200][Stage 104:======================================>             (147 + 53) / 200]                                                                                    Vertices assigned: 34,493 / 34,493 (100.0% coverage)
+    Total communities: 30 | Valid (≥1000): 12
+    Size stats: min=3  max=4,319  avg=1149.8  median=569
+    Size buckets: 1-9:6 | 10-99:4 | 100-999:8 | 1K-9999:12
+    Top-10 largest: c13=4,319, c3=4,177, c11=3,300, c6=2,876, c17=2,778, c5=2,515, c0=2,265, c20=2,047, c9=1,988, c10=1,523
+
+============================================================
+  PHASE 2 — Partitioning: Coauthor-Physics
+============================================================
+
+  ── [LOUVAIN]  tag=scaling_sweep_2worker_Coauthor-Physics_e16_Coauthor-Physics_louvain ──
+  Raw=30  Valid(≥1000)=12  min=1,267  max=4,319  avg=2529.8
+[Stage 191:>           (63 + 64) / 1113][Stage 192:>              (0 + 0) / 200][Stage 191:>           (64 + 64) / 1113][Stage 192:>              (0 + 0) / 200][Stage 191:=>         (116 + 65) / 1113][Stage 192:>              (0 + 0) / 200][Stage 191:=>         (128 + 64) / 1113][Stage 192:>              (0 + 0) / 200][Stage 191:=>         (144 + 64) / 1113][Stage 192:>              (0 + 0) / 200][Stage 191:=>         (190 + 64) / 1113][Stage 192:>              (0 + 0) / 200][Stage 191:=>         (196 + 64) / 1113][Stage 192:>              (0 + 0) / 200][Stage 191:==>        (248 + 64) / 1113][Stage 192:>              (0 + 0) / 200][Stage 191:==>        (256 + 64) / 1113][Stage 192:>              (0 + 0) / 200][Stage 191:==>        (289 + 64) / 1113][Stage 192:>              (0 + 0) / 200][Stage 191:===>       (317 + 64) / 1113][Stage 192:>              (0 + 0) / 200][Stage 191:===>       (333 + 64) / 1113][Stage 192:>              (0 + 0) / 200][Stage 191:===>       (377 + 64) / 1113][Stage 192:>              (0 + 0) / 200][Stage 191:===>       (387 + 64) / 1113][Stage 192:>              (0 + 0) / 200][Stage 191:====>      (429 + 64) / 1113][Stage 192:>              (0 + 0) / 200][Stage 191:====>      (449 + 64) / 1113][Stage 192:>              (0 + 0) / 200][Stage 191:====>      (475 + 64) / 1113][Stage 192:>              (0 + 0) / 200][Stage 191:=====>     (507 + 64) / 1113][Stage 192:>              (0 + 0) / 200][Stage 191:=====>     (528 + 64) / 1113][Stage 192:>              (0 + 0) / 200][Stage 191:=====>     (562 + 64) / 1113][Stage 192:>              (0 + 0) / 200][Stage 191:=====>     (579 + 64) / 1113][Stage 192:>              (0 + 0) / 200][Stage 191:======>    (615 + 64) / 1113][Stage 192:>              (0 + 0) / 200][Stage 191:======>    (637 + 64) / 1113][Stage 192:>              (0 + 0) / 200][Stage 191:======>    (667 + 64) / 1113][Stage 192:>              (0 + 0) / 200][Stage 191:======>    (696 + 64) / 1113][Stage 192:>              (0 + 0) / 200][Stage 191:=======>   (716 + 64) / 1113][Stage 192:>              (0 + 0) / 200][Stage 191:=======>   (752 + 64) / 1113][Stage 192:>              (0 + 0) / 200][Stage 191:=======>   (769 + 64) / 1113][Stage 192:>              (0 + 0) / 200][Stage 191:=======>   (802 + 64) / 1113][Stage 192:>              (0 + 0) / 200][Stage 191:========>  (824 + 64) / 1113][Stage 192:>              (0 + 0) / 200][Stage 191:========>  (851 + 64) / 1113][Stage 192:>              (0 + 0) / 200][Stage 191:========>  (878 + 64) / 1113][Stage 192:>              (0 + 0) / 200][Stage 191:========>  (900 + 64) / 1113][Stage 192:>              (0 + 0) / 200][Stage 191:=========> (932 + 64) / 1113][Stage 192:>              (0 + 0) / 200][Stage 191:=========> (955 + 64) / 1113][Stage 192:>              (0 + 0) / 200][Stage 191:=========> (988 + 64) / 1113][Stage 192:>              (0 + 0) / 200][Stage 191:=========>(1011 + 64) / 1113][Stage 192:>              (0 + 0) / 200][Stage 191:=========>(1048 + 64) / 1113][Stage 192:>              (0 + 0) / 200][Stage 191:=========>(1070 + 43) / 1113][Stage 192:===>         (58 + 21) / 200][Stage 191:=========>(1097 + 16) / 1113][Stage 192:========>   (146 + 22) / 200]                                                                                [Stage 217:==>                                                 (64 + 64) / 1113][Stage 217:===>                                                (69 + 64) / 1113][Stage 217:=====>                                             (124 + 64) / 1113][Stage 217:======>                                            (131 + 64) / 1113][Stage 217:========>                                          (180 + 64) / 1113][Stage 217:=========>                                         (197 + 64) / 1113][Stage 217:==========>                                        (240 + 64) / 1113][Stage 217:===========>                                       (259 + 64) / 1113][Stage 217:=============>                                     (296 + 64) / 1113][Stage 217:==============>                                    (323 + 64) / 1113][Stage 217:===============>                                   (348 + 64) / 1113][Stage 217:=================>                                 (383 + 64) / 1113][Stage 217:==================>                                (405 + 64) / 1113][Stage 217:====================>                              (446 + 64) / 1113][Stage 217:=====================>                             (467 + 64) / 1113][Stage 217:=======================>                           (508 + 64) / 1113][Stage 217:========================>                          (530 + 64) / 1113][Stage 217:=========================>                         (566 + 64) / 1113][Stage 217:===========================>                       (592 + 64) / 1113][Stage 217:============================>                      (627 + 64) / 1113][Stage 217:=============================>                     (653 + 64) / 1113][Stage 217:===============================>                   (685 + 64) / 1113][Stage 217:================================>                  (717 + 64) / 1113][Stage 217:==================================>                (747 + 64) / 1113][Stage 217:===================================>               (778 + 64) / 1113][Stage 217:====================================>              (805 + 64) / 1113][Stage 217:======================================>            (840 + 64) / 1113][Stage 217:=======================================>           (866 + 65) / 1113][Stage 217:=========================================>         (903 + 64) / 1113][Stage 217:==========================================>        (931 + 64) / 1113][Stage 217:============================================>      (966 + 64) / 1113][Stage 217:=============================================>     (994 + 64) / 1113][Stage 217:==============================================>   (1028 + 64) / 1113][Stage 217:===============================================>  (1057 + 56) / 1113][Stage 217:================================================> (1087 + 26) / 1113]                                                                                [Stage 229:(81 + 64) / 200][Stage 230:>(0 + 0) / 200][Stage 231:>(0 + 0) / 200][Stage 229:(112 + 64) / 200][Stage 230:>(0 + 0) / 200][Stage 231:>(0 + 0) / 200][Stage 229:(137 + 63) / 200][Stage 230:>(2 + 1) / 200][Stage 231:>(0 + 0) / 200][Stage 229:(183 + 17) / 200][Stage 230:(198 + 1) / 200][Stage 231:(170 + 3) / 200]                                                                                [Stage 237:===============>                                     (59 + 64) / 200][Stage 237:=====>       (90 + 64) / 200][Stage 239:>               (0 + 0) / 50][Stage 237:=======>    (118 + 64) / 200][Stage 239:>               (0 + 0) / 50][Stage 237:========>   (148 + 52) / 200][Stage 239:=====>         (18 + 0) / 50]                                                                                [Stage 240:==>                                                 (61 + 65) / 1113][Stage 240:>           (64 + 64) / 1113][Stage 242:>                (0 + 0) / 3][Stage 240:=>         (112 + 64) / 1113][Stage 242:>                (0 + 0) / 3][Stage 240:=>         (131 + 64) / 1113][Stage 242:>                (0 + 0) / 3][Stage 240:=>         (170 + 64) / 1113][Stage 242:>                (0 + 0) / 3][Stage 240:=>         (195 + 64) / 1113][Stage 242:>                (0 + 0) / 3][Stage 240:==>        (228 + 64) / 1113][Stage 242:>                (0 + 0) / 3][Stage 240:==>        (253 + 64) / 1113][Stage 242:>                (0 + 0) / 3][Stage 240:==>        (289 + 64) / 1113][Stage 242:>                (0 + 0) / 3][Stage 240:===>       (317 + 64) / 1113][Stage 242:>                (0 + 0) / 3][Stage 240:===>       (352 + 64) / 1113][Stage 242:>                (0 + 0) / 3][Stage 240:===>       (381 + 64) / 1113][Stage 242:>                (0 + 0) / 3][Stage 240:====>      (416 + 64) / 1113][Stage 242:>                (0 + 0) / 3][Stage 240:====>      (445 + 64) / 1113][Stage 242:>                (0 + 0) / 3][Stage 240:====>      (477 + 64) / 1113][Stage 242:>                (0 + 0) / 3][Stage 240:=====>     (511 + 64) / 1113][Stage 242:>                (0 + 0) / 3][Stage 240:=====>     (540 + 64) / 1113][Stage 242:>                (0 + 0) / 3][Stage 240:=====>     (570 + 64) / 1113][Stage 242:>                (0 + 0) / 3][Stage 240:=====>     (598 + 64) / 1113][Stage 242:>                (0 + 0) / 3][Stage 240:======>    (633 + 64) / 1113][Stage 242:>                (0 + 0) / 3][Stage 240:======>    (665 + 64) / 1113][Stage 242:>                (0 + 0) / 3][Stage 240:======>    (691 + 64) / 1113][Stage 242:>                (0 + 0) / 3][Stage 240:=======>   (725 + 64) / 1113][Stage 242:>                (0 + 0) / 3][Stage 240:=======>   (756 + 64) / 1113][Stage 242:>                (0 + 0) / 3][Stage 240:=======>   (786 + 64) / 1113][Stage 242:>                (0 + 0) / 3][Stage 240:========>  (819 + 64) / 1113][Stage 242:>                (0 + 0) / 3][Stage 240:========>  (851 + 64) / 1113][Stage 242:>                (0 + 0) / 3][Stage 240:========>  (882 + 64) / 1113][Stage 242:>                (0 + 0) / 3][Stage 240:=========> (915 + 65) / 1113][Stage 242:>                (0 + 0) / 3][Stage 240:=========> (948 + 64) / 1113][Stage 242:>                (0 + 0) / 3][Stage 240:=========> (976 + 64) / 1113][Stage 242:>                (0 + 0) / 3][Stage 240:=========>(1010 + 64) / 1113][Stage 242:>                (0 + 0) / 3][Stage 240:=========>(1034 + 64) / 1113][Stage 242:>                (0 + 0) / 3][Stage 240:=========>(1069 + 44) / 1113][Stage 242:===========>     (2 + 1) / 3]                                                                                  Edges kept: 342,578 (69.1%)  Boundary nodes: 18,995  Internal: 11,362
+[Stage 256:==>                                                 (64 + 64) / 1113][Stage 256:====>                                               (92 + 64) / 1113][Stage 256:=====>                                             (129 + 64) / 1113][Stage 256:=======>                                           (156 + 64) / 1113][Stage 256:========>                                          (196 + 64) / 1113][Stage 256:=========>                                         (217 + 64) / 1113][Stage 256:===========>                                       (259 + 65) / 1113][Stage 256:=============>                                     (284 + 64) / 1113][Stage 256:==============>                                    (321 + 64) / 1113][Stage 256:================>                                  (351 + 64) / 1113][Stage 256:=================>                                 (388 + 64) / 1113][Stage 256:==================>                                (412 + 64) / 1113][Stage 256:====================>                              (445 + 64) / 1113][Stage 256:=====================>                             (479 + 64) / 1113][Stage 256:=======================>                           (508 + 64) / 1113][Stage 256:========================>                          (542 + 64) / 1113][Stage 256:==========================>                        (572 + 64) / 1113][Stage 256:===========================>                       (604 + 64) / 1113][Stage 256:=============================>                     (636 + 64) / 1113][Stage 256:==============================>                    (663 + 64) / 1113][Stage 256:================================>                  (699 + 64) / 1113][Stage 256:=================================>                 (726 + 64) / 1113][Stage 256:==================================>                (763 + 64) / 1113][Stage 256:====================================>              (789 + 64) / 1113][Stage 256:=====================================>             (826 + 64) / 1113][Stage 256:=======================================>           (853 + 64) / 1113][Stage 256:========================================>          (885 + 64) / 1113][Stage 256:==========================================>        (918 + 64) / 1113][Stage 256:===========================================>       (948 + 64) / 1113][Stage 256:============================================>      (979 + 64) / 1113][Stage 256:=============================================>    (1008 + 64) / 1113][Stage 256:==============================================>   (1040 + 65) / 1113][Stage 256:================================================> (1071 + 42) / 1113][Stage 256:=================================================>(1102 + 11) / 1113][Stage 256:==================================================>(1112 + 1) / 1113]                                                                                  Shuffle overhead (groupBy community_id): 9.9s
+[Stage 272:(67 + 64) / 200][Stage 273:>(0 + 0) / 200][Stage 274:>(0 + 0) / 200][Stage 272:(102 + 64) / 200][Stage 273:>(0 + 0) / 200][Stage 274:>(0 + 0) / 200][Stage 272:(120 + 64) / 200][Stage 273:>(0 + 0) / 200][Stage 274:>(0 + 0) / 200][Stage 272:(155 + 45) / 200][Stage 273:(0 + 19) / 200][Stage 274:>(0 + 0) / 200][Stage 273:(132 + 64) / 200][Stage 274:>(0 + 0) / 200][Stage 275:>(0 + 0) / 200]                                                                                [Stage 281:=============>                                       (51 + 64) / 200][Stage 281:=====>       (82 + 65) / 200][Stage 283:>               (0 + 0) / 50][Stage 281:======>     (115 + 64) / 200][Stage 283:>               (0 + 0) / 50][Stage 281:========>   (148 + 52) / 200][Stage 283:======>        (22 + 4) / 50]                                                                                [Stage 284:>           (40 + 64) / 1113][Stage 286:>                (0 + 0) / 3][Stage 284:>           (63 + 64) / 1113][Stage 286:>                (0 + 0) / 3][Stage 284:=>          (99 + 64) / 1113][Stage 286:>                (0 + 0) / 3][Stage 284:=>         (121 + 64) / 1113][Stage 286:>                (0 + 0) / 3][Stage 284:=>         (156 + 64) / 1113][Stage 286:>                (0 + 0) / 3][Stage 284:=>         (184 + 64) / 1113][Stage 286:>                (0 + 0) / 3][Stage 284:==>        (222 + 64) / 1113][Stage 286:>                (0 + 0) / 3][Stage 284:==>        (247 + 64) / 1113][Stage 286:>                (0 + 0) / 3][Stage 284:==>        (291 + 64) / 1113][Stage 286:>                (0 + 0) / 3][Stage 284:===>       (314 + 64) / 1113][Stage 286:>                (0 + 0) / 3][Stage 284:===>       (350 + 64) / 1113][Stage 286:>                (0 + 0) / 3][Stage 284:===>       (381 + 64) / 1113][Stage 286:>                (0 + 0) / 3][Stage 284:====>      (418 + 64) / 1113][Stage 286:>                (0 + 0) / 3][Stage 284:====>      (443 + 65) / 1113][Stage 286:>                (0 + 0) / 3][Stage 284:====>      (481 + 64) / 1113][Stage 286:>                (0 + 0) / 3][Stage 284:====>      (502 + 64) / 1113][Stage 286:>                (0 + 0) / 3][Stage 284:=====>     (543 + 64) / 1113][Stage 286:>                (0 + 0) / 3][Stage 284:=====>     (567 + 64) / 1113][Stage 286:>                (0 + 0) / 3][Stage 284:======>    (610 + 64) / 1113][Stage 286:>                (0 + 0) / 3][Stage 284:======>    (633 + 64) / 1113][Stage 286:>                (0 + 0) / 3][Stage 284:======>    (673 + 64) / 1113][Stage 286:>                (0 + 0) / 3][Stage 284:======>    (701 + 64) / 1113][Stage 286:>                (0 + 0) / 3][Stage 284:=======>   (735 + 64) / 1113][Stage 286:>                (0 + 0) / 3][Stage 284:=======>   (764 + 64) / 1113][Stage 286:>                (0 + 0) / 3][Stage 284:=======>   (799 + 64) / 1113][Stage 286:>                (0 + 0) / 3][Stage 284:========>  (828 + 64) / 1113][Stage 286:>                (0 + 0) / 3][Stage 284:========>  (860 + 64) / 1113][Stage 286:>                (0 + 0) / 3][Stage 284:========>  (895 + 64) / 1113][Stage 286:>                (0 + 0) / 3][Stage 284:=========> (926 + 65) / 1113][Stage 286:>                (0 + 0) / 3][Stage 284:=========> (961 + 64) / 1113][Stage 286:>                (0 + 0) / 3][Stage 284:=========> (989 + 64) / 1113][Stage 286:>                (0 + 0) / 3][Stage 284:=========>(1023 + 64) / 1113][Stage 286:>                (0 + 0) / 3][Stage 284:=========>(1055 + 58) / 1113][Stage 286:>                (0 + 3) / 3]                                                                                [Stage 284:==================================================>(1112 + 1) / 1113][Stage 291:=======================>                                (5 + 7) / 12][Stage 291:============================>                           (6 + 6) / 12][Stage 291:================================>                       (7 + 5) / 12][Stage 291:=====================================>                  (8 + 4) / 12][Stage 291:==========================================>             (9 + 3) / 12][Stage 291:=============================================>         (10 + 2) / 12][Stage 291:==================================================>    (11 + 1) / 12]                                                                                  ✓ [louvain] Phase 2 done in 64.7s
+  [Phase 3 setup] Loading Phase 2 Delta tables for Coauthor-Physics/louvain...
+[Stage 319:================>                                        (2 + 5) / 7][Stage 319:========================>                                (3 + 4) / 7]                                                                                  [Phase 3 setup] Cached 30,357 node rows and 342,578 edge rows in 3.2s (nodes partitions=7, edges partitions=7).
+  [Phase 3 setup] Community layout computed in 0.2s: 12 communities; largest community_id:nodes = 13:4,319, 3:4,177, 11:3,300, 6:2,876, 17:2,778.
+
+============================================================
+  PHASE 3 — GNN Training: Coauthor-Physics / louvain / sage
+  tag=scaling_sweep_2worker_Coauthor-Physics_e16_Coauthor-Physics_louvain
+  task=both; epochs=10; diagnostics=on
+============================================================
+  [Driver Warmstart] Extracting representative community for driver-side pre-training...
+  ✓ Driver-side base model trained successfully on Comm 13 (4,319 nodes).
+  [Manifest Architecture] Reusing cached community manifest...
+  [Phase 3 safety] Hash-sampling up to ~8,000 nodes/community (hard cap 10,000); retaining ~1/4 eligible edges before aggregation (UDF hard edge cap 30,000).
+[Stage 341:=======================>                                (5 + 7) / 12][Stage 341:============================>                           (6 + 6) / 12][Stage 341:================================>                       (7 + 5) / 12][Stage 341:=====================================>                  (8 + 4) / 12][Stage 341:==========================================>             (9 + 3) / 12][Stage 341:=============================================>         (10 + 2) / 12][Stage 341:==================================================>    (11 + 1) / 12]                                                                                  ✓ Mean comm acc = 0.8766
+  ✓ Weighted comm acc = 0.8919
+  ✓ Mean comm link AUC = 0.6976
+  ✓ Weighted comm link AUC = 0.7049
+  ✓ Wall time: 41.3s
+    - Avg Load time: 0.00s
+    - Avg Node Train: 4.55s
+    - Avg Link Train: 4.57s
+    ✓ Saved Spark result frame: s3://us-east-1-s3-gnn/gnn-bench-results/phase3/scaling_sweep_2worker_Coauthor-Physics_e16/Coauthor-Physics_louvain_sage
+
+[PHASE 3b] - Parallel GNN Training with CaaN Global Graph
+  Dataset: Coauthor-Physics | Algorithm: louvain
+    - Major communities (>= 1000): 12
+    - Minor communities (< 1000): 18
+[Stage 375:========>                                                (1 + 6) / 7][Stage 375:================>                                        (2 + 5) / 7][Stage 375:================================================>        (6 + 1) / 7][Stage 377:>                                                      (0 + 12) / 12][Stage 377:=========>                                             (2 + 10) / 12][Stage 377:==================>                                     (4 + 8) / 12][Stage 377:=====================================>                  (8 + 4) / 12][Stage 377:==================================================>    (11 + 1) / 12]                                                                                    - Computing global CAAN edges map-side (shuffless RDD partitioning)...
+[Stage 386:>                                                     (0 + 64) / 200][Stage 386:>                                                     (3 + 64) / 200][Stage 386:============>                                        (49 + 64) / 200][Stage 386:====================>                                (79 + 64) / 200][Stage 386:===============================>                    (120 + 64) / 200][Stage 386:==================================================>  (192 + 8) / 200]                                                                                
+============================================================
+  PHASE 3b — GNN Training (CaaN): Coauthor-Physics / louvain / sage
+  tag=scaling_sweep_2worker_Coauthor-Physics_e16_Coauthor-Physics_louvain
+============================================================
+  [Driver Warmstart] Extracting representative community for driver-side pre-training...
+[Stage 395:============================>                            (1 + 1) / 2]                                                                                  ✓ Driver-side base model trained successfully on Comm 13 (4,319 nodes).
+[Stage 406:================================>                       (7 + 5) / 12][Stage 406:=====================================>                  (8 + 4) / 12][Stage 406:==========================================>             (9 + 3) / 12][Stage 406:=============================================>         (10 + 2) / 12][Stage 406:==================================================>    (11 + 1) / 12]                                                                                  ✓ Mean CaaN comm acc = 0.8969
+  ✓ Weighted CaaN comm acc = 0.9101
+  ✓ Wall time: 29.0s
+    ✓ Saved S3 checkpoint: s3://us-east-1-s3-gnn/gnn-bench-checkpoint/phase3b/scaling_sweep_2worker_Coauthor-Physics_e16/Coauthor-Physics_louvain_sage.parquet
+
+[PHASE 5] - Metrics Analysis, Visualizations, and Excel S3 Export
+
+===============================================================================================
+  PHASE 5A — PERFORMANCE COMPARISON (NODE ACCURACY & LINK AUC)
+===============================================================================================
+
+  Dataset: Coauthor-Physics
+  _Algorithm           Node Acc   Comm Acc    Bnd Acc    Int Acc     Link AUC
+  ---------------------------------------------------------------------------
+  louvain-sage           0.8919     0.8766     0.8479     0.8813       0.7049
+  louvain-sage-caan      0.9101     0.8969     0.8732     0.8954       0.5000
+
+  [Coauthor-Physics] Performance by community size bucket:
+    louvain-sage:
+    louvain-sage-caan:
+      large   : n=12  acc=0.8969  auc=0.5000
+
+================================================================================
+  PHASE 5B — TIMING COMPARISON
+================================================================================
+
+  Dataset: Coauthor-Physics
+  Algorithm             Phase1    Phase2    Phase3   Phase3b     Total
+  --------------------------------------------------------------------
+  louvain-sage            5.5s     64.7s     41.3s     29.0s    140.5s
+  BASELINE (SAGE)            —         —         —      0.0s (Node: 0.0s, Link: 0.0s)
+  XLSX → s3://us-east-1-s3-gnn/gnn-bench-out/scaling_sweep_2worker_Coauthor-Physics_e16_results.xlsx
+  Plot → s3://us-east-1-s3-gnn/gnn-bench-out/plots/scaling_sweep_2worker_Coauthor-Physics_e16/Coauthor-Physics_acc_dist.png
+  Plot → s3://us-east-1-s3-gnn/gnn-bench-out/plots/scaling_sweep_2worker_Coauthor-Physics_e16/Coauthor-Physics_boundary_internal.png
+  Plot → s3://us-east-1-s3-gnn/gnn-bench-out/plots/scaling_sweep_2worker_Coauthor-Physics_e16/Coauthor-Physics_timing.png
+  LaTeX → s3://us-east-1-s3-gnn/gnn-bench-out/latex_tables/scaling_sweep_2worker_Coauthor-Physics_e16/table12_distdgl_comparison.tex
+  LaTeX → s3://us-east-1-s3-gnn/gnn-bench-out/latex_tables/scaling_sweep_2worker_Coauthor-Physics_e16/table13_scalability_multi_instance.tex
+  LaTeX → s3://us-east-1-s3-gnn/gnn-bench-out/latex_tables/scaling_sweep_2worker_Coauthor-Physics_e16/table9_ablation_study.tex
+  LaTeX → s3://us-east-1-s3-gnn/gnn-bench-out/latex_tables/scaling_sweep_2worker_Coauthor-Physics_e16/table3_link_prediction_main.tex
+  LaTeX → s3://us-east-1-s3-gnn/gnn-bench-out/latex_tables/scaling_sweep_2worker_Coauthor-Physics_e16/table4_node_classification_main.tex
+  LaTeX → s3://us-east-1-s3-gnn/gnn-bench-out/latex_tables/scaling_sweep_2worker_Coauthor-Physics_e16/table_phase_timeline.tex
+  LaTeX → s3://us-east-1-s3-gnn/gnn-bench-out/latex_tables/scaling_sweep_2worker_Coauthor-Physics_e16/table_scalability_sweep.tex
+
+================================================================================
+  FINAL PIPELINE REPORT SUMMARY
+================================================================================
+╔══════════════════════════════════════════════════════════════╗
+║  EXPERIMENT: scaling_sweep_2worker_Coauthor-Physics_e16     ║
+║  Global mapping: True                                        ║
+╠══════════════════════════════════════════════════════════════╣
+║   Dataset                        Coauthor-Physics              ║
+║   Phase 0 (ingest)               3.1s                          ║
+║   Phase 1 [louvain]              5.5s                          ║
+║   Phase 2 [louvain]              64.7s                         ║
+║   Phase 3 [louvain-sage]         41.3s                         ║
+║   Phase 3b [louvain-sage-caan]   29.0s                         ║
+╠══════════════════════════════════════════════════════════════╣
+║   [louvain-sage] global acc      0.8919                        ║
+║   [louvain-sage] boundary acc    0.8479                        ║
+║   [louvain-sage] internal acc    0.8813                        ║
+║   [louvain-sage] link AUC        0.7049                        ║
+║   [louvain-sage-caan] global acc 0.9101                        ║
+║   [louvain-sage-caan] boundary acc 0.8732                      ║
+║   [louvain-sage-caan] internal acc 0.8954                      ║
+║   [louvain-sage-caan] link AUC   0.5000                        ║
+║   [louvain] communities          30 raw → 12 valid             ║
+╚══════════════════════════════════════════════════════════════╝
+
+[SUCCESS] EMR Driver execution completed in 181.8 seconds.
+================================================================================
+
+Uploading execution log to: s3://us-east-1-s3-gnn/gnn-bench-out/spark-results/scaling_sweep_2worker_Coauthor-Physics_e16-8d23128021687386/logs/run_pipeline.log
+Copying S3 Excel results to: s3://us-east-1-s3-gnn/gnn-bench-out/spark-results/scaling_sweep_2worker_Coauthor-Physics_e16-8d23128021687386/excels/scaling_sweep_2worker_Coauthor-Physics_e16_results.xlsx
+Uploading LaTeX table to: s3://us-east-1-s3-gnn/gnn-bench-out/spark-results/scaling_sweep_2worker_Coauthor-Physics_e16-8d23128021687386/latex_tables/table12_distdgl_comparison.tex
+Uploading LaTeX table to: s3://us-east-1-s3-gnn/gnn-bench-out/spark-results/scaling_sweep_2worker_Coauthor-Physics_e16-8d23128021687386/latex_tables/table13_scalability_multi_instance.tex
+Uploading LaTeX table to: s3://us-east-1-s3-gnn/gnn-bench-out/spark-results/scaling_sweep_2worker_Coauthor-Physics_e16-8d23128021687386/latex_tables/table9_ablation_study.tex
+Uploading LaTeX table to: s3://us-east-1-s3-gnn/gnn-bench-out/spark-results/scaling_sweep_2worker_Coauthor-Physics_e16-8d23128021687386/latex_tables/table3_link_prediction_main.tex
+Uploading LaTeX table to: s3://us-east-1-s3-gnn/gnn-bench-out/spark-results/scaling_sweep_2worker_Coauthor-Physics_e16-8d23128021687386/latex_tables/table4_node_classification_main.tex
+Uploading LaTeX table to: s3://us-east-1-s3-gnn/gnn-bench-out/spark-results/scaling_sweep_2worker_Coauthor-Physics_e16-8d23128021687386/latex_tables/table_phase_timeline.tex
+Uploading LaTeX table to: s3://us-east-1-s3-gnn/gnn-bench-out/spark-results/scaling_sweep_2worker_Coauthor-Physics_e16-8d23128021687386/latex_tables/table_scalability_sweep.tex

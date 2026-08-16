@@ -1,0 +1,266 @@
+Writable directories and free space:
+  - /mnt1/tmp: 1754.67 GB free
+  - /mnt1/spark: 1754.67 GB free
+  - /mnt/tmp: 1737.87 GB free
+  - /mnt/spark: 1737.87 GB free
+  - /mnt/var/tmp: 1737.87 GB free
+  - /tmp: 1737.87 GB free
+  - /var/tmp: 1737.87 GB free
+
+  [Spark Auto-Scaler] Dataset: DeezerEurope | S3 Size: 1 MB | Scale: Small/Medium
+  [Spark Auto-Scaler] YARN Cluster: 2 nodes × 496 GB RAM × 64 vCores
+  [Spark Auto-Scaler] Python RAM Budget: 5.0 GB/task (dataset-aware)
+  [Spark Auto-Scaler] Bin-Packing Solution:
+    → 4 total executors (CLI override)
+    → 4 cores/executor | 8g heap + 20g overhead = 28g container
+    → Total parallel tasks: 16 | Shuffle partitions: 200
+    → Driver: 40g heap + 12g overhead
+    → Cluster utilization: 112g / 992g (11%)
+
+Picked up JAVA_TOOL_OPTIONS: --add-opens=java.base/java.nio=ALL-UNNAMED --add-opens=java.base/sun.nio.ch=ALL-UNNAMED --add-opens=java.base/java.lang=ALL-UNNAMED --add-opens=java.base/java.util=ALL-UNNAMED --add-opens=java.base/java.util.concurrent=ALL-UNNAMED --add-opens=java.base/java.security=ALL-UNNAMED --add-opens=java.base/sun.security.action=ALL-UNNAMED --add-opens=java.base/math=ALL-UNNAMED
+WARNING: package math not in java.base
+Picked up JAVA_TOOL_OPTIONS: --add-opens=java.base/java.nio=ALL-UNNAMED --add-opens=java.base/sun.nio.ch=ALL-UNNAMED --add-opens=java.base/java.lang=ALL-UNNAMED --add-opens=java.base/java.util=ALL-UNNAMED --add-opens=java.base/java.util.concurrent=ALL-UNNAMED --add-opens=java.base/java.security=ALL-UNNAMED --add-opens=java.base/sun.security.action=ALL-UNNAMED --add-opens=java.base/math=ALL-UNNAMED
+WARNING: package math not in java.base
+:: loading settings :: url = jar:file:/usr/lib/spark/jars/ivy-2.5.1.jar!/org/apache/ivy/core/settings/ivysettings.xml
+Ivy Default Cache set to: /mnt1/tmp/.ivy2/cache
+The jars for the packages stored in: /mnt1/tmp/.ivy2/jars
+io.delta#delta-spark_2.12 added as a dependency
+graphframes#graphframes added as a dependency
+:: resolving dependencies :: org.apache.spark#spark-submit-parent-6e2ac410-adda-4a9c-9181-44dd29864706;1.0
+	confs: [default]
+	found io.delta#delta-spark_2.12;3.2.0 in central
+	found io.delta#delta-storage;3.2.0 in central
+	found org.antlr#antlr4-runtime;4.9.3 in central
+	found graphframes#graphframes;0.8.3-spark3.5-s_2.12 in spark-packages
+	found org.slf4j#slf4j-api;1.7.16 in central
+:: resolution report :: resolve 119ms :: artifacts dl 5ms
+	:: modules in use:
+	graphframes#graphframes;0.8.3-spark3.5-s_2.12 from spark-packages in [default]
+	io.delta#delta-spark_2.12;3.2.0 from central in [default]
+	io.delta#delta-storage;3.2.0 from central in [default]
+	org.antlr#antlr4-runtime;4.9.3 from central in [default]
+	org.slf4j#slf4j-api;1.7.16 from central in [default]
+	---------------------------------------------------------------------
+	|                  |            modules            ||   artifacts   |
+	|       conf       | number| search|dwnlded|evicted|| number|dwnlded|
+	---------------------------------------------------------------------
+	|      default     |   5   |   0   |   0   |   0   ||   5   |   0   |
+	---------------------------------------------------------------------
+:: retrieving :: org.apache.spark#spark-submit-parent-6e2ac410-adda-4a9c-9181-44dd29864706
+	confs: [default]
+	0 artifacts copied, 5 already retrieved (0kB/3ms)
+Setting default log level to "WARN".
+To adjust logging level use sc.setLogLevel(newLevel). For SparkR, use setLogLevel(newLevel).
+26/08/15 15:41:18 WARN SparkConf: Note that spark.local.dir will be overridden by the value set by the cluster manager (via SPARK_LOCAL_DIRS in mesos/standalone/kubernetes and LOCAL_DIRS in YARN).
+26/08/15 15:41:19 WARN Client: Neither spark.yarn.jars nor spark.yarn.archive is set, falling back to uploading libraries under SPARK_HOME.
+26/08/15 15:41:22 WARN Client: Same path resource file:///mnt1/tmp/.ivy2/jars/io.delta_delta-spark_2.12-3.2.0.jar added multiple times to distributed cache.
+26/08/15 15:41:22 WARN Client: Same path resource file:///mnt1/tmp/.ivy2/jars/graphframes_graphframes-0.8.3-spark3.5-s_2.12.jar added multiple times to distributed cache.
+26/08/15 15:41:22 WARN Client: Same path resource file:///mnt1/tmp/.ivy2/jars/io.delta_delta-storage-3.2.0.jar added multiple times to distributed cache.
+26/08/15 15:41:22 WARN Client: Same path resource file:///mnt1/tmp/.ivy2/jars/org.antlr_antlr4-runtime-4.9.3.jar added multiple times to distributed cache.
+26/08/15 15:41:22 WARN Client: Same path resource file:///mnt1/tmp/.ivy2/jars/org.slf4j_slf4j-api-1.7.16.jar added multiple times to distributed cache.
+  ✓ SparkSession successfully configured and initialized as 'spark'.
+
+================================================================================
+  VERIFYING AND INSTALLING PYTHON ENVIRONMENT PACKAGES
+================================================================================
+  ► Syncing dependencies across all active YARN worker nodes...
+[Stage 0:>                                                        (0 + 16) / 64][Stage 0:>                                                        (0 + 21) / 64][Stage 0:==============>                                         (16 + 16) / 64][Stage 0:================>                                       (19 + 16) / 64][Stage 0:============================>                           (32 + 16) / 64][Stage 0:=================================>                      (38 + 16) / 64][Stage 0:==========================================>             (48 + 16) / 64][Stage 0:===============================================>        (54 + 10) / 64]                                                                                  ► Sync attempt 1/5: 2 worker node(s) verified: ['ip-172-31-75-147', 'ip-172-31-78-174']
+  ✓ All 2 YARN worker nodes verified and synced successfully.
+
+  === YARN Executor Package Sync Summary ===
+    ip-172-31-75-147.ec2.internal: Success (Cached)
+    ip-172-31-78-174.ec2.internal: Success (Cached)
+
+  ✓ ALL PIPELINE DEPENDENCIES VERIFIED AND READY.
+SLF4J: Failed to load class "org.slf4j.impl.StaticLoggerBinder".
+SLF4J: Defaulting to no-operation (NOP) logger implementation
+SLF4J: See http://www.slf4j.org/codes.html#StaticLoggerBinder for further details.
+[Stage 1:>                                                          (0 + 4) / 4]                                                                                [Stage 2:>                                                          (0 + 4) / 4][Stage 4:>                                                        (0 + 16) / 50][Stage 4:==========================>                             (24 + 16) / 50][Stage 4:=======================================================> (49 + 1) / 50]                                                                                
+================================================================================
+  CLUSTER DISK SPACE COMPATIBILITY VERIFICATION
+================================================================================
+  Dataset: DeezerEurope | Nodes: 28,281 | Features: 128
+  Required temp workspace disk space per executor container: 10.00 GB
+  Driver temp space available (/mnt1/tmp): 1754.66 GB
+  Executor nodes disk check results:
+    ✓  ip-172-31-75-147.ec2.internal                 - Sufficient Space. Available: 1734.15 GB
+    ✓  ip-172-31-78-174.ec2.internal                 - Sufficient Space. Available: 1739.36 GB
+  ✓ ALL NODES HAVE SUFFICIENT TEMPORARY DISK SPACE TO EXECUTE GNN JOBS.
+================================================================================
+
+
+================================================================================
+  BOOTSTRAPPING EXPERIMENT CODE AND STAGE UTILITIES
+================================================================================
+  ► LOADING PIPELINE AND CONFIG FROM LOCAL REPOSITORY PATHS...
+    ✓ Packed local git repository code to /tmp/pipeline.zip and copied to /tmp/pipeline
+  ✓ Registered pipeline.zip package on Spark Context
+
+  Run Profile: scaling_sweep_2worker_DeezerEurope_e4
+  └─ Datasets: ['DeezerEurope']
+  └─ Algorithms: ['louvain']
+  └─ GNN Architecture: GCN (epochs=10, lr=0.001, hidden=256)
+  └─ Global Mapping: True | Boundary Expansion: False
+  └─ Ingestion Phase (Phase 0): True
+
+============================================================
+  PHASE 0 — Ingesting: DeezerEurope
+============================================================
+  ✓ Delta tables already exist for 'DeezerEurope' — skipping download.
+    nodes: s3://us-east-1-s3-gnn/delta-data/DeezerEurope/nodes/
+    edges: s3://us-east-1-s3-gnn/delta-data/DeezerEurope/edges/
+    original_nodes: s3://us-east-1-s3-gnn/delta-data/DeezerEurope/original_nodes/
+    original_edges: s3://us-east-1-s3-gnn/delta-data/DeezerEurope/original_edges/
+
+============================================================
+  PHASE 1 — Community Detection: DeezerEurope
+============================================================
+[Stage 31:=========>                                            (38 + 16) / 215][Stage 31:================>                                     (67 + 16) / 215][Stage 31:=======================>                              (95 + 16) / 215][Stage 31:==============================>                      (125 + 16) / 215][Stage 31:======================================>              (158 + 16) / 215][Stage 31:==============================================>      (187 + 16) / 215]                                                                                [Stage 35:=========================>                            (96 + 16) / 200][Stage 35:====================================>                (136 + 16) / 200][Stage 35:===============================================>     (178 + 16) / 200]                                                                                  Graph loaded: 28,281 nodes | 185,504 edges  [5.0s]
+
+  ── [LOUVAIN] ──────────────────────────────
+  Collecting edges to driver ...
+  Mapping node IDs using vectorized binary search ...
+  Building igraph (28,281 nodes) ...
+  Running louvain (resolution=1.0) ...
+[Stage 48:=========>                                            (35 + 16) / 200][Stage 48:=================>                                    (65 + 16) / 200][Stage 48:=========================>                            (94 + 16) / 200][Stage 48:================================>                    (123 + 16) / 200][Stage 48:========================================>            (151 + 16) / 200][Stage 48:===============================================>     (180 + 13) / 200][Stage 48:=====================================================>(199 + 1) / 200]                                                                                  ✓ [louvain] 83 communities | NMI=0.0029 | 4.7s
+
+======================================================================
+  PHASE 1 SUMMARY
+======================================================================
+
+  Dataset: DeezerEurope
+  Algorithm        #Comms      NMI    Runtime
+  ------------ ---------- -------- ----------
+  louvain              83   0.0029       4.7s
+
+  [louvain] Community assignment details:
+[Stage 73:=======================================>             (150 + 16) / 200]                                                                                [Stage 81:=========================================>           (155 + 16) / 200]                                                                                [Stage 89:=================================================>   (186 + 14) / 200]                                                                                [Stage 102:===========================>                        (107 + 17) / 200][Stage 102:========================================>           (157 + 17) / 200]                                                                                    Vertices assigned: 28,281 / 28,281 (100.0% coverage)
+    Total communities: 83 | Valid (≥1000): 7
+    Size stats: min=4  max=4,288  avg=340.7  median=27
+    Size buckets: 1-9:22 | 10-99:25 | 100-999:29 | 1K-9999:7
+    Top-10 largest: c3=4,288, c0=3,633, c10=1,902, c2=1,799, c4=1,253, c20=1,233, c12=1,081, c22=966, c13=950, c16=891
+
+============================================================
+  PHASE 2 — Partitioning: DeezerEurope
+============================================================
+
+  ── [LOUVAIN]  tag=scaling_sweep_2worker_DeezerEurope_e4_DeezerEurope_louvain ──
+  Raw=83  Valid(≥1000)=7  min=1,081  max=4,288  avg=2169.9
+[Stage 187:=======>    (133 + 16) / 200][Stage 188:>              (0 + 0) / 200][Stage 187:==========> (176 + 16) / 200][Stage 188:>              (0 + 0) / 200]                                                                                [Stage 190:===================>                                 (79 + 16) / 215][Stage 190:======>     (121 + 16) / 215][Stage 192:>                (0 + 0) / 1][Stage 190:=========>  (166 + 16) / 215][Stage 192:>                (0 + 0) / 1]                                                                                [Stage 204:=========================================>          (160 + 16) / 200]                                                                                [Stage 212:===================================================> (195 + 5) / 200]                                                                                [Stage 215:====================================>               (149 + 16) / 215][Stage 215:===============================================>    (198 + 16) / 215]                                                                                [Stage 226:(174 + 16) / 200][Stage 227:>(0 + 0) / 200][Stage 228:>(0 + 0) / 200]                                                                                [Stage 227:(161 + 16) / 200][Stage 228:>(0 + 0) / 200][Stage 229:>(0 + 0) / 200]                                                                                [Stage 235:===============================>                    (122 + 16) / 200][Stage 235:==========> (172 + 16) / 200][Stage 237:>               (0 + 0) / 50]                                                                                [Stage 238:========>   (161 + 16) / 215][Stage 240:>                (0 + 0) / 1][Stage 240:>                                                        (0 + 1) / 1]                                                                                  Edges kept: 88,280 (47.6%)  Boundary nodes: 8,195  Internal: 6,994
+[Stage 254:=============================================>      (187 + 16) / 215]                                                                                  Shuffle overhead (groupBy community_id): 2.2s
+[Stage 270:(132 + 16) / 200][Stage 271:>(0 + 0) / 200][Stage 272:>(0 + 0) / 200][Stage 270:(190 + 10) / 200][Stage 271:>(0 + 6) / 200][Stage 272:>(0 + 0) / 200][Stage 271:(59 + 16) / 200][Stage 272:>(0 + 0) / 200][Stage 273:>(0 + 0) / 200][Stage 271:(138 + 16) / 200][Stage 272:>(0 + 0) / 200][Stage 273:>(0 + 0) / 200]                                                                                [Stage 279:======================================>             (147 + 16) / 200][Stage 281:====================================================>  (48 + 2) / 50]                                                                                [Stage 282:========>   (152 + 16) / 215][Stage 284:>                (0 + 0) / 1][Stage 282:============>(210 + 5) / 215][Stage 284:>                (0 + 1) / 1]                                                                                [Stage 297:===============================================>    (183 + 16) / 200]                                                                                  ✓ [louvain] Phase 2 done in 22.9s
+  [Phase 3 setup] Loading Phase 2 Delta tables for DeezerEurope/louvain...
+  [Phase 3 setup] Cached 15,189 node rows and 88,280 edge rows in 2.0s (nodes partitions=4, edges partitions=4).
+  [Phase 3 setup] Community layout computed in 0.1s: 7 communities; largest community_id:nodes = 3:4,288, 0:3,633, 10:1,902, 2:1,799, 4:1,253.
+
+============================================================
+  PHASE 3 — GNN Training: DeezerEurope / louvain / sage
+  tag=scaling_sweep_2worker_DeezerEurope_e4_DeezerEurope_louvain
+  task=both; epochs=10; diagnostics=on
+============================================================
+  [Driver Warmstart] Extracting representative community for driver-side pre-training...
+  ✓ Driver-side base model trained successfully on Comm 3 (4,288 nodes).
+  [Manifest Architecture] Reusing cached community manifest...
+  [Phase 3 safety] Hash-sampling up to ~8,000 nodes/community (hard cap 10,000); retaining ~1/4 eligible edges before aggregation (UDF hard edge cap 30,000).
+[Stage 339:========================>                                (3 + 4) / 7][Stage 339:================================>                        (4 + 3) / 7][Stage 339:========================================>                (5 + 2) / 7][Stage 339:================================================>        (6 + 1) / 7]                                                                                  ✓ Mean comm acc = 0.5707
+  ✓ Weighted comm acc = 0.5856
+  ✓ Mean comm link AUC = 0.6044
+  ✓ Weighted comm link AUC = 0.6075
+  ✓ Wall time: 9.1s
+    - Avg Load time: 0.00s
+    - Avg Node Train: 0.78s
+    - Avg Link Train: 0.79s
+    ✓ Saved Spark result frame: s3://us-east-1-s3-gnn/gnn-bench-results/phase3/scaling_sweep_2worker_DeezerEurope_e4/DeezerEurope_louvain_sage
+
+[PHASE 3b] - Parallel GNN Training with CaaN Global Graph
+  Dataset: DeezerEurope | Algorithm: louvain
+    - Major communities (>= 1000): 7
+    - Minor communities (< 1000): 76
+    - Computing global CAAN edges map-side (shuffless RDD partitioning)...
+[Stage 384:========>                                            (32 + 16) / 200][Stage 384:============>                                        (48 + 16) / 200][Stage 384:================>                                    (64 + 16) / 200][Stage 384:======================>                              (85 + 17) / 200][Stage 384:============================>                       (109 + 16) / 200][Stage 384:=================================>                  (128 + 16) / 200][Stage 384:=====================================>              (144 + 17) / 200][Stage 384:===========================================>        (166 + 16) / 200][Stage 384:=================================================>  (189 + 11) / 200]                                                                                
+============================================================
+  PHASE 3b — GNN Training (CaaN): DeezerEurope / louvain / sage
+  tag=scaling_sweep_2worker_DeezerEurope_e4_DeezerEurope_louvain
+============================================================
+  [Driver Warmstart] Extracting representative community for driver-side pre-training...
+  ✓ Driver-side base model trained successfully on Comm 3 (4,288 nodes).
+[Stage 404:================================>                        (4 + 3) / 7][Stage 404:========================================>                (5 + 2) / 7][Stage 404:================================================>        (6 + 1) / 7]                                                                                  ✓ Mean CaaN comm acc = 0.6312
+  ✓ Weighted CaaN comm acc = 0.6311
+  ✓ Wall time: 7.8s
+    ✓ Saved S3 checkpoint: s3://us-east-1-s3-gnn/gnn-bench-checkpoint/phase3b/scaling_sweep_2worker_DeezerEurope_e4/DeezerEurope_louvain_sage.parquet
+
+[PHASE 5] - Metrics Analysis, Visualizations, and Excel S3 Export
+
+===============================================================================================
+  PHASE 5A — PERFORMANCE COMPARISON (NODE ACCURACY & LINK AUC)
+===============================================================================================
+
+  Dataset: DeezerEurope
+  _Algorithm           Node Acc   Comm Acc    Bnd Acc    Int Acc     Link AUC
+  ---------------------------------------------------------------------------
+  louvain-sage           0.5856     0.5707     0.5829     0.5677       0.6075
+  louvain-sage-caan      0.6311     0.6312     0.6460     0.6119       0.5000
+
+  [DeezerEurope] Performance by community size bucket:
+    louvain-sage:
+    louvain-sage-caan:
+      large   : n=7  acc=0.6312  auc=0.5000
+
+================================================================================
+  PHASE 5B — TIMING COMPARISON
+================================================================================
+
+  Dataset: DeezerEurope
+  Algorithm             Phase1    Phase2    Phase3   Phase3b     Total
+  --------------------------------------------------------------------
+  louvain-sage            4.7s     22.9s      9.1s      7.8s     44.4s
+  BASELINE (SAGE)            —         —         —      0.0s (Node: 0.0s, Link: 0.0s)
+  XLSX → s3://us-east-1-s3-gnn/gnn-bench-out/scaling_sweep_2worker_DeezerEurope_e4_results.xlsx
+  Plot → s3://us-east-1-s3-gnn/gnn-bench-out/plots/scaling_sweep_2worker_DeezerEurope_e4/DeezerEurope_acc_dist.png
+  Plot → s3://us-east-1-s3-gnn/gnn-bench-out/plots/scaling_sweep_2worker_DeezerEurope_e4/DeezerEurope_boundary_internal.png
+  Plot → s3://us-east-1-s3-gnn/gnn-bench-out/plots/scaling_sweep_2worker_DeezerEurope_e4/DeezerEurope_timing.png
+  LaTeX → s3://us-east-1-s3-gnn/gnn-bench-out/latex_tables/scaling_sweep_2worker_DeezerEurope_e4/table12_distdgl_comparison.tex
+  LaTeX → s3://us-east-1-s3-gnn/gnn-bench-out/latex_tables/scaling_sweep_2worker_DeezerEurope_e4/table13_scalability_multi_instance.tex
+  LaTeX → s3://us-east-1-s3-gnn/gnn-bench-out/latex_tables/scaling_sweep_2worker_DeezerEurope_e4/table9_ablation_study.tex
+  LaTeX → s3://us-east-1-s3-gnn/gnn-bench-out/latex_tables/scaling_sweep_2worker_DeezerEurope_e4/table3_link_prediction_main.tex
+  LaTeX → s3://us-east-1-s3-gnn/gnn-bench-out/latex_tables/scaling_sweep_2worker_DeezerEurope_e4/table4_node_classification_main.tex
+  LaTeX → s3://us-east-1-s3-gnn/gnn-bench-out/latex_tables/scaling_sweep_2worker_DeezerEurope_e4/table_phase_timeline.tex
+  LaTeX → s3://us-east-1-s3-gnn/gnn-bench-out/latex_tables/scaling_sweep_2worker_DeezerEurope_e4/table_scalability_sweep.tex
+
+================================================================================
+  FINAL PIPELINE REPORT SUMMARY
+================================================================================
+╔══════════════════════════════════════════════════════════════╗
+║  EXPERIMENT: scaling_sweep_2worker_DeezerEurope_e4          ║
+║  Global mapping: True                                        ║
+╠══════════════════════════════════════════════════════════════╣
+║   Dataset                        DeezerEurope                  ║
+║   Phase 0 (ingest)               1.8s                          ║
+║   Phase 1 [louvain]              4.7s                          ║
+║   Phase 2 [louvain]              22.9s                         ║
+║   Phase 3 [louvain-sage]         9.1s                          ║
+║   Phase 3b [louvain-sage-caan]   7.8s                          ║
+╠══════════════════════════════════════════════════════════════╣
+║   [louvain-sage] global acc      0.5856                        ║
+║   [louvain-sage] boundary acc    0.5829                        ║
+║   [louvain-sage] internal acc    0.5677                        ║
+║   [louvain-sage] link AUC        0.6075                        ║
+║   [louvain-sage-caan] global acc 0.6311                        ║
+║   [louvain-sage-caan] boundary acc 0.6460                      ║
+║   [louvain-sage-caan] internal acc 0.6119                      ║
+║   [louvain-sage-caan] link AUC   0.5000                        ║
+║   [louvain] communities          83 raw → 7 valid              ║
+╚══════════════════════════════════════════════════════════════╝
+
+[SUCCESS] EMR Driver execution completed in 73.9 seconds.
+================================================================================
+
+Uploading execution log to: s3://us-east-1-s3-gnn/gnn-bench-out/spark-results/scaling_sweep_2worker_DeezerEurope_e4-9593129a1443c79c/logs/run_pipeline.log
+Copying S3 Excel results to: s3://us-east-1-s3-gnn/gnn-bench-out/spark-results/scaling_sweep_2worker_DeezerEurope_e4-9593129a1443c79c/excels/scaling_sweep_2worker_DeezerEurope_e4_results.xlsx
+Uploading LaTeX table to: s3://us-east-1-s3-gnn/gnn-bench-out/spark-results/scaling_sweep_2worker_DeezerEurope_e4-9593129a1443c79c/latex_tables/table12_distdgl_comparison.tex
+Uploading LaTeX table to: s3://us-east-1-s3-gnn/gnn-bench-out/spark-results/scaling_sweep_2worker_DeezerEurope_e4-9593129a1443c79c/latex_tables/table13_scalability_multi_instance.tex
+Uploading LaTeX table to: s3://us-east-1-s3-gnn/gnn-bench-out/spark-results/scaling_sweep_2worker_DeezerEurope_e4-9593129a1443c79c/latex_tables/table9_ablation_study.tex
+Uploading LaTeX table to: s3://us-east-1-s3-gnn/gnn-bench-out/spark-results/scaling_sweep_2worker_DeezerEurope_e4-9593129a1443c79c/latex_tables/table3_link_prediction_main.tex
+Uploading LaTeX table to: s3://us-east-1-s3-gnn/gnn-bench-out/spark-results/scaling_sweep_2worker_DeezerEurope_e4-9593129a1443c79c/latex_tables/table4_node_classification_main.tex
+Uploading LaTeX table to: s3://us-east-1-s3-gnn/gnn-bench-out/spark-results/scaling_sweep_2worker_DeezerEurope_e4-9593129a1443c79c/latex_tables/table_phase_timeline.tex
+Uploading LaTeX table to: s3://us-east-1-s3-gnn/gnn-bench-out/spark-results/scaling_sweep_2worker_DeezerEurope_e4-9593129a1443c79c/latex_tables/table_scalability_sweep.tex

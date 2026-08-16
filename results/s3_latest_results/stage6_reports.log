@@ -1,0 +1,17 @@
+► Generating Master EMR 4WORKER Cluster Excel Report: results/emr_cluster_master_results.xlsx
+✓ Successfully generated master Excel workbook at: results/emr_cluster_master_results.xlsx
+► Uploading Excel report to: s3://us-east-1-s3-gnn/gnn-bench-out/emr_4worker_cluster_results.xlsx
+✓ Excel report uploaded successfully to S3: s3://us-east-1-s3-gnn/gnn-bench-out/emr_4worker_cluster_results.xlsx
+/usr/lib64/python3.9/runpy.py:127: RuntimeWarning: 'phases.phase5_reporting' found in sys.modules after import of package 'phases', but prior to execution of 'phases.phase5_reporting'; this may result in unpredictable behaviour
+  warn(RuntimeWarning(msg))
+
+[Phase 5] Exporting / verifying LaTeX paper tables in 'results/'...
+  ✓ table3_link_prediction_main.tex is ready in results/table3_link_prediction_main.tex
+  ✓ table4_node_classification_main.tex is ready in results/table4_node_classification_main.tex
+  ✓ table9_ablation_study.tex is ready in results/table9_ablation_study.tex
+  ✓ table12_distdgl_comparison.tex is ready in results/table12_distdgl_comparison.tex
+  ✓ table13_scalability_multi_instance.tex is ready in results/table13_scalability_multi_instance.tex
+  ✓ table_phase_timeline.tex is ready in results/table_phase_timeline.tex
+✓ Created CPU scaling figure (ML-GRL Fig. 8 style) at:
+  - results/figures/fig8_cpu_cores_scaling.png
+  - results/figures/fig8_cpu_cores_scaling.pdf

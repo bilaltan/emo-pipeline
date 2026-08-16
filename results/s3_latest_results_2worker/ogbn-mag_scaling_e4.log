@@ -1,0 +1,266 @@
+Writable directories and free space:
+  - /mnt1/tmp: 1754.67 GB free
+  - /mnt1/spark: 1754.67 GB free
+  - /mnt/tmp: 1737.86 GB free
+  - /mnt/spark: 1737.86 GB free
+  - /mnt/var/tmp: 1737.86 GB free
+  - /tmp: 1737.86 GB free
+  - /var/tmp: 1737.86 GB free
+
+  [Spark Auto-Scaler] Dataset: ogbn-mag | S3 Size: 119 MB | Scale: Large (100M Scale)
+  [Spark Auto-Scaler] YARN Cluster: 2 nodes × 496 GB RAM × 64 vCores
+  [Spark Auto-Scaler] Python RAM Budget: 10.0 GB/task (dataset-aware)
+  [Spark Auto-Scaler] Bin-Packing Solution:
+    → 4 total executors (CLI override)
+    → 4 cores/executor | 17g heap + 40g overhead = 57g container
+    → Total parallel tasks: 16 | Shuffle partitions: 200
+    → Driver: 40g heap + 12g overhead
+    → Cluster utilization: 228g / 992g (23%)
+
+Picked up JAVA_TOOL_OPTIONS: --add-opens=java.base/java.nio=ALL-UNNAMED --add-opens=java.base/sun.nio.ch=ALL-UNNAMED --add-opens=java.base/java.lang=ALL-UNNAMED --add-opens=java.base/java.util=ALL-UNNAMED --add-opens=java.base/java.util.concurrent=ALL-UNNAMED --add-opens=java.base/java.security=ALL-UNNAMED --add-opens=java.base/sun.security.action=ALL-UNNAMED --add-opens=java.base/math=ALL-UNNAMED
+WARNING: package math not in java.base
+Picked up JAVA_TOOL_OPTIONS: --add-opens=java.base/java.nio=ALL-UNNAMED --add-opens=java.base/sun.nio.ch=ALL-UNNAMED --add-opens=java.base/java.lang=ALL-UNNAMED --add-opens=java.base/java.util=ALL-UNNAMED --add-opens=java.base/java.util.concurrent=ALL-UNNAMED --add-opens=java.base/java.security=ALL-UNNAMED --add-opens=java.base/sun.security.action=ALL-UNNAMED --add-opens=java.base/math=ALL-UNNAMED
+WARNING: package math not in java.base
+:: loading settings :: url = jar:file:/usr/lib/spark/jars/ivy-2.5.1.jar!/org/apache/ivy/core/settings/ivysettings.xml
+Ivy Default Cache set to: /mnt1/tmp/.ivy2/cache
+The jars for the packages stored in: /mnt1/tmp/.ivy2/jars
+io.delta#delta-spark_2.12 added as a dependency
+graphframes#graphframes added as a dependency
+:: resolving dependencies :: org.apache.spark#spark-submit-parent-6de8f07e-3371-4dff-8be8-003cf49d1a14;1.0
+	confs: [default]
+	found io.delta#delta-spark_2.12;3.2.0 in central
+	found io.delta#delta-storage;3.2.0 in central
+	found org.antlr#antlr4-runtime;4.9.3 in central
+	found graphframes#graphframes;0.8.3-spark3.5-s_2.12 in spark-packages
+	found org.slf4j#slf4j-api;1.7.16 in central
+:: resolution report :: resolve 121ms :: artifacts dl 4ms
+	:: modules in use:
+	graphframes#graphframes;0.8.3-spark3.5-s_2.12 from spark-packages in [default]
+	io.delta#delta-spark_2.12;3.2.0 from central in [default]
+	io.delta#delta-storage;3.2.0 from central in [default]
+	org.antlr#antlr4-runtime;4.9.3 from central in [default]
+	org.slf4j#slf4j-api;1.7.16 from central in [default]
+	---------------------------------------------------------------------
+	|                  |            modules            ||   artifacts   |
+	|       conf       | number| search|dwnlded|evicted|| number|dwnlded|
+	---------------------------------------------------------------------
+	|      default     |   5   |   0   |   0   |   0   ||   5   |   0   |
+	---------------------------------------------------------------------
+:: retrieving :: org.apache.spark#spark-submit-parent-6de8f07e-3371-4dff-8be8-003cf49d1a14
+	confs: [default]
+	0 artifacts copied, 5 already retrieved (0kB/3ms)
+Setting default log level to "WARN".
+To adjust logging level use sc.setLogLevel(newLevel). For SparkR, use setLogLevel(newLevel).
+26/08/15 16:24:00 WARN SparkConf: Note that spark.local.dir will be overridden by the value set by the cluster manager (via SPARK_LOCAL_DIRS in mesos/standalone/kubernetes and LOCAL_DIRS in YARN).
+26/08/15 16:24:01 WARN Client: Neither spark.yarn.jars nor spark.yarn.archive is set, falling back to uploading libraries under SPARK_HOME.
+26/08/15 16:24:04 WARN Client: Same path resource file:///mnt1/tmp/.ivy2/jars/io.delta_delta-spark_2.12-3.2.0.jar added multiple times to distributed cache.
+26/08/15 16:24:04 WARN Client: Same path resource file:///mnt1/tmp/.ivy2/jars/graphframes_graphframes-0.8.3-spark3.5-s_2.12.jar added multiple times to distributed cache.
+26/08/15 16:24:04 WARN Client: Same path resource file:///mnt1/tmp/.ivy2/jars/io.delta_delta-storage-3.2.0.jar added multiple times to distributed cache.
+26/08/15 16:24:04 WARN Client: Same path resource file:///mnt1/tmp/.ivy2/jars/org.antlr_antlr4-runtime-4.9.3.jar added multiple times to distributed cache.
+26/08/15 16:24:04 WARN Client: Same path resource file:///mnt1/tmp/.ivy2/jars/org.slf4j_slf4j-api-1.7.16.jar added multiple times to distributed cache.
+  ✓ SparkSession successfully configured and initialized as 'spark'.
+
+================================================================================
+  VERIFYING AND INSTALLING PYTHON ENVIRONMENT PACKAGES
+================================================================================
+  ► Syncing dependencies across all active YARN worker nodes...
+[Stage 0:>                                                        (0 + 16) / 64][Stage 0:===>                                                     (4 + 16) / 64][Stage 0:==============>                                         (16 + 16) / 64][Stage 0:===============>                                        (18 + 16) / 64][Stage 0:=================>                                      (20 + 16) / 64][Stage 0:=========================>                              (29 + 16) / 64][Stage 0:============================>                           (32 + 16) / 64][Stage 0:===============================>                        (36 + 16) / 64][Stage 0:================================>                       (37 + 16) / 64][Stage 0:==========================================>             (48 + 16) / 64][Stage 0:=============================================>          (52 + 12) / 64]                                                                                  ► Sync attempt 1/5: 2 worker node(s) verified: ['ip-172-31-75-147', 'ip-172-31-78-174']
+  ✓ All 2 YARN worker nodes verified and synced successfully.
+
+  === YARN Executor Package Sync Summary ===
+    ip-172-31-75-147.ec2.internal: Success (Cached)
+    ip-172-31-78-174.ec2.internal: Success (Cached)
+
+  ✓ ALL PIPELINE DEPENDENCIES VERIFIED AND READY.
+SLF4J: Failed to load class "org.slf4j.impl.StaticLoggerBinder".
+SLF4J: Defaulting to no-operation (NOP) logger implementation
+SLF4J: See http://www.slf4j.org/codes.html#StaticLoggerBinder for further details.
+[Stage 1:>                  (0 + 1) / 1][Stage 2:>                  (0 + 6) / 6][Stage 1:>                  (0 + 1) / 1][Stage 2:===>               (1 + 5) / 6]                                                                                [Stage 3:>                                                          (0 + 6) / 6][Stage 3:=========>                                                 (1 + 5) / 6][Stage 3:===================>                                       (2 + 4) / 6][Stage 5:>                                                        (0 + 16) / 50][Stage 5:=========>                                               (8 + 16) / 50][Stage 5:===============================>                        (28 + 16) / 50][Stage 5:=======================================================> (49 + 1) / 50]                                                                                [Stage 18:=====================================================>  (19 + 1) / 20]                                                                                
+================================================================================
+  CLUSTER DISK SPACE COMPATIBILITY VERIFICATION
+================================================================================
+  Dataset: ogbn-mag | Nodes: 736,389 | Features: 128
+  Required temp workspace disk space per executor container: 10.00 GB
+  Driver temp space available (/mnt1/tmp): 1754.67 GB
+  Executor nodes disk check results:
+    ✓  ip-172-31-75-147.ec2.internal                 - Sufficient Space. Available: 1733.22 GB
+    ✓  ip-172-31-78-174.ec2.internal                 - Sufficient Space. Available: 1739.03 GB
+  ✓ ALL NODES HAVE SUFFICIENT TEMPORARY DISK SPACE TO EXECUTE GNN JOBS.
+================================================================================
+
+
+================================================================================
+  BOOTSTRAPPING EXPERIMENT CODE AND STAGE UTILITIES
+================================================================================
+  ► LOADING PIPELINE AND CONFIG FROM LOCAL REPOSITORY PATHS...
+    ✓ Packed local git repository code to /tmp/pipeline.zip and copied to /tmp/pipeline
+  ✓ Registered pipeline.zip package on Spark Context
+
+  Run Profile: scaling_sweep_2worker_ogbn-mag_e4
+  └─ Datasets: ['ogbn-mag']
+  └─ Algorithms: ['louvain']
+  └─ GNN Architecture: GCN (epochs=10, lr=0.001, hidden=256)
+  └─ Global Mapping: True | Boundary Expansion: False
+  └─ Ingestion Phase (Phase 0): True
+
+============================================================
+  PHASE 0 — Ingesting: ogbn-mag
+============================================================
+  ✓ Delta tables already exist for 'ogbn-mag' — skipping download.
+    nodes: s3://us-east-1-s3-gnn/delta-data/ogbn-mag/nodes/
+    edges: s3://us-east-1-s3-gnn/delta-data/ogbn-mag/edges/
+    original_nodes: s3://us-east-1-s3-gnn/delta-data/ogbn-mag/original_nodes/
+    original_edges: s3://us-east-1-s3-gnn/delta-data/ogbn-mag/original_edges/
+
+============================================================
+  PHASE 1 — Community Detection: ogbn-mag
+============================================================
+[Stage 39:====================================================>   (14 + 1) / 15]                                                                                  Graph loaded: 736,389 nodes | 10,792,672 edges  [6.6s]
+
+  ── [LOUVAIN] ──────────────────────────────
+  Collecting edges to driver ...
+[Stage 43:====================================================>   (14 + 1) / 15]                                                                                  Mapping node IDs using vectorized binary search ...
+  Building igraph (736,389 nodes) ...
+  Running louvain (resolution=1.0) ...
+[Stage 52:=====>                                                (19 + 17) / 200][Stage 52:============>                                         (47 + 16) / 200][Stage 52:===================>                                  (73 + 16) / 200][Stage 52:=========================>                            (94 + 16) / 200][Stage 52:================================>                    (124 + 16) / 200][Stage 52:=======================================>             (150 + 16) / 200][Stage 52:==============================================>      (176 + 12) / 200][Stage 52:====================================================> (194 + 4) / 200]                                                                                  ✓ [louvain] 3,887 communities | NMI=0.3815 | 55.5s
+
+======================================================================
+  PHASE 1 SUMMARY
+======================================================================
+
+  Dataset: ogbn-mag
+  Algorithm        #Comms      NMI    Runtime
+  ------------ ---------- -------- ----------
+  louvain           3,887   0.3815      55.5s
+
+  [louvain] Community assignment details:
+[Stage 77:=====================================>               (141 + 16) / 200][Stage 77:==================================================>  (189 + 11) / 200]                                                                                [Stage 85:=================================>                   (128 + 16) / 200][Stage 85:===============================================>     (181 + 16) / 200]                                                                                [Stage 93:============================================>        (167 + 17) / 200]                                                                                [Stage 106:============================>                       (110 + 16) / 200][Stage 106:=======================================>            (152 + 16) / 200]                                                                                    Vertices assigned: 736,389 / 736,389 (100.0% coverage)
+    Total communities: 3,887 | Valid (≥1000): 31
+    Size stats: min=2  max=55,043  avg=189.4  median=2
+[Stage 114:===============================================>    (183 + 16) / 200]                                                                                [Stage 146:===================================================> (196 + 4) / 200]                                                                                    Size buckets: 1-9:3,791 | 10-99:61 | 100-999:4 | 1K-9999:9 | 10K+:22
+    Top-10 largest: c9=55,043, c8=52,145, c27=49,833, c15=49,474, c5=48,099, c3=46,010, c0=34,825, c4=33,115, c2=32,256, c23=28,829
+
+============================================================
+  PHASE 2 — Partitioning: ogbn-mag
+============================================================
+
+  ── [LOUVAIN]  tag=scaling_sweep_2worker_ogbn-mag_e4_ogbn-mag_louvain ──
+  Raw=3,887  Valid(≥1000)=31  min=1,144  max=55,043  avg=23376.1
+[Stage 193:=================================>                  (129 + 12) / 200][Stage 193:======================================>             (147 + 12) / 200][Stage 193:==============================================>      (174 + 8) / 200]                                                                                [Stage 204:>(14 + 1) / 15][Stage 205:(122 + 11) / 200][Stage 206:(41 + 4) / 200][Stage 204:>(14 + 1) / 15][Stage 205:(146 + 11) / 200][Stage 206:(54 + 0) / 200][Stage 204:>(14 + 1) / 15][Stage 205:(180 + 9) / 200][Stage 206:(54 + 2) / 200][Stage 204:==============>(14 + 1) / 15][Stage 206:====>        (66 + 11) / 200][Stage 204:==============>(14 + 1) / 15][Stage 206:=====>       (88 + 11) / 200][Stage 204:==============>(14 + 1) / 15][Stage 206:=======>    (132 + 11) / 200][Stage 204:==============>(14 + 1) / 15][Stage 206:=========>  (151 + 11) / 200][Stage 204:==============>(14 + 1) / 15][Stage 206:=========>  (165 + 11) / 200][Stage 204:===================================================>   (14 + 1) / 15][Stage 209:=======================>                             (88 + 16) / 200][Stage 209:=================================>                  (128 + 16) / 200][Stage 209:============================================>       (170 + 16) / 200][Stage 209:====================================================>(198 + 2) / 200]                                                                                [Stage 241:>(14 + 1) / 15][Stage 242:>(14 + 1) / 15][Stage 244:(143 + 10) / 200][Stage 241:>(14 + 1) / 15][Stage 242:>(14 + 1) / 15][Stage 244:(164 + 10) / 200][Stage 241:>(14 + 1) / 15][Stage 242:>(14 + 1) / 15][Stage 244:(175 + 7) / 200][Stage 242:>(14 + 1) / 15][Stage 244:(184 + 3) / 200][Stage 245:(63 + 8) / 200][Stage 242:>(14 + 1) / 15][Stage 244:(193 + 3) / 200][Stage 245:(85 + 8) / 200][Stage 242:>(14 + 1) / 15][Stage 245:(110 + 11) / 200][Stage 247:>(32 + 0) / 50][Stage 242:>(14 + 1) / 15][Stage 245:(136 + 11) / 200][Stage 247:>(32 + 0) / 50][Stage 242:>(14 + 1) / 15][Stage 245:(153 + 11) / 200][Stage 247:>(32 + 1) / 50][Stage 245:============>(188 + 4) / 200][Stage 247:=============> (46 + 0) / 50]                                                                                [Stage 251:==============================>                     (119 + 17) / 200][Stage 251:========================================>           (156 + 16) / 200][Stage 256:=======================>                             (90 + 16) / 200][Stage 256:======================================>             (147 + 17) / 200][Stage 256:====================================================>(199 + 1) / 200]                                                                                  Edges kept: 9,688,922 (89.8%)  Boundary nodes: 295,260  Internal: 429,399
+[Stage 278:======>      (99 + 12) / 200][Stage 279:>                (0 + 1) / 1]                                                                                [Stage 278:====================================>               (141 + 12) / 200][Stage 278:========================================>           (154 + 12) / 200][Stage 278:=========================================>          (161 + 12) / 200][Stage 278:==================================================>  (190 + 4) / 200]                                                                                  Shuffle overhead (groupBy community_id): 2.8s
+[Stage 305:>(14 + 1) / 15][Stage 307:>(14 + 1) / 15][Stage 308:(138 + 11) / 200][Stage 305:>(14 + 1) / 15][Stage 307:>(14 + 1) / 15][Stage 308:(155 + 11) / 200][Stage 307:>(14 + 1) / 15][Stage 308:(180 + 8) / 200][Stage 309:(59 + 4) / 200][Stage 307:>(14 + 1) / 15][Stage 308:(189 + 4) / 200][Stage 309:(66 + 8) / 200][Stage 307:>(14 + 1) / 15][Stage 308:(197 + 3) / 200][Stage 309:(94 + 9) / 200][Stage 307:>(14 + 1) / 15][Stage 309:(100 + 12) / 200][Stage 310:(54 + 0) / 200][Stage 307:>(14 + 1) / 15][Stage 309:(122 + 12) / 200][Stage 310:(54 + 0) / 200][Stage 309:(137 + 8) / 200][Stage 310:(55 + 4) / 200][Stage 311:>(88 + 3) / 91][Stage 309:(150 + 8) / 200][Stage 310:(62 + 4) / 200][Stage 311:>(88 + 3) / 91][Stage 309:(159 + 8) / 200][Stage 310:(70 + 4) / 200][Stage 311:>(88 + 3) / 91][Stage 309:(167 + 8) / 200][Stage 310:(75 + 4) / 200][Stage 311:>(88 + 3) / 91][Stage 309:(174 + 8) / 200][Stage 310:(78 + 4) / 200][Stage 311:>(88 + 3) / 91][Stage 309:(182 + 7) / 200][Stage 310:(82 + 5) / 200][Stage 311:>(88 + 3) / 91][Stage 309:(189 + 4) / 200][Stage 310:(91 + 8) / 200][Stage 311:>(88 + 3) / 91][Stage 309:(197 + 3) / 200][Stage 310:(111 + 5) / 200][Stage 311:>(89 + 2) / 91][Stage 310:=======================================>             (150 + 8) / 200][Stage 310:====================================================>(197 + 3) / 200][Stage 314:=======================>                             (88 + 12) / 200][Stage 314:====================================>               (140 + 15) / 200][Stage 319:============================>                       (111 + 16) / 200][Stage 319:==========================================>         (162 + 18) / 200][Stage 328:=======================================>            (151 + 16) / 200][Stage 338:=>                                                     (1 + 16) / 31][Stage 338:===>                                                   (2 + 16) / 31][Stage 338:===============>                                       (9 + 16) / 31][Stage 338:==========================================>            (24 + 7) / 31][Stage 338:===============================================>       (27 + 4) / 31][Stage 338:===================================================>   (29 + 2) / 31][Stage 338:=====================================================> (30 + 1) / 31]                                                                                [Stage 342:===================================================>   (14 + 1) / 15][Stage 342:>(14 + 1) / 15][Stage 343:(159 + 11) / 200][Stage 344:(54 + 0) / 200][Stage 342:>(14 + 1) / 15][Stage 343:(188 + 7) / 200][Stage 344:(54 + 4) / 200][Stage 342:>(14 + 1) / 15][Stage 343:(199 + 1) / 200][Stage 344:(67 + 10) / 200][Stage 342:==============>(14 + 1) / 15][Stage 344:======>     (100 + 11) / 200][Stage 342:==============>(14 + 1) / 15][Stage 344:=======>    (117 + 11) / 200][Stage 342:==============>(14 + 1) / 15][Stage 344:========>   (138 + 11) / 200][Stage 342:==============>(14 + 1) / 15][Stage 344:==========> (170 + 11) / 200][Stage 342:===================================================>   (14 + 1) / 15][Stage 347:==========================================>         (165 + 16) / 200][Stage 358:===================================================>   (29 + 2) / 31][Stage 358:=====================================================> (30 + 1) / 31]                                                                                  ✓ [louvain] Phase 2 done in 35.5s
+  [Phase 3 setup] Loading Phase 2 Delta tables for ogbn-mag/louvain...
+[Stage 376:=====================>                               (40 + 16) / 100][Stage 376:==============================>                      (57 + 16) / 100][Stage 376:=================================================>    (91 + 9) / 100][Stage 376:===================================================>  (95 + 5) / 100][Stage 376:====================================================> (97 + 3) / 100]                                                                                [Stage 380:=================================================>     (19 + 2) / 21][Stage 380:====================================================>  (20 + 1) / 21]                                                                                  [Phase 3 setup] Cached 724,659 node rows and 9,688,922 edge rows in 4.5s (nodes partitions=100, edges partitions=21).
+  [Phase 3 setup] Community layout computed in 0.2s: 31 communities; largest community_id:nodes = 9:55,043, 8:52,145, 27:49,833, 15:49,474, 5:48,099.
+
+============================================================
+  PHASE 3 — GNN Training: ogbn-mag / louvain / sage
+  tag=scaling_sweep_2worker_ogbn-mag_e4_ogbn-mag_louvain
+  task=both; epochs=10; diagnostics=on
+============================================================
+  [Driver Warmstart] Extracting representative community for driver-side pre-training...
+  ✓ Driver-side base model trained successfully on Comm 26 (9,918 nodes).
+  [Manifest Architecture] Reusing cached community manifest...
+  [Phase 3 safety] Hash-sampling up to ~8,000 nodes/community (hard cap 10,000); retaining ~1/4 eligible edges before aggregation (UDF hard edge cap 30,000).
+[Stage 398:======================>                               (13 + 16) / 31][Stage 398:========================>                             (14 + 16) / 31][Stage 398:==========================>                           (15 + 16) / 31][Stage 398:===========================>                          (16 + 15) / 31][Stage 398:===============================>                      (18 + 13) / 31][Stage 398:==================================>                   (20 + 11) / 31][Stage 398:====================================>                 (21 + 10) / 31][Stage 398:=======================================>               (22 + 9) / 31][Stage 398:========================================>              (23 + 8) / 31][Stage 398:==========================================>            (24 + 7) / 31][Stage 398:==============================================>        (26 + 5) / 31][Stage 398:===============================================>       (27 + 4) / 31][Stage 398:=================================================>     (28 + 3) / 31][Stage 398:=====================================================> (30 + 1) / 31]                                                                                  ✓ Mean comm acc = 0.1472
+  ✓ Weighted comm acc = 0.1443
+  ✓ Mean comm link AUC = 0.7174
+  ✓ Weighted comm link AUC = 0.7081
+  ✓ Wall time: 20.2s
+    - Avg Load time: 0.01s
+    - Avg Node Train: 1.89s
+    - Avg Link Train: 1.77s
+    ✓ Saved Spark result frame: s3://us-east-1-s3-gnn/gnn-bench-results/phase3/scaling_sweep_2worker_ogbn-mag_e4/ogbn-mag_louvain_sage
+
+[PHASE 3b] - Parallel GNN Training with CaaN Global Graph
+[Stage 427:==========================================>         (165 + 16) / 200]                                                                                  Dataset: ogbn-mag | Algorithm: louvain
+    - Major communities (>= 1000): 31
+    - Minor communities (< 1000): 3856
+[Stage 432:==============================================>      (88 + 12) / 100][Stage 432:===================================================>  (95 + 5) / 100][Stage 432:====================================================> (98 + 2) / 100][Stage 434:=========================>                            (14 + 16) / 30][Stage 434:==================================>                   (19 + 11) / 30]                                                                                    - Computing global CAAN edges map-side (shuffless RDD partitioning)...
+[Stage 443:===================================================>   (14 + 1) / 15]                                                                                
+============================================================
+  PHASE 3b — GNN Training (CaaN): ogbn-mag / louvain / sage
+  tag=scaling_sweep_2worker_ogbn-mag_e4_ogbn-mag_louvain
+============================================================
+  [Driver Warmstart] Extracting representative community for driver-side pre-training...
+[Stage 452:=====================================================> (36 + 1) / 37]                                                                                  ✓ Driver-side base model trained successfully on Comm 9 (55,043 nodes).
+[Stage 463:>                                                      (0 + 16) / 31][Stage 463:=>                                                     (1 + 16) / 31][Stage 463:========================>                             (14 + 16) / 31][Stage 463:==========================>                           (15 + 16) / 31][Stage 463:===========================>                          (16 + 15) / 31][Stage 463:=============================>                        (17 + 14) / 31][Stage 463:===============================>                      (18 + 13) / 31][Stage 463:=================================>                    (19 + 12) / 31][Stage 463:==================================>                   (20 + 11) / 31][Stage 463:====================================>                 (21 + 10) / 31][Stage 463:=======================================>               (22 + 9) / 31][Stage 463:========================================>              (23 + 8) / 31][Stage 463:==========================================>            (24 + 7) / 31][Stage 463:============================================>          (25 + 6) / 31][Stage 463:==============================================>        (26 + 5) / 31][Stage 463:===============================================>       (27 + 4) / 31][Stage 463:=================================================>     (28 + 3) / 31][Stage 463:===================================================>   (29 + 2) / 31][Stage 463:=====================================================> (30 + 1) / 31]                                                                                  ✓ Mean CaaN comm acc = 0.2905
+  ✓ Weighted CaaN comm acc = 0.3010
+  ✓ Wall time: 94.2s
+    ✓ Saved S3 checkpoint: s3://us-east-1-s3-gnn/gnn-bench-checkpoint/phase3b/scaling_sweep_2worker_ogbn-mag_e4/ogbn-mag_louvain_sage.parquet
+
+[PHASE 5] - Metrics Analysis, Visualizations, and Excel S3 Export
+
+===============================================================================================
+  PHASE 5A — PERFORMANCE COMPARISON (NODE ACCURACY & LINK AUC)
+===============================================================================================
+
+  Dataset: ogbn-mag
+  _Algorithm           Node Acc   Comm Acc    Bnd Acc    Int Acc     Link AUC
+  ---------------------------------------------------------------------------
+  louvain-sage           0.1443     0.1472     0.1264     0.1624       0.7081
+  louvain-sage-caan      0.3010     0.2905     0.2583     0.3056       0.5000
+
+  [ogbn-mag] Performance by community size bucket:
+    louvain-sage:
+    louvain-sage-caan:
+      large   : n=31  acc=0.2905  auc=0.5000
+
+================================================================================
+  PHASE 5B — TIMING COMPARISON
+================================================================================
+
+  Dataset: ogbn-mag
+  Algorithm             Phase1    Phase2    Phase3   Phase3b     Total
+  --------------------------------------------------------------------
+  louvain-sage           55.5s     35.5s     20.2s     94.2s    205.4s
+  BASELINE (SAGE)            —         —         —      0.0s (Node: 0.0s, Link: 0.0s)
+  XLSX → s3://us-east-1-s3-gnn/gnn-bench-out/scaling_sweep_2worker_ogbn-mag_e4_results.xlsx
+  Plot → s3://us-east-1-s3-gnn/gnn-bench-out/plots/scaling_sweep_2worker_ogbn-mag_e4/ogbn-mag_acc_dist.png
+  Plot → s3://us-east-1-s3-gnn/gnn-bench-out/plots/scaling_sweep_2worker_ogbn-mag_e4/ogbn-mag_boundary_internal.png
+  Plot → s3://us-east-1-s3-gnn/gnn-bench-out/plots/scaling_sweep_2worker_ogbn-mag_e4/ogbn-mag_timing.png
+  LaTeX → s3://us-east-1-s3-gnn/gnn-bench-out/latex_tables/scaling_sweep_2worker_ogbn-mag_e4/table12_distdgl_comparison.tex
+  LaTeX → s3://us-east-1-s3-gnn/gnn-bench-out/latex_tables/scaling_sweep_2worker_ogbn-mag_e4/table13_scalability_multi_instance.tex
+  LaTeX → s3://us-east-1-s3-gnn/gnn-bench-out/latex_tables/scaling_sweep_2worker_ogbn-mag_e4/table9_ablation_study.tex
+  LaTeX → s3://us-east-1-s3-gnn/gnn-bench-out/latex_tables/scaling_sweep_2worker_ogbn-mag_e4/table3_link_prediction_main.tex
+  LaTeX → s3://us-east-1-s3-gnn/gnn-bench-out/latex_tables/scaling_sweep_2worker_ogbn-mag_e4/table4_node_classification_main.tex
+  LaTeX → s3://us-east-1-s3-gnn/gnn-bench-out/latex_tables/scaling_sweep_2worker_ogbn-mag_e4/table_phase_timeline.tex
+  LaTeX → s3://us-east-1-s3-gnn/gnn-bench-out/latex_tables/scaling_sweep_2worker_ogbn-mag_e4/table_scalability_sweep.tex
+
+================================================================================
+  FINAL PIPELINE REPORT SUMMARY
+================================================================================
+╔══════════════════════════════════════════════════════════════╗
+║  EXPERIMENT: scaling_sweep_2worker_ogbn-mag_e4              ║
+║  Global mapping: True                                        ║
+╠══════════════════════════════════════════════════════════════╣
+║   Dataset                        ogbn-mag                      ║
+║   Phase 0 (ingest)               1.9s                          ║
+║   Phase 1 [louvain]              55.5s                         ║
+║   Phase 2 [louvain]              35.5s                         ║
+║   Phase 3 [louvain-sage]         20.2s                         ║
+║   Phase 3b [louvain-sage-caan]   94.2s                         ║
+╠══════════════════════════════════════════════════════════════╣
+║   [louvain-sage] global acc      0.1443                        ║
+║   [louvain-sage] boundary acc    0.1264                        ║
+║   [louvain-sage] internal acc    0.1624                        ║
+║   [louvain-sage] link AUC        0.7081                        ║
+║   [louvain-sage-caan] global acc 0.3010                        ║
+║   [louvain-sage-caan] boundary acc 0.2583                      ║
+║   [louvain-sage-caan] internal acc 0.3056                      ║
+║   [louvain-sage-caan] link AUC   0.5000                        ║
+║   [louvain] communities          3,887 raw → 31 valid          ║
+╚══════════════════════════════════════════════════════════════╝
+
+[SUCCESS] EMR Driver execution completed in 281.1 seconds.
+================================================================================
+
+Uploading execution log to: s3://us-east-1-s3-gnn/gnn-bench-out/spark-results/scaling_sweep_2worker_ogbn-mag_e4-6c42ba010430c963/logs/run_pipeline.log
+Copying S3 Excel results to: s3://us-east-1-s3-gnn/gnn-bench-out/spark-results/scaling_sweep_2worker_ogbn-mag_e4-6c42ba010430c963/excels/scaling_sweep_2worker_ogbn-mag_e4_results.xlsx
+Uploading LaTeX table to: s3://us-east-1-s3-gnn/gnn-bench-out/spark-results/scaling_sweep_2worker_ogbn-mag_e4-6c42ba010430c963/latex_tables/table12_distdgl_comparison.tex
+Uploading LaTeX table to: s3://us-east-1-s3-gnn/gnn-bench-out/spark-results/scaling_sweep_2worker_ogbn-mag_e4-6c42ba010430c963/latex_tables/table13_scalability_multi_instance.tex
+Uploading LaTeX table to: s3://us-east-1-s3-gnn/gnn-bench-out/spark-results/scaling_sweep_2worker_ogbn-mag_e4-6c42ba010430c963/latex_tables/table9_ablation_study.tex
+Uploading LaTeX table to: s3://us-east-1-s3-gnn/gnn-bench-out/spark-results/scaling_sweep_2worker_ogbn-mag_e4-6c42ba010430c963/latex_tables/table3_link_prediction_main.tex
+Uploading LaTeX table to: s3://us-east-1-s3-gnn/gnn-bench-out/spark-results/scaling_sweep_2worker_ogbn-mag_e4-6c42ba010430c963/latex_tables/table4_node_classification_main.tex
+Uploading LaTeX table to: s3://us-east-1-s3-gnn/gnn-bench-out/spark-results/scaling_sweep_2worker_ogbn-mag_e4-6c42ba010430c963/latex_tables/table_phase_timeline.tex
+Uploading LaTeX table to: s3://us-east-1-s3-gnn/gnn-bench-out/spark-results/scaling_sweep_2worker_ogbn-mag_e4-6c42ba010430c963/latex_tables/table_scalability_sweep.tex
