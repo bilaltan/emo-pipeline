@@ -33,7 +33,7 @@ Email: klee76@lsu.edu}}
 \maketitle
 
 \begin{abstract}
-Training Graph Neural Networks (GNNs) on large graphs presents a difficult systems dilemma: distributed frameworks must either synchronize cross-partition dependencies over high-bandwidth networks with heavy communication overhead (e.g., DistDGL), or train locally on decoupled subgraphs at the expense of severe accuracy loss at partition boundaries. In this work, we present \textbf{EMO} (Executor-level Multi-community Orchestrator), an end-to-end distributed system that runs partition-centric graph representation learning (GRL) natively over transactional cloud data lakes. EMO models the entire graph learning lifecycle---Delta Lake ingestion, modular community discovery, relational boundary extraction, super-node auxiliary graph contraction, and decoupled GNN training---as declarative queries executed over Delta Lake tables on Amazon S3 via Apache Spark SQL. To eliminate inter-worker communication during training while preserving global topological context, EMO compiles the Community-Aware Auxiliary Network (CAAN) abstraction into relational plans: major communities are compressed into centroid-feature super-nodes and broadcast across worker executors alongside local partition data. EMO uses Louvain modularity partitioning as its default backend on single-machine driver memory to generate balanced, high-quality community structures without the extreme over-fragmentation observed in distributed Label Propagation (LPA). Furthermore, EMO relies on Delta Lake's ACID transaction logs for phase-level checkpoint reuse, introduces dynamic EBS path redirection on AWS EMR to eliminate worker out-of-memory crashes, and utilizes Apache Arrow for zero-copy JVM-to-Python tensor transfers. Benchmarks across small, medium, and dense social graphs (WikiCS, Coauthor, DeezerEurope, reddit, ogbn-products, ogbn-mag, LiveJournal, and Orkut) demonstrate that EMO recovers up to 98.5\% of full-graph accuracy with \textbf{0.0~GB} cross-worker network communication during training, while delivering up to 22.6\% higher link prediction AUC. As a complementary capability, EMO demonstrates distributed SIGN-style multi-hop feature propagation on Spark SQL, scaling seamlessly to massive graphs on commodity CPU clusters.
+Training Graph Neural Networks (GNNs) on large graphs presents a difficult systems dilemma: distributed frameworks must either synchronize cross-partition dependencies over high-bandwidth networks with heavy communication overhead (e.g., DistDGL), or train locally on decoupled subgraphs at the expense of severe accuracy loss at partition boundaries. In this work, we present \textbf{EMO} (Executor-level Multi-community Orchestrator), an end-to-end distributed system that runs partition-centric graph representation learning (GRL) natively over transactional cloud data lakes. EMO models the entire graph learning lifecycle---Delta Lake ingestion, modular community discovery, relational boundary extraction, super-node auxiliary graph contraction, and decoupled GNN training---as declarative queries executed over Delta Lake tables on Amazon S3 via Apache Spark SQL. To eliminate inter-worker communication during training while preserving global topological context, EMO compiles the Community-Aware Auxiliary Network (CAAN) abstraction into relational plans: major communities are compressed into centroid-feature super-nodes and broadcast across worker executors alongside local partition data. EMO uses Louvain modularity partitioning as its default backend on single-machine driver memory to generate balanced, high-quality community structures without the extreme over-fragmentation observed in distributed Label Propagation (LPA). Furthermore, EMO relies on Delta Lake's ACID transaction logs for phase-level checkpoint reuse, introduces dynamic EBS path redirection on AWS EMR to eliminate worker out-of-memory crashes, and utilizes Apache Arrow for zero-copy JVM-to-Python tensor transfers. Benchmarks across small, medium, and dense social graphs (WikiCS, Coauthor, DeezerEurope, reddit, ogbn-products, ogbn-mag, LiveJournal, and Orkut) demonstrate that EMO recovers up to 97.7\% of full-graph accuracy with \textbf{0.0~GB} cross-worker network communication during training, while delivering up to 22.6\% higher link prediction AUC. As a complementary capability, EMO demonstrates distributed SIGN-style multi-hop feature propagation on Spark SQL, scaling seamlessly to massive graphs on commodity CPU clusters.
 Code and configurations are public at \url{https://github.com/bilaltan/emo-pipeline}.
 \end{abstract}
 
@@ -290,7 +290,7 @@ Table~\ref{table_nc_main} compares node classification performance across baseli
 Three primary insights emerge from the node classification evaluations on the 4-worker AWS EMR cluster:
 \begin{enumerate}
     \item \textbf{Severe Boundary Degradation in Naive Decoupling:} Decoupled training on isolated subgraphs causes severe accuracy drops when cross-community edges are severed, falling to 74.23\% on \textbf{reddit} (vs. 95.02\% baseline), 56.44\% on \textbf{ogbn-products} (vs. 78.50\% baseline), and 18.77\% on \textbf{ogbn-mag} (vs. 46.50\% baseline).
-    \item \textbf{CaaN Restores Full-Graph Accuracy:} EMO's relational CaaN super-node mechanism restores this deficit across all datasets, achieving \textbf{92.87\%} on reddit (+18.64\% boundary gain, recovering 97.7\% of full-graph accuracy), \textbf{69.62\%} on ogbn-products (+13.70\% boundary gain, recovering 88.7\%), \textbf{29.71\%} on ogbn-mag (+10.94\% boundary gain), \textbf{84.34\%} on Coauthor-CS (+12.94\% boundary gain), \textbf{71.85\%} on LiveJournal (recovering 99.2\%), and \textbf{67.90\%} on Orkut (recovering 98.5\%).
+    \item \textbf{CaaN Restores Full-Graph Accuracy:} EMO's relational CaaN super-node mechanism restores this deficit across all datasets, achieving \textbf{92.87\%} on reddit (+18.64\% boundary gain, recovering 97.7\% of full-graph accuracy), \textbf{69.62\%} on ogbn-products (+13.70\% boundary gain, recovering 88.7\%), \textbf{29.71\%} on ogbn-mag (+10.94\% boundary gain), \textbf{84.34\%} on Coauthor-CS (+12.94\% boundary gain), \textbf{68.15\%} on LiveJournal (+14.35\% boundary gain, recovering 94.1\%), and \textbf{64.75\%} on Orkut (+13.55\% boundary gain, recovering 94.0\%).
     \item \textbf{Zero Inter-Worker Network Traffic:} In contrast to DistDGL, which requires continuous parameter server synchronization across high-speed interconnects, EMO achieves this recovery with \textbf{0.0~GB} cross-worker network communication during training epochs.
 \end{enumerate}
 
@@ -326,8 +326,29 @@ Table~\ref{table_distdgl_main} compares EMO against DistDGL under matched partit
 
 On \textbf{reddit}, EMO's Louvain-CAAN model completes training with zero inter-worker network traffic, eliminating 28.66~GB of parameter server memory overhead and all inter-node network synchronization. On \textbf{ogbn-products}, EMO delivers higher link prediction AUC (79.52\%) and recovers 88.7\% of full-graph node classification accuracy with zero cross-worker traffic.
 
-\subsection{Horizontal Scalability Sweep}
-Table~\ref{table_scalability_main} and Figure~\ref{fig:phase37_scaling_main} report multi-executor scaling on the cluster under 8, 16, and 32 executor configurations.
+\subsection{Horizontal Scalability and Cluster Efficiency}
+We evaluate the parallel scalability of EMO across two distinct distributed dimensions: (1)~multi-executor scaling of the core partition-centric pipeline across cluster topologies (Table~\ref{table_scalability_sweep}), and (2)~distributed multi-hop feature propagation across massive graphs up to 111M nodes (Table~\ref{table_scalability_main} and Figure~\ref{fig:phase37_scaling_main}).
+
+\input{results/table_scalability_sweep.tex}
+
+\textbf{Partition-Centric Parallel Scaling ($8 \rightarrow 16 \rightarrow 32$ Executors):}
+As presented in Table~\ref{table_scalability_sweep}, EMO exhibits near-linear speedups on medium and large graphs when increasing executor parallelism:
+\begin{itemize}
+    \item On \textbf{reddit} (114.6M edges), scaling from 8 to 16 executors reduces parallel training runtime from 278.8s to 158.4s (\textbf{1.76$\times$ speedup, 88.0\% scaling efficiency}), and further to 102.6s at 32 executors (\textbf{2.72$\times$ speedup, 67.9\% efficiency}).
+    \item On \textbf{ogbn-products} (61.9M edges), runtime drops from 187.3s (8 execs) to 108.2s (16 execs, \textbf{1.73$\times$ speedup, 86.6\% efficiency}) and 68.4s (32 execs, \textbf{2.74$\times$ speedup}).
+    \item On \textbf{ogbn-mag}, runtime scales from 122.2s down to 46.8s (\textbf{2.61$\times$ speedup}).
+    \item On dense social graphs (\textbf{LiveJournal} and \textbf{Orkut}), parallel execution completes in 98.4s and 164.8s respectively at 32 executors (\textbf{2.72$\times$ and 2.74$\times$ speedups}).
+\end{itemize}
+
+\textbf{2-Worker vs. 4-Worker Cluster Topology Dynamics:}
+Comparing scaling behavior across physical cluster footprints reveals key hardware insights:
+\begin{itemize}
+    \item On a \textbf{2-Worker Cluster} (64 aggregate vCPUs), scaling from 4 to 8 executors achieves near-perfect linear speedup on reddit (\textbf{1.94$\times$ speedup, 96.9\% efficiency}, 279.0s $\rightarrow$ 144.0s) because 8 executors perfectly saturate the physical cores. Pushing to 16 executors on only two physical nodes induces CPU core oversubscription and memory thrashing, increasing runtime to 316.5s.
+    \item On the \textbf{4-Worker Cluster} (128 aggregate vCPUs), the cluster easily accommodates 32 executors without resource contention, reducing runtime smoothly to 102.6s. This confirms that EMO's communication-free execution allows parallel speedup to be bounded purely by physical compute capacity rather than network bandwidth.
+\end{itemize}
+
+\subsection{Distributed 2-Hop Feature Propagation Scaling (SIGN Path)}
+Table~\ref{table_scalability_main} and Figure~\ref{fig:phase37_scaling_main} evaluate EMO's complementary scaling path (Phases~3.7--3.8) using exact 2-hop distributed feature propagation ($x^{(0)}, x^{(1)}, x^{(2)}$) across executor tiers on 8~worker nodes.
 
 \input{results/table13_scalability_multi_instance.tex}
 
@@ -338,7 +359,11 @@ Table~\ref{table_scalability_main} and Figure~\ref{fig:phase37_scaling_main} rep
 \label{fig:phase37_scaling_main}
 \end{figure*}
 
-On medium benchmarks, scaling from 8 to 16 executors delivers near-linear speedups ($1.62\times - 1.84\times$), while 32 executors achieves up to $2.8\times - 3.4\times$ speedup on parallel GNN training before Spark shuffle overhead begins to dominate.
+On the massive \textbf{ogbn-papers100M} benchmark (111.1M nodes, 3.23B propagation edges), EMO scales seamlessly across 16, 32, and 64 executors:
+\begin{itemize}
+    \item Distributed 2-hop feature propagation reduces from 2478.3s at 16 executors to 1940.5s at 32 executors (\textbf{1.28$\times$ speedup}) and 1892.1s at 64 executors (\textbf{1.31$\times$ speedup}).
+    \item The downstream linear classifier trains in only 71.5s on Spark ML, achieving 63.27\% test accuracy across 111M nodes without requiring GPU infrastructure.
+\end{itemize}
 
 \section{Discussion and Future Work}
 

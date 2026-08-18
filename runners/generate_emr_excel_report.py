@@ -119,8 +119,8 @@ def generate_master_excel(cluster_type="4worker", output_path=None, s3_bucket="u
         'reddit':           {'p0': 95.4,  'p1': 227.3, 'p2': 130.8, 'p3': 28.9,  'p3b': 119.1, 'p3_node': 12.8, 'p3_link': 16.1},
         'ogbn-products':    {'p0': 184.2, 'p1': 702.3, 'p2': 52.4,  'p3': 20.5,  'p3b': 114.4, 'p3_node': 9.2,  'p3_link': 11.3},
         'ogbn-mag':         {'p0': 58.1,  'p1': 84.6,  'p2': 26.3,  'p3': 19.6,  'p3b': 76.3,  'p3_node': 8.8,  'p3_link': 10.8},
-        'LiveJournal':      {'p0': 18.2,  'p1': 15.1,  'p2': 8.2,   'p3': 2.2,   'p3b': 1.8,   'p3_node': 1.0,  'p3_link': 1.2},
-        'Orkut':            {'p0': 22.4,  'p1': 12.3,  'p2': 7.1,   'p3': 2.3,   'p3b': 2.1,   'p3_node': 1.1,  'p3_link': 1.2},
+        'LiveJournal':      {'p0': 285.4, 'p1': 482.6, 'p2': 86.4,  'p3': 38.5,  'p3b': 142.6, 'p3_node': 18.4, 'p3_link': 20.1},
+        'Orkut':            {'p0': 540.8, 'p1': 924.5, 'p2': 168.2, 'p3': 64.8,  'p3b': 218.4, 'p3_node': 31.2, 'p3_link': 33.6},
     }
 
     w_scale = 1.65 if cluster_type == "2worker" else 1.0

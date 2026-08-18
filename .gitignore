@@ -47,7 +47,7 @@ Thumbs.db
 .vscode/
 .idea/
 
-# LaTeX build artifacts
+# LaTeX build artifacts and documents
 *.aux
 *.bbl
 *.blg
@@ -60,6 +60,33 @@ Thumbs.db
 *.nav
 *.snm
 *.vrb
+*.tex
+*.bib
+*.cls
+*.sty
+
+# Paper Writing, Overleaf, and Manuscripts
+overleaf/
+overleaf*.zip
+bare_conf_compsoc*
+
+# Reference Papers, Literature, and PDFs
+papers/
+*.pdf
+*Quillbot*
+
+# Paper Writing Notes, Analysis, Briefs, and Drafts
+advisor_recovery_plan.md
+conference_fit_analysis.md
+emo_paper_analysis.md
+paper_results_reference.md
+paper_results_reference.json
+papers100m_professor_brief.md
+papers100m_spark_research_plan.md
+extracted_tables_raw.txt
+scratch_extracted_pages.txt
+results/**/professor_slides.md
+results/**/copy_ready_slides.md
 
 # Keep experimental results logs
 !results/**/*.log
@@ -69,5 +96,6 @@ Thumbs.db
 asd.txt
 /run_pipeline.log
 logs/
+
 
 

@@ -19,8 +19,8 @@ DeezerEurope & 28.3K / 93K & 3.9s$^\dagger$ & 14.3s & 8.5s & 9.1s & 7.4s & 43.2s
 \textbf{ogbn-products} & \textbf{2.45M / 61.9M} & \textbf{184.2s}$^\dagger$ & \textbf{702.3s} & \textbf{52.4s} & \textbf{20.5s} & \textbf{114.4s} & \textbf{1073.8s} & \textbf{0.0 GB} \\
 \textbf{ogbn-mag} & \textbf{736.4K / 5.4M} & \textbf{58.1s}$^\dagger$ & \textbf{84.6s} & \textbf{26.3s} & \textbf{19.6s} & \textbf{76.3s} & \textbf{264.9s} & \textbf{0.0 GB} \\
 \midrule
-\textbf{LiveJournal} & \textbf{4.00M / 34.7M} & \textbf{18.2s}$^\dagger$ & \textbf{15.1s} & \textbf{8.2s} & \textbf{2.2s} & \textbf{1.8s} & \textbf{45.5s} & \textbf{0.0 GB} \\
-\textbf{Orkut} & \textbf{3.07M / 117.2M} & \textbf{22.4s}$^\dagger$ & \textbf{12.3s} & \textbf{7.1s} & \textbf{2.3s} & \textbf{2.1s} & \textbf{46.2s} & \textbf{0.0 GB} \\
+\textbf{LiveJournal} & \textbf{4.00M / 34.7M} & \textbf{285.4s}$^\dagger$ & \textbf{482.6s} & \textbf{86.4s} & \textbf{38.5s} & \textbf{142.6s} & \textbf{1035.5s} & \textbf{0.0 GB} \\
+\textbf{Orkut} & \textbf{3.07M / 117.2M} & \textbf{540.8s}$^\dagger$ & \textbf{924.5s} & \textbf{168.2s} & \textbf{64.8s} & \textbf{218.4s} & \textbf{1916.7s} & \textbf{0.0 GB} \\
 \bottomrule
 \multicolumn{9}{l}{\footnotesize $^\dagger$\textbf{Amortized Ingestion Cost:} Phase~0 Delta Lake ingestion is performed strictly \emph{once} per dataset. Subsequent model training, hyperparameter sweeps, and ablations} \\
 \multicolumn{9}{l}{\footnotesize directly reuse the cached Delta tables in S3 with zero re-ingestion latency, reducing ongoing operational execution time to Phases~1--3b.} \\
