@@ -6,7 +6,7 @@ __pycache__/
 # C extensions
 *.so
 
-# Distribution / packaging
+# Distribution / packaging / archives
 .Python
 build/
 develop-eggs/
@@ -25,6 +25,11 @@ share/python-wheels/
 .installed.cfg
 *.egg
 MANIFEST
+*.zip
+*.tar
+*.tar.gz
+*.tgz
+
 
 # Virtual environments
 .env

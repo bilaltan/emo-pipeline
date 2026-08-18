@@ -14,6 +14,11 @@
 
 set -e
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+REPO_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
+cd "$REPO_DIR"
+
+
 TIMESTAMP=$(date +%Y%m%d_%H%M%S)
 LOG_DIR="logs/experiments_${TIMESTAMP}"
 mkdir -p "$LOG_DIR"
@@ -65,7 +70,7 @@ fi
 echo "► Selected Runner: $RUNNER"
 
 if [[ "$TARGET_SUITE" == "fast" || "$TARGET_SUITE" == "quick" ]]; then
-    exec ./run_single_fast_run.sh
+    exec "$SCRIPT_DIR/run_single_fast_run.sh"
 fi
 
 # ── 2. SUITE 1: Approach 1 - Core Partition-Centric GNN Execution ─────────────

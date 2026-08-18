@@ -7,6 +7,11 @@
 
 set -e
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+REPO_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
+cd "$REPO_DIR"
+
+
 TIMESTAMP=$(date +%Y%m%d_%H%M%S)
 LOG_DIR="logs/single_fast_run_${TIMESTAMP}"
 mkdir -p "$LOG_DIR"

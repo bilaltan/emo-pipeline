@@ -19,6 +19,11 @@
 
 set -e
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+REPO_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
+cd "$REPO_DIR"
+
+
 TARGET="${1:-2worker}"
 NUM_EXECS="${2:-}"
 
@@ -89,7 +94,7 @@ export PYTHONPATH="$LARGE_TMP/.local/lib/$PY_VER/site-packages:$PWD:$PYTHONPATH"
 echo "► Checking Python environment..."
 python3 -c "import torch; import torch_geometric; import igraph; import ogb; import pyarrow; print('  ✓ All essential libraries verified.')" 2>/dev/null || {
     echo "  ⚠️ Missing libraries detected. Running bootstrap setup..."
-    bash ./emr_setup.sh
+    bash "$SCRIPT_DIR/emr_setup.sh"
 }
 
 # Configure Java JVM flags globally for Apache Arrow zero-copy memory access
