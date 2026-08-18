@@ -3,11 +3,11 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="description" content="Technical Deep-Dive: EMO Data Ingestion (Phase 0) & Community Partitioning (Phase 1) with Spark and Delta Lake.">
-  <title>EMO Pipeline Deep-Dive — Phase 0 & Phase 1 Architecture</title>
+  <meta name="description" content="Architecture & Technical Deep-Dive: EMO Data Ingestion (Phase 0) and Multi-Community Partitioning (Phase 1).">
+  <title>EMO Pipeline Architecture — Phase 0 & Phase 1 Deep-Dive</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;600&family=Inter:wght@300;400;500;600;700;800&family=Plus+Jakarta+Sans:wght@600;700;800&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Plus+Jakarta+Sans:wght@600;700;800&display=swap" rel="stylesheet">
   <style>
     :root {
       --bg-primary: #0b0f19;
@@ -29,7 +29,6 @@
       --accent-amber: #f59e0b;
       
       --glow-blue: rgba(59, 130, 246, 0.15);
-      --code-bg: #070a12;
       --radius-sm: 8px;
       --radius-md: 14px;
       --radius-lg: 20px;
@@ -45,7 +44,7 @@
       font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
       background-color: var(--bg-primary);
       color: var(--text-primary);
-      line-height: 1.65;
+      line-height: 1.7;
       padding: 0;
       overflow-x: hidden;
     }
@@ -95,6 +94,7 @@
       font-size: 0.75rem;
       text-transform: uppercase;
       letter-spacing: 0.05em;
+      color: #fff;
     }
 
     nav {
@@ -116,9 +116,9 @@
 
     /* Layout Container */
     .container {
-      max-width: 1200px;
+      max-width: 1160px;
       margin: 0 auto;
-      padding: 3rem 2rem 6rem;
+      padding: 3.5rem 2rem 6rem;
       position: relative;
       z-index: 1;
     }
@@ -126,8 +126,8 @@
     /* Hero Section */
     .hero {
       text-align: center;
-      margin-bottom: 4rem;
-      padding-bottom: 2rem;
+      margin-bottom: 4.5rem;
+      padding-bottom: 2.5rem;
       border-bottom: 1px solid var(--border-color);
     }
 
@@ -147,9 +147,9 @@
 
     .hero h1 {
       font-family: 'Plus Jakarta Sans', sans-serif;
-      font-size: 3rem;
+      font-size: 2.85rem;
       font-weight: 800;
-      line-height: 1.15;
+      line-height: 1.2;
       margin-bottom: 1.25rem;
       background: linear-gradient(135deg, #ffffff 30%, #93c5fd 100%);
       -webkit-background-clip: text;
@@ -165,7 +165,7 @@
 
     /* Section Styles */
     section {
-      margin-bottom: 5rem;
+      margin-bottom: 5.5rem;
       scroll-margin-top: 6rem;
     }
 
@@ -177,13 +177,13 @@
     }
 
     .section-icon {
-      width: 44px;
-      height: 44px;
-      border-radius: var(--radius-sm);
+      width: 48px;
+      height: 48px;
+      border-radius: var(--radius-md);
       display: flex;
       align-items: center;
       justify-content: center;
-      font-size: 1.3rem;
+      font-size: 1.4rem;
       background: var(--bg-tertiary);
       border: 1px solid var(--border-color);
     }
@@ -195,12 +195,78 @@
       color: #fff;
     }
 
+    /* Visual Architecture Diagrams */
+    .diagram-container {
+      background: var(--bg-secondary);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-md);
+      padding: 2.25rem;
+      margin: 2rem 0;
+      overflow-x: auto;
+    }
+
+    .pipeline-flow {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 1rem;
+      min-width: 820px;
+    }
+
+    .flow-step {
+      flex: 1;
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-sm);
+      padding: 1.35rem 1.1rem;
+      text-align: center;
+      position: relative;
+      transition: border-color 0.2s;
+    }
+
+    .flow-step.active {
+      border-color: var(--accent-blue);
+      box-shadow: 0 0 20px var(--glow-blue);
+    }
+
+    .flow-step.purple {
+      border-color: var(--accent-purple);
+      box-shadow: 0 0 20px rgba(139, 92, 246, 0.15);
+    }
+
+    .flow-step.emerald {
+      border-color: var(--accent-emerald);
+      box-shadow: 0 0 20px rgba(16, 185, 129, 0.15);
+    }
+
+    .flow-step h4 {
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      font-size: 0.95rem;
+      font-weight: 700;
+      color: #fff;
+      margin-bottom: 0.35rem;
+    }
+
+    .flow-step span {
+      font-size: 0.75rem;
+      color: var(--accent-cyan);
+      display: block;
+      font-weight: 600;
+      margin-bottom: 0.25rem;
+    }
+
+    .flow-arrow {
+      color: var(--accent-blue);
+      font-size: 1.4rem;
+      font-weight: bold;
+    }
+
     /* Cards Grid */
     .card-grid {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
+      grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
       gap: 1.5rem;
-      margin-bottom: 2rem;
+      margin: 1.75rem 0;
     }
 
     .card {
@@ -220,10 +286,10 @@
 
     .card-title {
       font-family: 'Plus Jakarta Sans', sans-serif;
-      font-size: 1.15rem;
+      font-size: 1.1rem;
       font-weight: 700;
       color: #fff;
-      margin-bottom: 0.75rem;
+      margin-bottom: 0.85rem;
       display: flex;
       align-items: center;
       justify-content: space-between;
@@ -231,115 +297,75 @@
 
     .card p {
       color: var(--text-secondary);
-      font-size: 0.95rem;
+      font-size: 0.93rem;
+      margin-bottom: 0.75rem;
     }
 
-    /* Architecture Visual Diagrams */
-    .diagram-container {
-      background: var(--code-bg);
-      border: 1px solid var(--border-color);
-      border-radius: var(--radius-md);
-      padding: 2rem;
-      margin: 2rem 0;
-      overflow-x: auto;
+    .card ul {
+      list-style-type: none;
+      padding: 0;
     }
 
-    .pipeline-flow {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 1rem;
-      min-width: 780px;
-    }
-
-    .flow-step {
-      flex: 1;
-      background: var(--bg-secondary);
-      border: 1px solid var(--border-color);
-      border-radius: var(--radius-sm);
-      padding: 1.25rem 1rem;
-      text-align: center;
+    .card ul li {
+      color: var(--text-secondary);
+      font-size: 0.88rem;
+      padding-left: 1.25rem;
       position: relative;
+      margin-bottom: 0.5rem;
     }
 
-    .flow-step.active {
-      border-color: var(--accent-blue);
-      box-shadow: 0 0 20px var(--glow-blue);
-    }
-
-    .flow-step h4 {
-      font-size: 0.95rem;
-      font-weight: 700;
-      color: #fff;
-      margin-bottom: 0.35rem;
-    }
-
-    .flow-step span {
-      font-size: 0.75rem;
+    .card ul li::before {
+      content: "•";
       color: var(--accent-cyan);
-      display: block;
-    }
-
-    .flow-arrow {
-      color: var(--accent-blue);
-      font-size: 1.4rem;
+      position: absolute;
+      left: 0;
       font-weight: bold;
     }
 
-    /* Code Blocks */
-    .code-block {
-      background: var(--code-bg);
+    /* Step-by-Step Breakdown List */
+    .step-list {
+      display: flex;
+      flex-direction: column;
+      gap: 1.25rem;
+      margin: 1.75rem 0;
+    }
+
+    .step-item {
+      display: flex;
+      gap: 1.25rem;
+      background: var(--bg-card);
       border: 1px solid var(--border-color);
       border-radius: var(--radius-md);
-      overflow: hidden;
-      margin: 1.5rem 0;
+      padding: 1.5rem;
+      align-items: flex-start;
     }
 
-    .code-header {
-      background: rgba(255, 255, 255, 0.03);
-      padding: 0.75rem 1.25rem;
-      border-bottom: 1px solid var(--border-color);
+    .step-number {
+      width: 38px;
+      height: 38px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, var(--accent-blue), var(--accent-indigo));
       display: flex;
-      justify-content: space-between;
       align-items: center;
-      font-family: 'Fira Code', monospace;
-      font-size: 0.8rem;
-      color: var(--text-secondary);
-    }
-
-    .copy-btn {
-      background: transparent;
-      border: 1px solid var(--border-color);
-      color: var(--text-secondary);
-      padding: 0.3rem 0.7rem;
-      border-radius: var(--radius-sm);
-      font-size: 0.75rem;
-      cursor: pointer;
-      transition: all 0.2s;
-    }
-
-    .copy-btn:hover {
-      background: var(--bg-tertiary);
+      justify-content: center;
+      font-weight: 800;
+      font-size: 0.95rem;
       color: #fff;
-      border-color: var(--accent-blue);
+      flex-shrink: 0;
     }
 
-    pre {
-      padding: 1.25rem 1.5rem;
-      overflow-x: auto;
-      font-family: 'Fira Code', monospace;
-      font-size: 0.88rem;
-      line-height: 1.6;
-      color: #e2e8f0;
+    .step-content h3 {
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      font-size: 1.1rem;
+      font-weight: 700;
+      color: #fff;
+      margin-bottom: 0.4rem;
     }
 
-    /* Syntax Highlighting Classes */
-    .token-kw { color: #f472b6; font-weight: 600; }
-    .token-fn { color: #60a5fa; }
-    .token-str { color: #34d399; }
-    .token-num { color: #fbbf24; }
-    .token-cm { color: #64748b; font-style: italic; }
-    .token-type { color: #a78bfa; }
+    .step-content p {
+      color: var(--text-secondary);
+      font-size: 0.92rem;
+    }
 
     /* Tables */
     .table-container {
@@ -358,7 +384,7 @@
     }
 
     th, td {
-      padding: 1rem 1.25rem;
+      padding: 1.1rem 1.35rem;
       border-bottom: 1px solid var(--border-color);
     }
 
@@ -382,11 +408,10 @@
 
     .badge {
       display: inline-block;
-      padding: 0.2rem 0.5rem;
+      padding: 0.25rem 0.6rem;
       border-radius: 4px;
-      font-size: 0.75rem;
+      font-size: 0.78rem;
       font-weight: 600;
-      font-family: 'Fira Code', monospace;
     }
 
     .badge-blue { background: rgba(59, 130, 246, 0.15); color: #60a5fa; border: 1px solid rgba(59, 130, 246, 0.3); }
@@ -399,8 +424,8 @@
       border-left: 4px solid var(--accent-blue);
       background: rgba(59, 130, 246, 0.08);
       border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
-      padding: 1.25rem 1.5rem;
-      margin: 1.5rem 0;
+      padding: 1.35rem 1.6rem;
+      margin: 1.75rem 0;
     }
 
     .callout.amber {
@@ -413,10 +438,17 @@
       background: rgba(16, 185, 129, 0.08);
     }
 
+    .callout.purple {
+      border-left-color: var(--accent-purple);
+      background: rgba(139, 92, 246, 0.08);
+    }
+
     .callout-title {
+      font-family: 'Plus Jakarta Sans', sans-serif;
       font-weight: 700;
       color: #fff;
-      margin-bottom: 0.35rem;
+      font-size: 1rem;
+      margin-bottom: 0.4rem;
       display: flex;
       align-items: center;
       gap: 0.5rem;
@@ -436,6 +468,8 @@
       .hero h1 { font-size: 2.1rem; }
       .container { padding: 2rem 1rem; }
       nav { display: none; }
+      .pipeline-flow { flex-direction: column; min-width: unset; }
+      .flow-arrow { transform: rotate(90deg); margin: 0.5rem 0; }
     }
   </style>
 </head>
@@ -447,14 +481,14 @@
   <header>
     <div class="brand">
       <span>⚡ EMO</span>
-      <span class="brand-badge">Architecture Guide</span>
+      <span class="brand-badge">Architecture Blueprint</span>
     </div>
     <nav>
       <a href="#phase0">Phase 0: Delta Ingestion</a>
-      <a href="#symmetrization">Distributed Symmetrization</a>
-      <a href="#phase1-lpa">Phase 1: Spark LPA</a>
+      <a href="#symmetrization">Zero-RAM Symmetrization</a>
+      <a href="#phase1-lpa">Phase 1: Distributed LPA</a>
       <a href="#phase1-louvain">Phase 1: Driver Louvain</a>
-      <a href="#comparison">Comparison Matrix</a>
+      <a href="#matrix">Comparison Matrix</a>
     </nav>
   </header>
 
@@ -463,12 +497,12 @@
     <!-- Hero -->
     <section class="hero">
       <div class="hero-eyebrow">
-        <span>⚙️ Execution Deep-Dive</span>
+        <span>⚙️ Systems Architecture Blueprint</span>
         <span>•</span>
-        <span>Apache Spark + Delta Lake + PyG</span>
+        <span>Apache Spark + Delta Lake + Cloud Storage</span>
       </div>
-      <h1>EMO Phase 0 & Phase 1<br>Technical Architecture</h1>
-      <p>A comprehensive walkthrough of transactional data lake ingestion (Phase 0), distributed zero-RAM graph symmetrization, and multi-community partitioning via Spark LPA & driver-side Louvain (Phase 1).</p>
+      <h1>EMO Phase 0 & Phase 1<br>System Mechanics & Execution Flow</h1>
+      <p>A detailed architectural breakdown of transactional data lake ingestion (Phase 0), distributed zero-driver-RAM graph symmetrization, and multi-community discovery via Spark LPA & driver-accelerated Louvain (Phase 1).</p>
     </section>
 
     <!-- Phase 0: Data Loading & Graph Ingestion -->
@@ -476,13 +510,13 @@
       <div class="section-header">
         <div class="section-icon">📥</div>
         <div>
-          <h2>Part 1: Phase 0 — Data Loading & Graph Ingestion</h2>
-          <p style="color: var(--text-secondary); font-size: 0.95rem;">Transactional Delta Lake storage and memory-safe streaming on Amazon S3</p>
+          <h2>Part 1: Phase 0 — Data Loading & Transactional Ingestion</h2>
+          <p style="color: var(--text-secondary); font-size: 0.95rem;">Streaming raw graph topologies into transactional Delta Lake tables on Amazon S3</p>
         </div>
       </div>
 
       <p style="color: var(--text-secondary); margin-bottom: 1.5rem;">
-        Phase 0 transforms raw graph data from SNAP, OGB, and PyG into five ACID-compliant <strong>Delta Lake tables</strong> on S3. Storing graphs as columnar Delta tables ensures phase-level checkpoint reuse, ACID transaction logs, and prevents worker out-of-memory errors during downstream training.
+        Phase 0 transforms raw, unstructured graph data (from SNAP, OGB, and PyG) into five ACID-compliant <strong>Delta Lake tables</strong> on S3. Materializing the graph as columnar Delta tables enables phase-level checkpoint reuse, ACID transaction logs, partition pruning, and prevents driver/worker memory exhaustion.
       </p>
 
       <!-- Delta Schemas Table -->
@@ -490,36 +524,36 @@
         <table>
           <thead>
             <tr>
-              <th>Delta Table Path</th>
+              <th>Delta Table</th>
               <th>Schema Definition</th>
-              <th>Description & Role in Pipeline</th>
+              <th>Role & Downstream Usage</th>
             </tr>
           </thead>
           <tbody>
             <tr>
               <td><span class="badge badge-blue">original_nodes</span></td>
-              <td><code>id: Long, label: Int, features: Array[Float]</code></td>
-              <td>Raw unmodified node features and labels streamed directly from source.</td>
+              <td><code>id (Long), label (Int), features (Array[Float])</code></td>
+              <td>Raw node records and feature arrays streamed directly from source archives.</td>
             </tr>
             <tr>
               <td><span class="badge badge-emerald">nodes</span></td>
-              <td><code>id: Long, label: Int, features: Array[Float]</code></td>
-              <td>Distributed copy partitioned for optimal SQL join locality.</td>
+              <td><code>id (Long), label (Int), features (Array[Float])</code></td>
+              <td>Distributed copy optimized for relational joins and partition-level slicing.</td>
             </tr>
             <tr>
               <td><span class="badge badge-purple">original_edges</span></td>
-              <td><code>src: Long, dst: Long</code></td>
-              <td>Raw directed edge list exactly as provided by the dataset source.</td>
+              <td><code>src (Long), dst (Long)</code></td>
+              <td>Raw directed edge list as provided by the original dataset repository.</td>
             </tr>
             <tr>
               <td><span class="badge badge-amber">edges</span></td>
-              <td><code>src: Long, dst: Long</code></td>
-              <td><strong>Undirected, deduplicated, self-loop-free canonical graph</strong>.</td>
+              <td><code>src (Long), dst (Long)</code></td>
+              <td><strong>Undirected, deduplicated, self-loop-free canonical graph</strong> used in training.</td>
             </tr>
             <tr>
               <td><span class="badge badge-blue">masks</span></td>
-              <td><code>id: Long, split: String</code></td>
-              <td>Official OGB or stratified masks (<code>'train'</code>, <code>'valid'</code>, <code>'test'</code>).</td>
+              <td><code>id (Long), split (String)</code></td>
+              <td>Global train, validation, and test split assignments (<code>'train'</code>, <code>'valid'</code>, <code>'test'</code>).</td>
             </tr>
           </tbody>
         </table>
@@ -533,54 +567,41 @@
             <span class="badge badge-blue">Disk Safety</span>
           </div>
           <p>
-            Scans all candidate EBS mounts (<code>/mnt/tmp</code>, <code>/mnt/spark</code>) to redirect huge temporary dumps and caches away from the 15GB root volume, eliminating EMR Driver disk crashes.
+            Dynamically scans all candidate EBS mount points (e.g. <code>/mnt/tmp</code>, <code>/mnt/spark</code>) to redirect large dataset archives and scratch files away from the 15GB root volume, eliminating AWS EMR Driver disk crashes.
           </p>
+          <ul>
+            <li>Prevents root partition out-of-space crashes</li>
+            <li>Automatically prioritizes volumes with highest free capacity</li>
+          </ul>
         </div>
 
         <div class="card">
           <div class="card-title">
-            <span>Memory-Mapped Numpy Reads</span>
+            <span>Memory-Mapped Ingestion</span>
             <span class="badge badge-emerald">Zero-Heap</span>
           </div>
           <p>
-            Uses <code>mmap_mode='r'</code> to access multi-gigabyte feature arrays (e.g. 111M-node papers100M) without allocating memory on the Python or JVM heap.
+            Employs memory-mapped reading (<code>mmap</code>) on multi-gigabyte feature arrays (e.g. 111M-node papers100M). Operating system virtual memory pages data on demand without filling the JVM or Python heap.
           </p>
+          <ul>
+            <li>Zero Java garbage collection pauses</li>
+            <li>Enables processing billion-edge graphs on modest driver memory</li>
+          </ul>
         </div>
 
         <div class="card">
           <div class="card-title">
-            <span>Chunked Micro-Batch Streaming</span>
+            <span>Chunked Micro-Batching</span>
             <span class="badge badge-purple">Streaming</span>
           </div>
           <p>
-            Streams nodes in <code>200,000</code>-row batches and edges in <code>2,500,000</code>-row batches to S3 Delta Lake via PySpark DataFrame appends, ensuring fixed bounded RAM.
+            Streams nodes in batches of 200,000 rows and edges in batches of 2,500,000 rows directly into S3 Delta tables via Spark appends, keeping executor RAM completely bounded.
           </p>
+          <ul>
+            <li>Fixed memory footprint regardless of total dataset size</li>
+            <li>Direct transactional append to S3 storage</li>
+          </ul>
         </div>
-      </div>
-
-      <!-- Code Snippet: Node Streaming -->
-      <div class="code-block">
-        <div class="code-header">
-          <span>phases/phase0_ingestion.py — Chunked Node Streaming to Delta Lake</span>
-          <button class="copy-btn" onclick="copyCode(this)">Copy</button>
-        </div>
-        <pre><code><span class="token-cm"># Define explicit Spark schema with Float Array feature vectors</span>
-ns = <span class="token-type">StructType</span>([
-    <span class="token-type">StructField</span>(<span class="token-str">'id'</span>, <span class="token-type">LongType</span>(), <span class="token-kw">False</span>),
-    <span class="token-type">StructField</span>(<span class="token-str">'label'</span>, <span class="token-type">IntegerType</span>(), <span class="token-kw">True</span>),
-    <span class="token-type">StructField</span>(<span class="token-str">'features'</span>, <span class="token-type">ArrayType</span>(<span class="token-type">FloatType</span>()), <span class="token-kw">True</span>)
-])
-
-CHUNK = <span class="token-num">200000</span>
-<span class="token-kw">for</span> s <span class="token-kw">in</span> <span class="token-fn">range</span>(<span class="token-num">0</span>, n_nodes, CHUNK):
-    e = <span class="token-fn">min</span>(s + CHUNK, n_nodes)
-    pdf_nodes = pd.<span class="token-type">DataFrame</span>({
-        <span class="token-str">'id'</span>: np.<span class="token-fn">arange</span>(s, e, dtype=np.int64),
-        <span class="token-str">'label'</span>: np.<span class="token-fn">nan_to_num</span>(lbl[s:e], nan=-<span class="token-num">1</span>).<span class="token-fn">astype</span>(np.int32),
-        <span class="token-str">'features'</span>: node_feat[s:e].<span class="token-fn">tolist</span>()
-    })
-    df_node = spark.<span class="token-fn">createDataFrame</span>(pdf_nodes, schema=ns)
-    df_node.write.<span class="token-fn">format</span>(<span class="token-str">'delta'</span>).<span class="token-fn">mode</span>(<span class="token-str">'overwrite'</span> <span class="token-kw">if</span> s == <span class="token-num">0</span> <span class="token-kw">else</span> <span class="token-str">'append'</span>).<span class="token-fn">save</span>(p[<span class="token-str">'original_nodes'</span>])</code></pre>
       </div>
 
       <!-- Symmetrization Deep-Dive -->
@@ -588,26 +609,32 @@ CHUNK = <span class="token-num">200000</span>
         <div class="callout-title">
           <span>🔄 Zero-Driver-RAM Graph Symmetrization & Deduplication</span>
         </div>
-        <p style="color: var(--text-secondary); font-size: 0.95rem;">
-          To construct undirected canonical edges without pulling 1.6 Billion edges to driver memory, Phase 0 performs a distributed self-union and deduplication directly inside Spark across YARN worker executors:
+        <p style="color: var(--text-secondary); font-size: 0.95rem; margin-bottom: 0.75rem;">
+          To construct the canonical undirected graph without collecting billions of edges to driver RAM, Phase 0 performs a distributed self-union and deduplication directly inside Spark across YARN worker executors:
         </p>
-      </div>
-
-      <div class="code-block">
-        <div class="code-header">
-          <span>phases/phase0_ingestion.py — Distributed Spark Edge Symmetrization</span>
-          <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+        <div class="step-list" style="margin-top: 1rem;">
+          <div class="step-item">
+            <div class="step-number">1</div>
+            <div class="step-content">
+              <h3>Reverse Directed Edges in Parallel</h3>
+              <p>Generates an inverted view of the <code>original_edges</code> table (swapping destination to source and source to destination) as a purely distributed Spark SQL projection.</p>
+            </div>
+          </div>
+          <div class="step-item">
+            <div class="step-number">2</div>
+            <div class="step-content">
+              <h3>Union, Filter Self-Loops & Deduplicate</h3>
+              <p>Performs a distributed union of original and reversed edges, eliminates trivial self-loops (<code>src == dst</code>), and executes a distributed hash-based deduplication across YARN workers.</p>
+            </div>
+          </div>
+          <div class="step-item">
+            <div class="step-number">3</div>
+            <div class="step-content">
+              <h3>Transactional Materialization</h3>
+              <p>Writes the final canonical <code>edges</code> table directly to Amazon S3 in columnar Delta format, ready for community partitioning in Phase 1.</p>
+            </div>
+          </div>
         </div>
-        <pre><code>orig_df = spark.read.<span class="token-fn">format</span>(<span class="token-str">'delta'</span>).<span class="token-fn">load</span>(p[<span class="token-str">'original_edges'</span>])
-
-<span class="token-cm"># 1. Generate reversed edges (dst -> src)</span>
-rev_df = orig_df.<span class="token-fn">selectExpr</span>(<span class="token-str">"dst as src"</span>, <span class="token-str">"src as dst"</span>)
-
-<span class="token-cm"># 2. Union, filter out self-loops, and deduplicate across executors</span>
-sym_df = orig_df.<span class="token-fn">union</span>(rev_df).<span class="token-fn">filter</span>(<span class="token-str">"src != dst"</span>).<span class="token-fn">dropDuplicates</span>([<span class="token-str">"src"</span>, <span class="token-str">"dst"</span>])
-
-<span class="token-cm"># 3. Write directly to S3 Delta Lake</span>
-sym_df.write.<span class="token-fn">format</span>(<span class="token-str">'delta'</span>).<span class="token-fn">mode</span>(<span class="token-str">'overwrite'</span>).<span class="token-fn">save</span>(p[<span class="token-str">'edges'</span>])</code></pre>
       </div>
     </section>
 
@@ -616,152 +643,133 @@ sym_df.write.<span class="token-fn">format</span>(<span class="token-str">'delta
       <div class="section-header">
         <div class="section-icon">🧩</div>
         <div>
-          <h2>Part 2: Phase 1 — Community Detection (LPA vs. Louvain)</h2>
-          <p style="color: var(--text-secondary); font-size: 0.95rem;">Partitioning topologies into dense, modular training subgraphs</p>
+          <h2>Part 2: Phase 1 — Community Discovery (LPA vs. Louvain)</h2>
+          <p style="color: var(--text-secondary); font-size: 0.95rem;">Partitioning global graph topologies into dense, modular training subgraphs</p>
         </div>
       </div>
 
       <p style="color: var(--text-secondary); margin-bottom: 2rem;">
-        Phase 1 groups vertices into modular communities so executors can train independently without network parameter synchronization. EMO provides two primary algorithms: <strong>Distributed LPA</strong> on Spark workers and <strong>Driver-Side Louvain / Leiden</strong> in C via <code>igraph</code>.
+        Phase 1 groups vertices into modular communities so executors can train independently without inter-worker network synchronization. EMO supports two primary strategies: <strong>Distributed LPA</strong> across Spark worker executors and <strong>Driver-Side Louvain / Leiden</strong> in C via <code>igraph</code>.
       </p>
 
-      <!-- Diagram of LPA vs Louvain -->
+      <!-- Flowchart Diagram -->
       <div class="diagram-container">
         <div class="pipeline-flow">
           <div class="flow-step active">
-            <span>Distributed Spark Track</span>
+            <span>Option A: Distributed Track</span>
             <h4>Label Propagation (LPA)</h4>
-            <p style="font-size: 0.78rem; color: var(--text-muted);">Iterative Relational Joins on YARN</p>
+            <p style="font-size: 0.8rem; color: var(--text-muted); margin-top: 0.35rem;">Iterative Relational Joins & Majority Voting on Spark YARN</p>
           </div>
           <div class="flow-arrow">⚡</div>
-          <div class="flow-step">
-            <span>Driver C-Speed Track</span>
+          <div class="flow-step purple">
+            <span>Option B: Driver C-Speed Track</span>
             <h4>Louvain Modularity</h4>
-            <p style="font-size: 0.78rem; color: var(--text-muted);">Vectorized Binary Search & igraph</p>
+            <p style="font-size: 0.8rem; color: var(--text-muted); margin-top: 0.35rem;">Half-Edge Filter & Vectorized Binary Search in C igraph</p>
           </div>
           <div class="flow-arrow">⚡</div>
-          <div class="flow-step">
-            <span>Final Delta Output</span>
-            <h4>communities/{alg}</h4>
-            <p style="font-size: 0.78rem; color: var(--text-muted);">[id: Long, community_id: Long]</p>
+          <div class="flow-step emerald">
+            <span>Output Materialization</span>
+            <h4>communities/{alg}/</h4>
+            <p style="font-size: 0.8rem; color: var(--text-muted); margin-top: 0.35rem;">Transactional S3 Delta Lake Checkpoint</p>
           </div>
         </div>
       </div>
 
       <!-- Section: Distributed LPA -->
-      <div id="phase1-lpa">
-        <h3 style="color: #fff; margin: 2rem 0 1rem; font-family: 'Plus Jakarta Sans', sans-serif;">1. Distributed Label Propagation on Spark Workers</h3>
-        <p style="color: var(--text-secondary); margin-bottom: 1rem;">
+      <div id="phase1-lpa" style="margin-top: 3rem;">
+        <h3 style="color: #fff; margin-bottom: 1rem; font-family: 'Plus Jakarta Sans', sans-serif; font-size: 1.35rem;">1. Distributed Label Propagation on Spark Workers</h3>
+        <p style="color: var(--text-secondary); margin-bottom: 1.25rem;">
           LPA runs in parallel across all cluster nodes. In each iteration, nodes broadcast their current community label across connected edges, and each node adopts the majority label proposed by its neighbors.
         </p>
 
-        <div class="code-block">
-          <div class="code-header">
-            <span>phases/phase1_community.py — Distributed LPA Inner Loop</span>
-            <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+        <div class="step-list">
+          <div class="step-item">
+            <div class="step-number">1</div>
+            <div class="step-content">
+              <h3>Vertex State Initialization</h3>
+              <p>Each vertex is initialized with its own node ID as its community label (<code>community_id = id</code>) and repartitioned across executor partitions (112 or 336 partitions depending on graph scale).</p>
+            </div>
           </div>
-          <pre><code><span class="token-cm"># 1. Initialize node states (community_id = id)</span>
-curr = nodes_df.<span class="token-fn">select</span>(<span class="token-str">'id'</span>).<span class="token-fn">withColumn</span>(<span class="token-str">'community_id'</span>, F.<span class="token-fn">col</span>(<span class="token-str">'id'</span>)).<span class="token-fn">repartition</span>(num_parts).<span class="token-fn">cache</span>()
-
-<span class="token-kw">for</span> i <span class="token-kw">in</span> <span class="token-fn">range</span>(lpa_max_iter):
-    curr_rename = curr.<span class="token-fn">withColumnRenamed</span>(<span class="token-str">'id'</span>, <span class="token-str">'src'</span>).<span class="token-fn">withColumnRenamed</span>(<span class="token-str">'community_id'</span>, <span class="token-str">'src_comm'</span>)
-    
-    <span class="token-cm"># 2. Join with edges to pass community labels from source to destination</span>
-    proposed = edges_df.<span class="token-fn">join</span>(curr_rename, on=<span class="token-str">'src'</span>, how=<span class="token-str">'inner'</span>) \
-                       .<span class="token-fn">select</span>(F.<span class="token-fn">col</span>(<span class="token-str">'dst'</span>).<span class="token-fn">alias</span>(<span class="token-str">'id'</span>), F.<span class="token-fn">col</span>(<span class="token-str">'src_comm'</span>).<span class="token-fn">alias</span>(<span class="token-str">'proposed_comm'</span>))
-    
-    <span class="token-cm"># 3. Frequency aggregation & mode label selection</span>
-    freq = proposed.<span class="token-fn">groupBy</span>(<span class="token-str">'id'</span>, <span class="token-str">'proposed_comm'</span>).<span class="token-fn">count</span>()
-    best = freq.<span class="token-fn">select</span>(<span class="token-str">'id'</span>, F.<span class="token-fn">struct</span>(<span class="token-str">'count'</span>, <span class="token-str">'proposed_comm'</span>).<span class="token-fn">alias</span>(<span class="token-str">'c_info'</span>)) \
-               .<span class="token-fn">groupBy</span>(<span class="token-str">'id'</span>).<span class="token-fn">agg</span>(F.<span class="token-fn">max</span>(<span class="token-str">'c_info'</span>).<span class="token-fn">alias</span>(<span class="token-str">'best_info'</span>)) \
-               .<span class="token-fn">select</span>(<span class="token-str">'id'</span>, F.<span class="token-fn">col</span>(<span class="token-str">'best_info.proposed_comm'</span>).<span class="token-fn">alias</span>(<span class="token-str">'new_comm'</span>))
-    
-    <span class="token-cm"># 4. Truncate Spark Catalyst lineage via local checkpoint every 2 iterations</span>
-    curr = curr.<span class="token-fn">join</span>(best, on=<span class="token-str">'id'</span>, how=<span class="token-str">'left'</span>) \
-               .<span class="token-fn">withColumn</span>(<span class="token-str">'community_id'</span>, F.<span class="token-fn">coalesce</span>(F.<span class="token-fn">col</span>(<span class="token-str">'new_comm'</span>), F.<span class="token-fn">col</span>(<span class="token-str">'community_id'</span>))) \
-               .<span class="token-fn">select</span>(<span class="token-str">'id'</span>, <span class="token-str">'community_id'</span>).<span class="token-fn">repartition</span>(num_parts)
-    
-    <span class="token-kw">if</span> i % <span class="token-num">2</span> == <span class="token-num">1</span>:
-        curr = curr.<span class="token-fn">localCheckpoint</span>()
-    <span class="token-kw">else</span>:
-        curr = curr.<span class="token-fn">cache</span>()</code></pre>
+          <div class="step-item">
+            <div class="step-number">2</div>
+            <div class="step-content">
+              <h3>Label Propagation via Inner Join</h3>
+              <p>Executes an inner join between the canonical <code>edges</code> table and vertex states, mapping the source node's current community label across each edge to the destination node.</p>
+            </div>
+          </div>
+          <div class="step-item">
+            <div class="step-number">3</div>
+            <div class="step-content">
+              <h3>Frequency Aggregation & Mode Selection</h3>
+              <p>Groups proposed labels by vertex ID, tallies neighborhood label frequencies, and selects the majority community label via maximum frequency reduction.</p>
+            </div>
+          </div>
+          <div class="step-item">
+            <div class="step-number">4</div>
+            <div class="step-content">
+              <h3>Lineage Truncation via Local Checkpoints</h3>
+              <p>Invokes <code>localCheckpoint()</code> every 2 iterations to truncate Spark's Catalyst optimizer execution graph, preventing long RDD lineage trees and eliminating JVM StackOverflow errors.</p>
+            </div>
+          </div>
         </div>
       </div>
 
       <!-- Section: Driver-Side Louvain -->
       <div id="phase1-louvain" style="margin-top: 3.5rem;">
-        <h3 style="color: #fff; margin-bottom: 1rem; font-family: 'Plus Jakarta Sans', sans-serif;">2. Driver-Side Louvain & Fast ID Remapping</h3>
-        <p style="color: var(--text-secondary); margin-bottom: 1rem;">
-          To achieve higher community modularity, EMO collects the canonical edges into the Driver memory and executes C-accelerated Louvain multilevel partitioning using <code>igraph</code>:
+        <h3 style="color: #fff; margin-bottom: 1rem; font-family: 'Plus Jakarta Sans', sans-serif; font-size: 1.35rem;">2. Driver-Side Louvain & Fast ID Remapping</h3>
+        <p style="color: var(--text-secondary); margin-bottom: 1.25rem;">
+          While distributed LPA scales to massive graphs, it can suffer from label oscillation and over-fragmentation. <strong>Louvain modularity optimization</strong> on driver memory is EMO's default algorithm for creating high-modularity, balanced subgraphs.
         </p>
 
-        <div class="card-grid" style="margin: 1.5rem 0;">
-          <div class="card">
-            <div class="card-title">
-              <span>1. Half-Edge Filter</span>
-              <span class="badge badge-amber">50% Memory</span>
-            </div>
-            <p>
-              Applies <code>src &lt; dst</code> filter in Spark before <code>.toPandas()</code>. Because the graph is undirected, this cuts transfer memory exactly in half.
-            </p>
+        <div class="callout purple">
+          <div class="callout-title">
+            <span>🧠 How the Entire Graph is Collected & Processed on the Driver</span>
           </div>
-
-          <div class="card">
-            <div class="card-title">
-              <span>2. Vectorized Binary Search</span>
-              <span class="badge badge-blue">O(E log V)</span>
-            </div>
-            <p>
-              Uses <code>np.searchsorted</code> on unique vertex IDs to map arbitrary 64-bit sparse node IDs to dense <code>0..V-1</code> integers in C without Python loop overhead.
-            </p>
-          </div>
+          <p style="color: var(--text-secondary); font-size: 0.95rem; margin-bottom: 0.75rem;">
+            Collecting a full graph into driver memory requires careful optimization to avoid memory blowups and slow Python loops:
+          </p>
         </div>
 
-        <div class="code-block">
-          <div class="code-header">
-            <span>phases/phase1_community.py — Driver Louvain Collection & ID Mapping</span>
-            <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+        <div class="step-list">
+          <div class="step-item">
+            <div class="step-number">1</div>
+            <div class="step-content">
+              <h3>Half-Edge Filter (<code>src &lt; dst</code>)</h3>
+              <p>Because the graph is undirected, every undirected edge $(u, v)$ is stored as two directed rows in Delta Lake. Phase 1 applies a <code>src &lt; dst</code> filter before collecting to Pandas, transferring exactly <strong>50% fewer edge records</strong> across the network into driver RAM.</p>
+            </div>
           </div>
-          <pre><code><span class="token-cm"># 1. Collect only canonical upper-triangle edges to driver RAM</span>
-edges_pd = (edges_df
-            .<span class="token-fn">filter</span>(F.<span class="token-fn">col</span>(<span class="token-str">'src'</span>) < F.<span class="token-fn">col</span>(<span class="token-str">'dst'</span>))
-            .<span class="token-fn">select</span>(F.<span class="token-fn">col</span>(<span class="token-str">'src'</span>).<span class="token-fn">alias</span>(<span class="token-str">'u'</span>), F.<span class="token-fn">col</span>(<span class="token-str">'dst'</span>).<span class="token-fn">alias</span>(<span class="token-str">'v'</span>))
-            .<span class="token-fn">toPandas</span>())
-
-<span class="token-cm"># 2. Vectorized C-speed ID remapping via NumPy binary search</span>
-all_nids = np.<span class="token-fn">union1d</span>(edges_pd[<span class="token-str">'u'</span>].values, edges_pd[<span class="token-str">'v'</span>].values)
-u_mapped = np.<span class="token-fn">searchsorted</span>(all_nids, edges_pd[<span class="token-str">'u'</span>].values)
-v_mapped = np.<span class="token-fn">searchsorted</span>(all_nids, edges_pd[<span class="token-str">'v'</span>].values)
-
-<span class="token-cm"># 3. Build native igraph and run Louvain multilevel optimization</span>
-el = <span class="token-fn">zip</span>(u_mapped, v_mapped)
-G = ig.<span class="token-type">Graph</span>(n=<span class="token-fn">len</span>(all_nids), edges=el, directed=<span class="token-kw">False</span>)
-partition = G.<span class="token-fn">community_multilevel</span>(resolution=resolution)
-
-<span class="token-cm"># 4. Map back to original 64-bit global IDs and parallelize back to Delta</span>
-id_to_comm = {}
-<span class="token-kw">for</span> ci, members <span class="token-kw">in</span> <span class="token-fn">enumerate</span>(partition):
-    <span class="token-kw">for</span> li <span class="token-kw">in</span> members:
-        id_to_comm[<span class="token-fn">int</span>(all_nids[li])] = ci
-
-comm_rows = <span class="token-fn">list</span>(id_to_comm.<span class="token-fn">items</span>())
-cschema = <span class="token-type">StructType</span>([
-    <span class="token-type">StructField</span>(<span class="token-str">'id'</span>, <span class="token-type">LongType</span>(), <span class="token-kw">False</span>),
-    <span class="token-type">StructField</span>(<span class="token-str">'community_id'</span>, <span class="token-type">LongType</span>(), <span class="token-kw">False</span>)
-])
-communities_df = spark.sparkContext.<span class="token-fn">parallelize</span>(comm_rows).<span class="token-fn">toDF</span>(cschema).<span class="token-fn">cache</span>()
-communities_df.write.<span class="token-fn">format</span>(<span class="token-str">'delta'</span>).<span class="token-fn">mode</span>(<span class="token-str">'overwrite'</span>).<span class="token-fn">save</span>(p_alg[<span class="token-str">'communities'</span>])</code></pre>
+          <div class="step-item">
+            <div class="step-number">2</div>
+            <div class="step-content">
+              <h3>Vectorized Binary Search ID Remapping ($O(E \log V)$)</h3>
+              <p>C-accelerated graph engines (like <code>igraph</code>) require contiguous 0-indexed integer vertex IDs (<code>[0, 1, ..., V-1]</code>). EMO eliminates slow Python hash-map loops by using NumPy's vectorized C-level binary search (<code>np.searchsorted</code>) to remap millions of sparse 64-bit IDs in milliseconds.</p>
+            </div>
+          </div>
+          <div class="step-item">
+            <div class="step-number">3</div>
+            <div class="step-content">
+              <h3>C-Accelerated Louvain Modularity Execution</h3>
+              <p>Instantiates an <code>igraph</code> C-data structure and optimizes modularity with resolution parameter $\gamma = 1.0$, grouping nodes into dense subgraphs that maximize internal edge density over boundary edges.</p>
+            </div>
+          </div>
+          <div class="step-item">
+            <div class="step-number">4</div>
+            <div class="step-content">
+              <h3>Global ID Re-Mapping & Delta Persistence</h3>
+              <p>Maps partition assignments back to original global 64-bit node IDs, parallelizes the result as a Spark DataFrame, and saves it transactionally to <code>communities/louvain/</code> in Delta Lake on S3.</p>
+            </div>
+          </div>
         </div>
       </div>
     </section>
 
     <!-- Comparison Matrix -->
-    <section id="comparison">
+    <section id="matrix">
       <div class="section-header">
         <div class="section-icon">📊</div>
         <div>
           <h2>Part 3: Architecture & Memory Strategy Matrix</h2>
-          <p style="color: var(--text-secondary); font-size: 0.95rem;">Comparative summary across Phase 0 and Phase 1 approaches</p>
+          <p style="color: var(--text-secondary); font-size: 0.95rem;">Side-by-side comparison across Phase 0 ingestion and Phase 1 partitioning</p>
         </div>
       </div>
 
@@ -783,20 +791,20 @@ communities_df.write.<span class="token-fn">format</span>(<span class="token-str
               <td><span class="badge badge-emerald">Driver C igraph</span></td>
             </tr>
             <tr>
-              <td><strong>Driver Memory</strong></td>
-              <td>Bounded (~200MB)</td>
+              <td><strong>Driver Memory Footprint</strong></td>
+              <td>Bounded (~200MB) via chunking</td>
               <td>Negligible (Coordination only)</td>
               <td>Proportional to $|E|/2$ + $|V|$</td>
             </tr>
             <tr>
-              <td><strong>Lineage Handling</strong></td>
-              <td>Append batching</td>
+              <td><strong>Lineage Management</strong></td>
+              <td>Micro-batch append mode</td>
               <td><code>localCheckpoint()</code> every 2 iters</td>
               <td>Single RDD parallelize</td>
             </tr>
             <tr>
               <td><strong>Partition Quality</strong></td>
-              <td>N/A (Schema creation)</td>
+              <td>N/A (Dataset staging)</td>
               <td>Moderate (Fast convergence)</td>
               <td><strong>High Modularity (Optimal GNN subgraphs)</strong></td>
             </tr>
@@ -814,25 +822,8 @@ communities_df.write.<span class="token-fn">format</span>(<span class="token-str
   </main>
 
   <footer>
-    <p>EMO: Executor-level Multi-community Orchestrator &bull; Scalable GRL on Cloud Data Lakes</p>
+    <p>EMO: Executor-level Multi-community Orchestrator &bull; Scalable Graph Representation Learning on Cloud Data Lakes</p>
   </footer>
 
-  <script>
-    function copyCode(btn) {
-      const codeBlock = btn.closest('.code-block').querySelector('pre code');
-      const text = codeBlock.innerText;
-      navigator.clipboard.writeText(text).then(() => {
-        const originalText = btn.innerText;
-        btn.innerText = 'Copied!';
-        btn.style.color = '#34d399';
-        btn.style.borderColor = '#34d399';
-        setTimeout(() => {
-          btn.innerText = originalText;
-          btn.style.color = '';
-          btn.style.borderColor = '';
-        }, 2000);
-      });
-    }
-  </script>
 </body>
 </html>
