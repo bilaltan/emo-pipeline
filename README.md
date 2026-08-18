@@ -25,20 +25,24 @@
 
 ## 🏗️ System Architecture & Pipeline Phases
 
-```
-┌──────────────────────────────────────────────────────────────────────────────────────────┐
-│                                 EMO Pipeline Lifecycle                                   │
-└──────────────────────────────────────────────────────────────────────────────────────────┘
-  Phase 0: Delta Ingestion  ──►  Phase 1: Community Detection  ──►  Phase 2: Subgraph Extract
-  [Transactional S3 Tables]       [Louvain / LPA / METIS]           [Boundary & Adjacency]
-              │
-              ▼
-  Phase 3: Decoupled GNNs   ──►  Phase 3b: CAAN Context        ──►  Phase 3.7: SIGN Propagation
-  [Local PyG Training]            [Super-node Compression]          [Multi-hop Spark SQL]
-              │
-              ▼
-  Phase 4: Baselines        ──►  Phase 5: Reporting
-  [DistDGL / Full-Graph PyG]     [Excel Sheets & LaTeX Tables]
+```text
+┌────────────────────────────────────────────────────────────────────────────────────────────────────────┐
+│                                         EMO Pipeline Lifecycle                                         │
+└────────────────────────────────────────────────────────────────────────────────────────────────────────┘
+
+  Phase 0: Delta Ingestion  ──►  Phase 1: Community Detection  ──►  Phase 2: Subgraph Extraction
+  [Transactional S3 Tables]      [Louvain / LPA / METIS]            [Boundary & Adjacency]
+                                                                               │
+                                                                               ▼
+  Phase 4: Baselines        ◄──  Phase 3b: CAAN Context        ◄──  Phase 3: Decoupled GNNs
+  [DistDGL / Full-Graph PyG]     [Super-Node Compression]           [Local PyG per Executor]
+         │
+         ▼
+  Phase 5: Reporting        ──►  [Multi-Sheet Excel Reports & Publication LaTeX Tables]
+  [Automated Artifacts]
+
+  * Scaling Extension for Billion-Scale Graphs:
+    Phase 3.7: SIGN Feature Propagation ──► Phase 3.8: Edge-Free Classifier Probe
 ```
 
 | Phase | Module | Description |
