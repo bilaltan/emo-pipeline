@@ -96,11 +96,18 @@ results/**/copy_ready_slides.md
 # Keep experimental results logs
 !results/**/*.log
 
+# Raw dataset downloads and local caches
+data/
+deezer_europe_extracted/
+ogb_data/
+.dgl/
+
 # Scratch / logs / temporary dumps
 *.tmp
 asd.txt
 /run_pipeline.log
 logs/
+
 
 
 

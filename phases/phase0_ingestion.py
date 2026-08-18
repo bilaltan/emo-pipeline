@@ -446,14 +446,21 @@ def run_phase0(spark, sc, datasets, run_phase0_flag, use_ogb_splits,
             elif d_lower == 'deezereurope':
                 import zipfile, json, collections, ssl, urllib.request
                 import pandas as pd
-                zip_path = 'deezer_europe.zip'
+                data_dir = os.path.join(os.getcwd(), 'data')
+                os.makedirs(data_dir, exist_ok=True)
+                zip_path = os.path.join(data_dir, 'deezer_europe.zip') if os.path.exists(os.path.join(data_dir, 'deezer_europe.zip')) else (
+                    'deezer_europe.zip' if os.path.exists('deezer_europe.zip') else os.path.join(data_dir, 'deezer_europe.zip')
+                )
                 if not os.path.exists(zip_path):
                     ssl._create_default_https_context = ssl._create_unverified_context
                     print("  Downloading DeezerEurope from SNAP...")
                     urllib.request.urlretrieve('https://snap.stanford.edu/data/deezer_europe.zip', zip_path)
-                extract_dir = 'deezer_europe_extracted'
-                with zipfile.ZipFile(zip_path, 'r') as zf:
-                    zf.extractall(extract_dir)
+                extract_dir = os.path.join(data_dir, 'deezer_europe_extracted') if os.path.exists(os.path.join(data_dir, 'deezer_europe_extracted')) else (
+                    'deezer_europe_extracted' if os.path.exists('deezer_europe_extracted') else os.path.join(data_dir, 'deezer_europe_extracted')
+                )
+                if not os.path.exists(extract_dir) or not os.path.exists(os.path.join(extract_dir, 'deezer_europe')):
+                    with zipfile.ZipFile(zip_path, 'r') as zf:
+                        zf.extractall(extract_dir)
                 edges_df = pd.read_csv(os.path.join(extract_dir, 'deezer_europe', 'deezer_europe_edges.csv'))
                 src_r = edges_df['node_1'].values.astype(np.int64)
                 dst_r = edges_df['node_2'].values.astype(np.int64)
@@ -871,10 +878,11 @@ def run_phase0(spark, sc, datasets, run_phase0_flag, use_ogb_splits,
                         print(f"    ✓ Purged raw cache at: {target_dir}")
 
             # Purge extracted Deezer Europe directory if present
-            de_dir = os.path.join(base_c, 'deezer_europe_extracted')
-            if os.path.exists(de_dir):
-                shutil.rmtree(de_dir, ignore_errors=True)
-                print(f"    ✓ Purged Deezer Europe cache at: {de_dir}")
+            for de_sub in ['deezer_europe_extracted', os.path.join('data', 'deezer_europe_extracted')]:
+                de_dir = os.path.join(base_c, de_sub)
+                if os.path.exists(de_dir):
+                    shutil.rmtree(de_dir, ignore_errors=True)
+                    print(f"    ✓ Purged Deezer Europe cache at: {de_dir}")
 
         # Purge remaining dataset zip files in candidate volumes
         zip_names = ['papers100M-bin.zip', 'ogbn_papers100M.zip', 'papers100M.zip', 'raw.zip', 'deezer_europe.zip', 'reddit.zip']
