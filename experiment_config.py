@@ -12,7 +12,7 @@ EXPERIMENT_NAME   = 'ogbn-papers100M'          # labels ALL S3 outputs; change p
 # Standard: 'WikiCS', 'Coauthor-Physics', 'Coauthor-CS', 'DeezerEurope', 'Foursquare'
 # 100M-scale: 'reddit', 'ogbn-products'
 # 1B-scale:   'ogbn-papers100M'
-DATASETS_TO_RUN = ['WikiCS', 'ogbn-products', 'reddit', 'ogbn-papers100M']
+DATASETS_TO_RUN = ['WikiCS', 'ogbn-products', 'reddit', 'ogbn-mag', 'LiveJournal', 'Orkut',]
 
 # ── GNN Models to Run ─────────────────────────────────────────────────────────
 # Supported choices: 'sage', 'gat', 'gatv2', 'transformer', 'clusterscl', 'arma', 'asap'
