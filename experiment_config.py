@@ -5,7 +5,7 @@
 #      python upload_to_s3.py
 # ══════════════════════════════════════════════════════════════════════════════
 
-EXPERIMENT_NAME   = 'ogbn-papers100M'          # labels ALL S3 outputs; change per experiment run
+EXPERIMENT_NAME   = 'gatv2_full_sweep'          # labels ALL S3 outputs; change per experiment run
 
 # ── Datasets ───────────────────────────────────────────────────────────────────
 # Available options:
