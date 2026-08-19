@@ -197,106 +197,103 @@ def save_plots_and_xlsx(datasets, algorithms, phase3_results, phase4_results,
                         phase4c_results=None, phase4d_results=None, phase4e_results=None,
                         phase4f_results=None, phase4g_results=None, phase4h_results=None, phase3b_results=None,
                         local_data_dir=None, gnn_models=None):
-    """Generate plots and save unified XLSX to S3 or local disk."""
-    import tempfile
-    import matplotlib
-    matplotlib.use('Agg')
-    import matplotlib.pyplot as plt
-    import seaborn as sns
-    import shutil
-
-    if gnn_models is None:
-        gnn_models = ['sage', 'gat', 'transformer', 'clusterscl']
-
     work_dir = tempfile.mkdtemp()
-    sns.set_theme(style='whitegrid', palette='muted')
 
-    for dataset in datasets:
-        # Accuracy distribution
-        fig, axes = plt.subplots(1, max(1, len(algorithms)), figsize=(6*max(1, len(algorithms)), 4),
-                                 squeeze=False)
-        for ax, alg in zip(axes[0], algorithms if algorithms else ['dummy']):
-            if alg == 'dummy':
-                continue
-            df = None
-            for m_type in gnn_models:
-                df = phase3_results.get((dataset, alg, m_type))
-                if df is not None:
-                    break
-            if df is None:
-                df = phase3_results.get((dataset, alg))
-            if df is not None and 'comm_test_acc' in df.columns:
-                ax.hist(df['comm_test_acc'].dropna(), bins=40, edgecolor='k', alpha=0.7)
-            ax.set_title(f'{dataset} / {alg}')
-            ax.set_xlabel('Per-Community Test Accuracy')
-            ax.set_ylabel('Count')
-        plt.suptitle('Community Accuracy Distribution', fontweight='bold')
-        plt.tight_layout()
-        p1 = os.path.join(work_dir, f'{dataset}_acc_dist.png')
-        plt.savefig(p1, dpi=150, bbox_inches='tight')
-        plt.close()
+    try:
+        import matplotlib
+        matplotlib.use('Agg')
+        import matplotlib.pyplot as plt
+        import seaborn as sns
+        sns.set_theme(style='whitegrid', palette='muted')
 
-        # Boundary vs Internal accuracy
-        bnd_means = []
-        int_means = []
-        labels    = []
-        for alg in algorithms:
-            df = None
-            for m_type in gnn_models:
-                df = phase3_results.get((dataset, alg, m_type))
-                if df is not None:
-                    break
-            if df is None:
-                df = phase3_results.get((dataset, alg))
-            if df is not None:
-                bnd_means.append(df[df['n_boundary']>0]['boundary_acc'].mean())
-                int_means.append(df[df['n_internal']>0]['internal_acc'].mean())
-                labels.append(alg)
-        if labels:
-            x = range(len(labels))
-            fig, ax = plt.subplots(figsize=(8, 4))
-            ax.bar([i-.2 for i in x], bnd_means, .4, label='Boundary', color='coral')
-            ax.bar([i+.2 for i in x], int_means, .4, label='Internal', color='steelblue')
-            ax.set_xticks(list(x))
-            ax.set_xticklabels(labels)
-            ax.set_ylabel('Test Accuracy')
-            ax.legend()
-            ax.set_title(f'{dataset}: Boundary vs Internal Node Accuracy',
-                         fontweight='bold')
+        for dataset in datasets:
+            # Accuracy distribution
+            fig, axes = plt.subplots(1, max(1, len(algorithms)), figsize=(6*max(1, len(algorithms)), 4),
+                                     squeeze=False)
+            for ax, alg in zip(axes[0], algorithms if algorithms else ['dummy']):
+                if alg == 'dummy':
+                    continue
+                df = None
+                for m_type in gnn_models:
+                    df = phase3_results.get((dataset, alg, m_type))
+                    if df is not None:
+                        break
+                if df is None:
+                    df = phase3_results.get((dataset, alg))
+                if df is not None and 'comm_test_acc' in df.columns:
+                    ax.hist(df['comm_test_acc'].dropna(), bins=40, edgecolor='k', alpha=0.7)
+                ax.set_title(f'{dataset} / {alg}')
+                ax.set_xlabel('Per-Community Test Accuracy')
+                ax.set_ylabel('Count')
+            plt.suptitle('Community Accuracy Distribution', fontweight='bold')
             plt.tight_layout()
-            p2 = os.path.join(work_dir, f'{dataset}_boundary_internal.png')
-            plt.savefig(p2, dpi=150, bbox_inches='tight')
+            p1 = os.path.join(work_dir, f'{dataset}_acc_dist.png')
+            plt.savefig(p1, dpi=150, bbox_inches='tight')
             plt.close()
 
-        # Timing stacked bar
-        t1s = [timing.get(('phase1', dataset, a), 0) for a in algorithms]
-        t2s = [timing.get(('phase2', dataset, a), 0) for a in algorithms]
-        t3s = []
-        for a in algorithms:
-            t3_val = 0
-            for m_type in gnn_models:
-                t3_val += timing.get(('phase3', dataset, a, m_type), 0)
-            if t3_val == 0:
-                t3_val = timing.get(('phase3', dataset, a), 0)
-            t3s.append(t3_val)
-        if any(t1s + t2s + t3s):
-            x = range(len(algorithms))
-            fig, ax = plt.subplots(figsize=(8, 4))
-            ax.bar(x, t1s, label='Phase1 (CD)')
-            ax.bar(x, t2s, bottom=t1s, label='Phase2 (Partition)')
-            ax.bar(x, t3s, bottom=[a+b for a,b in zip(t1s,t2s)], label='Phase3 (Train)')
-            t4 = timing.get(('phase4', dataset), 0)
-            if t4:
-                ax.axhline(t4, color='red', linestyle='--', label=f'Baseline ({t4:.0f}s)')
-            ax.set_xticks(list(x))
-            ax.set_xticklabels(algorithms)
-            ax.set_ylabel('Seconds')
-            ax.legend()
-            ax.set_title(f'{dataset}: Phase Timing Breakdown', fontweight='bold')
-            plt.tight_layout()
-            p3 = os.path.join(work_dir, f'{dataset}_timing.png')
-            plt.savefig(p3, dpi=150, bbox_inches='tight')
-            plt.close()
+            # Boundary vs Internal accuracy
+            bnd_means = []
+            int_means = []
+            labels    = []
+            for alg in algorithms:
+                df = None
+                for m_type in gnn_models:
+                    df = phase3_results.get((dataset, alg, m_type))
+                    if df is not None:
+                        break
+                if df is None:
+                    df = phase3_results.get((dataset, alg))
+                if df is not None:
+                    bnd_means.append(df[df['n_boundary']>0]['boundary_acc'].mean())
+                    int_means.append(df[df['n_internal']>0]['internal_acc'].mean())
+                    labels.append(alg)
+            if labels:
+                x = range(len(labels))
+                fig, ax = plt.subplots(figsize=(8, 4))
+                ax.bar([i-.2 for i in x], bnd_means, .4, label='Boundary', color='coral')
+                ax.bar([i+.2 for i in x], int_means, .4, label='Internal', color='steelblue')
+                ax.set_xticks(list(x))
+                ax.set_xticklabels(labels)
+                ax.set_ylabel('Test Accuracy')
+                ax.legend()
+                ax.set_title(f'{dataset}: Boundary vs Internal Node Accuracy',
+                             fontweight='bold')
+                plt.tight_layout()
+                p2 = os.path.join(work_dir, f'{dataset}_boundary_internal.png')
+                plt.savefig(p2, dpi=150, bbox_inches='tight')
+                plt.close()
+
+            # Timing stacked bar
+            t1s = [timing.get(('phase1', dataset, a), 0) for a in algorithms]
+            t2s = [timing.get(('phase2', dataset, a), 0) for a in algorithms]
+            t3s = []
+            for a in algorithms:
+                t3_val = 0
+                for m_type in gnn_models:
+                    t3_val += timing.get(('phase3', dataset, a, m_type), 0)
+                if t3_val == 0:
+                    t3_val = timing.get(('phase3', dataset, a), 0)
+                t3s.append(t3_val)
+            if any(t1s + t2s + t3s):
+                x = range(len(algorithms))
+                fig, ax = plt.subplots(figsize=(8, 4))
+                ax.bar(x, t1s, label='Phase1 (CD)')
+                ax.bar(x, t2s, bottom=t1s, label='Phase2 (Partition)')
+                ax.bar(x, t3s, bottom=[a+b for a,b in zip(t1s,t2s)], label='Phase3 (Train)')
+                t4 = timing.get(('phase4', dataset), 0)
+                if t4:
+                    ax.axhline(t4, color='red', linestyle='--', label=f'Baseline ({t4:.0f}s)')
+                ax.set_xticks(list(x))
+                ax.set_xticklabels(algorithms)
+                ax.set_ylabel('Seconds')
+                ax.legend()
+                ax.set_title(f'{dataset}: Phase Timing Breakdown', fontweight='bold')
+                plt.tight_layout()
+                p3 = os.path.join(work_dir, f'{dataset}_timing.png')
+                plt.savefig(p3, dpi=150, bbox_inches='tight')
+                plt.close()
+    except Exception as e:
+        print(f"  ⚠ Plot generation skipped on EMR cluster due to graphics driver: {e}")
 
     # Save XLSX
     xlsx_path = os.path.join(work_dir, f'{experiment_name}_results.xlsx')
