@@ -154,6 +154,14 @@ def generate_master_excel(cluster_type="4worker", output_path=None, s3_bucket="u
 
             avg_node_t = get_comm_time(ds_name, 'node_train_time_s', 1.8)
 
+            try:
+                import experiment_config as cfg
+                raw_m = getattr(cfg, 'GNN_MODELS', ['sage'])[0].lower()
+                m_map = {'sage': 'GraphSAGE', 'gat': 'GAT', 'gatv2': 'GATv2', 'arma': 'ARMA', 'asap': 'ASAP', 'transformer': 'Transformer'}
+                active_model = m_map.get(raw_m, raw_m.upper())
+            except Exception:
+                active_model = 'GATv2' if 'gatv2' in df_emp.get('model_type', pd.Series()).str.lower().values else 'GraphSAGE'
+
             node_rows.append({
                 'Dataset': ds_name,
                 'Cluster Architecture': f"{cluster_type.upper()} EMR Cluster",
@@ -162,7 +170,7 @@ def generate_master_excel(cluster_type="4worker", output_path=None, s3_bucket="u
                 'Edges': meta['edges'],
                 'Classes': meta['classes'],
                 'Partitioning Alg': 'Louvain',
-                'Model': 'GraphSAGE',
+                'Model': active_model,
                 'Executors': e,
                 'Full Graph Baseline Acc': round(bl_acc, 4),
                 'EMO Decoupled (Phase 3) Acc': round(p3_acc, 4),
@@ -200,6 +208,14 @@ def generate_master_excel(cluster_type="4worker", output_path=None, s3_bucket="u
             tp3_link = round(tp3 * (t_ref['p3_link'] / (t_ref['p3_node'] + t_ref['p3_link'])), 1)
             avg_link_t = get_comm_time(ds_name, 'link_train_time_s', 2.3)
 
+            try:
+                import experiment_config as cfg
+                raw_m = getattr(cfg, 'GNN_MODELS', ['sage'])[0].lower()
+                m_map = {'sage': 'GraphSAGE', 'gat': 'GAT', 'gatv2': 'GATv2', 'arma': 'ARMA', 'asap': 'ASAP', 'transformer': 'Transformer'}
+                active_model_lp = f"{m_map.get(raw_m, raw_m.upper())} Link Predictor"
+            except Exception:
+                active_model_lp = 'GATv2 Link Predictor' if 'gatv2' in df_emp.get('model_type', pd.Series()).str.lower().values else 'GraphSAGE Link Predictor'
+
             link_rows.append({
                 'Dataset': ds_name,
                 'Cluster Architecture': f"{cluster_type.upper()} EMR Cluster",
@@ -207,7 +223,7 @@ def generate_master_excel(cluster_type="4worker", output_path=None, s3_bucket="u
                 'Nodes': meta['nodes'],
                 'Edges': meta['edges'],
                 'Partitioning Alg': 'Louvain',
-                'Model': 'GraphSAGE Link Predictor',
+                'Model': active_model_lp,
                 'Executors': e,
                 'Full Graph Baseline ROC-AUC': round(bl_auc, 4),
                 'EMO Decoupled (Phase 3) ROC-AUC': round(p3_auc, 4),
