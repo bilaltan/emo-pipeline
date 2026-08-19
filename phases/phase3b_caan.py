@@ -164,7 +164,7 @@ def _train_minor_global_caan(dataset, gcn_cfg, dataset_cfg, caan_components, mod
     val_m   = torch.tensor([s == 'valid' and i >= len(super_ids) for i, s in enumerate(split_arr)], dtype=torch.bool) & has_lbl
     test_m  = torch.tensor([s == 'test'  and i >= len(super_ids) for i, s in enumerate(split_arr)], dtype=torch.bool) & has_lbl
     
-    is_pyg = (model_type in ('gat', 'transformer', 'clusterscl'))
+    is_pyg = (model_type in ('gat', 'gatv2', 'transformer', 'clusterscl', 'arma', 'asap'))
     if is_pyg:
         import torch_geometric
         pyg_edge_index = torch.stack([
@@ -198,6 +198,57 @@ def _train_minor_global_caan(dataset, gcn_cfg, dataset_cfg, caan_components, mod
                 x = self.c2(x, edge_index)
                 return x
         model = GATNet(feat_arr.shape[1], hidden_dim, num_classes)
+        opt = torch.optim.Adam(model.parameters(), lr=lr, weight_decay=5e-4)
+        crit = nn.CrossEntropyLoss()
+
+    elif model_type == 'gatv2':
+        from torch_geometric.nn import GATv2Conv
+        class GATv2Net(nn.Module):
+            def __init__(self, in_f, h, nc, num_heads=8):
+                super().__init__()
+                self.c1 = GATv2Conv(in_f, h // num_heads, heads=num_heads, dropout=dropout)
+                self.c2 = GATv2Conv(h, nc, heads=1, concat=False, dropout=dropout)
+                self.dr = nn.Dropout(dropout)
+            def forward(self, x, edge_index):
+                x = F.elu(self.c1(x, edge_index))
+                x = self.dr(x)
+                x = self.c2(x, edge_index)
+                return x
+        model = GATv2Net(feat_arr.shape[1], hidden_dim, num_classes)
+        opt = torch.optim.Adam(model.parameters(), lr=lr, weight_decay=5e-4)
+        crit = nn.CrossEntropyLoss()
+
+    elif model_type == 'arma':
+        from torch_geometric.nn import ARMAConv
+        class ARMANet(nn.Module):
+            def __init__(self, in_f, h, nc):
+                super().__init__()
+                self.c1 = ARMAConv(in_f, h, dropout=dropout)
+                self.c2 = ARMAConv(h, nc, dropout=dropout)
+                self.dr = nn.Dropout(dropout)
+            def forward(self, x, edge_index):
+                x = F.relu(self.c1(x, edge_index))
+                x = self.dr(x)
+                x = self.c2(x, edge_index)
+                return x
+        model = ARMANet(feat_arr.shape[1], hidden_dim, num_classes)
+        opt = torch.optim.Adam(model.parameters(), lr=lr, weight_decay=5e-4)
+        crit = nn.CrossEntropyLoss()
+
+    elif model_type == 'asap':
+        from torch_geometric.nn import LEConv
+        class ASAPNet(nn.Module):
+            def __init__(self, in_f, h, nc):
+                super().__init__()
+                self.c1 = LEConv(in_f, h)
+                self.c2 = LEConv(h, nc)
+                self.dr = nn.Dropout(dropout)
+            def forward(self, x, edge_index):
+                x = F.relu(self.c1(x, edge_index))
+                x = self.dr(x)
+                x = self.c2(x, edge_index)
+                return x
+        model = ASAPNet(feat_arr.shape[1], hidden_dim, num_classes)
         opt = torch.optim.Adam(model.parameters(), lr=lr, weight_decay=5e-4)
         crit = nn.CrossEntropyLoss()
         
@@ -671,7 +722,7 @@ def make_caan_udf(super_nodes_dict_bc, minor_node_to_idx_bc, minor_feats_arr_bc,
         test_m  = torch.tensor([s == 'test'  and i < n_local for i, s in enumerate(split_arr)], dtype=torch.bool)
         bnd_t   = torch.tensor(bnd_arr, dtype=torch.bool)
         
-        is_pyg = (model_type in ('gat', 'transformer', 'clusterscl'))
+        is_pyg = (model_type in ('gat', 'gatv2', 'transformer', 'clusterscl', 'arma', 'asap'))
         if is_pyg:
             import torch_geometric
             pyg_edge_index = torch.stack([
@@ -721,6 +772,78 @@ def make_caan_udf(super_nodes_dict_bc, minor_node_to_idx_bc, minor_feats_arr_bc,
                         z = self.enc(x, edge_index)
                         return self.fc(z)
                 model = GATNet(feat_arr.shape[1], hidden_dim, num_classes)
+                opt = torch.optim.Adam(model.parameters(), lr=lr, weight_decay=5e-4)
+                crit = nn.CrossEntropyLoss()
+                
+            elif model_type == 'gatv2':
+                from torch_geometric.nn import GATv2Conv
+                class GATv2Encoder(nn.Module):
+                    def __init__(self, in_f, h, num_heads=8):
+                        super().__init__()
+                        self.c1 = GATv2Conv(in_f, h // num_heads, heads=num_heads, dropout=dropout)
+                        self.c2 = GATv2Conv(h, h, heads=1, concat=False, dropout=dropout)
+                        self.dr = nn.Dropout(dropout)
+                    def forward(self, x, edge_index):
+                        x = F.elu(self.c1(x, edge_index))
+                        x = self.dr(x)
+                        return self.c2(x, edge_index)
+                class GATv2Net(nn.Module):
+                    def __init__(self, in_f, h, nc):
+                        super().__init__()
+                        self.enc = GATv2Encoder(in_f, h)
+                        self.fc = nn.Linear(h, nc)
+                    def forward(self, x, edge_index):
+                        z = self.enc(x, edge_index)
+                        return self.fc(z)
+                model = GATv2Net(feat_arr.shape[1], hidden_dim, num_classes)
+                opt = torch.optim.Adam(model.parameters(), lr=lr, weight_decay=5e-4)
+                crit = nn.CrossEntropyLoss()
+
+            elif model_type == 'arma':
+                from torch_geometric.nn import ARMAConv
+                class ARMAEncoder(nn.Module):
+                    def __init__(self, in_f, h):
+                        super().__init__()
+                        self.c1 = ARMAConv(in_f, h, dropout=dropout)
+                        self.c2 = ARMAConv(h, h, dropout=dropout)
+                        self.dr = nn.Dropout(dropout)
+                    def forward(self, x, edge_index):
+                        x = F.relu(self.c1(x, edge_index))
+                        x = self.dr(x)
+                        return self.c2(x, edge_index)
+                class ARMANet(nn.Module):
+                    def __init__(self, in_f, h, nc):
+                        super().__init__()
+                        self.enc = ARMAEncoder(in_f, h)
+                        self.fc = nn.Linear(h, nc)
+                    def forward(self, x, edge_index):
+                        z = self.enc(x, edge_index)
+                        return self.fc(z)
+                model = ARMANet(feat_arr.shape[1], hidden_dim, num_classes)
+                opt = torch.optim.Adam(model.parameters(), lr=lr, weight_decay=5e-4)
+                crit = nn.CrossEntropyLoss()
+
+            elif model_type == 'asap':
+                from torch_geometric.nn import LEConv
+                class ASAPEncoder(nn.Module):
+                    def __init__(self, in_f, h):
+                        super().__init__()
+                        self.c1 = LEConv(in_f, h)
+                        self.c2 = LEConv(h, h)
+                        self.dr = nn.Dropout(dropout)
+                    def forward(self, x, edge_index):
+                        x = F.relu(self.c1(x, edge_index))
+                        x = self.dr(x)
+                        return self.c2(x, edge_index)
+                class ASAPNet(nn.Module):
+                    def __init__(self, in_f, h, nc):
+                        super().__init__()
+                        self.enc = ASAPEncoder(in_f, h)
+                        self.fc = nn.Linear(h, nc)
+                    def forward(self, x, edge_index):
+                        z = self.enc(x, edge_index)
+                        return self.fc(z)
+                model = ASAPNet(feat_arr.shape[1], hidden_dim, num_classes)
                 opt = torch.optim.Adam(model.parameters(), lr=lr, weight_decay=5e-4)
                 crit = nn.CrossEntropyLoss()
                 

@@ -16,7 +16,7 @@ DATASETS_TO_RUN = ['WikiCS', 'ogbn-products', 'reddit', 'ogbn-papers100M']
 
 # ── GNN Models to Run ─────────────────────────────────────────────────────────
 # Supported choices: 'sage', 'gat', 'gatv2', 'transformer', 'clusterscl', 'arma', 'asap'
-GNN_MODELS = ['sage']
+GNN_MODELS = ['gatv2']
 
 # ── Phase 0: Delta Lake Ingestion ─────────────────────────────────────────────
 # True  = re-download OGB dataset and overwrite Delta tables.
