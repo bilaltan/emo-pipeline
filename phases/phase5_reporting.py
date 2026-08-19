@@ -197,6 +197,9 @@ def save_plots_and_xlsx(datasets, algorithms, phase3_results, phase4_results,
                         phase4c_results=None, phase4d_results=None, phase4e_results=None,
                         phase4f_results=None, phase4g_results=None, phase4h_results=None, phase3b_results=None,
                         local_data_dir=None, gnn_models=None):
+    import tempfile
+    import os
+    import shutil
     work_dir = tempfile.mkdtemp()
 
     try:
