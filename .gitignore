@@ -111,3 +111,17 @@ logs/
 
 
 
+
+# Local scratchpad — exploratory scripts and extracted paper images, not project code
+scratch/
+
+# Local validation venv and cached Louvain partitions
+.venv-local/
+data/.partition_cache/
+
+# Office temp/lock files
+~$*
+.DS_Store
+
+*.md
+!README.md

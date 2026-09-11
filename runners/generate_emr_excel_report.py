@@ -26,17 +26,20 @@ def generate_master_excel(cluster_type="4worker", output_path=None, s3_bucket="u
     os.makedirs(os.path.dirname(os.path.abspath(output_path)), exist_ok=True)
     print(f"► Generating Master EMR {cluster_type.upper()} Cluster Excel Report: {output_path}")
 
-    # Standard reference baseline numbers (from full graph single-machine / literature)
+    # Structural dataset facts only. Accuracy/AUC fields are deliberately NaN:
+    # this report merges measured runs, and any figure it cannot source from a run
+    # must surface as a blank cell rather than a plausible-looking constant.
+    NA = float('nan')
     baselines = {
-        'WikiCS':           {'nodes': 11701,     'edges': 216123,    'classes': 10,  'sage_acc': 0.7812, 'gat_acc': 0.7760, 'link_auc': 0.8920, 'scale': 'Small'},
-        'Coauthor-Physics': {'nodes': 34493,     'edges': 247962,    'classes': 5,   'sage_acc': 0.9520, 'gat_acc': 0.9540, 'link_auc': 0.9610, 'scale': 'Small'},
-        'Coauthor-CS':      {'nodes': 18333,     'edges': 81894,     'classes': 15,  'sage_acc': 0.9230, 'gat_acc': 0.9210, 'link_auc': 0.9450, 'scale': 'Small'},
-        'DeezerEurope':     {'nodes': 28281,     'edges': 92752,     'classes': 2,   'sage_acc': 0.6740, 'gat_acc': 0.6680, 'link_auc': 0.8230, 'scale': 'Small'},
-        'reddit':           {'nodes': 232965,    'edges': 11606919,  'classes': 41,  'sage_acc': 0.9502, 'gat_acc': 0.9480, 'link_auc': 0.9710, 'scale': 'Medium'},
-        'ogbn-products':    {'nodes': 2449029,   'edges': 61859140,  'classes': 47,  'sage_acc': 0.7850, 'gat_acc': 0.7920, 'link_auc': 0.9140, 'scale': 'Medium'},
-        'ogbn-mag':         {'nodes': 736389,    'edges': 5416271,   'classes': 349, 'sage_acc': 0.4650, 'gat_acc': 0.4710, 'link_auc': 0.8650, 'scale': 'Medium'},
-        'LiveJournal':      {'nodes': 3997962,   'edges': 34681189,  'classes': 100, 'sage_acc': 0.7240, 'gat_acc': 0.7180, 'link_auc': 0.8840, 'scale': 'Medium / Dense'},
-        'Orkut':            {'nodes': 3072441,   'edges': 117185083, 'classes': 100, 'sage_acc': 0.6890, 'gat_acc': 0.6820, 'link_auc': 0.8520, 'scale': 'Medium / Dense'},
+        'WikiCS':           {'nodes': 11701,     'edges': 216123,    'classes': 10,  'sage_acc': NA, 'gat_acc': NA, 'link_auc': NA, 'scale': 'Small'},
+        'Coauthor-Physics': {'nodes': 34493,     'edges': 247962,    'classes': 5,   'sage_acc': NA, 'gat_acc': NA, 'link_auc': NA, 'scale': 'Small'},
+        'Coauthor-CS':      {'nodes': 18333,     'edges': 81894,     'classes': 15,  'sage_acc': NA, 'gat_acc': NA, 'link_auc': NA, 'scale': 'Small'},
+        'DeezerEurope':     {'nodes': 28281,     'edges': 92752,     'classes': 2,   'sage_acc': NA, 'gat_acc': NA, 'link_auc': NA, 'scale': 'Small'},
+        'reddit':           {'nodes': 232965,    'edges': 11606919,  'classes': 41,  'sage_acc': NA, 'gat_acc': NA, 'link_auc': NA, 'scale': 'Medium'},
+        'ogbn-products':    {'nodes': 2449029,   'edges': 61859140,  'classes': 47,  'sage_acc': NA, 'gat_acc': NA, 'link_auc': NA, 'scale': 'Medium'},
+        'ogbn-mag':         {'nodes': 736389,    'edges': 5416271,   'classes': 349, 'sage_acc': NA, 'gat_acc': NA, 'link_auc': NA, 'scale': 'Medium'},
+        'LiveJournal':      {'nodes': 3997962,   'edges': 34681189,  'classes': 100, 'sage_acc': NA, 'gat_acc': NA, 'link_auc': NA, 'scale': 'Medium / Dense'},
+        'Orkut':            {'nodes': 3072441,   'edges': 117185083, 'classes': 100, 'sage_acc': NA, 'gat_acc': NA, 'link_auc': NA, 'scale': 'Medium / Dense'},
     }
 
     exec_tiers = [4, 8, 16] if cluster_type == "2worker" else [8, 16, 32]
@@ -91,7 +94,9 @@ def generate_master_excel(cluster_type="4worker", output_path=None, s3_bucket="u
     df_emp = pd.DataFrame(empirical_summaries) if empirical_summaries else pd.DataFrame()
     df_comm_all = pd.DataFrame(community_records) if community_records else pd.DataFrame()
 
-    def get_metric(ds, model, exec_cnt, col, default_val):
+    unsourced = []
+
+    def get_metric(ds, model, exec_cnt, col, default_val=float('nan')):
         if len(df_emp) > 0 and 'dataset' in df_emp.columns and 'model_type' in df_emp.columns:
             m = (df_emp['dataset'].str.lower() == ds.lower()) & (df_emp['model_type'].str.lower() == model.lower()) & (df_emp['executors'] == exec_cnt)
             sub = df_emp[m]
@@ -101,7 +106,8 @@ def generate_master_excel(cluster_type="4worker", output_path=None, s3_bucket="u
             sub_any = df_emp[m_any]
             if len(sub_any) > 0 and col in sub_any.columns and not pd.isna(sub_any[col].iloc[0]):
                 return float(sub_any[col].mean())
-        return default_val
+        unsourced.append(f'{ds}/{model}/e{exec_cnt}/{col}')
+        return float('nan')
 
     def get_comm_time(ds, time_col, default_val):
         if len(df_comm_all) > 0 and 'sheet_name' in df_comm_all.columns:
@@ -111,19 +117,20 @@ def generate_master_excel(cluster_type="4worker", output_path=None, s3_bucket="u
                 return float(sub[time_col].mean())
         return default_val
 
+    # Measured per-phase timings come from the run artifacts; no defaults.
     base_timings = {
-        'WikiCS':           {'p0': 4.5,   'p1': 17.6,  'p2': 8.9,   'p3': 7.6,   'p3b': 7.1,   'p3_node': 3.2,  'p3_link': 4.4},
-        'Coauthor-Physics': {'p0': 5.7,   'p1': 24.2,  'p2': 10.9,  'p3': 18.2,  'p3b': 11.5,  'p3_node': 8.1,  'p3_link': 10.1},
-        'Coauthor-CS':      {'p0': 4.8,   'p1': 18.1,  'p2': 8.6,   'p3': 14.1,  'p3b': 9.2,   'p3_node': 6.2,  'p3_link': 7.9},
-        'DeezerEurope':     {'p0': 3.9,   'p1': 14.3,  'p2': 8.5,   'p3': 9.1,   'p3b': 7.4,   'p3_node': 4.1,  'p3_link': 5.0},
-        'reddit':           {'p0': 95.4,  'p1': 227.3, 'p2': 130.8, 'p3': 28.9,  'p3b': 119.1, 'p3_node': 12.8, 'p3_link': 16.1},
-        'ogbn-products':    {'p0': 184.2, 'p1': 702.3, 'p2': 52.4,  'p3': 20.5,  'p3b': 114.4, 'p3_node': 9.2,  'p3_link': 11.3},
-        'ogbn-mag':         {'p0': 58.1,  'p1': 84.6,  'p2': 26.3,  'p3': 19.6,  'p3b': 76.3,  'p3_node': 8.8,  'p3_link': 10.8},
-        'LiveJournal':      {'p0': 285.4, 'p1': 482.6, 'p2': 86.4,  'p3': 38.5,  'p3b': 142.6, 'p3_node': 18.4, 'p3_link': 20.1},
-        'Orkut':            {'p0': 540.8, 'p1': 924.5, 'p2': 168.2, 'p3': 64.8,  'p3b': 218.4, 'p3_node': 31.2, 'p3_link': 33.6},
+        'WikiCS':           {'p0': NA,   'p1': NA,  'p2': NA,   'p3': NA,   'p3b': NA,   'p3_node': NA,  'p3_link': NA},
+        'Coauthor-Physics': {'p0': NA,   'p1': NA,  'p2': NA,  'p3': NA,  'p3b': NA,  'p3_node': NA,  'p3_link': NA},
+        'Coauthor-CS':      {'p0': NA,   'p1': NA,  'p2': NA,   'p3': NA,  'p3b': NA,   'p3_node': NA,  'p3_link': NA},
+        'DeezerEurope':     {'p0': NA,   'p1': NA,  'p2': NA,   'p3': NA,   'p3b': NA,   'p3_node': NA,  'p3_link': NA},
+        'reddit':           {'p0': NA,  'p1': NA, 'p2': NA, 'p3': NA,  'p3b': NA, 'p3_node': NA, 'p3_link': NA},
+        'ogbn-products':    {'p0': NA, 'p1': NA, 'p2': NA,  'p3': NA,  'p3b': NA, 'p3_node': NA,  'p3_link': NA},
+        'ogbn-mag':         {'p0': NA,  'p1': NA,  'p2': NA,  'p3': NA,  'p3b': NA,  'p3_node': NA,  'p3_link': NA},
+        'LiveJournal':      {'p0': NA, 'p1': NA, 'p2': NA,  'p3': NA,  'p3b': NA, 'p3_node': NA, 'p3_link': NA},
+        'Orkut':            {'p0': NA, 'p1': NA, 'p2': NA, 'p3': NA,  'p3b': NA, 'p3_node': NA, 'p3_link': NA},
     }
 
-    w_scale = 1.65 if cluster_type == "2worker" else 1.0
+    w_scale = 1.0  # 2-worker timings must be measured, not scaled from 4-worker
 
     # Sheet 1: Node Classification
     node_rows = []
@@ -131,24 +138,25 @@ def generate_master_excel(cluster_type="4worker", output_path=None, s3_bucket="u
         bl_acc = meta['sage_acc']
         t_ref = base_timings[ds_name]
         for e in exec_tiers:
-            def_p3 = bl_acc - (0.024 if meta['scale'] == 'Small' else (0.038 if 'Dense' in meta['scale'] else 0.031))
-            def_p3b = bl_acc - (0.003 if meta['scale'] == 'Small' else (0.008 if 'Dense' in meta['scale'] else 0.005))
 
-            p3_acc = get_metric(ds_name, 'sage', e, 'weighted_comm_acc', def_p3)
-            p3b_acc = get_metric(ds_name, 'sage-caan', e, 'weighted_comm_acc', def_p3b)
+            p3_acc = get_metric(ds_name, 'sage', e, 'weighted_comm_acc')
+            p3b_acc = get_metric(ds_name, 'sage-caan', e, 'weighted_comm_acc')
 
-            bnd_acc_p3 = get_metric(ds_name, 'sage', e, 'mean_boundary_acc', p3_acc - 0.082)
+            bnd_acc_p3 = get_metric(ds_name, 'sage', e, 'mean_boundary_acc')
             int_acc_p3 = get_metric(ds_name, 'sage', e, 'mean_internal_acc', p3_acc + 0.015)
 
             bnd_acc_p3b = get_metric(ds_name, 'sage-caan', e, 'mean_boundary_acc', p3b_acc - 0.008)
             int_acc_p3b = get_metric(ds_name, 'sage-caan', e, 'mean_internal_acc', p3b_acc + 0.008)
 
             bnd_gain = (bnd_acc_p3b - bnd_acc_p3) * 100.0 if bnd_acc_p3b > bnd_acc_p3 else (p3b_acc - p3_acc) * 100.0
-            recovery_rate = ((p3b_acc - p3_acc) / max(0.001, (bl_acc - p3_acc))) * 100.0 if bl_acc > p3_acc else 100.0
+            # NaN in, NaN out: an unmeasured recovery rate must not read as 100%.
+            recovery_rate = (((p3b_acc - p3_acc) / (bl_acc - p3_acc)) * 100.0
+                             if (bl_acc == bl_acc and p3_acc == p3_acc and p3b_acc == p3b_acc
+                                 and bl_acc > p3_acc) else float('nan'))
             recovery_rate = max(0.0, min(100.0, recovery_rate))
 
-            tp3 = get_metric(ds_name, 'sage', e, 'phase3_s', t_ref['p3'] * w_scale)
-            tp3b = get_metric(ds_name, 'sage-caan', e, 'phase3_s', t_ref['p3b'] * w_scale)
+            tp3 = get_metric(ds_name, 'sage', e, 'phase3_s', t_ref['p3'])
+            tp3b = get_metric(ds_name, 'sage-caan', e, 'phase3_s', t_ref['p3b'])
             tp3_node = round(tp3 * (t_ref['p3_node'] / (t_ref['p3_node'] + t_ref['p3_link'])), 1)
             total_node_t = round(tp3_node + tp3b, 1)
 
@@ -194,8 +202,8 @@ def generate_master_excel(cluster_type="4worker", output_path=None, s3_bucket="u
         bl_auc = meta['link_auc']
         t_ref = base_timings[ds_name]
         for e in exec_tiers:
-            def_p3_auc = bl_auc - 0.022
-            def_p3b_auc = bl_auc - 0.004
+            def_p3_auc = float('nan')
+            def_p3b_auc = float('nan')
 
             p3_auc = get_metric(ds_name, 'sage', e, 'weighted_comm_link_auc', def_p3_auc)
             p3b_auc = get_metric(ds_name, 'sage-caan', e, 'weighted_comm_link_auc', def_p3b_auc)
@@ -204,7 +212,7 @@ def generate_master_excel(cluster_type="4worker", output_path=None, s3_bucket="u
 
             retention = (p3b_auc / bl_auc) * 100.0
 
-            tp3 = get_metric(ds_name, 'sage', e, 'phase3_s', t_ref['p3'] * w_scale)
+            tp3 = get_metric(ds_name, 'sage', e, 'phase3_s', t_ref['p3'])
             tp3_link = round(tp3 * (t_ref['p3_link'] / (t_ref['p3_node'] + t_ref['p3_link'])), 1)
             avg_link_t = get_comm_time(ds_name, 'link_train_time_s', 2.3)
 
@@ -241,9 +249,9 @@ def generate_master_excel(cluster_type="4worker", output_path=None, s3_bucket="u
         for e in exec_tiers:
             tp0 = get_metric(ds_name, 'sage', e, 'phase0_s', t_ref['p0'])
             tp1 = get_metric(ds_name, 'sage', e, 'phase1_s', t_ref['p1'])
-            tp2 = get_metric(ds_name, 'sage', e, 'phase2_s', t_ref['p2'] * w_scale)
-            tp3 = get_metric(ds_name, 'sage', e, 'phase3_s', t_ref['p3'] * w_scale)
-            tp3b = get_metric(ds_name, 'sage-caan', e, 'phase3_s', t_ref['p3b'] * w_scale)
+            tp2 = get_metric(ds_name, 'sage', e, 'phase2_s', t_ref['p2'])
+            tp3 = get_metric(ds_name, 'sage', e, 'phase3_s', t_ref['p3'])
+            tp3b = get_metric(ds_name, 'sage-caan', e, 'phase3_s', t_ref['p3b'])
 
             tp3_node = round(tp3 * (t_ref['p3_node'] / (t_ref['p3_node'] + t_ref['p3_link'])), 1)
             tp3_link = round(tp3 - tp3_node, 1)
@@ -340,7 +348,21 @@ def generate_master_excel(cluster_type="4worker", output_path=None, s3_bucket="u
     except Exception as s3_err:
         print(f"ℹ (S3 upload note: {s3_err})")
 
+    _warn_unsourced(unsourced, output_path)
     return output_path
+
+
+def _warn_unsourced(unsourced, output_path):
+    """A report that silently invents values is worse than one with holes."""
+    if not unsourced:
+        print("  ✓ every reported cell was sourced from a run artifact")
+        return
+    print(f"  ⚠ {len(unsourced)} cell(s) had no run artifact and are left blank:")
+    for item in unsourced[:15]:
+        print(f"      - {item}")
+    if len(unsourced) > 15:
+        print(f"      ... and {len(unsourced) - 15} more")
+
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description="Generate Master EMR Cluster Excel Report.")

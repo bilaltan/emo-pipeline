@@ -49,7 +49,9 @@ def _load_communities_data_batch(nodes_url, edges_url, comm_ids):
         edges_ds = _get_dataset(edges_url)
         edges_pdf = edges_ds.to_table(filter=(ds.field("community_id").isin(comm_ids)), use_threads=True).to_pandas()
         if len(edges_pdf) > 0 and 'src' in edges_pdf.columns and 'dst' in edges_pdf.columns:
-            edges_pdf = edges_pdf.drop_duplicates().reset_index(drop=True)
+            edges_pdf = (edges_pdf.drop_duplicates()
+                         .sort_values(['community_id', 'src', 'dst'], kind='mergesort')
+                         .reset_index(drop=True))
     except Exception as e:
         print(f"  ⚠ CAAN _load_communities_data_batch EDGES ERROR: {e}")
         edges_pdf = pd.DataFrame()
@@ -453,6 +455,9 @@ def _train_minor_global_caan(dataset, gcn_cfg, dataset_cfg, caan_components, mod
         'n_boundary': 0,
         'n_internal': len(minor_ids),
         'comm_test_acc': comm_acc,
+        'acc_gnn_head':  float(locals().get('acc_gnn_head', comm_acc)),
+        'acc_mlp_head':  float(locals().get('acc_mlp_head', comm_acc)),
+        'head_used':     str(locals().get('head_used', 'mlp')),
         'boundary_acc': bnd_acc,
         'internal_acc': int_acc,
         'comm_link_auc': 0.5,
@@ -517,11 +522,17 @@ def make_caan_udf(super_nodes_dict_bc, minor_node_to_idx_bc, minor_feats_arr_bc,
             import dgl
             import dgl.nn as dglnn
         except Exception:
-            subprocess.run([sys.executable, '-m', 'pip', 'install', '--user', '--quiet', '--no-cache-dir',
-                            'dgl==1.1.3', '-f', 'https://data.dgl.ai/wheels/repo.html'],
-                            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=True)
-            import dgl
-            import dgl.nn as dglnn
+            try:
+                subprocess.run([sys.executable, '-m', 'pip', 'install', '--user', '--quiet', '--no-cache-dir',
+                                'dgl==1.1.3', '-f', 'https://data.dgl.ai/wheels/repo.html'],
+                                stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=True)
+                import dgl
+                import dgl.nn as dglnn
+            except Exception:
+                # DGL is unavailable (no wheel for this platform). PyG covers every
+                # backbone, so route SAGE through PyG rather than failing the run.
+                dgl = None
+                dglnn = None
 
         try:
             omp_threads = int(os.environ.get('OMP_NUM_THREADS', '1'))
@@ -563,7 +574,18 @@ def make_caan_udf(super_nodes_dict_bc, minor_node_to_idx_bc, minor_feats_arr_bc,
         major_comms = major_comms_bc.value
         
         if len(pdf) > 0 and 'id' in pdf.columns:
-            pdf = pdf.drop_duplicates(subset=['id']).reset_index(drop=True)
+            # Sort by id before anything derives from row position. Everything
+            # downstream — node_map, the local/super/minor index blocks, the member
+            # mask, the link split permutation — is positional, and Spark does not
+            # guarantee row order within a group. Without this the same input yields
+            # different metrics between runs.
+            pdf = (pdf.drop_duplicates(subset=['id'])
+                      .sort_values('id', kind='mergesort')
+                      .reset_index(drop=True))
+
+        # Deterministic weight init per unit, matching Phase 3.
+        torch.manual_seed(42 + int(comm_id))
+        np.random.seed((42 + int(comm_id)) % (2**32))
 
         local_feats = np.stack(pdf['features'].values).astype(np.float32)
         feat_dim = local_feats.shape[1]
@@ -683,17 +705,24 @@ def make_caan_udf(super_nodes_dict_bc, minor_node_to_idx_bc, minor_feats_arr_bc,
                 
         exclude_id = -1000 - comm_id
         valid_nodes_set = set(super_ids).union(set(minor_ids))
-        
-        # O(V_subgraph + E_subgraph) edge mapping using adjacency lookup
+
+        # Meta-edges among super-nodes and minor nodes. Collected into lists and
+        # converted once, rather than appending per edge, so the cost is a single
+        # array build instead of two Python appends per meta-edge.
+        _meta_s, _meta_d = [], []
         for u in valid_nodes_set:
-            u_neighbors = caan_adj.get(u, [])
-            for v in u_neighbors:
-                if v in valid_nodes_set and v != exclude_id:
-                    u_idx = node_map.get(u)
+            u_idx = node_map.get(u)
+            if u_idx is None:
+                continue
+            for v in caan_adj.get(u, []):
+                if v != exclude_id and v in valid_nodes_set:
                     v_idx = node_map.get(v)
-                    if u_idx is not None and v_idx is not None:
-                        src_l.append(u_idx)
-                        dst_l.append(v_idx)
+                    if v_idx is not None:
+                        _meta_s.append(u_idx)
+                        _meta_d.append(v_idx)
+        if _meta_s:
+            src_l.extend(_meta_s)
+            dst_l.extend(_meta_d)
                     
         src_l = np.array(src_l, dtype=np.int64)
         dst_l = np.array(dst_l, dtype=np.int64)
@@ -717,12 +746,21 @@ def make_caan_udf(super_nodes_dict_bc, minor_node_to_idx_bc, minor_feats_arr_bc,
         t_load = time.time() - t_start
         t_dgl_conv_start = time.time()
         
-        train_m = torch.tensor([s == 'train' and i < n_local for i, s in enumerate(split_arr)], dtype=torch.bool)
-        val_m   = torch.tensor([s == 'valid' and i < n_local for i, s in enumerate(split_arr)], dtype=torch.bool)
-        test_m  = torch.tensor([s == 'test'  and i < n_local for i, s in enumerate(split_arr)], dtype=torch.bool)
+        # Only this community's own vertices count. `i < n_local` excludes super-
+        # nodes and minor nodes, but the local block also holds the 1-hop halo Phase 2
+        # borrows from neighbours, and those carry real labels and splits. Scoring
+        # them here counts the same vertex once per community that borrows it, and
+        # counts it in communities whose model never trained on its neighbourhood —
+        # which is why halo-heavy datasets collapsed at this stage.
+        from pipeline.utils.common import resolve_member_mask
+        member_arr = resolve_member_mask(pdf, len(split_arr), n_local=n_local)
+
+        train_m = torch.tensor([s == 'train' and member_arr[i] for i, s in enumerate(split_arr)], dtype=torch.bool)
+        val_m   = torch.tensor([s == 'valid' and member_arr[i] for i, s in enumerate(split_arr)], dtype=torch.bool)
+        test_m  = torch.tensor([s == 'test'  and member_arr[i] for i, s in enumerate(split_arr)], dtype=torch.bool)
         bnd_t   = torch.tensor(bnd_arr, dtype=torch.bool)
         
-        is_pyg = (model_type in ('gat', 'gatv2', 'transformer', 'clusterscl', 'arma', 'asap'))
+        is_pyg = (model_type in ('gat', 'gatv2', 'transformer', 'clusterscl', 'arma', 'asap')) or dgl is None
         if is_pyg:
             import torch_geometric
             pyg_edge_index = torch.stack([
@@ -969,6 +1007,31 @@ def make_caan_udf(super_nodes_dict_bc, minor_node_to_idx_bc, minor_feats_arr_bc,
                 opt = torch.optim.Adam(list(model.parameters()) + list(elbo_loss_fn.parameters()), lr=lr, weight_decay=5e-4)
                 crit = nn.CrossEntropyLoss()
                 
+            elif dgl is None:
+                # PyG realization of the default GraphSAGE backbone, used wherever
+                # DGL has no wheel for the platform.
+                from torch_geometric.nn import SAGEConv
+                class PyGSAGEEncoder(nn.Module):
+                    def __init__(self, in_f, h):
+                        super().__init__()
+                        self.c1 = SAGEConv(in_f, h)
+                        self.c2 = SAGEConv(h, h)
+                        self.dr = nn.Dropout(dropout)
+                    def forward(self, x, edge_index):
+                        x = torch.relu(self.c1(x, edge_index))
+                        x = self.dr(x)
+                        return self.c2(x, edge_index)
+                class PyGSAGECommunity(nn.Module):
+                    def __init__(self, in_f, h, nc):
+                        super().__init__()
+                        self.enc = PyGSAGEEncoder(in_f, h)
+                        self.fc = nn.Linear(h, nc)
+                    def forward(self, x, edge_index):
+                        return self.fc(self.enc(x, edge_index))
+                model = PyGSAGECommunity(feat_arr.shape[1], hidden_dim, num_classes)
+                opt   = torch.optim.Adam(model.parameters(), lr=lr, weight_decay=5e-4)
+                crit  = nn.CrossEntropyLoss()
+
             else:
                 class GraphSAGECommunity(nn.Module):
                     def __init__(self, in_f, h, nc):
@@ -1094,14 +1157,17 @@ def make_caan_udf(super_nodes_dict_bc, minor_node_to_idx_bc, minor_feats_arr_bc,
             from torch.utils.data import TensorDataset, DataLoader
 
             class DownstreamNodeClassifierUDF(nn.Module):
+                """Probe head sized from the data, matching Phase 3."""
                 def __init__(self, input_dim, classes):
                     super().__init__()
+                    h1 = max(64, min(input_dim, 4 * classes))
+                    h2 = max(32, min(h1, 2 * classes))
                     self.layers = nn.Sequential(
-                        nn.Linear(input_dim, 64),
+                        nn.Linear(input_dim, h1),
                         nn.ReLU(),
-                        nn.Linear(64, 32),
+                        nn.Linear(h1, h2),
                         nn.ReLU(),
-                        nn.Linear(32, classes)
+                        nn.Linear(h2, classes)
                     )
                 def forward(self, x):
                     return self.layers(x)
@@ -1150,8 +1216,25 @@ def make_caan_udf(super_nodes_dict_bc, minor_node_to_idx_bc, minor_feats_arr_bc,
 
             mlp_model.eval()
             with torch.no_grad():
-                y_pred_all = mlp_model(embed)
-                preds = y_pred_all.argmax(dim=1)
+                def _acc_of(pred_vec, mask):
+                    n = int(mask.sum())
+                    return float((pred_vec[mask] == lbl_t[mask]).float().mean()) if n else 0.0
+
+                preds_mlp = mlp_model(embed).argmax(dim=1)
+                try:
+                    if is_pyg:
+                        gnn_logits = model(feat_t, pyg_edge_index)
+                    else:
+                        gnn_logits = model(g, feat_t)
+                    preds_gnn = gnn_logits.argmax(dim=1)
+                except Exception:
+                    preds_gnn = preds_mlp
+                use_gnn = (_acc_of(preds_gnn, val_m) > _acc_of(preds_mlp, val_m)
+                           if int(val_m.sum()) > 0 else False)
+                preds = preds_gnn if use_gnn else preds_mlp
+                head_used = 'gnn' if use_gnn else 'mlp'
+                acc_gnn_head = _acc_of(preds_gnn, test_m)
+                acc_mlp_head = _acc_of(preds_mlp, test_m)
 
             def safe_acc(mask):
                 n = int(mask.sum())
@@ -1163,6 +1246,273 @@ def make_caan_udf(super_nodes_dict_bc, minor_node_to_idx_bc, minor_feats_arr_bc,
             bnd_acc,  _     = safe_acc(test_m & bnd_t)
             int_acc,  _     = safe_acc(test_m & ~bnd_t)
 
+        link_train_time = 0.0
+        comm_link_auc = 0.5
+        test_edges_idx = []
+        
+        # Link prediction scores real vertex pairs only. The augmented graph also
+        # carries meta-edges into super-nodes and minor nodes; those are context
+        # for message passing, not prediction targets, and scoring them would
+        # measure a different task from Stage 3a and make the two incomparable.
+        # Local vertices occupy the first n_local positions of node_map.
+        # Members only, matching Phase 3. `< n_local` excludes super-nodes and minor
+        # nodes but still admits the 1-hop halo, so scoring against it makes Stage 3b
+        # solve an easier problem than Stage 3a and inflates its AUC.
+        _caan_member_idx = np.where(member_arr)[0].astype(np.int64)
+        if n_edges > 0:
+            _real_edge_pos = np.where(member_arr[src_l_g] & member_arr[dst_l_g])[0]
+        else:
+            _real_edge_pos = np.empty(0, dtype=np.int64)
+        n_real_edges = len(_real_edge_pos)
+
+        if run_link and n_real_edges >= 5:
+            t_link_start = time.time()
+            torch.manual_seed(42)
+            _real_pos_t = torch.tensor(_real_edge_pos, dtype=torch.int64)
+            shuffled_edge_ids = _real_pos_t[torch.randperm(n_real_edges)]
+            n_tr_edges = int(0.8 * n_real_edges)
+            n_val_edges = int(0.1 * n_real_edges)
+
+            max_local_train = min(10000, n_tr_edges)
+            max_local_test = min(2000, n_real_edges - n_tr_edges - n_val_edges)
+
+            train_edges_idx = shuffled_edge_ids[:max_local_train]
+            test_edges_idx = shuffled_edge_ids[n_tr_edges + n_val_edges : n_tr_edges + n_val_edges + max_local_test]
+
+            src_l_t = torch.tensor(src_l_g, dtype=torch.int64)
+            dst_l_t = torch.tensor(dst_l_g, dtype=torch.int64)
+            # Sorted int64 edge keys for vectorized rejection sampling. A Python set of
+            # edge tuples costs several GB on a multi-million-edge macro-graph.
+            _caan_edge_keys = np.unique(
+                (np.asarray(src_l_g, dtype=np.int64) * np.int64(n_nodes)
+                 + np.asarray(dst_l_g, dtype=np.int64))
+            ) if len(src_l_g) > 0 else np.empty(0, dtype=np.int64)
+
+            def sample_negative_edges_caan(pool, n_samples):
+                """Uniform negatives over `pool`, with true edges rejected both ways."""
+                if n_samples <= 0 or len(pool) < 2:
+                    return (torch.empty(0, dtype=torch.int64), torch.empty(0, dtype=torch.int64))
+                n_pool = len(pool)
+                kept_s, kept_d, collected = [], [], 0
+                for _ in range(8):
+                    need = n_samples - collected
+                    c_s = torch.from_numpy(pool[torch.randint(0, n_pool, (max(need * 2, 1024),)).numpy()])
+                    c_d = torch.from_numpy(pool[torch.randint(0, n_pool, (max(need * 2, 1024),)).numpy()])
+                    keep = (c_s != c_d)
+                    c_s, c_d = c_s[keep], c_d[keep]
+                    if len(c_s) == 0:
+                        continue
+                    s_np = c_s.numpy().astype(np.int64)
+                    d_np = c_d.numpy().astype(np.int64)
+                    fwd = s_np * np.int64(n_nodes) + d_np
+                    rev = d_np * np.int64(n_nodes) + s_np
+                    ok = ~(np.isin(fwd, _caan_edge_keys) | np.isin(rev, _caan_edge_keys))
+                    if ok.any():
+                        kept_s.append(s_np[ok][:need])
+                        kept_d.append(d_np[ok][:need])
+                        collected += len(kept_s[-1])
+                    if collected >= n_samples:
+                        break
+                if collected < n_samples:
+                    # Corner case: a near-complete subgraph leaves too few true non-edges.
+                    rem = n_samples - collected
+                    kept_s.append(pool[torch.randint(0, n_pool, (rem,)).numpy()].astype(np.int64))
+                    kept_d.append(pool[torch.randint(0, n_pool, (rem,)).numpy()].astype(np.int64))
+                neg_s = np.concatenate(kept_s)[:n_samples]
+                neg_d = np.concatenate(kept_d)[:n_samples]
+                return (torch.from_numpy(neg_s.copy()), torch.from_numpy(neg_d.copy()))
+
+            class CaaNLinkPredictor(nn.Module):
+                def __init__(self, h, dropout=0.1):
+                    super().__init__()
+                    self.fc1 = nn.Linear(4 * h, h)
+                    self.fc2 = nn.Linear(h, 1)
+                    self.dr = nn.Dropout(dropout)
+                def forward(self, h_src, h_dst):
+                    diff = torch.abs(h_src - h_dst)
+                    prod = h_src * h_dst
+                    cat_feat = torch.cat([h_src, h_dst, diff, prod], dim=-1)
+                    x = torch.relu(self.fc1(cat_feat))
+                    x = self.dr(x)
+                    return self.fc2(x).squeeze(-1)
+
+            if is_pyg:
+                if model_type == 'gat' or model_type == 'clusterscl':
+                    from torch_geometric.nn import GATConv
+                    class CaaNPyGEncoder(nn.Module):
+                        def __init__(self, in_f, h, num_heads=8):
+                            super().__init__()
+                            self.c1 = GATConv(in_f, h // num_heads, heads=num_heads, dropout=dropout)
+                            self.c2 = GATConv(h, h, heads=1, concat=False, dropout=dropout)
+                            self.dr = nn.Dropout(dropout)
+                        def forward(self, x, edge_index):
+                            x = F.elu(self.c1(x, edge_index))
+                            x = self.dr(x)
+                            return self.c2(x, edge_index)
+                elif model_type == 'gatv2':
+                    from torch_geometric.nn import GATv2Conv
+                    class CaaNPyGEncoder(nn.Module):
+                        def __init__(self, in_f, h, num_heads=8):
+                            super().__init__()
+                            self.c1 = GATv2Conv(in_f, h // num_heads, heads=num_heads, dropout=dropout)
+                            self.c2 = GATv2Conv(h, h, heads=1, concat=False, dropout=dropout)
+                            self.dr = nn.Dropout(dropout)
+                        def forward(self, x, edge_index):
+                            x = F.elu(self.c1(x, edge_index))
+                            x = self.dr(x)
+                            return self.c2(x, edge_index)
+                elif model_type == 'arma':
+                    from torch_geometric.nn import ARMAConv
+                    class CaaNPyGEncoder(nn.Module):
+                        def __init__(self, in_f, h):
+                            super().__init__()
+                            self.c1 = ARMAConv(in_f, h, dropout=dropout)
+                            self.c2 = ARMAConv(h, h, dropout=dropout)
+                            self.dr = nn.Dropout(dropout)
+                        def forward(self, x, edge_index):
+                            x = F.relu(self.c1(x, edge_index))
+                            x = self.dr(x)
+                            return self.c2(x, edge_index)
+                elif model_type == 'asap':
+                    from torch_geometric.nn import LEConv
+                    class CaaNPyGEncoder(nn.Module):
+                        def __init__(self, in_f, h):
+                            super().__init__()
+                            self.c1 = LEConv(in_f, h)
+                            self.c2 = LEConv(h, h)
+                            self.dr = nn.Dropout(dropout)
+                        def forward(self, x, edge_index):
+                            x = F.relu(self.c1(x, edge_index))
+                            x = self.dr(x)
+                            return self.c2(x, edge_index)
+                elif model_type == 'transformer':
+                    from torch_geometric.nn import TransformerConv
+                    class CaaNPyGEncoder(nn.Module):
+                        def __init__(self, in_f, h, num_heads=8):
+                            super().__init__()
+                            self.c1 = TransformerConv(in_f, h // num_heads, heads=num_heads, dropout=dropout)
+                            self.c2 = TransformerConv(h, h, heads=1, concat=False, dropout=dropout)
+                            self.dr = nn.Dropout(dropout)
+                        def forward(self, x, edge_index):
+                            x = F.relu(self.c1(x, edge_index))
+                            x = self.dr(x)
+                            return self.c2(x, edge_index)
+                else:
+                    from torch_geometric.nn import SAGEConv
+                    class CaaNPyGEncoder(nn.Module):
+                        def __init__(self, in_f, h):
+                            super().__init__()
+                            self.c1 = SAGEConv(in_f, h)
+                            self.c2 = SAGEConv(h, h)
+                            self.dr = nn.Dropout(dropout)
+                        def forward(self, x, edge_index):
+                            x = F.relu(self.c1(x, edge_index))
+                            x = self.dr(x)
+                            return self.c2(x, edge_index)
+
+                encoder = CaaNPyGEncoder(feat_arr.shape[1], hidden_dim)
+                predictor = CaaNLinkPredictor(hidden_dim, dropout=dropout)
+                optimizer = torch.optim.Adam(
+                    list(encoder.parameters()) + list(predictor.parameters()),
+                    lr=lr, weight_decay=5e-4
+                )
+                pyg_train_edge_index = torch.stack([src_l_t[train_edges_idx], dst_l_t[train_edges_idx]], dim=0)
+
+                encoder.train()
+                predictor.train()
+                for _ in range(num_epochs):
+                    h = encoder(feat_t, pyg_train_edge_index)
+                    pos_src = src_l_t[train_edges_idx]
+                    pos_dst = dst_l_t[train_edges_idx]
+                    neg_src, neg_dst = sample_negative_edges_caan(_caan_member_idx, len(train_edges_idx))
+
+                    pos_scores = predictor(h[pos_src], h[pos_dst])
+                    neg_scores = predictor(h[neg_src], h[neg_dst])
+
+                    scores = torch.cat([pos_scores, neg_scores])
+                    labels = torch.cat([torch.ones_like(pos_scores), torch.zeros_like(neg_scores)])
+                    loss = nn.functional.binary_cross_entropy_with_logits(scores, labels)
+
+                    optimizer.zero_grad()
+                    loss.backward()
+                    optimizer.step()
+
+                encoder.eval()
+                predictor.eval()
+                with torch.no_grad():
+                    h = encoder(feat_t, pyg_train_edge_index)
+                    test_src = src_l_t[test_edges_idx]
+                    test_dst = dst_l_t[test_edges_idx]
+                    if len(test_src) > 0:
+                        pos_scores = predictor(h[test_src], h[test_dst])
+                        neg_src, neg_dst = sample_negative_edges_caan(_caan_member_idx, len(test_src))
+                        neg_scores = predictor(h[neg_src], h[neg_dst])
+                        y_true = np.concatenate([np.ones(len(pos_scores)), np.zeros(len(neg_scores))])
+                        y_scores = torch.cat([pos_scores, neg_scores]).cpu().numpy()
+                        from sklearn.metrics import roc_auc_score
+                        comm_link_auc = float(roc_auc_score(y_true, y_scores))
+                    else:
+                        comm_link_auc = 0.5
+            else:
+                train_g = dgl.graph((src_l_t[train_edges_idx], dst_l_t[train_edges_idx]), num_nodes=n_nodes)
+                train_g = dgl.to_simple(train_g)
+                train_g = dgl.add_self_loop(train_g)
+
+                class CaaNDGLEncoder(nn.Module):
+                    def __init__(self, in_f, h):
+                        super().__init__()
+                        self.c1 = dglnn.SAGEConv(in_f, h, 'mean')
+                        self.c2 = dglnn.SAGEConv(h,    h, 'mean')
+                        self.dr = nn.Dropout(dropout)
+                    def forward(self, g, x):
+                        x = torch.relu(self.c1(g, x)); x = self.dr(x)
+                        x = self.c2(g, x)
+                        return x
+
+                encoder = CaaNDGLEncoder(feat_arr.shape[1], hidden_dim)
+                predictor = CaaNLinkPredictor(hidden_dim, dropout=dropout)
+                optimizer = torch.optim.Adam(
+                    list(encoder.parameters()) + list(predictor.parameters()),
+                    lr=lr, weight_decay=5e-4
+                )
+
+                encoder.train()
+                predictor.train()
+                for _ in range(num_epochs):
+                    pos_src = src_l_t[train_edges_idx]
+                    pos_dst = dst_l_t[train_edges_idx]
+                    neg_src, neg_dst = sample_negative_edges_caan(_caan_member_idx, len(train_edges_idx))
+
+                    h = encoder(train_g, feat_t)
+                    pos_scores = predictor(h[pos_src], h[pos_dst])
+                    neg_scores = predictor(h[neg_src], h[neg_dst])
+
+                    scores = torch.cat([pos_scores, neg_scores])
+                    labels = torch.cat([torch.ones_like(pos_scores), torch.zeros_like(neg_scores)])
+                    loss = nn.functional.binary_cross_entropy_with_logits(scores, labels)
+
+                    optimizer.zero_grad()
+                    loss.backward()
+                    optimizer.step()
+
+                encoder.eval()
+                predictor.eval()
+                with torch.no_grad():
+                    h = encoder(train_g, feat_t)
+                    test_src = src_l_t[test_edges_idx]
+                    test_dst = dst_l_t[test_edges_idx]
+                    if len(test_src) > 0:
+                        pos_scores = predictor(h[test_src], h[test_dst])
+                        neg_src, neg_dst = sample_negative_edges_caan(_caan_member_idx, len(test_src))
+                        neg_scores = predictor(h[neg_src], h[neg_dst])
+                        y_true = np.concatenate([np.ones(len(pos_scores)), np.zeros(len(neg_scores))])
+                        y_scores = torch.cat([pos_scores, neg_scores]).cpu().numpy()
+                        from sklearn.metrics import roc_auc_score
+                        comm_link_auc = float(roc_auc_score(y_true, y_scores))
+                    else:
+                        comm_link_auc = 0.5
+            link_train_time = time.time() - t_link_start
+
         peak_mem = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss * 1024.0
         bucket = 'large' if n_local > 200 else ('medium' if n_local >= 50 else 'small')
 
@@ -1172,17 +1522,23 @@ def make_caan_udf(super_nodes_dict_bc, minor_node_to_idx_bc, minor_feats_arr_bc,
             'n_edges':       n_edges,
             'n_train':       int(train_m.sum()) if run_node else 0,
             'n_val':         int(val_m.sum()) if run_node else 0,
-            'n_test':        n_test_node if run_node else 0,
+            'n_test':        n_test_node if run_node else len(test_edges_idx) if run_link else 0,
             'n_boundary':    int(bnd_t[:n_local].sum()),
             'n_internal':    n_local - int(bnd_t[:n_local].sum()),
             'comm_test_acc': comm_acc,
+        'acc_gnn_head':  float(locals().get('acc_gnn_head', comm_acc)),
+        'acc_mlp_head':  float(locals().get('acc_mlp_head', comm_acc)),
+        'head_used':     str(locals().get('head_used', 'mlp')),
+            'acc_gnn_head':  float(locals().get('acc_gnn_head', comm_acc)),
+            'acc_mlp_head':  float(locals().get('acc_mlp_head', comm_acc)),
+            'head_used':     str(locals().get('head_used', 'mlp')),
             'boundary_acc':  bnd_acc,
             'internal_acc':  int_acc,
-            'comm_link_auc': 0.5,
+            'comm_link_auc': comm_link_auc,
             'size_bucket':   bucket,
             'load_time_s':   t_load,
             'node_train_time_s': node_train_time,
-            'link_train_time_s': 0.0,
+            'link_train_time_s': link_train_time,
             'peak_mem_mb':   peak_mem / 1e6,
         }])
         
@@ -1217,7 +1573,9 @@ def make_caan_udf(super_nodes_dict_bc, minor_node_to_idx_bc, minor_feats_arr_bc,
                 results.append(pd.DataFrame([{
                     'community_id':   comm_id,
                     'n_nodes':        0, 'n_edges': 0, 'n_train': 0, 'n_val': 0, 'n_test': 0,
-                    'n_boundary':     0, 'n_internal': 0, 'comm_test_acc': 0.0, 'boundary_acc': 0.0,
+                    'n_boundary':     0, 'n_internal': 0, 'comm_test_acc': 0.0,
+                    'acc_gnn_head': 0.0, 'acc_mlp_head': 0.0, 'head_used': 'none',
+                    'boundary_acc': 0.0,
                     'internal_acc':   0.0, 'comm_link_auc': 0.5, 'size_bucket': 'empty',
                     'load_time_s':    0.0, 'node_train_time_s': 0.0, 'link_train_time_s': 0.0, 'peak_mem_mb': 0.0
                 }]))
@@ -1242,7 +1600,10 @@ def make_caan_udf(super_nodes_dict_bc, minor_node_to_idx_bc, minor_feats_arr_bc,
                 'node_train_time_s', 'link_train_time_s', 'peak_mem_mb'
             ])
         return pd.concat(results, ignore_index=True)
-        
+
+    # Exposed so the per-community path can be driven directly (local validation,
+    # unit tests) without going through the Delta-backed batch loader.
+    _train_gnn_bin_caan.community_fn = _train_gnn_community_caan_single
     return _train_gnn_bin_caan
 
 def run_phase3b(spark, sc, datasets, algorithms, use_global_mapping,
@@ -1670,6 +2031,9 @@ def run_phase3b(spark, sc, datasets, algorithms, use_global_mapping,
                 
                 print(f"  ✓ Mean CaaN comm acc = {comm_pd['comm_test_acc'].mean():.4f}")
                 print(f"  ✓ Weighted CaaN comm acc = {weighted_comm_acc:.4f}")
+                if task_type in ('link_prediction', 'both'):
+                    print(f"  ✓ Mean CaaN comm link AUC = {comm_pd['comm_link_auc'].mean():.4f}")
+                    print(f"  ✓ Weighted CaaN comm link AUC = {weighted_comm_link_auc:.4f}")
                 print(f"  ✓ Wall time: {elapsed:.1f}s")
 
                 # Save checkpoint

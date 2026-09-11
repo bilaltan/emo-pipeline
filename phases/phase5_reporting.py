@@ -337,7 +337,11 @@ def save_plots_and_xlsx(datasets, algorithms, phase3_results, phase4_results,
                             'dataset':                dataset,
                             'algorithm':              alg,
                             'model_type':             m_type,
-                            'n_communities':          len(df),
+                            # Phase 3 stores one aggregate row (community_id=-1) rather
+                            # than collecting every community to the driver, so len(df)
+                            # is 1 regardless of how many communities actually trained.
+                            # The true count travels in attrs.
+                            'n_communities':          int(df.attrs.get('n_communities', len(df))),
                             'global_test_acc':        g_acc,
                             'mean_comm_acc':          df['comm_test_acc'].mean(),
                             'mean_boundary_acc':      df[df['n_boundary']>0]['boundary_acc'].mean() if len(df[df['n_boundary']>0]) > 0 else 0.0,
@@ -371,7 +375,7 @@ def save_plots_and_xlsx(datasets, algorithms, phase3_results, phase4_results,
                                 'dataset':                dataset,
                                 'algorithm':              alg,
                                 'model_type':             f"{m_type}-caan",
-                                'n_communities':          len(dfb),
+                                'n_communities':          int(dfb.attrs.get('n_communities', len(dfb))),
                                 'global_test_acc':        gb_acc,
                                 'mean_comm_acc':          dfb['comm_test_acc'].mean(),
                                 'mean_boundary_acc':      dfb[dfb['n_boundary']>0]['boundary_acc'].mean() if len(dfb[dfb['n_boundary']>0]) > 0 else 0.0,

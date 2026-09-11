@@ -118,11 +118,19 @@ def run_phase2(spark, sc, datasets, algorithms, use_global_mapping, min_size,
             if expand_boundary_nodes:
                 edges_part = e_full.select('src', 'dst', F.col('src_comm').alias('community_id'))
                 halo_nodes = e_full.filter(F.col('src_comm') != F.col('dst_comm')).select(F.col('dst').alias('id'), F.col('src_comm').alias('community_id')).distinct()
-                expanded_node_comm = node_comm.union(halo_nodes).distinct()
-                nodes_part = nodes_w_split.join(expanded_node_comm, on='id', how='inner').select('id', 'label', 'features', 'split', 'community_id')
+                # is_member separates a community's own vertices from the 1-hop halo
+                # pulled in from neighbours. Without it a halo vertex is
+                # indistinguishable from a member downstream, so it gets scored as a
+                # link-prediction target and counted in this community's accuracy —
+                # once per community that borrows it.
+                expanded_node_comm = (node_comm.withColumn('is_member', F.lit(True))
+                                      .union(halo_nodes.withColumn('is_member', F.lit(False)))
+                                      .groupBy('id', 'community_id')
+                                      .agg(F.max('is_member').alias('is_member')))
+                nodes_part = nodes_w_split.join(expanded_node_comm, on='id', how='inner').select('id', 'label', 'features', 'split', 'community_id', 'is_member')
             else:
                 edges_part = e_full.filter(F.col('src_comm') == F.col('dst_comm')).select('src', 'dst', F.col('src_comm').alias('community_id'))
-                nodes_part = nodes_w_split.join(node_comm, on='id', how='inner').select('id', 'label', 'features', 'split', 'community_id')
+                nodes_part = nodes_w_split.join(node_comm, on='id', how='inner').select('id', 'label', 'features', 'split', 'community_id').withColumn('is_member', F.lit(True))
             
             n_intra    = edges_part.count()
             pct_kept   = 100 * n_intra / n_edges if n_edges > 0 else 0.0
@@ -132,7 +140,12 @@ def run_phase2(spark, sc, datasets, algorithms, use_global_mapping, min_size,
                         .groupBy('src').count()
                         .withColumnRenamed('src', 'id')
                         .withColumnRenamed('count', 'orig_deg'))
-            intra_deg = (edges_part
+            # Boundary is a property of the partition, not of which edges were kept:
+            # b(v)=1 iff v has a neighbour in another community (Eq. 1). Deriving it
+            # from edges_part makes it identically False under 1-hop expansion, since
+            # that variant retains the cut edges it is meant to detect.
+            intra_deg = (e_full
+                         .filter(F.col('src_comm') == F.col('dst_comm'))
                          .groupBy('src').count()
                          .withColumnRenamed('src', 'id')
                          .withColumnRenamed('count', 'intra_deg'))
@@ -144,7 +157,7 @@ def run_phase2(spark, sc, datasets, algorithms, use_global_mapping, min_size,
                            .withColumn('intra_deg', F.coalesce('intra_deg', F.lit(0)))
                            .withColumn('is_boundary', (F.col('orig_deg') > F.col('intra_deg')).cast('boolean'))
                            .withColumn('is_boundary', F.coalesce('is_boundary', F.lit(False)))
-                           .select('id', 'label', 'features', 'split', 'community_id', 'is_boundary'))
+                           .select('id', 'label', 'features', 'split', 'community_id', 'is_boundary', 'is_member'))
 
             n_total_nodes = nodes_final.count()
             n_boundary = nodes_final.filter(F.col('is_boundary')).count()

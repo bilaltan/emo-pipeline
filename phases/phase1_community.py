@@ -23,6 +23,12 @@ def run_phase1(spark, sc, datasets, algorithms, lpa_max_iter, resolution,
     from pyspark.sql import functions as F
     from sklearn.metrics import normalized_mutual_info_score
 
+    # Stop LPA once labels settle instead of always burning the full iteration
+    # budget, and fold the long tail of small labels into their best-connected
+    # major community rather than handing it to Phase 2 to drop.
+    lpa_tol = float(kwargs.get('lpa_tol', 0.001))
+    merge_minor = bool(kwargs.get('merge_minor_communities', True))
+
     for dataset in datasets:
         p    = get_paths_fn(dataset)
         print(f"\n{'='*60}\n  PHASE 1 — Community Detection: {dataset}\n{'='*60}")
@@ -84,35 +90,52 @@ def run_phase1(spark, sc, datasets, algorithms, lpa_max_iter, resolution,
                                             F.col('src_comm').alias('proposed_comm')))
                                             
                     freq = proposed.groupBy('id', 'proposed_comm').count()
+                    # Tie-break pseudo-randomly, not by label value. struct('count',
+                    # 'proposed_comm') breaks ties toward the largest community_id,
+                    # and since labels are initialised to node ids that is a standing
+                    # bias toward high-numbered nodes — LPA requires random tie-breaks
+                    # to converge properly, and a deterministic one fragments.
                     best = (freq
-                            .select('id', F.struct('count', 'proposed_comm').alias('c_info'))
+                            .withColumn('_tie', F.xxhash64('id', 'proposed_comm',
+                                                           F.lit(int(random_seed))))
+                            .select('id', F.struct('count', '_tie', 'proposed_comm').alias('c_info'))
                             .groupBy('id')
                             .agg(F.max('c_info').alias('best_info'))
                             .select('id', F.col('best_info.proposed_comm').alias('new_comm')))
-                    
+
                     old_curr = curr
                     curr = (curr.join(best, on='id', how='left')
+                                .withColumn('_prev_comm', F.col('community_id'))
                                 .withColumn('community_id',
                                             F.coalesce(F.col('new_comm'),
                                                        F.col('community_id')))
-                                .select('id', 'community_id')
+                                .select('id', 'community_id', '_prev_comm')
                                 .repartition(num_parts))
                     
                     if i % 2 == 1:
                         curr = curr.localCheckpoint()
                     else:
                         curr = curr.cache()
-                        
-                    if i == lpa_max_iter - 1:
-                        nc = curr.select('community_id').distinct().count()
-                        print(f"    Iter {i+1}/{lpa_max_iter}: {nc:,} comms  [{time.time()-t_i:.1f}s]")
-                    else:
-                        print(f"    Iter {i+1}/{lpa_max_iter} completed  [{time.time()-t_i:.1f}s]")
+
+                    # Stop when labels stop moving. Running a fixed iteration budget
+                    # means labels propagate at most that many hops; on a large-
+                    # diameter graph six hops leaves the graph heavily fragmented,
+                    # which is the main reason LPA reports so many communities here.
+                    stats = curr.agg(
+                        F.sum((F.col('community_id') != F.col('_prev_comm')).cast('long')).alias('changed'),
+                        F.countDistinct('community_id').alias('ncomm')).collect()[0]
+                    changed, nc = int(stats['changed'] or 0), int(stats['ncomm'])
+                    frac = changed / max(1, n_nodes)
+                    print(f"    Iter {i+1}/{lpa_max_iter}: {nc:,} comms, "
+                          f"{changed:,} labels moved ({frac:.3%})  [{time.time()-t_i:.1f}s]")
                     try:
                         old_curr.unpersist()
                     except Exception:
                         pass
-                communities_df = curr.cache()
+                    if frac <= lpa_tol:
+                        print(f"    ✓ Converged after {i+1} iterations (< {lpa_tol:.2%} moved)")
+                        break
+                communities_df = curr.select('id', 'community_id').cache()
 
             # ── Louvain / Leiden / igraph_lpa ─────────────────────────────────────────────
             elif alg in ('louvain', 'leiden', 'igraph_lpa'):
@@ -131,6 +154,12 @@ def run_phase1(spark, sc, datasets, algorithms, lpa_max_iter, resolution,
                 print(f"  Building igraph ({len(all_nids):,} nodes) ...")
                 G = ig.Graph(n=len(all_nids), edges=el, directed=False)
                 print(f"  Running {alg} (resolution={resolution}) ...")
+                # community_multilevel and community_label_propagation are randomized.
+                # Unseeded, the same graph yields a different partition on every run,
+                # so downstream accuracy moves for reasons unrelated to the change
+                # being measured. Leiden already took a seed; these did not.
+                import random as _random
+                ig.set_random_number_generator(_random.Random(int(random_seed)))
                 if alg == 'louvain':
                     partition = G.community_multilevel(resolution=resolution)
                 elif alg == 'leiden':
@@ -244,6 +273,52 @@ def run_phase1(spark, sc, datasets, algorithms, lpa_max_iter, resolution,
             else:
                 raise ValueError(f"Unknown algorithm '{alg}'. "
                                  "Use 'lpa', 'louvain', 'leiden', 'igraph_lpa', or 'metis'.")
+
+            # ── Absorb minor communities ──────────────────────────────────────
+            # LPA leaves a long tail of small labels. Phase 2 then drops them or
+            # buckets them into a misc partition, and Phase 3b carries every one as
+            # an explicit minor node, which is what inflates the macro-graph and the
+            # broadcast cost. Reassigning each minor-community vertex to whichever
+            # major community it has the most edges into keeps those vertices in the
+            # experiment and collapses the tail, without touching major communities.
+            if merge_minor and min_size > 1:
+                t_merge = time.time()
+                sizes = communities_df.groupBy('community_id').count()
+                major = sizes.filter(F.col('count') >= min_size).select('community_id').cache()
+                n_major = major.count()
+                n_before = sizes.count()
+
+                if 0 < n_major < n_before:
+                    node_comm = communities_df.select('id', 'community_id')
+                    minor_ids = node_comm.join(major, on='community_id', how='left_anti').select('id')
+
+                    dst_comm = (node_comm.withColumnRenamed('id', 'dst')
+                                         .withColumnRenamed('community_id', 'dst_comm')
+                                         .join(major.withColumnRenamed('community_id', 'dst_comm'),
+                                               on='dst_comm', how='inner'))
+                    votes = (edges_df
+                             .join(minor_ids.withColumnRenamed('id', 'src'), on='src', how='inner')
+                             .join(dst_comm, on='dst', how='inner')
+                             .groupBy('src', 'dst_comm').count())
+                    winner = (votes
+                              .withColumn('_tie', F.xxhash64('src', 'dst_comm', F.lit(int(random_seed))))
+                              .select('src', F.struct('count', '_tie', 'dst_comm').alias('v'))
+                              .groupBy('src').agg(F.max('v').alias('bv'))
+                              .select(F.col('src').alias('id'),
+                                      F.col('bv.dst_comm').alias('merged_comm')))
+
+                    communities_df = (node_comm
+                                      .join(winner, on='id', how='left')
+                                      .withColumn('community_id',
+                                                  F.coalesce(F.col('merged_comm'),
+                                                             F.col('community_id')))
+                                      .select('id', 'community_id').cache())
+                    n_after = communities_df.select('community_id').distinct().count()
+                    print(f"    ✓ Minor-community absorption: {n_before:,} → {n_after:,} communities "
+                          f"({n_major:,} major kept)  [{time.time()-t_merge:.1f}s]")
+                else:
+                    print(f"    ✓ No minor communities to absorb ({n_major:,} of {n_before:,} are major)")
+                major.unpersist()
 
             communities_df.write.format('delta').mode('overwrite')\
                           .save(p_alg['communities'])

@@ -1,0 +1,52 @@
+{
+  "_comment": "Which datasets support which task, and why. A dataset appears in a task only if it can actually support that task's claim. Generated 2026-09-09.",
+  "version": 1,
+  "tasks": {
+    "node_classification": {
+      "requires": ["real node labels", "real node features"],
+      "datasets": ["reddit", "ogbn-products", "ogbn-arxiv", "ogbn-mag"],
+      "optional": ["DeezerEurope"],
+      "notes": {
+        "reddit": "Primary. Real labels and features, high homophily, largest measured CAAN recovery (+18.7pp). Report the majority-per-community control alongside it: Louvain communities are ~79% label-pure, so a zero-parameter predictor scores 0.7386.",
+        "ogbn-products": "Scale with real labels, 2.45M nodes.",
+        "ogbn-arxiv": "Medium scale; the dataset with verified genuine multi-community partitioning in existing artifacts (220 communities).",
+        "ogbn-mag": "Limitation case. Heterogeneous graph, Louvain severs meta-paths, recovery is poor. Keep and explain rather than drop.",
+        "DeezerEurope": "Optional heterophily contrast, which turns the homophily claim into a comparison rather than an assertion."
+      }
+    },
+    "link_prediction": {
+      "requires": ["real edges"],
+      "datasets": ["reddit", "ogbn-products", "ogbn-mag", "LiveJournal", "Orkut"],
+      "optional": ["DeezerEurope"],
+      "notes": {
+        "shared_with_node_classification": "reddit, ogbn-products and ogbn-mag appear in both tables so the two tasks are directly comparable.",
+        "LiveJournal": "Valid here — edges are real. Features are synthetic, so this is a purely structural task and must be labelled as such.",
+        "Orkut": "Same as LiveJournal.",
+        "open_issue": "Two measurement paths disagree: standalone benchmark scripts report 0.812 (LiveJournal) / 0.785 (Orkut) on a ~400K-edge head slice with random features, while the EMR pipeline reports 0.517 / 0.525 on the full graph under a 30K-edge-per-community cap. Resolve before publishing either number."
+      }
+    },
+    "scalability": {
+      "requires": ["large edge count"],
+      "datasets": ["Orkut", "LiveJournal", "ogbn-papers100M"],
+      "anchors": ["reddit", "ogbn-products"],
+      "notes": {
+        "rationale": "Scalability needs neither labels nor features, only wall-clock against executor count. This is where LiveJournal and Orkut are fully qualified.",
+        "ogbn-papers100M": "Extreme point. Requires LPA (Louvain is driver-bound) and the Phase 3 block-splitting path."
+      }
+    }
+  },
+  "excluded": {
+    "LiveJournal": {
+      "from": "node_classification",
+      "reason": "No node labels. experiment_config assigns 100 synthetic classes over synthetic features; EMR runs score ~1.07%, which is chance. The task does not exist for this graph."
+    },
+    "Orkut": {
+      "from": "node_classification",
+      "reason": "No node labels. EMR runs score ~1.08%, chance for 100 classes."
+    }
+  },
+  "appendix_only": {
+    "datasets": ["WikiCS", "Coauthor-CS", "Coauthor-Physics"],
+    "reason": "ML-GRL evaluated on these, so they enable direct comparison with prior work from the same group. Too small (11K-34K nodes) to carry a distributed-systems result, so keep them in an appendix comparability table rather than the main results."
+  }
+}

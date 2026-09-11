@@ -32,6 +32,12 @@ def _make_result_schema():
         StructField('n_boundary',     LongType()),
         StructField('n_internal',     LongType()),
         StructField('comm_test_acc',  DoubleType()),
+        # Both classifier heads are recorded so the choice between them is a
+        # measurement rather than an assumption, and so a dataset where they
+        # disagree is visible instead of silently reported as one or the other.
+        StructField('acc_gnn_head',   DoubleType()),
+        StructField('acc_mlp_head',   DoubleType()),
+        StructField('head_used',      StringType()),
         StructField('boundary_acc',   DoubleType()),
         StructField('internal_acc',   DoubleType()),
         StructField('comm_link_auc',  DoubleType()),
@@ -99,6 +105,9 @@ def _train_gnn_community_single(pdf, comm_edges_pdf=None, base_weights_bc=None, 
             'n_boundary':     0,
             'n_internal':     0,
             'comm_test_acc':  0.0,
+            'acc_gnn_head':   0.0,
+            'acc_mlp_head':   0.0,
+            'head_used':      'none',
             'boundary_acc':   0.0,
             'internal_acc':   0.0,
             'comm_link_auc':  0.5,
@@ -159,11 +168,17 @@ def _train_gnn_community_single(pdf, comm_edges_pdf=None, base_weights_bc=None, 
         import dgl
         import dgl.nn as dglnn
     except Exception:
-        subprocess.run([sys.executable, '-m', 'pip', 'install', '--user', '--quiet', '--no-cache-dir',
-                        'dgl==1.1.3', '-f', 'https://data.dgl.ai/wheels/repo.html'],
-                        stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=True)
-        import dgl
-        import dgl.nn as dglnn
+        try:
+            subprocess.run([sys.executable, '-m', 'pip', 'install', '--user', '--quiet', '--no-cache-dir',
+                            'dgl==1.1.3', '-f', 'https://data.dgl.ai/wheels/repo.html'],
+                            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=True)
+            import dgl
+            import dgl.nn as dglnn
+        except Exception:
+            # DGL is unavailable (no wheel for this platform). PyG covers every
+            # backbone, so route SAGE through PyG rather than failing the run.
+            dgl = None
+            dglnn = None
 
     try:
         omp_threads = int(os.environ.get('OMP_NUM_THREADS', '1'))
@@ -191,7 +206,16 @@ def _train_gnn_community_single(pdf, comm_edges_pdf=None, base_weights_bc=None, 
     max_nodes_per_community = int(pdf['_max_nodes'].iloc[0]) if '_max_nodes' in pdf.columns else 10000
     max_edges_per_community = int(pdf['_max_edges'].iloc[0]) if '_max_edges' in pdf.columns else 200000
     mlp_epochs = int(pdf['_mlp_epochs'].iloc[0]) if '_mlp_epochs' in pdf.columns else 5
+    mlp_patience = int(pdf['_mlp_patience'].iloc[0]) if '_mlp_patience' in pdf.columns else 15
+    node_patience = int(pdf['_node_patience'].iloc[0]) if '_node_patience' in pdf.columns else 10
     diagnostic(f"dependencies ready after {time.time() - worker_start:.1f}s; model={model_type}; task={task_type}")
+
+    # Deterministic weight init per unit. Without this the same configuration moves
+    # several accuracy points between runs purely from random initialisation, which
+    # makes any reported mean±std measure noise rather than data variance. Seeding
+    # by community keeps units independent while staying reproducible.
+    torch.manual_seed(42 + int(comm_id))
+    np.random.seed((42 + int(comm_id)) % (2**32))
 
     # Support both bundled single-row community representations and multi-row frames
     if '_id_list' in pdf.columns and len(pdf) == 1:
@@ -274,6 +298,9 @@ def _train_gnn_community_single(pdf, comm_edges_pdf=None, base_weights_bc=None, 
             'n_boundary':     int(bnd_arr.sum()),
             'n_internal':     int((~bnd_arr).sum()),
             'comm_test_acc':  test_acc,
+            'acc_gnn_head':   test_acc,
+            'acc_mlp_head':   test_acc,
+            'head_used':      'majority',
             'boundary_acc':   bnd_acc,
             'internal_acc':   int_acc,
             'comm_link_auc':  0.5,
@@ -371,13 +398,22 @@ def _train_gnn_community_single(pdf, comm_edges_pdf=None, base_weights_bc=None, 
         src_l_g = src_l
         dst_l_g = dst_l
 
-    has_label = torch.tensor(label_arr >= 0, dtype=torch.bool)
+    # Which rows are this community's own vertices, as opposed to 1-hop halo
+    # vertices borrowed from neighbours. Phase 2 marks these with is_member; the
+    # local harness signals the same split positionally via _n_local. Halo
+    # vertices are message-passing context only — counting them would score the
+    # same vertex once per community that borrows it.
+    from pipeline.utils.common import resolve_member_mask
+    member_arr = resolve_member_mask(pdf, n_nodes)
+    member_t = torch.tensor(member_arr, dtype=torch.bool)
+
+    has_label = torch.tensor(label_arr >= 0, dtype=torch.bool) & member_t
     train_m = torch.tensor([s == 'train' for s in split_arr], dtype=torch.bool) & has_label
     val_m   = torch.tensor([s == 'valid' for s in split_arr], dtype=torch.bool) & has_label
     test_m  = torch.tensor([s == 'test'  for s in split_arr], dtype=torch.bool) & has_label
     bnd_t = torch.tensor(bnd_arr, dtype=torch.bool)
 
-    is_pyg = (model_type in ('gat', 'gatv2', 'transformer', 'clusterscl', 'arma', 'asap'))
+    is_pyg = (model_type in ('gat', 'gatv2', 'transformer', 'clusterscl', 'arma', 'asap')) or dgl is None
     if is_pyg:
         import torch_geometric
         pyg_edge_index = torch.stack([
@@ -626,6 +662,31 @@ def _train_gnn_community_single(pdf, comm_edges_pdf=None, base_weights_bc=None, 
             opt = torch.optim.Adam(list(model.parameters()) + list(elbo_loss_fn.parameters()), lr=lr, weight_decay=5e-4)
             crit = nn.CrossEntropyLoss()
             
+        elif dgl is None:
+            # PyG realization of the default GraphSAGE backbone, used wherever DGL
+            # has no wheel for the platform. Same architecture as the DGL branch.
+            from torch_geometric.nn import SAGEConv
+            class PyGSAGEEncoder(nn.Module):
+                def __init__(self, in_f, h):
+                    super().__init__()
+                    self.c1 = SAGEConv(in_f, h)
+                    self.c2 = SAGEConv(h, h)
+                    self.dr = nn.Dropout(dropout)
+                def forward(self, x, edge_index):
+                    x = torch.relu(self.c1(x, edge_index))
+                    x = self.dr(x)
+                    return self.c2(x, edge_index)
+            class PyGSAGECommunity(nn.Module):
+                def __init__(self, in_f, h, nc):
+                    super().__init__()
+                    self.enc = PyGSAGEEncoder(in_f, h)
+                    self.fc = nn.Linear(h, nc)
+                def forward(self, x, edge_index):
+                    return self.fc(self.enc(x, edge_index))
+            model = PyGSAGECommunity(feat_arr.shape[1], hidden_dim, num_classes)
+            opt   = torch.optim.Adam(model.parameters(), lr=lr, weight_decay=5e-4)
+            crit  = nn.CrossEntropyLoss()
+
         else:
             class GraphSAGECommunity(nn.Module):
                 def __init__(self, in_f, h, nc):
@@ -668,10 +729,26 @@ def _train_gnn_community_single(pdf, comm_edges_pdf=None, base_weights_bc=None, 
 
         model.train()
         if train_m.sum() > 0:
+            # Train to convergence on validation accuracy, not to a fixed budget.
+            # This loop takes one full-batch step per epoch, so a 10-epoch budget is
+            # 10 gradient updates for the whole community — the same defect that left
+            # the Phase 4 baseline below chance. Stopping on training loss (the old
+            # rule) cannot detect overfitting and fires early on any flat step.
+            import copy as _copy
             best_loss = float('inf')
             patience_counter = 0
+            best_val_acc, best_state = -1.0, None
+            val_every = max(1, int(num_epochs // 40) or 1)
+            has_val = bool(val_m.sum() > 0)
 
-            for _ in range(num_epochs):
+            def _val_logits():
+                if model_type == 'clusterscl':
+                    return model.get_embeddings_and_logits(feat_t, pyg_edge_index)[2]
+                if is_pyg:
+                    return model(feat_t, pyg_edge_index)
+                return model(g, feat_t)
+
+            for _ep in range(num_epochs):
                 if model_type == 'clusterscl':
                     opt.zero_grad()
                     z1, proj1, logits1 = model.get_embeddings_and_logits(feat_t, pyg_edge_index)
@@ -738,13 +815,30 @@ def _train_gnn_community_single(pdf, comm_edges_pdf=None, base_weights_bc=None, 
                     opt.step()
                     curr_loss = loss.item()
 
-                if curr_loss < best_loss - 1e-4:
-                    best_loss = curr_loss
-                    patience_counter = 0
-                else:
-                    patience_counter += 1
-                    if patience_counter >= 2:
-                        break
+                if has_val and ((_ep + 1) % val_every == 0 or _ep == num_epochs - 1):
+                    model.eval()
+                    with torch.no_grad():
+                        v_acc = float((_val_logits()[val_m].argmax(dim=1)
+                                       == lbl_t[val_m]).float().mean())
+                    model.train()
+                    if v_acc > best_val_acc:
+                        best_val_acc, patience_counter = v_acc, 0
+                        best_state = _copy.deepcopy(model.state_dict())
+                    else:
+                        patience_counter += val_every
+                        if patience_counter >= node_patience:
+                            break
+                elif not has_val:
+                    # No validation split in this unit: fall back to training loss.
+                    if curr_loss < best_loss - 1e-4:
+                        best_loss, patience_counter = curr_loss, 0
+                    else:
+                        patience_counter += 1
+                        if patience_counter >= node_patience:
+                            break
+
+            if best_state is not None:
+                model.load_state_dict(best_state)
         node_train_time = time.time() - t_node_start
         diagnostic(f"node training/evaluation finished in {node_train_time:.1f}s")
         
@@ -763,14 +857,24 @@ def _train_gnn_community_single(pdf, comm_edges_pdf=None, base_weights_bc=None, 
         from torch.utils.data import TensorDataset, DataLoader
 
         class DownstreamNodeClassifierUDF(nn.Module):
+            """Probe head over frozen embeddings, sized from the data.
+
+            The previous fixed 64->32 funnel was narrower than the label space on
+            any dataset with more than 32 classes — on ogbn-arxiv's 40 classes the
+            head, not the encoder, was the accuracy ceiling. Widths now scale with
+            both the embedding dimension and the class count so the same code is
+            reasonable from 2 classes to hundreds.
+            """
             def __init__(self, input_dim, classes):
                 super().__init__()
+                h1 = max(64, min(input_dim, 4 * classes))
+                h2 = max(32, min(h1, 2 * classes))
                 self.layers = nn.Sequential(
-                    nn.Linear(input_dim, 64),
+                    nn.Linear(input_dim, h1),
                     nn.ReLU(),
-                    nn.Linear(64, 32),
+                    nn.Linear(h1, h2),
                     nn.ReLU(),
-                    nn.Linear(32, classes)
+                    nn.Linear(h2, classes)
                 )
             def forward(self, x):
                 return self.layers(x)
@@ -812,15 +916,47 @@ def _train_gnn_community_single(pdf, comm_edges_pdf=None, base_weights_bc=None, 
                         if acc > best_acc:
                             best_acc = acc
                             best_weights = copy.deepcopy(mlp_model.state_dict())
+                            _mlp_wait = 0
+                        else:
+                            _mlp_wait = locals().get('_mlp_wait', 0) + 1
+                            if _mlp_wait >= mlp_patience:
+                                break
                 else:
                     best_weights = copy.deepcopy(mlp_model.state_dict())
 
             mlp_model.load_state_dict(best_weights)
 
+        # The encoder already carries a classifier trained end-to-end for this task;
+        # the probe head is a second, weaker model over frozen features. Score both
+        # on validation and keep the better one, so no dataset is stuck with a head
+        # that happens to suit a different one.
+        def _acc_of(pred_vec, mask):
+            n = int(mask.sum())
+            return float((pred_vec[mask] == lbl_t[mask]).float().mean()) if n else 0.0
+
         mlp_model.eval()
+        model.eval()
         with torch.no_grad():
-            y_pred_all = mlp_model(embed)
-            preds = y_pred_all.argmax(dim=1)
+            preds_mlp = mlp_model(embed).argmax(dim=1)
+            try:
+                if model_type == 'clusterscl':
+                    gnn_logits = model.get_embeddings_and_logits(feat_t, pyg_edge_index)[2]
+                elif is_pyg:
+                    gnn_logits = model(feat_t, pyg_edge_index)
+                else:
+                    gnn_logits = model(g, feat_t)
+                preds_gnn = gnn_logits.argmax(dim=1)
+            except Exception:
+                preds_gnn = preds_mlp
+
+            if int(val_m.sum()) > 0:
+                use_gnn = _acc_of(preds_gnn, val_m) > _acc_of(preds_mlp, val_m)
+            else:
+                use_gnn = False
+            preds = preds_gnn if use_gnn else preds_mlp
+            head_used = 'gnn' if use_gnn else 'mlp'
+            acc_gnn_head = _acc_of(preds_gnn, test_m)
+            acc_mlp_head = _acc_of(preds_mlp, test_m)
 
         def safe_acc(mask):
             n = int(mask.sum())
@@ -836,21 +972,70 @@ def _train_gnn_community_single(pdf, comm_edges_pdf=None, base_weights_bc=None, 
     comm_link_auc = 0.5
     test_edges_idx = []
     
-    if run_link and n_edges >= 5:
+    # Link prediction scores member-to-member pairs only; halo vertices stay as
+    # message-passing context. Negatives are drawn from members for the same reason.
+    _member_idx = np.where(member_arr)[0].astype(np.int64)
+    if n_edges > 0 and len(_member_idx) < n_nodes:
+        _real_edge_pos = np.where(member_arr[src_l] & member_arr[dst_l])[0]
+    else:
+        _real_edge_pos = np.arange(n_edges, dtype=np.int64)
+    n_real_edges = len(_real_edge_pos)
+
+    if run_link and n_real_edges >= 5:
         t_link_start = time.time()
         torch.manual_seed(42)
-        shuffled_edge_ids = torch.randperm(n_edges)
-        n_tr_edges = int(0.8 * n_edges)
-        n_val_edges = int(0.1 * n_edges)
-        
+        _real_pos_t = torch.tensor(_real_edge_pos, dtype=torch.int64)
+        shuffled_edge_ids = _real_pos_t[torch.randperm(n_real_edges)]
+        n_tr_edges = int(0.8 * n_real_edges)
+        n_val_edges = int(0.1 * n_real_edges)
+
         max_local_train = min(10000, n_tr_edges)
-        max_local_test = min(2000, n_edges - n_tr_edges - n_val_edges)
-        
+        max_local_test = min(2000, n_real_edges - n_tr_edges - n_val_edges)
+
         train_edges_idx = shuffled_edge_ids[:max_local_train]
         test_edges_idx = shuffled_edge_ids[n_tr_edges + n_val_edges : n_tr_edges + n_val_edges + max_local_test]
-        
+
         src_l_t = torch.tensor(src_l, dtype=torch.int64)
         dst_l_t = torch.tensor(dst_l, dtype=torch.int64)
+        # Sorted int64 edge keys for vectorized rejection sampling. A Python set of
+        # edge tuples costs several GB on a multi-million-edge community.
+        _edge_keys = np.unique(
+            (src_l.astype(np.int64) * np.int64(n_nodes) + dst_l.astype(np.int64))
+        ) if n_edges > 0 else np.empty(0, dtype=np.int64)
+
+        def sample_negative_edges_local(pool, n_samples):
+            """Uniform negatives over `pool`, with true edges rejected both ways."""
+            if n_samples <= 0 or len(pool) < 2:
+                return (torch.empty(0, dtype=torch.int64), torch.empty(0, dtype=torch.int64))
+            n_pool = len(pool)
+            kept_s, kept_d, collected = [], [], 0
+            for _ in range(8):
+                need = n_samples - collected
+                c_s = torch.from_numpy(pool[torch.randint(0, n_pool, (max(need * 2, 1024),)).numpy()])
+                c_d = torch.from_numpy(pool[torch.randint(0, n_pool, (max(need * 2, 1024),)).numpy()])
+                keep = (c_s != c_d)
+                c_s, c_d = c_s[keep], c_d[keep]
+                if len(c_s) == 0:
+                    continue
+                s_np = c_s.numpy().astype(np.int64)
+                d_np = c_d.numpy().astype(np.int64)
+                fwd = s_np * np.int64(n_nodes) + d_np
+                rev = d_np * np.int64(n_nodes) + s_np
+                ok = ~(np.isin(fwd, _edge_keys) | np.isin(rev, _edge_keys))
+                if ok.any():
+                    kept_s.append(s_np[ok][:need])
+                    kept_d.append(d_np[ok][:need])
+                    collected += len(kept_s[-1])
+                if collected >= n_samples:
+                    break
+            if collected < n_samples:
+                # Corner case: a near-complete subgraph leaves too few true non-edges.
+                rem = n_samples - collected
+                kept_s.append(pool[torch.randint(0, n_pool, (rem,)).numpy()].astype(np.int64))
+                kept_d.append(pool[torch.randint(0, n_pool, (rem,)).numpy()].astype(np.int64))
+            neg_s = np.concatenate(kept_s)[:n_samples]
+            neg_d = np.concatenate(kept_d)[:n_samples]
+            return (torch.from_numpy(neg_s.copy()), torch.from_numpy(neg_d.copy()))
         
         if is_pyg:
             if model_type == 'gat' or model_type == 'clusterscl':
@@ -927,17 +1112,22 @@ def _train_gnn_community_single(pdf, comm_edges_pdf=None, base_weights_bc=None, 
                         return self.c2(x, edge_index)
             
             class PyGLinkPredictor(nn.Module):
-                def __init__(self, h):
+                def __init__(self, h, dropout=0.1):
                     super().__init__()
-                    self.fc1 = nn.Linear(h, h)
+                    # 4-way Siamese edge representation: [h_src, h_dst, |h_src - h_dst|, h_src * h_dst]
+                    self.fc1 = nn.Linear(4 * h, h)
                     self.fc2 = nn.Linear(h, 1)
+                    self.dr = nn.Dropout(dropout)
                 def forward(self, h_src, h_dst):
-                    x = h_src * h_dst
-                    x = torch.relu(self.fc1(x))
+                    diff = torch.abs(h_src - h_dst)
+                    prod = h_src * h_dst
+                    cat_feat = torch.cat([h_src, h_dst, diff, prod], dim=-1)
+                    x = torch.relu(self.fc1(cat_feat))
+                    x = self.dr(x)
                     return self.fc2(x).squeeze(-1)
             
             encoder = PyGEncoder(feat_arr.shape[1], hidden_dim)
-            predictor = PyGLinkPredictor(hidden_dim)
+            predictor = PyGLinkPredictor(hidden_dim, dropout=dropout)
             optimizer = torch.optim.Adam(
                 list(encoder.parameters()) + list(predictor.parameters()),
                 lr=lr, weight_decay=5e-4
@@ -952,8 +1142,7 @@ def _train_gnn_community_single(pdf, comm_edges_pdf=None, base_weights_bc=None, 
                 h = encoder(feat_t, pyg_train_edge_index)
                 pos_src = src_l_t[train_edges_idx]
                 pos_dst = dst_l_t[train_edges_idx]
-                neg_src = torch.randint(0, n_nodes, (len(train_edges_idx),))
-                neg_dst = torch.randint(0, n_nodes, (len(train_edges_idx),))
+                neg_src, neg_dst = sample_negative_edges_local(_member_idx, len(train_edges_idx))
                 
                 pos_scores = predictor(h[pos_src], h[pos_dst])
                 neg_scores = predictor(h[neg_src], h[neg_dst])
@@ -974,8 +1163,7 @@ def _train_gnn_community_single(pdf, comm_edges_pdf=None, base_weights_bc=None, 
                 test_dst = dst_l_t[test_edges_idx]
                 if len(test_src) > 0:
                     pos_scores = predictor(h[test_src], h[test_dst])
-                    neg_src = torch.randint(0, n_nodes, (len(test_src),))
-                    neg_dst = torch.randint(0, n_nodes, (len(test_src),))
+                    neg_src, neg_dst = sample_negative_edges_local(_member_idx, len(test_src))
                     neg_scores = predictor(h[neg_src], h[neg_dst])
                     y_true = np.concatenate([np.ones(len(pos_scores)), np.zeros(len(neg_scores))])
                     y_scores = torch.cat([pos_scores, neg_scores]).cpu().numpy()
@@ -991,13 +1179,18 @@ def _train_gnn_community_single(pdf, comm_edges_pdf=None, base_weights_bc=None, 
             train_g = dgl.add_self_loop(train_g)
             
             class LinkPredictor(nn.Module):
-                def __init__(self, h):
+                def __init__(self, h, dropout=0.1):
                     super().__init__()
-                    self.fc1 = nn.Linear(h, h)
+                    # 4-way Siamese edge representation: [h_src, h_dst, |h_src - h_dst|, h_src * h_dst]
+                    self.fc1 = nn.Linear(4 * h, h)
                     self.fc2 = nn.Linear(h, 1)
+                    self.dr = nn.Dropout(dropout)
                 def forward(self, h_src, h_dst):
-                    x = h_src * h_dst
-                    x = torch.relu(self.fc1(x))
+                    diff = torch.abs(h_src - h_dst)
+                    prod = h_src * h_dst
+                    cat_feat = torch.cat([h_src, h_dst, diff, prod], dim=-1)
+                    x = torch.relu(self.fc1(cat_feat))
+                    x = self.dr(x)
                     return self.fc2(x).squeeze(-1)
             
             class GCNEncoder(nn.Module):
@@ -1012,7 +1205,7 @@ def _train_gnn_community_single(pdf, comm_edges_pdf=None, base_weights_bc=None, 
                     return x
             
             encoder = GCNEncoder(feat_arr.shape[1], hidden_dim)
-            predictor = LinkPredictor(hidden_dim)
+            predictor = LinkPredictor(hidden_dim, dropout=dropout)
             optimizer = torch.optim.Adam(
                 list(encoder.parameters()) + list(predictor.parameters()),
                 lr=lr, weight_decay=5e-4
@@ -1025,8 +1218,7 @@ def _train_gnn_community_single(pdf, comm_edges_pdf=None, base_weights_bc=None, 
             for _ in range(num_epochs):
                 pos_src = src_l_t[train_edges_idx]
                 pos_dst = dst_l_t[train_edges_idx]
-                neg_src = torch.randint(0, n_nodes, (len(train_edges_idx),))
-                neg_dst = torch.randint(0, n_nodes, (len(train_edges_idx),))
+                neg_src, neg_dst = sample_negative_edges_local(_member_idx, len(train_edges_idx))
                 
                 h = encoder(train_g, feat_t)
                 pos_scores = predictor(h[pos_src], h[pos_dst])
@@ -1049,8 +1241,7 @@ def _train_gnn_community_single(pdf, comm_edges_pdf=None, base_weights_bc=None, 
                 
                 if len(test_src) > 0:
                     pos_scores = predictor(h[test_src], h[test_dst])
-                    neg_src = torch.randint(0, n_nodes, (len(test_src),))
-                    neg_dst = torch.randint(0, n_nodes, (len(test_src),))
+                    neg_src, neg_dst = sample_negative_edges_local(_member_idx, len(test_src))
                     neg_scores = predictor(h[neg_src], h[neg_dst])
                     
                     y_true = np.concatenate([np.ones(len(pos_scores)), np.zeros(len(neg_scores))])
@@ -1079,6 +1270,9 @@ def _train_gnn_community_single(pdf, comm_edges_pdf=None, base_weights_bc=None, 
         'n_boundary':    n_nodes_bnd,
         'n_internal':    n_nodes - n_nodes_bnd,
         'comm_test_acc': comm_acc,
+        'acc_gnn_head':  float(locals().get('acc_gnn_head', comm_acc)),
+        'acc_mlp_head':  float(locals().get('acc_mlp_head', comm_acc)),
+        'head_used':     str(locals().get('head_used', 'mlp')),
         'boundary_acc':  bnd_acc,
         'internal_acc':  int_acc,
         'comm_link_auc': comm_link_auc,
@@ -1101,8 +1295,15 @@ def run_phase3(spark, sc, datasets, algorithms, use_global_mapping,
     diagnostics = kwargs.get('diagnostics', False)
     max_nodes_per_community = int(kwargs.get('max_nodes_per_community', 10000))
     max_edges_per_community = int(kwargs.get('max_edges_per_community', 50000))
-    edge_sample_modulus = max(1, int(kwargs.get('edge_sample_modulus', 64)))
+    edge_sample_modulus = max(1, int(kwargs.get('edge_sample_modulus', 1)))
     mlp_epochs = max(1, int(kwargs.get('mlp_epochs', 5)))
+    # Split communities larger than the per-unit cap into bounded blocks and stream
+    # them via cogroup, instead of hash-sampling them down and packing each into a
+    # single Spark row. Required for billion-edge graphs; harmless below the cap,
+    # where every community yields exactly one block.
+    block_oversized = bool(kwargs.get('block_oversized', True))
+    node_patience = max(1, int(kwargs.get('node_patience', 10)))
+    mlp_patience = max(1, int(kwargs.get('mlp_patience', 15)))
     
     from pyspark import StorageLevel
     from pyspark.sql import functions as F
@@ -1134,7 +1335,11 @@ def run_phase3(spark, sc, datasets, algorithms, use_global_mapping,
             # Standard metadata + 128-float features array in DataFrame
             # Fixed 128-float arrays with maxRecordsPerBatch=1000 produce tiny 512KB Arrow batches
             # while avoiding all C++ PyArrow dataset disk scanning in Python workers.
-            training_df_base = nodes_df.select('id', 'label', 'features', 'split', 'community_id', 'is_boundary')
+            # is_member is absent from Phase 2 tables written before halo tracking
+            # existed; default those to member so older checkpoints still run.
+            if 'is_member' not in nodes_df.columns:
+                nodes_df = nodes_df.withColumn('is_member', F.lit(True))
+            training_df_base = nodes_df.select('id', 'label', 'features', 'split', 'community_id', 'is_boundary', 'is_member')
 
             # Compute model-independent community layout once per (dataset, alg).
             layout_start = time.time()
@@ -1148,6 +1353,9 @@ def run_phase3(spark, sc, datasets, algorithms, use_global_mapping,
             print(f"  [Phase 3 setup] Community layout computed in {time.time() - layout_start:.1f}s: "
                   f"{num_comms:,} communities; largest community_id:nodes = {largest_communities}.")
 
+            # Stride must exceed any per-community block count so unit ids stay unique.
+            BLOCK_STRIDE = int(max(1024, comms_node_counts_pd['count'].max() // max(1, max_nodes_per_community) + 2)) \
+                if len(comms_node_counts_pd) else 1024
             default_para = sc.defaultParallelism
             if num_comms <= 2000:
                 num_bins = num_comms
@@ -1163,8 +1371,15 @@ def run_phase3(spark, sc, datasets, algorithms, use_global_mapping,
                 1,
                 np.ceil(comms_node_counts_pd['count'] / node_sampling_target).astype(np.int64)
             )
+            # Number of bounded training units a community is split into. 1 leaves the
+            # community intact; larger values split it rather than sampling it away.
+            comms_node_counts_pd['_phase3_n_blocks'] = np.maximum(
+                1,
+                np.ceil(comms_node_counts_pd['count'] / max_nodes_per_community).astype(np.int64)
+            )
             comms_node_counts = spark.createDataFrame(
-                comms_node_counts_pd[['community_id', 'bin_id', '_phase3_node_mod']]
+                comms_node_counts_pd[['community_id', 'bin_id', '_phase3_node_mod',
+                                      '_phase3_n_blocks']]
             )
 
             base_manifest_df = (comms_node_counts
@@ -1393,48 +1608,132 @@ def run_phase3(spark, sc, datasets, algorithms, use_global_mapping,
                         base_node_map_bc=base_node_map_bc
                     )
 
+                if block_oversized:
+                    # ── Recursive block partitioning (billion-edge path) ──────────
+                    #
+                    # The sampling path below bounds a community by keeping an induced
+                    # subgraph on ~8k hash-sampled nodes. Because an edge survives only
+                    # if BOTH endpoints do, edge retention falls as 1/mod^2: a 10M-node
+                    # community keeps ~8k nodes and a millionth of its edges, so most
+                    # test vertices are never evaluated and the model trains on a
+                    # fragment. That is why Papers100M could not be processed here.
+                    #
+                    # Instead, split an oversized community into ceil(N/cap) blocks and
+                    # train each independently. Every vertex is kept, every intra-block
+                    # edge is kept, and only edges crossing a block boundary are lost —
+                    # the same trade the method already makes at community boundaries,
+                    # applied recursively. Each unit is bounded by construction, so no
+                    # group can exceed a worker's budget.
+                    block_plan = F.broadcast(
+                        comms_node_counts.select('community_id', '_phase3_n_blocks'))
+
+                    nodes_blocked = (nodes_df
+                        .join(block_plan, on='community_id', how='inner')
+                        .withColumn('_block',
+                                    F.pmod(F.xxhash64('id'), F.col('_phase3_n_blocks')))
+                        .withColumn('_unit',
+                                    F.col('community_id') * F.lit(BLOCK_STRIDE) + F.col('_block')))
+
+                    # Join on (id, community_id), not id alone. Under 1-hop expansion a
+                    # vertex belongs to every community that borrows it as halo — on
+                    # WikiCS the average vertex appears in 3.8 communities — so a map
+                    # keyed only on id is not a function, and joining both endpoints
+                    # through it replicates each edge across every community where both
+                    # endpoints happen to appear. That inflates per-unit edge payloads
+                    # far beyond the community's own edge count.
+                    unit_map = nodes_blocked.select('id', 'community_id', '_unit')
+                    edges_blocked = (edges_df
+                        .join(unit_map.withColumnRenamed('id', 'src')
+                                      .withColumnRenamed('_unit', '_src_unit'),
+                              on=['src', 'community_id'], how='inner')
+                        .join(unit_map.withColumnRenamed('id', 'dst')
+                                      .withColumnRenamed('_unit', '_dst_unit'),
+                              on=['dst', 'community_id'], how='inner')
+                        .filter(F.col('_src_unit') == F.col('_dst_unit'))
+                        .withColumn('_unit', F.col('_src_unit')))
+
+                    # A dense block can still exceed the per-unit edge budget; sample
+                    # edges directly rather than via endpoint survival, so the sample
+                    # stays uniform over the block's edges.
+                    if edge_sample_modulus > 1:
+                        edges_blocked = edges_blocked.filter(
+                            F.pmod(F.xxhash64('src', 'dst'), F.lit(edge_sample_modulus)) == F.lit(0))
+
+                    retained_nodes = (nodes_blocked
+                        .withColumn('label', F.coalesce(F.col('label'), F.lit(-1)))
+                        .withColumn('split', F.coalesce(F.col('split'), F.lit('none')))
+                        .withColumn('is_boundary', F.coalesce(F.col('is_boundary'), F.lit(False)))
+                        .withColumn('is_member', F.coalesce(F.col('is_member'), F.lit(True)))
+                        .drop('community_id').withColumnRenamed('_unit', 'community_id')
+                        .select('id', 'label', 'features', 'split', 'community_id',
+                                'is_boundary', 'is_member'))
+                    bounded_edges = (edges_blocked
+                        .drop('community_id')
+                        .withColumnRenamed('_unit', 'community_id')
+                        .select('src', 'dst', 'community_id'))
+
+                    unit_edges = (bounded_edges.groupBy('community_id').count()
+                                  .agg(F.max('count').alias('mx'),
+                                       F.avg('count').alias('av'),
+                                       F.min('count').alias('mn')).collect()[0])
+                    _mx, _av = int(unit_edges['mx'] or 0), float(unit_edges['av'] or 1.0)
+                    print(f"  [Phase 3 balance] edges/unit min={int(unit_edges['mn'] or 0):,} "
+                          f"avg={_av:,.0f} max={_mx:,} — skew {_mx / max(_av, 1.0):.2f}x "
+                                                    f"wall-clock follows the slowest unit.")
+
+                    n_units = int(comms_node_counts_pd['_phase3_n_blocks'].sum())
+                    print(f"  [Phase 3 blocks] {num_comms:,} communities -> {n_units:,} bounded "
+                          f"training units (cap {max_nodes_per_community:,} nodes/unit); "
+                          f"all vertices retained, only cross-block edges dropped.")
+                    num_bins = min(max(sc.defaultParallelism * 4, 1000), max(n_units, 1))
+
+                # Legacy bounded-sampling path, retained for graphs that fit it.
                 # Apply the same deterministic hash predicate to node IDs and both
                 # endpoints. This creates an induced sampled subgraph without window
                 # sorts or two large edge/node joins. The 80% node target leaves room
                 # for normal sampling variation; the UDF retains the final hard cap.
-                sampling_plan = F.broadcast(comms_node_counts.select('community_id', '_phase3_node_mod'))
-                retained_nodes = (nodes_df
-                    .join(sampling_plan, on='community_id', how='inner')
-                    .filter(F.pmod(F.xxhash64('id'), F.col('_phase3_node_mod')) == F.lit(0)))
+                if not block_oversized:
+                    sampling_plan = F.broadcast(comms_node_counts.select('community_id', '_phase3_node_mod'))
+                    retained_nodes = (nodes_df
+                        .join(sampling_plan, on='community_id', how='inner')
+                        .filter(F.pmod(F.xxhash64('id'), F.col('_phase3_node_mod')) == F.lit(0)))
 
-                bounded_edges = (edges_df
-                    .join(sampling_plan, on='community_id', how='inner')
-                    .filter(F.pmod(F.xxhash64('src'), F.col('_phase3_node_mod')) == F.lit(0))
-                    .filter(F.pmod(F.xxhash64('dst'), F.col('_phase3_node_mod')) == F.lit(0))
-                    .filter(F.pmod(F.xxhash64('src', 'dst'), F.lit(edge_sample_modulus)) == F.lit(0)))
+                    bounded_edges = (edges_df
+                        .join(sampling_plan, on='community_id', how='inner')
+                        .filter(F.pmod(F.xxhash64('src'), F.col('_phase3_node_mod')) == F.lit(0))
+                        .filter(F.pmod(F.xxhash64('dst'), F.col('_phase3_node_mod')) == F.lit(0))
+                        .filter(F.pmod(F.xxhash64('src', 'dst'), F.lit(edge_sample_modulus)) == F.lit(0)))
 
-                print(f"  [Phase 3 safety] Hash-sampling up to ~{node_sampling_target:,} nodes/community "
-                      f"(hard cap {max_nodes_per_community:,}); retaining ~1/{edge_sample_modulus} eligible edges "
-                      f"before aggregation (UDF hard edge cap {max_edges_per_community:,}).")
+                    print(f"  [Phase 3 safety] Hash-sampling up to ~{node_sampling_target:,} nodes/community "
+                          f"(hard cap {max_nodes_per_community:,}); retaining ~1/{edge_sample_modulus} eligible edges "
+                          f"before aggregation (UDF hard edge cap {max_edges_per_community:,}).")
 
-                edges_agg = (bounded_edges
+                community_bundles = None
+                if not block_oversized:
+                  edges_agg = (bounded_edges
                     .groupBy('community_id')
                     .agg(
                         F.collect_list('src').alias('_src_list'),
                         F.collect_list('dst').alias('_dst_list')
                     ))
 
-                nodes_prepared = (retained_nodes
+                  nodes_prepared = (retained_nodes
                     .withColumn('label', F.coalesce(F.col('label'), F.lit(-1)))
                     .withColumn('split', F.coalesce(F.col('split'), F.lit('none')))
                     .withColumn('is_boundary', F.coalesce(F.col('is_boundary'), F.lit(False))))
 
-                nodes_agg = (nodes_prepared
+                  nodes_agg = (nodes_prepared
                     .groupBy('community_id')
                     .agg(
                         F.collect_list('id').alias('_id_list'),
                         F.collect_list('label').alias('_label_list'),
                         F.collect_list('features').alias('_features_list'),
                         F.collect_list('split').alias('_split_list'),
-                        F.collect_list('is_boundary').alias('_is_boundary_list')
+                        F.collect_list('is_boundary').alias('_is_boundary_list'),
+                        F.collect_list('is_member').alias('_is_member_list')
                     ))
 
-                community_bundles = (nodes_agg
+                  community_bundles = (nodes_agg
                     .join(edges_agg, on='community_id', how='left')
                     .withColumn('_num_classes', F.lit(int(cfg['num_classes'])))
                     .withColumn('_hidden',      F.lit(int(gcn_cfg['hidden_dim'])))
@@ -1446,14 +1745,59 @@ def run_phase3(spark, sc, datasets, algorithms, use_global_mapping,
                     .withColumn('_max_nodes',   F.lit(int(max_nodes_per_community)))
                     .withColumn('_max_edges',   F.lit(int(max_edges_per_community)))
                     .withColumn('_mlp_epochs',  F.lit(int(mlp_epochs)))
+                    .withColumn('_mlp_patience', F.lit(int(mlp_patience)))
+                    .withColumn('_node_patience', F.lit(int(node_patience)))
                     .withColumn('_phase3_diagnostics', F.lit(bool(diagnostics))))
 
                 sc.setJobDescription(f'phase3_{dataset}_{alg}_{model_type}')
-                comm_results = (community_bundles
-                                .repartition(num_bins, 'community_id')
-                                .groupBy('community_id')
-                                .applyInPandas(_train_gnn_community_single_wrapper, schema=result_schema)
-                                .persist(StorageLevel.MEMORY_AND_DISK))
+                if block_oversized:
+                    # cogroup streams two Arrow record batches per unit instead of
+                    # packing a community into one Spark row. collect_list caps a
+                    # community at the JVM's 2 GB array limit — about 4M nodes of
+                    # 128-dim float32 — which a Papers100M community exceeds outright.
+                    def _unit_wrapper(nodes_pdf, edges_pdf):
+                        try:
+                            import torch
+                            torch.set_num_threads(1)
+                            torch.set_num_interop_threads(1)
+                        except Exception:
+                            pass
+                        return _train_gnn_community_single(
+                            nodes_pdf,
+                            comm_edges_pdf=edges_pdf,
+                            base_weights_bc=base_weights_bc,
+                            base_embeddings_bc=base_embeddings_bc,
+                            base_node_map_bc=base_node_map_bc)
+
+                    nodes_for_units = (retained_nodes
+                        .withColumn('_num_classes', F.lit(int(cfg['num_classes'])))
+                        .withColumn('_hidden',      F.lit(int(gcn_cfg['hidden_dim'])))
+                        .withColumn('_epochs',      F.lit(int(gcn_cfg['num_epochs'])))
+                        .withColumn('_lr',          F.lit(float(gcn_cfg['lr'])))
+                        .withColumn('_dropout',     F.lit(float(gcn_cfg['dropout'])))
+                        .withColumn('_task_type',   F.lit(str(task_type)))
+                        .withColumn('_model_type',  F.lit(str(model_type)))
+                        .withColumn('_max_nodes',   F.lit(int(max_nodes_per_community)))
+                        .withColumn('_max_edges',   F.lit(int(max_edges_per_community)))
+                        .withColumn('_mlp_epochs',  F.lit(int(mlp_epochs)))
+                        .withColumn('_mlp_patience', F.lit(int(mlp_patience)))
+                    .withColumn('_mlp_patience', F.lit(int(mlp_patience)))
+                        .withColumn('_node_patience', F.lit(int(node_patience)))
+                    .withColumn('_node_patience', F.lit(int(node_patience)))
+                        .withColumn('_phase3_diagnostics', F.lit(bool(diagnostics)))
+                        .repartition(num_bins, 'community_id'))
+
+                    comm_results = (nodes_for_units.groupBy('community_id')
+                                    .cogroup(bounded_edges.repartition(num_bins, 'community_id')
+                                                          .groupBy('community_id'))
+                                    .applyInPandas(_unit_wrapper, schema=result_schema)
+                                    .persist(StorageLevel.MEMORY_AND_DISK))
+                else:
+                    comm_results = (community_bundles
+                                    .repartition(num_bins, 'community_id')
+                                    .groupBy('community_id')
+                                    .applyInPandas(_train_gnn_community_single_wrapper, schema=result_schema)
+                                    .persist(StorageLevel.MEMORY_AND_DISK))
 
                 # Keep the full per-community frame in Spark; only collect the compact summaries
                 # needed for reporting and checkpoints.
@@ -1469,6 +1813,10 @@ def run_phase3(spark, sc, datasets, algorithms, use_global_mapping,
                     F.sum(F.col('comm_test_acc') * F.col('n_test')).alias('weighted_comm_acc_num'),
                     F.sum(F.col('comm_link_auc') * F.col('n_edges')).alias('weighted_comm_link_auc_num'),
                     F.avg('comm_test_acc').alias('mean_comm_acc'),
+                    F.avg('acc_gnn_head').alias('mean_acc_gnn_head'),
+                    F.avg('acc_mlp_head').alias('mean_acc_mlp_head'),
+                    F.sum(F.when(F.col('head_used') == 'gnn', 1).otherwise(0)).alias('n_head_gnn'),
+                    F.sum(F.when(F.col('head_used') == 'mlp', 1).otherwise(0)).alias('n_head_mlp'),
                     F.avg('boundary_acc').alias('mean_boundary_acc'),
                     F.avg('internal_acc').alias('mean_internal_acc'),
                     F.avg('comm_link_auc').alias('mean_comm_link_auc'),
@@ -1486,6 +1834,10 @@ def run_phase3(spark, sc, datasets, algorithms, use_global_mapping,
                         F.sum('n_test').alias('total_test_nodes'),
                         F.sum('n_edges').alias('total_edges'),
                         F.avg('comm_test_acc').alias('mean_comm_acc'),
+                    F.avg('acc_gnn_head').alias('mean_acc_gnn_head'),
+                    F.avg('acc_mlp_head').alias('mean_acc_mlp_head'),
+                    F.sum(F.when(F.col('head_used') == 'gnn', 1).otherwise(0)).alias('n_head_gnn'),
+                    F.sum(F.when(F.col('head_used') == 'mlp', 1).otherwise(0)).alias('n_head_mlp'),
                         F.avg('boundary_acc').alias('mean_boundary_acc'),
                         F.avg('internal_acc').alias('mean_internal_acc'),
                         F.avg('comm_link_auc').alias('mean_comm_link_auc'),
@@ -1545,6 +1897,18 @@ def run_phase3(spark, sc, datasets, algorithms, use_global_mapping,
                 results[key].attrs['alg']         = alg
                 results[key].attrs['model_type']  = model_type
                 results[key].attrs['n_communities'] = int(summary_row['n_communities'].iloc[0])
+                # Edges actually trained on, so a run can prove nothing was silently
+                # capped rather than assuming it.
+                _ng = int(summary_row['n_head_gnn'].iloc[0] or 0)
+                _nm = int(summary_row['n_head_mlp'].iloc[0] or 0)
+                results[key].attrs['n_head_gnn'] = _ng
+                results[key].attrs['n_head_mlp'] = _nm
+                results[key].attrs['head_used'] = (
+                    f"gnn {_ng}/{_ng + _nm}" if (_ng + _nm) else 'n/a')
+                results[key].attrs['acc_gnn_head'] = float(summary_row['mean_acc_gnn_head'].iloc[0])
+                results[key].attrs['acc_mlp_head'] = float(summary_row['mean_acc_mlp_head'].iloc[0])
+                results[key].attrs['total_edges'] = int(summary_row['total_edges'].iloc[0])
+                results[key].attrs['total_nodes'] = int(summary_row['total_nodes'].iloc[0])
 
                 print(f"  ✓ Mean comm acc = {results[key].attrs['mean_comm_acc']:.4f}")
                 print(f"  ✓ Weighted comm acc = {weighted_comm_acc:.4f}")

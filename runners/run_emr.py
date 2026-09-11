@@ -647,6 +647,7 @@ def main():
         .config("spark.sql.execution.arrow.pyspark.enabled", "false") \
         .config("spark.sql.execution.arrow.pyspark.fallback.enabled", "true") \
         .config("spark.sql.execution.arrow.maxRecordsPerBatch", "500") \
+        .config("spark.sql.parquet.columnarReaderBatchSize", "512") \
         .config("spark.python.worker.reuse", "false") \
         .config("spark.sql.adaptive.enabled", "true") \
         .config("spark.sql.adaptive.skewJoin.enabled", "true") \
@@ -1286,6 +1287,8 @@ def main():
             datasets     = DATASETS_TO_RUN,
             algorithms   = ALGORITHMS_TO_RUN,
             lpa_max_iter = config.LPA_MAX_ITER,
+            lpa_tol      = getattr(config, 'LPA_TOL', 0.001),
+            merge_minor_communities = getattr(config, 'MERGE_MINOR_COMMUNITIES', True),
             resolution   = getattr(config, 'RESOLUTION', 1.0),
             random_seed  = config.RANDOM_SEED,
             min_size     = MIN_COMMUNITY_SIZE,
@@ -1455,6 +1458,9 @@ def main():
             max_edges_per_community = getattr(config, 'PHASE3_MAX_EDGES_PER_COMMUNITY', 50000),
             edge_sample_modulus = getattr(config, 'PHASE3_EDGE_SAMPLE_MODULUS', 64),
             mlp_epochs          = getattr(config, 'PHASE3_MLP_EPOCHS', 5),
+            block_oversized     = getattr(config, 'PHASE3_BLOCK_OVERSIZED', True),
+            node_patience       = getattr(config, 'PHASE3_NODE_PATIENCE', 10),
+            mlp_patience        = getattr(config, 'PHASE3_MLP_PATIENCE', 15),
             force_rerun        = FORCE_RERUN,
             s3_bucket          = args.s3_bucket,
             experiment_name    = EXPERIMENT_NAME

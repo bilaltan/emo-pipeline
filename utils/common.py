@@ -81,3 +81,46 @@ def _delta_exists(spark, path):
             return True
         except Exception:
             return False
+
+
+def resolve_member_mask(pdf, n_rows, n_local=None):
+    """Boolean mask marking which rows are a community's own vertices.
+
+    Phase 2's 1-hop boundary expansion borrows halo vertices from neighbouring
+    communities, and those rows carry their real labels and splits. Counting them
+    scores the same vertex once per community that borrows it, in communities
+    whose local model never trained on its neighbourhood. Phase 3 and Phase 3b
+    must mask identically or their metrics are not comparable — this lives in one
+    place so the two cannot drift apart again.
+
+    Membership is read from Phase 2's ``is_member`` column, the bundled
+    ``_is_member_list``, or a positional ``_n_local`` marker, in that order;
+    absent all three every row is treated as a member, which is correct for
+    tables written before halo tracking existed.
+
+    ``n_local`` is for frames that append context rows after the community's own
+    (Phase 3b appends super-nodes and minor nodes). Those trailing rows are never
+    members.
+    """
+    import numpy as np
+    import pandas as pd
+
+    block = n_rows if n_local is None else int(n_local)
+
+    if 'is_member' in getattr(pdf, 'columns', []):
+        mask = np.array(
+            [bool(v) if not (pd.isna(v) or v is None) else True
+             for v in pdf['is_member'].values], dtype=bool)
+    elif '_is_member_list' in getattr(pdf, 'columns', []):
+        raw = pdf['_is_member_list'].iloc[0]
+        mask = np.array([bool(v) for v in (raw if raw is not None else [])], dtype=bool)
+    elif '_n_local' in getattr(pdf, 'columns', []):
+        mask = np.arange(block) < int(pdf['_n_local'].iloc[0])
+    else:
+        mask = np.ones(block, dtype=bool)
+
+    if len(mask) != block:
+        mask = np.resize(mask, (block,))
+    if n_local is None:
+        return mask
+    return np.concatenate([mask, np.zeros(max(0, n_rows - block), dtype=bool)])
