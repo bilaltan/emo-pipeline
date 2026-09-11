@@ -1672,6 +1672,33 @@ def run_phase3(spark, sc, datasets, algorithms, use_global_mapping,
                         .withColumnRenamed('_unit', 'community_id')
                         .select('src', 'dst', 'community_id'))
 
+                    # Cap edges per unit in Spark, upstream of the shuffle.
+                    #
+                    # The UDF already bounds each unit to max_edges_per_community, but it
+                    # does so *after* Arrow has shipped the rows: on Reddit the largest
+                    # unit received 1,692,338 edges and discarded 98% of them to train on
+                    # 30,000. The cost was data movement, not compute, which is why unit
+                    # skew reached 10.13x while every unit trained on the same bounded
+                    # subgraph. Expressing the bound as a relational filter moves that
+                    # work into Spark and cuts shuffle volume without changing what the
+                    # UDF would have kept. Same deterministic-hash pattern as the node
+                    # sampler: a pure filter, no window sort.
+                    _unit_counts = bounded_edges.groupBy('community_id').count()
+                    _edge_plan = F.broadcast(
+                        _unit_counts
+                        .withColumn('_edge_mod',
+                                    F.greatest(
+                                        F.lit(1),
+                                        F.ceil(F.col('count') /
+                                               F.lit(float(max_edges_per_community)))
+                                    ).cast('long'))
+                        .select('community_id', '_edge_mod'))
+                    bounded_edges = (bounded_edges
+                        .join(_edge_plan, on='community_id', how='inner')
+                        .filter(F.pmod(F.xxhash64('src', 'dst'),
+                                       F.col('_edge_mod')) == F.lit(0))
+                        .select('src', 'dst', 'community_id'))
+
                     unit_edges = (bounded_edges.groupBy('community_id').count()
                                   .agg(F.max('count').alias('mx'),
                                        F.avg('count').alias('av'),
