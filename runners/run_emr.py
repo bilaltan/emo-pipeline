@@ -1507,6 +1507,7 @@ def main():
                     timing       = timing,
                     results      = phase4_results,
                     task_type    = TASK_TYPE,
+                    algorithms   = ALGORITHMS_TO_RUN,
                     n_baseline_runs = getattr(config, 'N_BASELINE_RUNS', 3)
                 )
                 for dataset in datasets_for_4:

@@ -85,6 +85,7 @@ def run_phase4(spark, sc, datasets, dataset_cfg, baseline_cfg, get_paths_fn,
         edge_budget = baseline_cfg.get('edge_budget') or 0
         node_budget = baseline_cfg.get('node_budget') or 0
         budget_rng = np.random.default_rng(42)
+        remap = None          # set below when a node budget renumbers ids
 
         if node_budget and node_budget < n_nodes:
             keep_nodes = np.sort(budget_rng.choice(n_nodes, int(node_budget), replace=False))
@@ -107,6 +108,40 @@ def run_phase4(spark, sc, datasets, dataset_cfg, baseline_cfg, get_paths_fn,
 
         if not (edge_budget or node_budget):
             print(f"  [budget] unconstrained full graph: {n_nodes:,} nodes, {len(src_np):,} edges")
+
+        # Partition map for the like-for-like link metric below. Phase 4 exists to be
+        # a fair yardstick for Phase 3, and Phase 3 draws negatives from inside one
+        # community -- so a purely global baseline answers a harder question and
+        # retention against it reads above 100%. Load the same partitioning here and
+        # report both numbers rather than choosing between them.
+        _algs = kwargs.get('algorithms') or []
+        comm_dense = comm_order = comm_starts = comm_counts = None
+        if _algs:
+            try:
+                _cp = get_paths_fn(dataset, _algs[0])['communities']
+                _cpd = spark.read.format('delta').load(_cp).select('id', 'community_id').toPandas()
+                _ids = _cpd['id'].values.astype(np.int64)
+                _cid = _cpd['community_id'].values.astype(np.int64)
+                if remap is not None:
+                    # A node budget renumbered the graph into a dense reduced range,
+                    # but the community table still speaks original ids. Translate
+                    # first; nodes the budget dropped map to -1 and fall away.
+                    _in = (_ids >= 0) & (_ids < len(remap))
+                    _ids, _cid = remap[_ids[_in]], _cid[_in]
+                    _live = _ids >= 0
+                    _ids, _cid = _ids[_live], _cid[_live]
+                _raw = np.full(n_nodes, -1, dtype=np.int64)
+                _ok = (_ids >= 0) & (_ids < n_nodes)
+                _raw[_ids[_ok]] = _cid[_ok]
+                _uniq, comm_dense = np.unique(_raw, return_inverse=True)
+                comm_order = np.argsort(comm_dense, kind='stable')
+                comm_counts = np.bincount(comm_dense, minlength=len(_uniq))
+                comm_starts = np.concatenate([[0], np.cumsum(comm_counts)[:-1]])
+                print(f"  [partition metric] loaded {len(_uniq):,} communities from {_algs[0]}")
+            except Exception as _e:
+                print(f"  [partition metric] unavailable ({type(_e).__name__}); "
+                      f"reporting global link AUC only")
+                comm_dense = None
 
         full_src = torch.tensor(src_np, dtype=torch.long)
         full_dst = torch.tensor(dst_np, dtype=torch.long)
@@ -173,6 +208,7 @@ def run_phase4(spark, sc, datasets, dataset_cfg, baseline_cfg, get_paths_fn,
         all_aucs = []
         all_node_times = []
         all_link_times = []
+        all_aucs_part = []
 
         for run_idx in range(N_RUNS):
             print(f"\n  ── GraphSAGE Run {run_idx+1}/{N_RUNS} ──")
@@ -181,6 +217,7 @@ def run_phase4(spark, sc, datasets, dataset_cfg, baseline_cfg, get_paths_fn,
             total_t = 0
             node_train_time = 0.0
             baseline_link_auc = 0.5
+            baseline_link_auc_partition = None
             link_train_time = 0.0
 
             # ── Node Classification Baseline ──────────────────────────────────────
@@ -399,12 +436,54 @@ def run_phase4(spark, sc, datasets, dataset_cfg, baseline_cfg, get_paths_fn,
                             baseline_link_auc = float(roc_auc_score(y_true, y_scores))
                         except ValueError:
                             baseline_link_auc = 0.5
+
+                        # Same positives, negatives restricted to the source vertex's
+                        # own community: the exact question Phase 3 answers. Sampling is
+                        # vectorised through a CSR-style index over the partition, with
+                        # a few rejection rounds against real edges and self-pairs.
+                        if comm_dense is not None:
+                            _pm = (test_data.edge_label == 1)
+                            _ps = test_data.edge_label_index[0][_pm].cpu().numpy().astype(np.int64)
+                            _pd = test_data.edge_label_index[1][_pm].cpu().numpy().astype(np.int64)
+                            if len(_ps) > 0:
+                                _rng = np.random.default_rng(42)
+                                _ei = train_data.edge_index.cpu().numpy().astype(np.int64)
+                                _ek = np.unique(_ei[0] * np.int64(n_nodes) + _ei[1])
+                                _c = comm_dense[_ps]
+                                _w = np.full(len(_ps), -1, dtype=np.int64)
+                                _todo = comm_counts[_c] > 1
+                                for _ in range(8):
+                                    if not _todo.any():
+                                        break
+                                    _idx = np.where(_todo)[0]
+                                    _r = (_rng.random(len(_idx)) * comm_counts[_c[_idx]]).astype(np.int64)
+                                    _cand = comm_order[comm_starts[_c[_idx]] + _r]
+                                    _key = _ps[_idx] * np.int64(n_nodes) + _cand
+                                    _good = (_cand != _ps[_idx]) & ~np.isin(_key, _ek)
+                                    _w[_idx[_good]] = _cand[_good]
+                                    _todo[_idx[_good]] = False
+                                _keep = _w >= 0
+                                if _keep.sum() > 0:
+                                    with torch.no_grad():
+                                        _npos = predictor(z[torch.as_tensor(_ps[_keep])],
+                                                          z[torch.as_tensor(_pd[_keep])]).view(-1)
+                                        _nneg = predictor(z[torch.as_tensor(_ps[_keep])],
+                                                          z[torch.as_tensor(_w[_keep])]).view(-1)
+                                    _yt = np.concatenate([np.ones(int(_keep.sum())),
+                                                          np.zeros(int(_keep.sum()))])
+                                    _ys = torch.cat([_npos, _nneg]).cpu().numpy()
+                                    try:
+                                        baseline_link_auc_partition = float(roc_auc_score(_yt, _ys))
+                                    except ValueError:
+                                        baseline_link_auc_partition = None
                 else:
                     baseline_link_auc = 0.5
                 link_train_time = time.time() - t_link_start
 
             all_accs.append(acc)
             all_aucs.append(baseline_link_auc)
+            if baseline_link_auc_partition is not None:
+                all_aucs_part.append(baseline_link_auc_partition)
             all_node_times.append(node_train_time)
             all_link_times.append(link_train_time)
             print(f"    Run {run_idx+1} — acc={acc:.4f}  auc={baseline_link_auc:.4f}")
@@ -413,6 +492,7 @@ def run_phase4(spark, sc, datasets, dataset_cfg, baseline_cfg, get_paths_fn,
         std_acc = np.std(all_accs)
         mean_auc = np.mean(all_aucs)
         std_auc = np.std(all_aucs)
+        mean_auc_part = float(np.mean(all_aucs_part)) if all_aucs_part else None
         mean_node_time = np.mean(all_node_times)
         mean_link_time = np.mean(all_link_times)
 
@@ -427,6 +507,10 @@ def run_phase4(spark, sc, datasets, dataset_cfg, baseline_cfg, get_paths_fn,
             'test_acc_std':      std_acc,
             'link_auc':          mean_auc,
             'link_auc_std':      std_auc,
+            # Global = true single-machine upper bound, comparable to published work.
+            # Partition = same task as Phase 3, so retention is a fair comparison.
+            'link_auc_global':   mean_auc,
+            'link_auc_partition': mean_auc_part,
             'node_train_time_s': mean_node_time,
             'link_train_time_s': mean_link_time,
             'train_time_s':      mean_node_time + mean_link_time,

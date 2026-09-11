@@ -35,7 +35,7 @@ def generate_master_excel(cluster_type="4worker", output_path=None, s3_bucket="u
         'Coauthor-Physics': {'nodes': 34493,     'edges': 247962,    'classes': 5,   'sage_acc': NA, 'gat_acc': NA, 'link_auc': NA, 'scale': 'Small'},
         'Coauthor-CS':      {'nodes': 18333,     'edges': 81894,     'classes': 15,  'sage_acc': NA, 'gat_acc': NA, 'link_auc': NA, 'scale': 'Small'},
         'DeezerEurope':     {'nodes': 28281,     'edges': 92752,     'classes': 2,   'sage_acc': NA, 'gat_acc': NA, 'link_auc': NA, 'scale': 'Small'},
-        'reddit':           {'nodes': 232965,    'edges': 11606919,  'classes': 41,  'sage_acc': NA, 'gat_acc': NA, 'link_auc': NA, 'scale': 'Medium'},
+        'reddit':           {'nodes': 232965,    'edges': 114615892,  'classes': 41,  'sage_acc': NA, 'gat_acc': NA, 'link_auc': NA, 'scale': 'Medium'},
         'ogbn-products':    {'nodes': 2449029,   'edges': 61859140,  'classes': 47,  'sage_acc': NA, 'gat_acc': NA, 'link_auc': NA, 'scale': 'Medium'},
         'ogbn-mag':         {'nodes': 736389,    'edges': 5416271,   'classes': 349, 'sage_acc': NA, 'gat_acc': NA, 'link_auc': NA, 'scale': 'Medium'},
         'LiveJournal':      {'nodes': 3997962,   'edges': 34681189,  'classes': 100, 'sage_acc': NA, 'gat_acc': NA, 'link_auc': NA, 'scale': 'Medium / Dense'},
@@ -109,13 +109,14 @@ def generate_master_excel(cluster_type="4worker", output_path=None, s3_bucket="u
         unsourced.append(f'{ds}/{model}/e{exec_cnt}/{col}')
         return float('nan')
 
-    def get_comm_time(ds, time_col, default_val):
+    def get_comm_time(ds, time_col, default_val=None):
         if len(df_comm_all) > 0 and 'sheet_name' in df_comm_all.columns:
             m = df_comm_all['sheet_name'].str.lower().str.contains(ds.lower().replace('-', '_')[:6])
             sub = df_comm_all[m]
             if len(sub) > 0 and time_col in sub.columns and not pd.isna(sub[time_col].mean()):
                 return float(sub[time_col].mean())
-        return default_val
+        unsourced.append(f'{ds}/per-community/{time_col}')
+        return float('nan')
 
     # Measured per-phase timings come from the run artifacts; no defaults.
     base_timings = {
@@ -143,10 +144,10 @@ def generate_master_excel(cluster_type="4worker", output_path=None, s3_bucket="u
             p3b_acc = get_metric(ds_name, 'sage-caan', e, 'weighted_comm_acc')
 
             bnd_acc_p3 = get_metric(ds_name, 'sage', e, 'mean_boundary_acc')
-            int_acc_p3 = get_metric(ds_name, 'sage', e, 'mean_internal_acc', p3_acc + 0.015)
+            int_acc_p3 = get_metric(ds_name, 'sage', e, 'mean_internal_acc')
 
-            bnd_acc_p3b = get_metric(ds_name, 'sage-caan', e, 'mean_boundary_acc', p3b_acc - 0.008)
-            int_acc_p3b = get_metric(ds_name, 'sage-caan', e, 'mean_internal_acc', p3b_acc + 0.008)
+            bnd_acc_p3b = get_metric(ds_name, 'sage-caan', e, 'mean_boundary_acc')
+            int_acc_p3b = get_metric(ds_name, 'sage-caan', e, 'mean_internal_acc')
 
             bnd_gain = (bnd_acc_p3b - bnd_acc_p3) * 100.0 if bnd_acc_p3b > bnd_acc_p3 else (p3b_acc - p3_acc) * 100.0
             # NaN in, NaN out: an unmeasured recovery rate must not read as 100%.
@@ -160,7 +161,7 @@ def generate_master_excel(cluster_type="4worker", output_path=None, s3_bucket="u
             tp3_node = round(tp3 * (t_ref['p3_node'] / (t_ref['p3_node'] + t_ref['p3_link'])), 1)
             total_node_t = round(tp3_node + tp3b, 1)
 
-            avg_node_t = get_comm_time(ds_name, 'node_train_time_s', 1.8)
+            avg_node_t = get_comm_time(ds_name, 'node_train_time_s')
 
             try:
                 import experiment_config as cfg
@@ -207,14 +208,11 @@ def generate_master_excel(cluster_type="4worker", output_path=None, s3_bucket="u
 
             p3_auc = get_metric(ds_name, 'sage', e, 'weighted_comm_link_auc', def_p3_auc)
             p3b_auc = get_metric(ds_name, 'sage-caan', e, 'weighted_comm_link_auc', def_p3b_auc)
-            if p3b_auc == 0.5 or pd.isna(p3b_auc):
-                p3b_auc = p3_auc + 0.018
-
             retention = (p3b_auc / bl_auc) * 100.0
 
             tp3 = get_metric(ds_name, 'sage', e, 'phase3_s', t_ref['p3'])
             tp3_link = round(tp3 * (t_ref['p3_link'] / (t_ref['p3_node'] + t_ref['p3_link'])), 1)
-            avg_link_t = get_comm_time(ds_name, 'link_train_time_s', 2.3)
+            avg_link_t = get_comm_time(ds_name, 'link_train_time_s')
 
             try:
                 import experiment_config as cfg
