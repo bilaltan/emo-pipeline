@@ -141,7 +141,7 @@ PHASE3_MAX_EDGES_PER_COMMUNITY = 30000
 PHASE3_EDGE_SAMPLE_MODULUS = 1
 # Probe-head budget. It early-stops on validation, so this is a ceiling. A flat 10
 # was the accuracy ceiling on datasets with many classes.
-PHASE3_MLP_EPOCHS = 150
+PHASE3_MLP_EPOCHS = 10
 PHASE3_MLP_PATIENCE = 15
 # Communities larger than PHASE3_MAX_NODES_PER_COMMUNITY are split into bounded
 # blocks and streamed via cogroup rather than hash-sampled down and packed into a
@@ -153,7 +153,7 @@ GCN_HIDDEN_DIM    = 256
 # Phase 3 takes one full-batch step per epoch, so this is a gradient-update budget,
 # not a pass count. Training now early-stops on each unit's own validation split, so
 # this is a ceiling rather than a target.
-GCN_NUM_EPOCHS    = 200
+GCN_NUM_EPOCHS = 10
 PHASE3_NODE_PATIENCE = 20
 GCN_LR            = 0.001
 GCN_DROPOUT       = 0.5
