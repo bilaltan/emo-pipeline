@@ -595,7 +595,7 @@ def main():
     spark = SparkSession.builder \
         .appName(f"GRL-{args.experiment_name}") \
         .config("spark.master", "yarn") \
-        .config("spark.eventLog.enabled", "false") \
+        .config("spark.eventLog.enabled", "true") \
         .config("spark.driver.memory", driver_mem) \
         .config("spark.driver.maxResultSize", "0") \
         .config("spark.driver.cores", driver_cores) \
@@ -1482,6 +1482,8 @@ def main():
             task_type          = TASK_TYPE,
             models             = config.GNN_MODELS,
             min_size           = MIN_COMMUNITY_SIZE,
+            max_nodes_per_community = getattr(config, 'PHASE3_MAX_NODES_PER_COMMUNITY', 10000),
+            block_oversized     = getattr(config, 'PHASE3_BLOCK_OVERSIZED', True),
             force_rerun        = FORCE_RERUN,
             s3_bucket          = args.s3_bucket,
             experiment_name    = EXPERIMENT_NAME

@@ -32,13 +32,24 @@ def _get_dataset(url):
             _DS_CACHE[url] = ds.dataset(local_path, format="parquet", ignore_prefixes=['_delta_log', '.'])
     return _DS_CACHE[url]
 
-def _load_communities_data_batch(nodes_url, edges_url, comm_ids):
+def _load_communities_data_batch(nodes_url, edges_url, comm_ids, block=None, n_blocks=1):
     import pyarrow.dataset as ds
+    import pyarrow.compute as pc
     import pandas as pd
+
+    # The block predicate is pushed into the Parquet scan, not applied after
+    # loading. An oversized community must never be fully materialised in a
+    # worker: Reddit community 7 is 175,781 rows once the 1-hop halo is counted
+    # (49,094 members + 126,687 halo), and loading it whole killed the Python
+    # worker. n_blocks is always a power of two, so id & (n-1) == id % n.
+    _mask = int(n_blocks) - 1 if (block is not None and n_blocks and int(n_blocks) > 1) else None
+    _base = ds.field("community_id").isin(comm_ids)
 
     try:
         nodes_ds = _get_dataset(nodes_url)
-        nodes_pdf = nodes_ds.to_table(filter=(ds.field("community_id").isin(comm_ids)), use_threads=True).to_pandas()
+        _f = _base if _mask is None else (
+            _base & (pc.bit_wise_and(ds.field("id"), _mask) == int(block)))
+        nodes_pdf = nodes_ds.to_table(filter=_f, use_threads=True).to_pandas()
         if len(nodes_pdf) > 0 and 'id' in nodes_pdf.columns:
             nodes_pdf = nodes_pdf.drop_duplicates(subset=['id', 'community_id']).reset_index(drop=True)
     except Exception as e:
@@ -47,7 +58,13 @@ def _load_communities_data_batch(nodes_url, edges_url, comm_ids):
 
     try:
         edges_ds = _get_dataset(edges_url)
-        edges_pdf = edges_ds.to_table(filter=(ds.field("community_id").isin(comm_ids)), use_threads=True).to_pandas()
+        # Keep an edge only when BOTH endpoints fall in this block -- the same
+        # rule Phase 3 enforces via _src_unit == _dst_unit, applied at the scan.
+        _f = _base if _mask is None else (
+            _base
+            & (pc.bit_wise_and(ds.field("src"), _mask) == int(block))
+            & (pc.bit_wise_and(ds.field("dst"), _mask) == int(block)))
+        edges_pdf = edges_ds.to_table(filter=_f, use_threads=True).to_pandas()
         if len(edges_pdf) > 0 and 'src' in edges_pdf.columns and 'dst' in edges_pdf.columns:
             edges_pdf = (edges_pdf.drop_duplicates()
                          .sort_values(['community_id', 'src', 'dst'], kind='mergesort')
@@ -1552,22 +1569,43 @@ def make_caan_udf(super_nodes_dict_bc, minor_node_to_idx_bc, minor_feats_arr_bc,
             pass
 
         import pandas as pd
-        comm_ids = manifest_pdf['community_id'].unique().tolist()
-        nodes_pdf_all, edges_pdf_all = _load_communities_data_batch(p2_nodes_url, p2_edges_url, comm_ids)
+        # With blocking active each work item is one (community, block), so the
+        # batch preload would defeat the bound; load per item instead.
+        _has_blocks = ('_n_blocks' in manifest_pdf.columns
+                       and int(manifest_pdf['_n_blocks'].max()) > 1)
+        if _has_blocks:
+            nodes_pdf_all = edges_pdf_all = pd.DataFrame()
+        else:
+            comm_ids = manifest_pdf['community_id'].unique().tolist()
+            nodes_pdf_all, edges_pdf_all = _load_communities_data_batch(p2_nodes_url, p2_edges_url, comm_ids)
 
         results = []
         for _, row in manifest_pdf.iterrows():
             comm_id = int(row['community_id'])
-            
-            if len(nodes_pdf_all) > 0:
+
+            if _has_blocks:
+                _nb = int(row['_n_blocks']) if '_n_blocks' in row else 1
+                _bk = int(row['_block']) if '_block' in row else 0
+                pdf, comm_edges_pdf = _load_communities_data_batch(
+                    p2_nodes_url, p2_edges_url, [comm_id], block=_bk, n_blocks=_nb)
+                # A block holding only halo rows has nothing to train on; fall
+                # through to the empty-result path rather than train on no members.
+                if len(pdf) > 0 and 'is_member' in pdf.columns:
+                    try:
+                        if int(pdf['is_member'].astype(bool).sum()) == 0:
+                            pdf = pdf.iloc[0:0]
+                    except Exception:
+                        pass
+            elif len(nodes_pdf_all) > 0:
                 pdf = nodes_pdf_all[nodes_pdf_all['community_id'] == comm_id].copy()
             else:
                 pdf = pd.DataFrame()
 
-            if len(edges_pdf_all) > 0:
-                comm_edges_pdf = edges_pdf_all[edges_pdf_all['community_id'] == comm_id].copy()
-            else:
-                comm_edges_pdf = pd.DataFrame()
+            if not _has_blocks:
+                if len(edges_pdf_all) > 0:
+                    comm_edges_pdf = edges_pdf_all[edges_pdf_all['community_id'] == comm_id].copy()
+                else:
+                    comm_edges_pdf = pd.DataFrame()
             
             if pdf is None or len(pdf) == 0:
                 results.append(pd.DataFrame([{
@@ -1615,7 +1653,11 @@ def run_phase3b(spark, sc, datasets, algorithms, use_global_mapping,
     task_type = kwargs.get('task_type', 'node_classification')
     gnn_models = kwargs.get('models', ['sage'])
     min_size = kwargs.get('min_size', 100)
-    
+    # Phase 3 bounds every training unit; Phase 3b did not, and trained whole
+    # communities in a single worker. Same caps, read from the same config keys.
+    max_nodes_per_community = int(kwargs.get('max_nodes_per_community', 10000) or 0)
+    block_oversized = bool(kwargs.get('block_oversized', True))
+
     from pyspark.sql import functions as F
     from pipeline.phases.phase3_training import _make_result_schema
     result_schema = _make_result_schema()
@@ -1828,6 +1870,11 @@ def run_phase3b(spark, sc, datasets, algorithms, use_global_mapping,
                     results[key].attrs['weighted_comm_acc']  = weighted_comm_acc
                     results[key].attrs['weighted_comm_link_auc'] = weighted_comm_link_auc
                     results[key].attrs['wall_time_s'] = 0.0
+                    # Blocking makes Phase 3b emit one row per (community, block),
+                    # so len(df) is a unit count now, not a community count.
+                    # Reporting reads attrs first; without this Reddit would be
+                    # reported as 151 communities instead of 22.
+                    results[key].attrs['n_communities'] = int(comm_pd['community_id'].nunique())
                     results[key].attrs['dataset']     = dataset
                     results[key].attrs['alg']         = alg
                     results[key].attrs['model_type']  = model_type
@@ -1964,15 +2011,41 @@ def run_phase3b(spark, sc, datasets, algorithms, use_global_mapping,
                 comms_node_counts_df = nodes_w_comm.select('community_id').groupBy('community_id').count().toPandas()
                 comms_node_counts_df = comms_node_counts_df.sort_values(by='count', ascending=False).reset_index(drop=True)
                 
-                num_comms = len(comms_node_counts_df)
+                import numpy as _np
+                _n_comms_raw = len(comms_node_counts_df)
+                if block_oversized and max_nodes_per_community > 0:
+                    def _nblocks(cnt):
+                        need = int(_np.ceil(float(cnt) / float(max_nodes_per_community)))
+                        nb = 1
+                        while nb < need:
+                            nb *= 2          # power of two -> worker filter is id & (n-1)
+                        return nb
+                    comms_node_counts_df['_n_blocks'] = comms_node_counts_df['count'].map(_nblocks)
+                else:
+                    comms_node_counts_df['_n_blocks'] = 1
+
+                work = comms_node_counts_df.loc[
+                    comms_node_counts_df.index.repeat(comms_node_counts_df['_n_blocks'])].copy()
+                work['_block'] = work.groupby('community_id').cumcount()
+                work = work.reset_index(drop=True)
+
+                _n_split = int((comms_node_counts_df['_n_blocks'] > 1).sum())
+                if _n_split:
+                    _big = int(comms_node_counts_df['count'].max())
+                    print(f"    - Bounded blocks: {_n_comms_raw} communities -> {len(work)} training units "
+                          f"(cap {max_nodes_per_community:,} rows/unit); {_n_split} oversized split "
+                          f"(largest community {_big:,} rows incl. halo).")
+
+                num_comms = len(work)
                 if num_comms <= 2000:
                     num_bins = num_comms
                 else:
                     default_para = sc.defaultParallelism
                     num_bins = min(max(default_para * 4, 1000), num_comms)
-                comms_node_counts_df['bin_id'] = [i % num_bins for i in range(len(comms_node_counts_df))]
+                work['bin_id'] = [i % num_bins for i in range(len(work))]
                 
-                bin_mapping_df = spark.createDataFrame(comms_node_counts_df[['community_id', 'bin_id']])
+                bin_mapping_df = spark.createDataFrame(
+                    work[['community_id', 'bin_id', '_block', '_n_blocks']])
                 
                 manifest_df = (bin_mapping_df
                     .withColumn('_num_classes', F.lit(int(cfg['num_classes'])))
@@ -2025,6 +2098,11 @@ def run_phase3b(spark, sc, datasets, algorithms, use_global_mapping,
                 results[key].attrs['weighted_comm_acc']  = weighted_comm_acc
                 results[key].attrs['weighted_comm_link_auc'] = weighted_comm_link_auc
                 results[key].attrs['wall_time_s'] = elapsed
+                # Blocking makes Phase 3b emit one row per (community, block),
+                # so len(df) is a unit count now, not a community count.
+                # Reporting reads attrs first; without this Reddit would be
+                # reported as 151 communities instead of 22.
+                results[key].attrs['n_communities'] = int(comm_pd['community_id'].nunique())
                 results[key].attrs['dataset']     = dataset
                 results[key].attrs['alg']         = alg
                 results[key].attrs['model_type']  = model_type
