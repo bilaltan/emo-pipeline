@@ -1459,6 +1459,7 @@ def main():
             models             = config.GNN_MODELS,
             diagnostics        = getattr(config, 'PHASE3_DIAGNOSTICS', False),
             max_nodes_per_community = getattr(config, 'PHASE3_MAX_NODES_PER_COMMUNITY', 10000),
+            max_train_per_unit = getattr(config, 'PHASE3_MAX_TRAIN_PER_UNIT', 1500),
             max_edges_per_community = getattr(config, 'PHASE3_MAX_EDGES_PER_COMMUNITY', 50000),
             edge_sample_modulus = getattr(config, 'PHASE3_EDGE_SAMPLE_MODULUS', 64),
             mlp_epochs          = getattr(config, 'PHASE3_MLP_EPOCHS', 5),
@@ -1680,6 +1681,7 @@ def main():
                     timing       = timing,
                     results      = phase4h_results,
                     task_type    = TASK_TYPE,
+                    algorithms   = ALGORITHMS_TO_RUN,
                     n_baseline_runs = getattr(config, 'N_BASELINE_RUNS', 3)
                 )
                 for dataset in datasets_for_4h:

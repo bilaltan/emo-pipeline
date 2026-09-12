@@ -18,6 +18,45 @@ except Exception:
     pass
 
 _DS_CACHE = {}
+_LOOKUP_CACHE = {}
+
+
+def _comm_lookup(node_to_comm):
+    """Dense id -> community array built once per worker.
+
+    The per-edge form of this was a Python callable invoked through
+    pandas .map for every edge in every unit, against a dict of every node in
+    the graph (232,965 entries on Reddit). Phase 3b spent 145,947 executor
+    seconds across 149 units; this is the hot path. Splitting communities into
+    blocks multiplied the cost, so it is now vectorised and cached.
+    """
+    key = id(node_to_comm)
+    hit = _LOOKUP_CACHE.get(key)
+    if hit is None:
+        import numpy as _np
+        if node_to_comm:
+            ids = _np.fromiter(node_to_comm.keys(), dtype=_np.int64, count=len(node_to_comm))
+            cms = _np.fromiter(node_to_comm.values(), dtype=_np.int64, count=len(node_to_comm))
+            arr = _np.full(int(ids.max()) + 1, -1, dtype=_np.int64)
+            arr[ids] = cms
+        else:
+            arr = _np.zeros(0, dtype=_np.int64)
+        _LOOKUP_CACHE.clear()
+        _LOOKUP_CACHE[key] = arr
+        hit = arr
+    return hit
+
+
+def _sorted_keys(mapping):
+    """Sorted key array for vectorised membership tests, cached per worker."""
+    key = ('keys', id(mapping))
+    hit = _LOOKUP_CACHE.get(key)
+    if hit is None:
+        import numpy as _np
+        hit = (_np.sort(_np.fromiter(mapping.keys(), dtype=_np.int64, count=len(mapping)))
+               if mapping else _np.zeros(0, dtype=_np.int64))
+        _LOOKUP_CACHE[key] = hit
+    return hit
 
 def _get_dataset(url):
     if url not in _DS_CACHE:
@@ -650,23 +689,31 @@ def make_caan_udf(super_nodes_dict_bc, minor_node_to_idx_bc, minor_feats_arr_bc,
         if len(exploded) > 0:
             exploded['neighbors'] = exploded['neighbors'].astype(np.int64)
             
-            def map_dst(w):
-                w_comm = node_to_comm.get(w, -1)
-                if w_comm == comm_id:
-                    return w
-                elif w_comm in major_comms:
-                    return -1000 - w_comm
-                else:
-                    return w
-                    
-            exploded['dst_mapped'] = exploded['neighbors'].map(map_dst)
-            
-            local_ids_set = set(local_ids)
-            for w in exploded['dst_mapped'].unique():
-                w_int = int(w)
-                if w_int >= 0 and w_int not in local_ids_set:
-                    if w_int in minor_node_to_idx:
-                        connected_minor_ids.add(w_int)
+            # Vectorised equivalent of the former per-edge map_dst callable:
+            # a neighbour in another MAJOR community collapses to that
+            # community's super-node id, everything else keeps its own id.
+            _nbr = exploded['neighbors'].values.astype(np.int64)
+            _lut = _comm_lookup(node_to_comm)
+            _in_range = (_nbr >= 0) & (_nbr < len(_lut))
+            _wc = np.full(len(_nbr), -1, dtype=np.int64)
+            if len(_lut) > 0:
+                _wc[_in_range] = _lut[_nbr[_in_range]]
+            _major_arr = _sorted_keys({c: 1 for c in major_comms}) if major_comms \
+                else np.zeros(0, dtype=np.int64)
+            _collapse = (_wc != comm_id) & (_wc >= 0) & np.isin(_wc, _major_arr)
+            _mapped = np.where(_collapse, -1000 - _wc, _nbr)
+            exploded['dst_mapped'] = _mapped
+
+            # Minor nodes reachable from this unit, found by set arithmetic
+            # rather than a Python loop over every distinct neighbour.
+            _u = np.unique(_mapped)
+            _u = _u[_u >= 0]
+            if len(_u) > 0 and minor_node_to_idx:
+                _minor_keys = _sorted_keys(minor_node_to_idx)
+                _u = _u[np.isin(_u, _minor_keys)]
+                if len(_u) > 0 and len(local_ids) > 0:
+                    _u = _u[~np.isin(_u, np.asarray(local_ids, dtype=np.int64))]
+                connected_minor_ids.update(int(x) for x in _u)
                         
         # 2. Slice minor node arrays using indexed positions (O(1) vector slice)
         minor_ids = list(connected_minor_ids)

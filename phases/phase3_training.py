@@ -1294,6 +1294,7 @@ def run_phase3(spark, sc, datasets, algorithms, use_global_mapping,
     gnn_models = kwargs.get('models', ['sage'])
     diagnostics = kwargs.get('diagnostics', False)
     max_nodes_per_community = int(kwargs.get('max_nodes_per_community', 10000))
+    max_train_per_unit = int(kwargs.get('max_train_per_unit', 1500) or 0)
     max_edges_per_community = int(kwargs.get('max_edges_per_community', 50000))
     edge_sample_modulus = max(1, int(kwargs.get('edge_sample_modulus', 1)))
     mlp_epochs = max(1, int(kwargs.get('mlp_epochs', 5)))
@@ -1343,7 +1344,15 @@ def run_phase3(spark, sc, datasets, algorithms, use_global_mapping,
 
             # Compute model-independent community layout once per (dataset, alg).
             layout_start = time.time()
-            comms_node_counts_pd = nodes_df.select('community_id').groupBy('community_id').count().toPandas()
+            # n_train is collected with the row count because unit cost tracks the
+            # number of TRAIN members (corr +0.52), not rows (corr +0.18) or edges
+            # (corr -0.01). Balancing on rows alone left n_train spread over 9.1x.
+            comms_node_counts_pd = (nodes_df
+                .groupBy('community_id')
+                .agg(F.count(F.lit(1)).alias('count'),
+                     F.sum(F.when((F.col('split') == 'train') & F.col('is_member'), 1)
+                            .otherwise(0)).alias('n_train'))
+                .toPandas())
             comms_node_counts_pd = comms_node_counts_pd.sort_values(by='count', ascending=False).reset_index(drop=True)
             num_comms = len(comms_node_counts_pd)
             largest_communities = ', '.join(
@@ -1373,10 +1382,25 @@ def run_phase3(spark, sc, datasets, algorithms, use_global_mapping,
             )
             # Number of bounded training units a community is split into. 1 leaves the
             # community intact; larger values split it rather than sampling it away.
+            _blocks_by_rows = np.ceil(
+                comms_node_counts_pd['count'] / max_nodes_per_community)
+            if max_train_per_unit > 0 and 'n_train' in comms_node_counts_pd.columns:
+                # Split on whichever binds harder: the memory cap (rows) or the
+                # cost cap (train members). Without the train term the wall clock
+                # is set by a few heavy units -- measured max/median 3.17x.
+                _blocks_by_train = np.ceil(
+                    comms_node_counts_pd['n_train'] / float(max_train_per_unit))
+            else:
+                _blocks_by_train = _blocks_by_rows
             comms_node_counts_pd['_phase3_n_blocks'] = np.maximum(
                 1,
-                np.ceil(comms_node_counts_pd['count'] / max_nodes_per_community).astype(np.int64)
+                np.maximum(_blocks_by_rows, _blocks_by_train).astype(np.int64)
             )
+            # Unit id is community_id * BLOCK_STRIDE + block, so the stride must
+            # exceed the largest block count or unit ids from different
+            # communities collide. The train term can raise that count.
+            BLOCK_STRIDE = int(max(BLOCK_STRIDE,
+                                   int(comms_node_counts_pd['_phase3_n_blocks'].max()) + 2))
             comms_node_counts = spark.createDataFrame(
                 comms_node_counts_pd[['community_id', 'bin_id', '_phase3_node_mod',
                                       '_phase3_n_blocks']]
@@ -1706,7 +1730,14 @@ def run_phase3(spark, sc, datasets, algorithms, use_global_mapping,
                     _mx, _av = int(unit_edges['mx'] or 0), float(unit_edges['av'] or 1.0)
                     print(f"  [Phase 3 balance] edges/unit min={int(unit_edges['mn'] or 0):,} "
                           f"avg={_av:,.0f} max={_mx:,} — skew {_mx / max(_av, 1.0):.2f}x "
-                                                    f"wall-clock follows the slowest unit.")
+                                                    f"(note: edge skew does not predict unit cost).")
+                    if 'n_train' in comms_node_counts_pd.columns:
+                        _tpu = (comms_node_counts_pd['n_train']
+                                / comms_node_counts_pd['_phase3_n_blocks'])
+                        print(f"  [Phase 3 balance] train/unit min={int(_tpu.min()):,} "
+                              f"avg={_tpu.mean():,.0f} max={int(_tpu.max()):,} — skew "
+                              f"{_tpu.max() / max(_tpu.mean(), 1.0):.2f}x — this is the "
+                              f"one that sets wall clock.")
 
                     n_units = int(comms_node_counts_pd['_phase3_n_blocks'].sum())
                     print(f"  [Phase 3 blocks] {num_comms:,} communities -> {n_units:,} bounded "

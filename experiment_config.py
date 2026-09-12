@@ -131,6 +131,10 @@ PHASE3_DIAGNOSTICS = True
 # Phase 3 graph limits. Spark hash-samples toward the node limit and filters
 # edges before aggregation; the UDF then enforces these final hard limits.
 PHASE3_MAX_NODES_PER_COMMUNITY = 10000
+# Units are also split so no unit carries more than this many TRAIN nodes.
+# Cost tracks n_train (corr +0.52), which varied 9.1x across units and made
+# Phase 3 straggler-bound; row count alone does not balance it.
+PHASE3_MAX_TRAIN_PER_UNIT = 1500
 PHASE3_MAX_EDGES_PER_COMMUNITY = 30000
 # Samples one of every N eligible edges before aggregation. Combined with the
 # node cap this keeps the grouped edge payloads bounded without sorting all
@@ -141,7 +145,7 @@ PHASE3_MAX_EDGES_PER_COMMUNITY = 30000
 PHASE3_EDGE_SAMPLE_MODULUS = 1
 # Probe-head budget. It early-stops on validation, so this is a ceiling. A flat 10
 # was the accuracy ceiling on datasets with many classes.
-PHASE3_MLP_EPOCHS = 10
+PHASE3_MLP_EPOCHS = 50
 PHASE3_MLP_PATIENCE = 15
 # Communities larger than PHASE3_MAX_NODES_PER_COMMUNITY are split into bounded
 # blocks and streamed via cogroup rather than hash-sampled down and packed into a
@@ -153,7 +157,7 @@ GCN_HIDDEN_DIM    = 256
 # Phase 3 takes one full-batch step per epoch, so this is a gradient-update budget,
 # not a pass count. Training now early-stops on each unit's own validation split, so
 # this is a ceiling rather than a target.
-GCN_NUM_EPOCHS = 10
+GCN_NUM_EPOCHS = 50
 PHASE3_NODE_PATIENCE = 20
 GCN_LR            = 0.001
 GCN_DROPOUT       = 0.5
@@ -207,7 +211,7 @@ RUN_PHASE4D       = False       # ASAP Baseline
 RUN_PHASE4E       = False       # GAT Baseline
 RUN_PHASE4F       = False       # Graph Transformer Baseline
 RUN_PHASE4G       = False       # ClusterSCL Baseline
-RUN_PHASE4H       = False       # GATv2 Baseline
+RUN_PHASE4H       = True        # GATv2 Baseline
 
 # ── Infrastructure ─────────────────────────────────────────────────────────────
 S3_BUCKET         = 'us-east-1-s3-gnn'

@@ -2120,6 +2120,29 @@ def run_phase4h(spark, sc, datasets, dataset_cfg, baseline_cfg, get_paths_fn,
         val_mask    = np.array([id2split.get(i,'') == 'valid' for i in range(n_nodes)])
         test_mask   = np.array([id2split.get(i,'') == 'test'  for i in range(n_nodes)])
 
+        # Phase 3 draws link negatives from inside one community; a global
+        # baseline answers an easier-to-beat question, which is why retention
+        # against it read above 100%. Load the same partition and report both.
+        _algs = kwargs.get('algorithms') or []
+        comm_dense = comm_order = comm_starts = comm_counts = None
+        if _algs:
+            try:
+                _cp = get_paths_fn(dataset, _algs[0])['communities']
+                _cpd = spark.read.format('delta').load(_cp).select('id', 'community_id').toPandas()
+                _ids = _cpd['id'].values.astype(np.int64)
+                _cid = _cpd['community_id'].values.astype(np.int64)
+                _raw = np.full(n_nodes, -1, dtype=np.int64)
+                _ok = (_ids >= 0) & (_ids < n_nodes)
+                _raw[_ids[_ok]] = _cid[_ok]
+                _uniq, comm_dense = np.unique(_raw, return_inverse=True)
+                comm_order = np.argsort(comm_dense, kind='stable')
+                comm_counts = np.bincount(comm_dense, minlength=len(_uniq))
+                comm_starts = np.concatenate([[0], np.cumsum(comm_counts)[:-1]])
+                print(f"  [partition metric] loaded {len(_uniq):,} communities from {_algs[0]}")
+            except Exception as _e:
+                print(f"  [partition metric] unavailable ({type(_e).__name__}); global AUC only")
+                comm_dense = None
+
         full_src = torch.tensor(src_np, dtype=torch.long)
         full_dst = torch.tensor(dst_np, dtype=torch.long)
 
@@ -2148,6 +2171,7 @@ def run_phase4h(spark, sc, datasets, dataset_cfg, baseline_cfg, get_paths_fn,
         N_RUNS = kwargs.get('n_baseline_runs', 3)
         all_accs = []
         all_aucs = []
+        all_aucs_part = []
         all_node_times = []
         all_link_times = []
 
@@ -2158,6 +2182,7 @@ def run_phase4h(spark, sc, datasets, dataset_cfg, baseline_cfg, get_paths_fn,
             total_t = 0
             node_train_time = 0.0
             baseline_link_auc = 0.5
+            baseline_link_auc_partition = None
             link_train_time = 0.0
 
             # ── Node Classification ──
@@ -2249,12 +2274,53 @@ def run_phase4h(spark, sc, datasets, dataset_cfg, baseline_cfg, get_paths_fn,
                             baseline_link_auc = float(roc_auc_score(y_true, y_scores))
                         except ValueError:
                             baseline_link_auc = 0.5
+
+                        # Same positives, negatives restricted to the source
+                        # vertex's own community: the question Phase 3 answers.
+                        if comm_dense is not None:
+                            _pm = (test_data.edge_label == 1)
+                            _ps = test_data.edge_label_index[0][_pm].cpu().numpy().astype(np.int64)
+                            _pd_ = test_data.edge_label_index[1][_pm].cpu().numpy().astype(np.int64)
+                            if len(_ps) > 0:
+                                _rng = np.random.default_rng(42)
+                                _ei = train_data.edge_index.cpu().numpy().astype(np.int64)
+                                _ek = np.unique(_ei[0] * np.int64(n_nodes) + _ei[1])
+                                _c = comm_dense[_ps]
+                                _w = np.full(len(_ps), -1, dtype=np.int64)
+                                _todo = comm_counts[_c] > 1
+                                for _ in range(8):
+                                    if not _todo.any():
+                                        break
+                                    _idx = np.where(_todo)[0]
+                                    _r = (_rng.random(len(_idx)) * comm_counts[_c[_idx]]).astype(np.int64)
+                                    _cand = comm_order[comm_starts[_c[_idx]] + _r]
+                                    _key = _ps[_idx] * np.int64(n_nodes) + _cand
+                                    _good = (_cand != _ps[_idx]) & ~np.isin(_key, _ek)
+                                    _w[_idx[_good]] = _cand[_good]
+                                    _todo[_idx[_good]] = False
+                                _keep = _w >= 0
+                                if _keep.sum() > 0:
+                                    _pos_idx = torch.stack([
+                                        torch.as_tensor(_ps[_keep]), torch.as_tensor(_pd_[_keep])])
+                                    _neg_idx = torch.stack([
+                                        torch.as_tensor(_ps[_keep]), torch.as_tensor(_w[_keep])])
+                                    _sp = link_model.decode(z, _pos_idx).view(-1)
+                                    _sn = link_model.decode(z, _neg_idx).view(-1)
+                                    _yt = np.concatenate([np.ones(int(_keep.sum())),
+                                                          np.zeros(int(_keep.sum()))])
+                                    _ys = torch.cat([_sp, _sn]).cpu().numpy()
+                                    try:
+                                        baseline_link_auc_partition = float(roc_auc_score(_yt, _ys))
+                                    except ValueError:
+                                        baseline_link_auc_partition = None
                 else:
                     baseline_link_auc = 0.5
                 link_train_time = time.time() - t_link_start
 
             all_accs.append(acc)
             all_aucs.append(baseline_link_auc)
+            if baseline_link_auc_partition is not None:
+                all_aucs_part.append(baseline_link_auc_partition)
             all_node_times.append(node_train_time)
             all_link_times.append(link_train_time)
             print(f"    Run {run_idx+1} — acc={acc:.4f}  auc={baseline_link_auc:.4f}")
@@ -2262,6 +2328,7 @@ def run_phase4h(spark, sc, datasets, dataset_cfg, baseline_cfg, get_paths_fn,
         mean_acc = np.mean(all_accs)
         std_acc = np.std(all_accs)
         mean_auc = np.mean(all_aucs)
+        mean_auc_part = float(np.mean(all_aucs_part)) if all_aucs_part else None
         std_auc = np.std(all_aucs)
         mean_node_time = np.mean(all_node_times)
         mean_link_time = np.mean(all_link_times)
@@ -2276,6 +2343,9 @@ def run_phase4h(spark, sc, datasets, dataset_cfg, baseline_cfg, get_paths_fn,
             'test_acc':          mean_acc,
             'test_acc_std':      std_acc,
             'link_auc':          mean_auc,
+            # global = single-machine upper bound; partition = Phase 3's task.
+            'link_auc_global':   mean_auc,
+            'link_auc_partition': mean_auc_part,
             'link_auc_std':      std_auc,
             'node_train_time_s': mean_node_time,
             'link_train_time_s': mean_link_time,
@@ -2289,3 +2359,4 @@ def run_phase4h(spark, sc, datasets, dataset_cfg, baseline_cfg, get_paths_fn,
         print(f"  ✓ [{dataset}] GATv2 Baseline  acc={mean_acc:.4f}±{std_acc:.4f}  "
               f"auc={mean_auc:.4f}±{std_auc:.4f}  "
               f"time={mean_node_time + mean_link_time:.1f}s")
+
