@@ -2225,7 +2225,8 @@ def run_phase4h(spark, sc, datasets, dataset_cfg, baseline_cfg, get_paths_fn,
                 graph_pyg = Data(x=feat_t, edge_index=edge_index)
 
                 split = T.RandomLinkSplit(
-                    num_val=0.16, num_test=0.20,
+                    num_val=float(baseline_cfg.get('link_val_frac', 0.10)),
+                    num_test=float(baseline_cfg.get('link_test_frac', 0.10)),
                     is_undirected=True,
                     add_negative_train_samples=False,
                     neg_sampling_ratio=1.0,
@@ -2253,7 +2254,31 @@ def run_phase4h(spark, sc, datasets, dataset_cfg, baseline_cfg, get_paths_fn,
                         train_data.edge_label.new_zeros(neg_edge_index.size(1))
                     ], dim=0)
 
-                    for epoch in range(1, EPOCHS + 1):
+                    from sklearn.metrics import roc_auc_score
+                    # A baseline meant to be an upper bound has to be trained to
+                    # convergence and scored at its best weights. This path ran a
+                    # fixed EPOCHS -- the node-classification count -- with no
+                    # validation and no best-state restore, so it reported
+                    # whatever the last step happened to produce and ignored
+                    # link_epochs and link_patience entirely. On Reddit that is
+                    # 100 full-batch passes over tens of millions of edges in one
+                    # process, with no way to stop early.
+                    link_epochs = int(baseline_cfg.get('link_epochs', 300))
+                    link_patience = int(baseline_cfg.get('link_patience', 30))
+                    eval_every = 5
+                    best_val, best_state, waited = -1.0, None, 0
+
+                    def _val_auc_4h():
+                        link_model.eval()
+                        with torch.no_grad():
+                            zz = link_model.encode(train_data.x, train_data.edge_index)
+                            s = link_model.decode(zz, val_data.edge_label_index).view(-1)
+                            yt = val_data.edge_label.cpu().numpy()
+                            if len(np.unique(yt)) < 2:
+                                return float('nan')
+                            return float(roc_auc_score(yt, s.cpu().numpy()))
+
+                    for epoch in range(1, link_epochs + 1):
                         link_model.train()
                         link_opt.zero_grad()
                         z = link_model.encode(train_data.x, train_data.edge_index)
@@ -2262,6 +2287,21 @@ def run_phase4h(spark, sc, datasets, dataset_cfg, baseline_cfg, get_paths_fn,
                         loss = criterion(out, edge_label)
                         loss.backward()
                         link_opt.step()
+
+                        if epoch % eval_every == 0 or epoch == link_epochs:
+                            v = _val_auc_4h()
+                            if v == v and v > best_val:
+                                best_val, waited = v, 0
+                                best_state = copy.deepcopy(link_model.state_dict())
+                            else:
+                                waited += eval_every
+                                if waited >= link_patience:
+                                    print(f"    GATv2 link baseline converged at epoch {epoch} "
+                                          f"(best val AUC {best_val:.4f})")
+                                    break
+
+                    if best_state is not None:
+                        link_model.load_state_dict(best_state)
 
                     with torch.no_grad():
                         link_model.eval()
