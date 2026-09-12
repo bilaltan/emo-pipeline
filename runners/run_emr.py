@@ -622,6 +622,10 @@ def main():
         .config("spark.serializer", "org.apache.spark.serializer.KryoSerializer") \
         .config("spark.kryoserializer.buffer.max", "1024m") \
         .config("spark.pyspark.python", "python3") \
+        .config("spark.excludeOnFailure.enabled", "true") \
+        .config("spark.excludeOnFailure.application.maxFailedTasksPerExecutor", "2") \
+        .config("spark.excludeOnFailure.application.maxFailedExecutorsPerNode", "2") \
+        .config("spark.excludeOnFailure.timeout", "1h") \
         .config("spark.pyspark.virtualenv.enabled", "false") \
         .config("spark.executorEnv.HOME", "/tmp") \
         .config("spark.executorEnv.PYTHONUSERBASE", "/tmp/.local") \
