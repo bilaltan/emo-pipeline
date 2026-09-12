@@ -1396,6 +1396,32 @@ def run_phase3(spark, sc, datasets, algorithms, use_global_mapping,
                 1,
                 np.maximum(_blocks_by_rows, _blocks_by_train).astype(np.int64)
             )
+
+            # Fit the unit count to the cluster. Wall clock is roughly
+            #   ceil(units / slots) * slowest unit,
+            # so a unit count just above the slot count buys a whole extra wave
+            # for a handful of units while most cores idle. Splitting harder
+            # improves balance but only pays off while the units still fit one
+            # wave. Relax the train cap until they do, never below the row cap,
+            # which is a memory bound and not negotiable.
+            _slots = max(1, int(getattr(sc, 'defaultParallelism', 0) or 0))
+            _floor = int(np.maximum(1, _blocks_by_rows).sum())
+            if _slots > 1 and max_train_per_unit > 0:
+                _eff_cap = float(max_train_per_unit)
+                _units = int(comms_node_counts_pd['_phase3_n_blocks'].sum())
+                _relaxed = False
+                while _units > _slots and _units > _floor:
+                    _eff_cap *= 1.25
+                    _bt = np.ceil(comms_node_counts_pd['n_train'] / _eff_cap)
+                    comms_node_counts_pd['_phase3_n_blocks'] = np.maximum(
+                        1, np.maximum(_blocks_by_rows, _bt).astype(np.int64))
+                    _units = int(comms_node_counts_pd['_phase3_n_blocks'].sum())
+                    _relaxed = True
+                if _relaxed:
+                    print(f"  [Phase 3 blocks] train cap relaxed "
+                          f"{max_train_per_unit:,} -> {int(_eff_cap):,} so "
+                          f"{_units:,} units fit {_slots:,} slots in one wave "
+                          f"(floor {_floor:,} set by the row cap).")
             # Unit id is community_id * BLOCK_STRIDE + block, so the stride must
             # exceed the largest block count or unit ids from different
             # communities collide. The train term can raise that count.
