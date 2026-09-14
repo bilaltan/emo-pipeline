@@ -176,7 +176,7 @@ TASK_TYPE = 'both'
 
 # ── Phase 4: Full-Graph Baseline ──────────────────────────────────────────────
 # Runs ONCE per dataset (not per algorithm). Uses SAME masks as Phase 3.
-RUN_PHASE4        = True        # Re-enabled: the baseline now trains to convergence (was 10 steps)
+RUN_PHASE4        = False       # runs on a dedicated EC2 box: scripts/run_phase4_ec2.py
 # The baseline defines the upper bound every retention claim is measured against,
 # so it trains to convergence with early stopping rather than to a fixed budget.
 BASELINE_EPOCHS   = 100         # max node-classification epochs (early-stopped on val)
@@ -211,7 +211,7 @@ RUN_PHASE4D       = False       # ASAP Baseline
 RUN_PHASE4E       = False       # GAT Baseline
 RUN_PHASE4F       = False       # Graph Transformer Baseline
 RUN_PHASE4G       = False       # ClusterSCL Baseline
-RUN_PHASE4H       = True        # GATv2 Baseline
+RUN_PHASE4H       = False       # same: the single-machine baseline is not a cluster job
 
 # ── Infrastructure ─────────────────────────────────────────────────────────────
 S3_BUCKET         = 'us-east-1-s3-gnn'
