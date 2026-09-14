@@ -54,6 +54,16 @@ TORCH_INDEX = "https://download.pytorch.org/whl/cpu"
 # torch_geometric must land after torch.
 PYG_PACKAGES = ["torch-geometric"]
 
+# DGL is optional for the PyG backbones (gat, gatv2, transformer, arma, asap,
+# clusterscl all route through PyG), but the Phase 3 UDF still *attempts*
+# `import dgl` and, on failure, pip-installs it inside the task before the code
+# that decides dgl is unnecessary. That install then runs once per Python worker
+# process, and the number of worker processes scales with executor count -- so a
+# missing dgl silently adds variable overhead that corrupts a scalability sweep.
+# Install it up front to keep every run starting from the same state.
+DGL_PACKAGES = ["dgl==1.1.3"]
+DGL_FIND_LINKS = "https://data.dgl.ai/wheels/repo.html"
+
 
 def target_dir():
     return "/mnt/tmp/.local/lib/python%d.%d/site-packages" % (
@@ -70,10 +80,14 @@ def main():
                     help="large enough that two will not fit on one node")
     ap.add_argument("--skip-torch", action="store_true",
                     help="skip torch/PyG (much faster when only fixing numpy)")
+    ap.add_argument("--with-dgl", action="store_true",
+                    help="also install DGL, so the Phase 3 UDF never pip-installs "
+                         "it mid-task (matters for timing comparisons)")
     args = ap.parse_args()
 
     pkgs = args.packages if args.packages else WORKER_PACKAGES
     want_torch = not args.skip_torch
+    want_dgl = bool(args.with_dgl)
 
     from pyspark.sql import SparkSession
     spark = (SparkSession.builder
@@ -95,6 +109,8 @@ def main():
                   if not os.path.isdir(os.path.join(tgt, p))]
         if want_torch and not os.path.isdir(os.path.join(tgt, "torch")):
             needed.append("torch")
+        if want_dgl and not os.path.isdir(os.path.join(tgt, "dgl")):
+            needed.append("dgl")
         if not needed:
             return [(host, 1, "already provisioned")]
 
@@ -118,6 +134,8 @@ def main():
                 steps.append(("torch", base + TORCH_PACKAGES +
                               ["--index-url", TORCH_INDEX]))
                 steps.append(("pyg", base + PYG_PACKAGES))
+            if want_dgl:
+                steps.append(("dgl", base + DGL_PACKAGES + ["-f", DGL_FIND_LINKS]))
             for label, cmd in steps:
                 r = subprocess.run(cmd, capture_output=True, text=True, timeout=2400)
                 if r.returncode != 0:
