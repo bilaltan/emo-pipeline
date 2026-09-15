@@ -196,8 +196,7 @@ def main():
     print("                   8 and 7 hosts. Use executor counts well above the")
     print("                   node count, or verify coverage per run.")
     print("  tasks_per_node = cores / nodes; per-task cost tracks this closely")
-    print("  usable_par     = sum(task time) / longest task = the speedup ceiling")
-    print("  phase3_median  = per-task median; rising with tasks_per_node means")
+    print("  p3_median      = per-task median; rising with tasks_per_node means")
     print("                   oversubscription rather than a genuine ceiling")
 
     if args.json:
