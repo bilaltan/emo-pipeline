@@ -244,6 +244,12 @@ def main():
                         help="Skip dynamic package verification/installation on YARN executors")
     parser.add_argument("--executor-instances", type=int, default=None,
                         help="Override the auto-scaled executor count; retain auto-sized executor memory and cores")
+    parser.add_argument("--omp-threads", type=int, default=None,
+                        help="threads per Python worker. The nodes are r6id.8xlarge: "
+                             "32 vCPUs but only 16 PHYSICAL cores, so 32 single-threaded "
+                             "tasks per node run 2x oversubscribed. Setting this to 2 at "
+                             "half the slots gives each task both hyperthreads of one "
+                             "core instead of handing them to a competing task.")
     parser.add_argument("--executor-cores", type=int, default=None,
                         help="Override executor cores for Spark/YARN sizing")
     parser.add_argument("--executor-memory-gb", type=int, default=None,
@@ -592,6 +598,7 @@ def main():
     except Exception:
         pass
 
+    _omp = str(max(1, int(getattr(args, "omp_threads", None) or 1)))
     spark = SparkSession.builder \
         .appName(f"GRL-{args.experiment_name}") \
         .config("spark.master", "yarn") \
@@ -635,11 +642,11 @@ def main():
         .config("spark.executorEnv.TMPDIR", "/tmp") \
         .config("spark.executorEnv.TEMP", "/tmp") \
         .config("spark.executorEnv.TMP", "/tmp") \
-        .config("spark.executorEnv.OMP_NUM_THREADS", "1") \
-        .config("spark.executorEnv.MKL_NUM_THREADS", "1") \
-        .config("spark.executorEnv.OPENBLAS_NUM_THREADS", "1") \
-        .config("spark.executorEnv.VECLIB_MAXIMUM_THREADS", "1") \
-        .config("spark.executorEnv.NUMEXPR_NUM_THREADS", "1") \
+        .config("spark.executorEnv.OMP_NUM_THREADS", _omp) \
+        .config("spark.executorEnv.MKL_NUM_THREADS", _omp) \
+        .config("spark.executorEnv.OPENBLAS_NUM_THREADS", _omp) \
+        .config("spark.executorEnv.VECLIB_MAXIMUM_THREADS", _omp) \
+        .config("spark.executorEnv.NUMEXPR_NUM_THREADS", _omp) \
         .config("spark.jars.packages", "io.delta:delta-spark_2.12:3.2.0,graphframes:graphframes:0.8.3-spark3.5-s_2.12") \
         .config("spark.jars.ivy", f"{large_tmp}/.ivy2") \
         .config("spark.local.dir", spark_local_dirs) \
