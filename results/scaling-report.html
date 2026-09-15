@@ -1,0 +1,409 @@
+<title>Nodes, Not Cores</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,600;1,6..72,400&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+  :root {
+    --paper:   #f6f7f9;
+    --card:    #ffffff;
+    --ink:     #11171e;
+    --muted:   #5b6673;
+    --faint:   #8a94a1;
+    --rule:    #dce1e8;
+    --accent:  #0c7180;
+    --accent-soft: #e4f1f3;
+    --warn:    #8a5d0f;
+    --warn-soft:   #f8f0dd;
+    --good:    #1d6b45;
+    color-scheme: light dark;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --paper: #0d1217;  --card: #141b22;  --ink: #e7ebf0;
+      --muted: #96a1ae;  --faint: #6c7783; --rule: #232d38;
+      --accent: #46b9c8; --accent-soft: #102b30;
+      --warn: #d6a54e;   --warn-soft: #2a2213;
+      --good: #5cbd8c;
+    }
+  }
+  :root[data-theme="dark"] {
+    --paper: #0d1217;  --card: #141b22;  --ink: #e7ebf0;
+    --muted: #96a1ae;  --faint: #6c7783; --rule: #232d38;
+    --accent: #46b9c8; --accent-soft: #102b30;
+    --warn: #d6a54e;   --warn-soft: #2a2213;
+    --good: #5cbd8c;
+  }
+
+  body {
+    background: var(--paper);
+    color: var(--ink);
+    font-family: "IBM Plex Sans", ui-sans-serif, system-ui, sans-serif;
+    font-size: 16px;
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+  }
+  .wrap { max-width: 860px; margin: 0 auto; padding: 56px 24px 96px; }
+  .prose { max-width: 68ch; }
+
+  h1 {
+    font-family: "Newsreader", Georgia, serif;
+    font-size: clamp(2.1rem, 5vw, 3.1rem);
+    font-weight: 600;
+    line-height: 1.08;
+    letter-spacing: -0.02em;
+    text-wrap: balance;
+    margin: 0 0 .5rem;
+  }
+  h2 {
+    font-family: "Newsreader", Georgia, serif;
+    font-size: 1.6rem; font-weight: 600; line-height: 1.2;
+    letter-spacing: -0.01em; text-wrap: balance;
+    margin: 3.2rem 0 .3rem;
+  }
+  h3 {
+    font-size: .82rem; font-weight: 600; letter-spacing: .09em;
+    text-transform: uppercase; color: var(--muted);
+    margin: 2.2rem 0 .7rem;
+  }
+  p { margin: 0 0 1rem; }
+  .lede { font-size: 1.12rem; color: var(--muted); max-width: 60ch; }
+  .kicker {
+    font-family: "IBM Plex Mono", monospace;
+    font-size: .74rem; letter-spacing: .13em; text-transform: uppercase;
+    color: var(--accent); margin: 0 0 1rem;
+  }
+  .sub { color: var(--muted); font-size: .94rem; margin-top: -.1rem; }
+  strong { font-weight: 600; }
+  em.term { font-style: normal; font-family: "IBM Plex Mono", monospace;
+            font-size: .88em; color: var(--accent); }
+
+  /* headline band */
+  .headline {
+    background: var(--card); border: 1px solid var(--rule);
+    border-radius: 10px; padding: 26px 28px; margin: 2.2rem 0 1rem;
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 22px;
+  }
+  .metric .n {
+    font-family: "IBM Plex Mono", monospace; font-variant-numeric: tabular-nums;
+    font-size: 1.85rem; font-weight: 500; color: var(--accent); line-height: 1.1;
+  }
+  .metric .l { font-size: .84rem; color: var(--muted); margin-top: .25rem; }
+
+  /* tables */
+  .scroll { overflow-x: auto; margin: 1rem 0 .4rem; }
+  table { border-collapse: collapse; width: 100%; font-size: .92rem; }
+  caption {
+    caption-side: top; text-align: left; color: var(--muted);
+    font-size: .88rem; padding-bottom: .55rem;
+  }
+  th, td { padding: .5rem .8rem; text-align: right; white-space: nowrap; }
+  th:first-child, td:first-child { text-align: left; }
+  thead th {
+    font-size: .74rem; letter-spacing: .06em; text-transform: uppercase;
+    color: var(--muted); font-weight: 600;
+    border-bottom: 1.5px solid var(--rule);
+  }
+  tbody td {
+    font-family: "IBM Plex Mono", monospace; font-variant-numeric: tabular-nums;
+    border-bottom: 1px solid var(--rule);
+  }
+  tbody td:first-child { font-family: "IBM Plex Sans", sans-serif; }
+  tbody tr.hl td { background: var(--accent-soft); }
+  td.best { color: var(--accent); font-weight: 500; }
+  .note { font-size: .85rem; color: var(--faint); margin: .3rem 0 0; }
+
+  figure { margin: 1.4rem 0 .5rem; }
+  figcaption { font-size: .85rem; color: var(--faint); margin-top: .5rem; }
+  svg { display: block; width: 100%; height: auto; }
+
+  .callout {
+    border-left: 3px solid var(--accent); background: var(--card);
+    padding: 14px 18px; margin: 1.3rem 0; border-radius: 0 7px 7px 0;
+  }
+  .callout.warn { border-left-color: var(--warn); background: var(--warn-soft); }
+  .callout p:last-child { margin-bottom: 0; }
+
+  ol.findings { counter-reset: f; list-style: none; padding: 0; margin: 1rem 0; }
+  ol.findings > li {
+    counter-increment: f; position: relative;
+    padding: 0 0 0 44px; margin: 0 0 1.5rem;
+  }
+  ol.findings > li::before {
+    content: counter(f); position: absolute; left: 0; top: 1px;
+    width: 28px; height: 28px; border-radius: 50%;
+    background: var(--accent); color: var(--paper);
+    font-family: "IBM Plex Mono", monospace; font-size: .85rem;
+    display: grid; place-items: center; font-weight: 500;
+  }
+  ol.findings h4 { margin: 0 0 .3rem; font-size: 1.02rem; font-weight: 600; }
+  ol.findings p { margin: 0; color: var(--muted); font-size: .95rem; }
+
+  hr { border: 0; border-top: 1px solid var(--rule); margin: 3rem 0 0; }
+  footer { color: var(--faint); font-size: .88rem; margin-top: 1.2rem; }
+  code {
+    font-family: "IBM Plex Mono", monospace; font-size: .88em;
+    background: var(--accent-soft); color: var(--accent);
+    padding: .1em .38em; border-radius: 4px;
+  }
+</style>
+
+<div class="wrap">
+
+  <p class="kicker">LakeGRL &middot; distributed scaling study &middot; 15 Sep 2026</p>
+  <h1>Nodes, Not Cores</h1>
+  <p class="lede">Measuring what actually limits parallelism in community-partitioned
+  GNN training on Spark &mdash; across 4, 8 and 12 EMR nodes.</p>
+
+  <div class="headline">
+    <div class="metric">
+      <div class="n">2.17&times;</div>
+      <div class="l">Phase&nbsp;3 speedup, 4&nbsp;&rarr;&nbsp;12 nodes<br>(224.8s &rarr; 103.8s)</div>
+    </div>
+    <div class="metric">
+      <div class="n">1.10&times;</div>
+      <div class="l">from doubling <em>slots</em> on a fixed node count</div>
+    </div>
+    <div class="metric">
+      <div class="n">16</div>
+      <div class="l">physical cores per node &mdash; not the 32 vCPUs reported</div>
+    </div>
+    <div class="metric">
+      <div class="n">36</div>
+      <div class="l">reddit's usable parallelism, under <em>every</em> partitioner</div>
+    </div>
+  </div>
+
+  <div class="prose">
+    <p>The pipeline had shown almost no speedup from added hardware: on reddit,
+    quadrupling the executors bought <strong>1.12&times;</strong>. The question was
+    whether that reflects a limit of the method or a limit of how it was being run.
+    It turned out to be neither &mdash; it was a property of the benchmark and of the
+    hardware's real topology.</p>
+  </div>
+
+  <h2>The result</h2>
+  <p class="sub">ogbn-products, one task per physical core. Identical workload
+  throughout: 575 training units, 10 epochs, phases&nbsp;0&ndash;2 reused from S3.</p>
+
+  <div class="scroll">
+    <table>
+      <caption>Table 1 &mdash; best configuration at each cluster size</caption>
+      <thead>
+        <tr><th>Cluster</th><th>Phys. cores</th><th>Slots</th><th>Phase 3</th>
+            <th>Speedup</th><th>Phase 3b</th><th>Accuracy</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>4 nodes</td><td>64</td><td>64</td><td>224.8 s</td><td>1.00&times;</td><td>&mdash;</td><td>0.6341</td></tr>
+        <tr><td>8 nodes</td><td>128</td><td>128</td><td>143.7 s</td><td>1.56&times;</td><td>219.7 s</td><td>0.6350</td></tr>
+        <tr class="hl"><td>12 nodes</td><td>192</td><td>192</td><td class="best">103.8 s</td><td class="best">2.17&times;</td><td>204.3 s</td><td>0.6353</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p class="note">The 4-node Phase&nbsp;3b cell is empty because that particular run was a
+  Phase-3-only configuration test, not a failure. Accuracy varies by 0.0012 across all
+  three &mdash; the workload really is identical.</p>
+
+  <figure>
+    <svg viewBox="0 0 580 300" role="img" aria-label="Phase 3 time against node count: 224.8s at 4 nodes, 143.7s at 8 nodes, 103.8s at 12 nodes, against an ideal line reaching 74.9s">
+      <g stroke="var(--rule)" stroke-width="1">
+        <line x1="70" y1="50"  x2="540" y2="50"/>
+        <line x1="70" y1="100" x2="540" y2="100"/>
+        <line x1="70" y1="150" x2="540" y2="150"/>
+        <line x1="70" y1="200" x2="540" y2="200"/>
+        <line x1="70" y1="250" x2="540" y2="250"/>
+      </g>
+      <g fill="var(--faint)" font-family="IBM Plex Mono, monospace" font-size="11" text-anchor="end">
+        <text x="60" y="54">240s</text>
+        <text x="60" y="104">180s</text>
+        <text x="60" y="154">120s</text>
+        <text x="60" y="204">60s</text>
+        <text x="60" y="254">0s</text>
+      </g>
+      <g fill="var(--muted)" font-family="IBM Plex Sans, sans-serif" font-size="12" text-anchor="middle">
+        <text x="70"  y="275">4 nodes</text>
+        <text x="280" y="275">8 nodes</text>
+        <text x="490" y="275">12 nodes</text>
+      </g>
+      <!-- ideal (linear) reference -->
+      <polyline points="70,62.7 280,156.3 490,187.6" fill="none"
+                stroke="var(--faint)" stroke-width="1.5" stroke-dasharray="5 4"/>
+      <text x="498" y="185" fill="var(--faint)" font-family="IBM Plex Sans, sans-serif"
+            font-size="11">ideal 74.9s</text>
+      <!-- measured -->
+      <polyline points="70,62.7 280,130.3 490,163.5" fill="none"
+                stroke="var(--accent)" stroke-width="2.5"/>
+      <g fill="var(--accent)">
+        <circle cx="70"  cy="62.7"  r="5"/>
+        <circle cx="280" cy="130.3" r="5"/>
+        <circle cx="490" cy="163.5" r="5"/>
+      </g>
+      <g fill="var(--ink)" font-family="IBM Plex Mono, monospace" font-size="12" font-weight="500">
+        <text x="82"  y="58">224.8s</text>
+        <text x="292" y="126">143.7s</text>
+        <text x="430" y="159">103.8s</text>
+      </g>
+    </svg>
+    <figcaption>Phase&nbsp;3 wall clock against node count, with a linear-scaling
+    reference. The gap between the two lines is the serial floor described below.</figcaption>
+  </figure>
+
+  <h2>Why more executors didn't help</h2>
+
+  <div class="prose">
+    <p>Adding executors to a <em class="term">fixed</em> set of nodes barely moved the
+    wall clock, and the per-task numbers show why: each task simply got slower.
+    Per-task median time is a clean function of how many tasks share a node.</p>
+  </div>
+
+  <div class="scroll">
+    <table>
+      <caption>Table 2 &mdash; per-task median against task density (ogbn-products)</caption>
+      <thead>
+        <tr><th>Tasks per node</th><th>Cluster</th><th>Slots</th>
+            <th>Median task</th><th>Slowest task</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>4.6</td><td>7 nodes*</td><td>32</td><td>12.2 s</td><td>49.5 s</td></tr>
+        <tr><td>5.3</td><td>12 nodes</td><td>64</td><td>12.9 s</td><td>48.8 s</td></tr>
+        <tr><td>8.0</td><td>8 nodes</td><td>64</td><td>13.5 s</td><td>61.6 s</td></tr>
+        <tr><td>10.7</td><td>12 nodes</td><td>128</td><td>16.9 s</td><td>65.2 s</td></tr>
+        <tr><td>16.0</td><td>12 nodes</td><td>192</td><td>21.4 s</td><td>72.9 s</td></tr>
+        <tr class="hl"><td>32.0</td><td>4 nodes</td><td>128</td><td>37.8 s</td><td>155.4 s</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p class="note">*One run was placed by YARN on 7 hosts rather than 8; it is flagged in
+  the data as not a clean node-scaling point.</p>
+
+  <div class="callout">
+    <p><strong>Per-node throughput is roughly constant.</strong> Median task time
+    approximately doubles each time task density doubles, so extra slots subdivide a
+    fixed per-node capacity rather than adding capacity. The binding resource is
+    per-node memory and I/O bandwidth &mdash; which is why adding <em>machines</em>
+    works and adding <em>slots</em> does not.</p>
+  </div>
+
+  <h2>The hardware was half the size it appeared</h2>
+
+  <div class="prose">
+    <p>The instances are <code>r6id.8xlarge</code>, reporting 32 vCPUs. They have
+    <strong>16 physical cores</strong> with two threads each. Running 32 single-threaded
+    tasks per node therefore oversubscribes the cores 2&times;, and the second hyperthread
+    returns roughly 11% rather than 100%. Efficiency computed against vCPU counts
+    overstates it by a factor of two.</p>
+    <p>Giving each task both hyperthreads instead &mdash; half the tasks, two threads each
+    &mdash; was measurably better: <strong>224.8s versus 231.4s on half the executors</strong>.</p>
+  </div>
+
+  <h2>reddit cannot demonstrate scalability</h2>
+  <p class="sub">And no choice of partitioner changes that.</p>
+
+  <div class="scroll">
+    <table>
+      <caption>Table 3 &mdash; reddit, 4 nodes</caption>
+      <thead>
+        <tr><th>Slots</th><th>Phase 3</th><th>Phase 3b</th><th>Usable parallelism</th><th>Accuracy</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>128</td><td>135.4 s</td><td>574.7 s</td><td>37.0</td><td>0.7364</td></tr>
+        <tr><td>64</td><td>138.9 s</td><td>542.6 s</td><td>36.0</td><td>0.7387</td></tr>
+        <tr><td>32</td><td>173.1 s</td><td>576.8 s</td><td>34.7</td><td>0.7379</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="prose">
+    <p><em class="term">Usable parallelism</em> &mdash; total task time divided by the
+    longest single task &mdash; is the most slots a stage can ever benefit from, because it
+    cannot finish before its slowest unit does. For reddit that ceiling is
+    <strong>36</strong>, well under the 64 physical cores already available. Extra hardware
+    buys idle cores.</p>
+    <p>Every partitioner lands in the same place: Louvain 23.6, Leiden 23.5, LPA 22.4,
+    igraph-LPA 23.8 (computed on member counts). LPA produces ten times as many
+    communities &mdash; 220 against Louvain's 22 &mdash; but its largest community is
+    <strong>181,907 nodes, nearly four times Louvain's</strong>, and only ten survive the
+    minimum-size filter. The bound is set by the largest unit, not the number of them.</p>
+  </div>
+
+  <h2>Findings</h2>
+
+  <ol class="findings">
+    <li>
+      <h4>Throughput scales with nodes, not cores</h4>
+      <p>2.17&times; for 3&times; the nodes. Holding slots fixed at 128 and only spreading
+      wider gave 143.7s &rarr; 116.4s, a 1.23&times; gain from placement alone. Doubling
+      slots on fixed nodes gave about 1.10&times;.</p>
+    </li>
+    <li>
+      <h4>Task density, not core count, predicts per-task cost</h4>
+      <p>Median task time runs 12.2s at 4.6 tasks/node and 37.8s at 32 &mdash; monotonic
+      across all 18 runs. This is the diagnostic that separates a genuine ceiling
+      (flat median, fixed maximum) from oversubscription (rising median).</p>
+    </li>
+    <li>
+      <h4>The cost driver reverses between datasets</h4>
+      <p>On reddit, cost correlates with training-node count (+0.52) and not at all with
+      edges (&minus;0.01). On ogbn-products it is the opposite: edges +0.62, training
+      nodes &minus;0.02. <strong>No single balancing heuristic can be correct for both</strong>
+      &mdash; a train-aware split that cut skew from 3.51&times; to 1.50&times; still made
+      reddit 10.6% slower.</p>
+    </li>
+    <li>
+      <h4>Phase 3 and Phase 3b have different optima</h4>
+      <p>On 12 nodes Phase&nbsp;3 is fastest at 192 slots (103.8s) while Phase&nbsp;3b is
+      fastest at 128 (182.5s vs 204.3s). Total wall clock is therefore lowest at
+      <strong>128 slots, not at maximum scale</strong>.</p>
+    </li>
+    <li>
+      <h4>A serial floor caps any achievable speedup</h4>
+      <p>Phase&nbsp;3 carries roughly 40&ndash;55s of work that never parallelises
+      &mdash; Delta load, broadcast, collect. At 12 nodes the parallel portion is about
+      91s against 103.8s measured, so further hardware has progressively less to act on.</p>
+    </li>
+  </ol>
+
+  <h2>What this means for the paper</h2>
+
+  <div class="prose">
+    <p>A simple "distributed is faster" claim is not supported by reddit at any cluster
+    size, and cannot be. But the finding that replaces it is stronger: we can now
+    <em>predict</em> a workload's speedup ceiling before running it, explain the two distinct
+    mechanisms that produce a flat curve, and show genuine scaling on a workload whose
+    ceiling exceeds the hardware.</p>
+    <p>Scalability claims belong on ogbn-products and papers100M. reddit belongs in the
+    paper as the case that demonstrates the ceiling.</p>
+  </div>
+
+  <h2>Limits of this study</h2>
+
+  <div class="callout warn">
+    <p><strong>Phase 4 has never produced a number.</strong> It was gated off by a
+    configuration condition for the whole study, so no retention figure against the
+    single-machine full-graph baseline exists yet. That remains the largest gap.</p>
+  </div>
+
+  <div class="prose">
+    <p><strong>Two timing bases.</strong> The tables above use the pipeline's own wall
+    clock, which includes per-phase setup. The archived data also records Spark stage
+    times, which run 10&ndash;13% lower (90.1s against 103.8s at 12 nodes). Both are
+    correct measurements of different spans; speedup ratios agree closely either way
+    (1.38&times; vs 1.44&times; for 8&nbsp;&rarr;&nbsp;12 nodes). They must never be mixed
+    in one table.</p>
+    <p><strong>Usable parallelism is basis-dependent too.</strong> Computed from Spark
+    task times it reads 99&ndash;157 for ogbn-products; from the pipeline's internal
+    timings it reads higher. The reddit figures (34.7&ndash;37.0) agree closely across
+    bases, which is why that ceiling is quoted with confidence.</p>
+    <p><strong>Ten epochs.</strong> These runs measure scaling, not accuracy. At 200
+    epochs reddit node accuracy is 0.8835 against 0.7347 here, while link AUC barely
+    moves (0.8094 vs 0.8058) &mdash; the two tasks want very different budgets.</p>
+  </div>
+
+  <hr>
+  <footer>
+    <p>18 measured runs across 4, 8 and 12 nodes &middot; ogbn-products and reddit &middot;
+    GATv2 &middot; r6id.8xlarge.<br>
+    Data: <code>results/all_runs.json</code>, <code>results/pipeline_times.json</code>.
+    Raw logs and 37 Spark event logs archived to S3.</p>
+  </footer>
+
+</div>
