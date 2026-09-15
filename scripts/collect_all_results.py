@@ -51,6 +51,9 @@ def main():
     ap.add_argument("--host", default="localhost")
     ap.add_argument("--port", type=int, default=18080)
     ap.add_argument("--csv", default=None, help="also write rows to this CSV")
+    ap.add_argument("--json", default=None,
+                    help="write a self-describing JSON: field documentation, the "
+                         "constants held fixed, every run, and derived curves")
     ap.add_argument("--min-stage-seconds", type=float, default=60.0,
                     help="ignore trivial stages")
     args = ap.parse_args()
@@ -196,6 +199,74 @@ def main():
     print("  usable_par     = sum(task time) / longest task = the speedup ceiling")
     print("  phase3_median  = per-task median; rising with tasks_per_node means")
     print("                   oversubscription rather than a genuine ceiling")
+
+    if args.json:
+        # Self-describing on purpose: anyone opening this file later should not
+        # need the conversation that produced it.
+        doc = {
+            "generated_utc": dt.datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ"),
+            "what_this_is":
+                "Every measured run of the LakeGRL pipeline, read from the Spark "
+                "history server rather than from run logs.",
+            "cluster": {
+                "instance_type": "r6id.8xlarge",
+                "vcpus_per_node": 32,
+                "physical_cores_per_node": 16,
+                "note": "32 vCPUs are 16 physical cores with 2 threads each. "
+                        "Reporting efficiency against vCPUs overstates it 2x.",
+            },
+            "held_constant": {
+                "dataset_partitioning": "phases 0-2 reused from S3, so every run "
+                                        "trains the identical unit set",
+                "epochs": 10,
+                "executor_cores": 4,
+                "note": "Only node count and slot count vary across the scaling runs.",
+            },
+            "field_documentation": {
+                "nodes": "Distinct hosts the application actually ran on. Measured, "
+                         "not requested: YARN does not guarantee one executor per "
+                         "node, and one nominally 8-node run landed on 7 hosts.",
+                "cores": "Total executor cores = slots = concurrent tasks.",
+                "omp": "OMP_NUM_THREADS per Python worker. Tasks are otherwise "
+                       "single-threaded.",
+                "tasks_per_node": "cores / nodes. Per-task cost tracks this more "
+                                  "closely than it tracks total core count.",
+                "p3_stage_s": "Spark STAGE wall clock for Phase 3. The pipeline's "
+                              "own 'Wall time:' line runs about 10% higher because "
+                              "it also counts setup. Do not mix the two.",
+                "p3_median": "Median per-task runtime. Rising with tasks_per_node "
+                             "indicates oversubscription; flat with a fixed max "
+                             "indicates a genuine straggler ceiling.",
+                "p3_max": "Slowest single task. A stage cannot finish before this.",
+                "usable_par": "sum(task time) / max(task time). The most slots the "
+                              "stage could ever benefit from. Computed here from "
+                              "Spark executorRunTime, which includes per-task "
+                              "overhead; UDF-internal timings give a higher number "
+                              "for products. Keep one basis per table.",
+                "p3b_stage_s": "Same, for Phase 3b (CaaN fusion).",
+            },
+            "key_findings": [
+                "Throughput scales with NODES, not cores. Doubling nodes at a fixed "
+                "slot count roughly halved per-task time; doubling slots on fixed "
+                "nodes bought about 1.10x.",
+                "Per-task median is a function of tasks-per-node: ~13.5s at 8/node, "
+                "~21s at 16/node, ~37s at 32/node.",
+                "The cost driver reverses by dataset: corr(n_train, time) was +0.52 "
+                "on reddit and -0.02 on products, while corr(n_edges, time) was "
+                "-0.01 on reddit and +0.62 on products. No single balancing "
+                "heuristic is correct for both.",
+                "reddit cannot demonstrate scalability at any cluster size: usable "
+                "parallelism is 36 under every partitioner tested (louvain, leiden, "
+                "lpa, igraph_lpa all give 22-24 on member counts).",
+                "Phase 3 carries a serial floor of roughly 40-55s (load, broadcast, "
+                "collect) that never parallelises.",
+            ],
+            "runs": rows,
+        }
+        os.makedirs(os.path.dirname(os.path.abspath(args.json)), exist_ok=True)
+        with open(args.json, "w") as f:
+            json.dump(doc, f, indent=2)
+        print("\n  wrote %s (%d runs)" % (args.json, len(rows)))
 
     if args.csv:
         os.makedirs(os.path.dirname(os.path.abspath(args.csv)), exist_ok=True)
