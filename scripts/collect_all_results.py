@@ -129,6 +129,9 @@ def main():
         dataset = next(iter(by_phase.values()))["dataset"]
         p3 = by_phase.get("phase3", {})
         p3b = by_phase.get("phase3b", {})
+        # YARN does not always place an executor on every node: one 8-node run
+        # landed on 7 hosts, so its tasks-per-node is not what the sweep assumed.
+        # Flag it rather than let it read as a clean point.
         rows.append({
             "app": aid,
             "dataset": dataset,
@@ -138,13 +141,13 @@ def main():
             "omp": omp or "1",
             "slots": cores,
             "tasks_per_node": round(cores / nodes, 1) if nodes else 0,
-            "phase3_s": round(p3.get("wall"), 1) if p3.get("wall") else "",
-            "phase3_median": round(p3["median"], 1) if p3.get("median") else "",
-            "phase3_max": round(p3["max"], 1) if p3.get("max") else "",
+            "p3_stage_s": round(p3.get("wall"), 1) if p3.get("wall") else "",
+            "p3_median": round(p3["median"], 1) if p3.get("median") else "",
+            "p3_max": round(p3["max"], 1) if p3.get("max") else "",
             "phase3_sum": round(p3["sum"], 0) if p3.get("sum") else "",
             "usable_par": (round(p3["sum"] / p3["max"], 1)
                            if p3.get("sum") and p3.get("max") else ""),
-            "phase3b_s": round(p3b.get("wall"), 1) if p3b.get("wall") else "",
+            "p3b_stage_s": round(p3b.get("wall"), 1) if p3b.get("wall") else "",
             "phase3b_median": round(p3b["median"], 1) if p3b.get("median") else "",
         })
 
@@ -155,8 +158,8 @@ def main():
     rows.sort(key=lambda r: (r["dataset"], -r["nodes"], -r["cores"]))
 
     hdr = ["dataset", "nodes", "execs", "cores", "omp", "tasks_per_node",
-           "phase3_s", "phase3_median", "phase3_max", "usable_par", "phase3b_s"]
-    widths = [14, 6, 6, 6, 4, 8, 9, 9, 9, 10, 9]
+           "p3_stage_s", "p3_median", "p3_max", "usable_par", "p3b_stage_s"]
+    widths = [15, 6, 6, 6, 5, 9, 11, 10, 9, 11, 11]
     print()
     print("  " + "".join(h.ljust(w) for h, w in zip(hdr, widths)))
     print("  " + "-" * sum(widths))
@@ -168,6 +171,23 @@ def main():
         print("  " + "".join(str(r.get(h, "")).ljust(w) for h, w in zip(hdr, widths)))
 
     print()
+    odd = [r for r in rows if r["nodes"] not in (1, 2, 4, 8, 12, 16)]
+    if odd:
+        print()
+        print("  CAVEAT: %d run(s) landed on an unexpected host count "
+              "(YARN placement)." % len(odd))
+        for r in odd:
+            print("     %s: %d hosts, %d executors -> tasks/node %.1f"
+                  % (r["dataset"], r["nodes"], r["execs"], r["tasks_per_node"]))
+        print("  Those points are not clean node-scaling measurements.")
+    print()
+    print("  p3_stage_s     = Spark STAGE wall clock. The pipeline's own")
+    print("                   'Wall time:' line is ~10%% higher because it also")
+    print("                   counts setup. Do not mix the two in one table.")
+    print("  usable_par     = sum/max from Spark executorRunTime, which includes")
+    print("                   per-task overhead; UDF-internal timings give a")
+    print("                   higher figure for products. Same metric, different")
+    print("                   basis -- keep one basis per table.")
     print("  nodes          = distinct hosts the application actually ran on")
     print("  tasks_per_node = cores / nodes; per-task cost tracks this closely")
     print("  usable_par     = sum(task time) / longest task = the speedup ceiling")
