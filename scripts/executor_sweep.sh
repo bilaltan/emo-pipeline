@@ -32,13 +32,15 @@ cd "$REPO"
 
 CORES=4
 EPOCHS=10
+DATASET="reddit"
 EXPERIMENT="gatv2_reddit_edgecap"
 COUNTS=()
 while [ $# -gt 0 ]; do
     case "$1" in
         --cores)  CORES="$2"; shift 2 ;;
         --epochs) EPOCHS="$2"; shift 2 ;;
-        --name)   EXPERIMENT="$2"; shift 2 ;;
+        --name)    EXPERIMENT="$2"; shift 2 ;;
+        --dataset) DATASET="$2"; shift 2 ;;
         *)        COUNTS+=("$1"); shift ;;
     esac
 done
@@ -61,7 +63,8 @@ mkdir -p "$OUTDIR"
 PIN=$(grep -E "^PHASE3_MAX_TRAIN_PER_UNIT" experiment_config.py | head -1)
 echo "=============================================================="
 echo "  EXECUTOR SWEEP"
-echo "  counts    : ${COUNTS[*]}   (x $CORES cores = slots)"
+echo "  dataset   : $DATASET
+  counts    : ${COUNTS[*]}   (x $CORES cores = slots)"
 echo "  epochs    : $EPOCHS   (scaling, not accuracy)"
 echo "  experiment: $EXPERIMENT"
 echo "  commit    : $(git rev-parse --short HEAD)"
@@ -83,7 +86,7 @@ for N in "${COUNTS[@]}"; do
     echo "--- $N executors x $CORES cores = $((N * CORES)) slots ---"
     START=$(date +%s)
     python3 -u runners/run_emr.py \
-        --datasets reddit \
+        --datasets "$DATASET" \
         --experiment-name "$EXPERIMENT" \
         --no-phase0 --no-phase1 --no-phase2 \
         --executor-instances "$N" \
