@@ -144,11 +144,11 @@ def main():
             "p3_stage_s": round(p3.get("wall"), 1) if p3.get("wall") else "",
             "p3_median": round(p3["median"], 1) if p3.get("median") else "",
             "p3_max": round(p3["max"], 1) if p3.get("max") else "",
-            "phase3_sum": round(p3["sum"], 0) if p3.get("sum") else "",
+            "p3_sum": round(p3["sum"], 0) if p3.get("sum") else "",
             "usable_par": (round(p3["sum"] / p3["max"], 1)
                            if p3.get("sum") and p3.get("max") else ""),
             "p3b_stage_s": round(p3b.get("wall"), 1) if p3b.get("wall") else "",
-            "phase3b_median": round(p3b["median"], 1) if p3b.get("median") else "",
+            "p3b_median": round(p3b["median"], 1) if p3b.get("median") else "",
         })
 
     if not rows:
@@ -170,7 +170,6 @@ def main():
         last = r["dataset"]
         print("  " + "".join(str(r.get(h, "")).ljust(w) for h, w in zip(hdr, widths)))
 
-    print()
     odd = [r for r in rows if r["nodes"] not in (1, 2, 4, 8, 12, 16)]
     if odd:
         print()
@@ -188,7 +187,11 @@ def main():
     print("                   per-task overhead; UDF-internal timings give a")
     print("                   higher figure for products. Same metric, different")
     print("                   basis -- keep one basis per table.")
-    print("  nodes          = distinct hosts the application actually ran on")
+    print("  nodes          = distinct hosts the application actually ran on.")
+    print("                   YARN does not guarantee one executor per node: two")
+    print("                   8-executor runs on the same 8-node cluster reached")
+    print("                   8 and 7 hosts. Use executor counts well above the")
+    print("                   node count, or verify coverage per run.")
     print("  tasks_per_node = cores / nodes; per-task cost tracks this closely")
     print("  usable_par     = sum(task time) / longest task = the speedup ceiling")
     print("  phase3_median  = per-task median; rising with tasks_per_node means")
