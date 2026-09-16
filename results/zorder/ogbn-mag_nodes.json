@@ -1,0 +1,94 @@
+{
+  "dataset": "ogbn-mag",
+  "table": "nodes",
+  "rows": 736389,
+  "code_commit": "ae683b3235a05d32b4e22efae82be192cc3cde8b",
+  "spark_version": "3.5.3",
+  "delta_version": "3.2.0",
+  "master": "local[*]",
+  "reps": 3,
+  "filter_predicate": "id >= 0 AND id < 40000",
+  "max_file_mb": null,
+  "caveats": [
+    "Timings are warm-cache: macOS page cache is not purged between runs, so scan_seconds partly measures RAM. bytes_read is the cache-independent metric and is what shows data skipping.",
+    "Local NVMe has no network latency, so any I/O saving here is a lower bound on what the same change would give on S3.",
+    "bytes_on_disk includes files the Delta log no longer references; OPTIMIZE does not delete them. bytes_active is the logical size."
+  ],
+  "conditions": {
+    "A_baseline": {
+      "files_active": 190,
+      "files_on_disk": 190,
+      "bytes_active": 381463838,
+      "bytes_on_disk": 381463838,
+      "mb_active": 381.46,
+      "mb_on_disk": 381.46,
+      "scan_seconds": 0.36,
+      "scan_seconds_all": [
+        0.357,
+        0.364,
+        0.36
+      ],
+      "scan_bytes_read": 385619313,
+      "scan_tasks": 118,
+      "filter_seconds": 0.185,
+      "filter_seconds_all": [
+        0.196,
+        0.185,
+        0.169
+      ],
+      "filter_bytes_read": 22584038,
+      "filter_tasks": 53,
+      "optimize_seconds": 0.0
+    },
+    "B_optimize": {
+      "files_active": 1,
+      "files_on_disk": 191,
+      "bytes_active": 381041068,
+      "bytes_on_disk": 762504906,
+      "mb_active": 381.04,
+      "mb_on_disk": 762.5,
+      "scan_seconds": 0.212,
+      "scan_seconds_all": [
+        0.212,
+        0.231,
+        0.202
+      ],
+      "scan_bytes_read": 384254619,
+      "scan_tasks": 108,
+      "filter_seconds": 0.135,
+      "filter_seconds_all": [
+        0.141,
+        0.135,
+        0.125
+      ],
+      "filter_bytes_read": 86844599,
+      "filter_tasks": 54,
+      "optimize_seconds": 5.62
+    },
+    "C_zorder": {
+      "files_active": 1,
+      "files_on_disk": 191,
+      "bytes_active": 381041068,
+      "bytes_on_disk": 762504906,
+      "mb_active": 381.04,
+      "mb_on_disk": 762.5,
+      "scan_seconds": 0.202,
+      "scan_seconds_all": [
+        0.221,
+        0.184,
+        0.202
+      ],
+      "scan_bytes_read": 384254614,
+      "scan_tasks": 108,
+      "filter_seconds": 0.116,
+      "filter_seconds_all": [
+        0.116,
+        0.115,
+        0.123
+      ],
+      "filter_bytes_read": 86844588,
+      "filter_tasks": 54,
+      "optimize_seconds": 5.5
+    }
+  }
+}

@@ -1,0 +1,321 @@
+<title>Z-Order on the Graph Tables</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap">
+<style>
+  :root{
+    --bg:#F5F7F9; --surface:#FFFFFF; --surface-2:#EDF1F4;
+    --ink:#0F151B; --muted:#57646F; --line:#DCE2E8;
+    --accent:#0B5D5D; --accent-soft:#D8EAE8;
+    --good:#16643E; --good-soft:#DCEFE3;
+    --warn:#9A4A10; --warn-soft:#F6E5D4;
+    --sans:"IBM Plex Sans",system-ui,-apple-system,Segoe UI,sans-serif;
+    --mono:"IBM Plex Mono",ui-monospace,SFMono-Regular,Menlo,monospace;
+  }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){
+      --bg:#0D1116; --surface:#151B22; --surface-2:#1C242C;
+      --ink:#E6ECF2; --muted:#94A2B0; --line:#26313A;
+      --accent:#49B5AC; --accent-soft:#14312F;
+      --good:#6BC494; --good-soft:#132A20;
+      --warn:#DFA267; --warn-soft:#2E2016;
+    }
+  }
+  :root[data-theme="dark"]{
+    --bg:#0D1116; --surface:#151B22; --surface-2:#1C242C;
+    --ink:#E6ECF2; --muted:#94A2B0; --line:#26313A;
+    --accent:#49B5AC; --accent-soft:#14312F;
+    --good:#6BC494; --good-soft:#132A20;
+    --warn:#DFA267; --warn-soft:#2E2016;
+  }
+
+  body{background:var(--bg);color:var(--ink);font-family:var(--sans);
+       font-size:16px;line-height:1.6;}
+  .wrap{max-width:900px;margin:0 auto;padding-inline:20px;padding-block:56px 80px;
+        display:flex;flex-direction:column;gap:44px;}
+  h1,h2,h3{text-wrap:balance;margin:0;line-height:1.25;}
+  h1{font-size:clamp(28px,4.4vw,40px);font-weight:700;letter-spacing:-0.02em;}
+  h2{font-size:22px;font-weight:600;letter-spacing:-0.01em;}
+  h3{font-size:16px;font-weight:600;}
+  p{margin:0;max-width:68ch;}
+  section{display:flex;flex-direction:column;gap:16px;}
+  .eyebrow{font-family:var(--mono);font-size:11px;letter-spacing:.14em;
+           text-transform:uppercase;color:var(--accent);font-weight:600;}
+  .lede{font-size:18px;color:var(--muted);max-width:66ch;}
+
+  .meta{display:flex;flex-wrap:wrap;gap:8px;font-family:var(--mono);font-size:12px;}
+  .meta span{background:var(--surface);border:1px solid var(--line);
+             border-radius:4px;padding:4px 9px;color:var(--muted);}
+
+  .verdicts{display:grid;gap:12px;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));}
+  .v{background:var(--surface);border:1px solid var(--line);border-radius:6px;
+     padding:16px 18px;display:flex;flex-direction:column;gap:6px;}
+  .v .n{font-family:var(--mono);font-size:26px;font-weight:600;
+        letter-spacing:-0.02em;font-variant-numeric:tabular-nums;}
+  .v .k{font-size:13px;color:var(--muted);}
+  .v.good .n{color:var(--good);} .v.warn .n{color:var(--warn);}
+
+  .tablewrap{overflow-x:auto;border:1px solid var(--line);border-radius:6px;
+             background:var(--surface);}
+  table{border-collapse:collapse;width:100%;font-size:14px;min-width:520px;}
+  caption{text-align:left;font-size:13px;color:var(--muted);padding:12px 16px 0;}
+  th,td{padding:9px 14px;text-align:right;border-bottom:1px solid var(--line);
+        font-variant-numeric:tabular-nums;}
+  th:first-child,td:first-child{text-align:left;font-variant-numeric:normal;}
+  thead th{font-size:11px;letter-spacing:.07em;text-transform:uppercase;
+           color:var(--muted);font-weight:600;background:var(--surface-2);}
+  tbody tr:last-child td{border-bottom:none;}
+  td.num{font-family:var(--mono);}
+  tr.hi td{background:var(--accent-soft);font-weight:600;}
+  td.reg{color:var(--warn);font-weight:600;}
+  td.win{color:var(--good);font-weight:600;}
+
+  .note{border-left:3px solid var(--accent);background:var(--surface);
+        padding:14px 18px;border-radius:0 6px 6px 0;}
+  .note.warn{border-left-color:var(--warn);}
+  .note p{font-size:15px;}
+  .note strong{font-weight:600;}
+
+  pre{font-family:var(--mono);font-size:13px;background:var(--surface-2);
+      border:1px solid var(--line);border-radius:6px;padding:14px 16px;
+      overflow-x:auto;margin:0;color:var(--ink);}
+  code{font-family:var(--mono);font-size:.9em;background:var(--surface-2);
+       padding:1px 5px;border-radius:3px;}
+  pre code{background:none;padding:0;}
+
+  ol,ul{margin:0;padding-left:22px;display:flex;flex-direction:column;gap:9px;
+        max-width:68ch;}
+  li{padding-left:2px;}
+  hr{border:none;border-top:1px solid var(--line);margin:0;}
+  footer{color:var(--muted);font-size:13px;font-family:var(--mono);}
+  a{color:var(--accent);}
+</style>
+
+<div class="wrap">
+
+  <header style="display:flex;flex-direction:column;gap:18px;">
+    <div class="eyebrow">Storage layer study &middot; step 1</div>
+    <h1>Z-Order on the Graph Tables</h1>
+    <p class="lede">Delta <code>OPTIMIZE</code> and <code>ZORDER</code> measured on the raw
+      ogbn-arxiv and ogbn-mag tables. Loading gets 27&ndash;44% faster &mdash; but every bit of
+      that comes from compaction, and Z-ordering makes selective reads almost four times
+      more expensive.</p>
+    <div class="meta">
+      <span>2026-09-16</span>
+      <span>code pinned at ae683b3 (submitted LakeGRL)</span>
+      <span>PySpark 3.5.3 / delta-spark 3.2.0</span>
+      <span>local, Apple M4, 10 cores, 32 GB</span>
+    </div>
+  </header>
+
+  <div class="verdicts">
+    <div class="v good"><div class="n">1002 &rarr; 1</div>
+      <div class="k">parquet files, ogbn-mag edge table, after OPTIMIZE</div></div>
+    <div class="v good"><div class="n">&minus;44%</div>
+      <div class="k">loading time, ogbn-mag nodes (0.360 s &rarr; 0.202 s)</div></div>
+    <div class="v warn"><div class="n">3.8&times;</div>
+      <div class="k">more bytes read on a selective query after optimizing</div></div>
+    <div class="v warn"><div class="n">2.0&times;</div>
+      <div class="k">storage on disk until VACUUM runs</div></div>
+  </div>
+
+  <section>
+    <h2>The requested metrics</h2>
+    <p>Baseline is the table exactly as Phase 0 wrote it. Z-ordered is after
+      <code>OPTIMIZE &hellip; ZORDER BY (src, dst)</code> on the edge table and
+      <code>ZORDER BY (id)</code> on the node table. Loading time is a full scan of every
+      column, median of three runs after a discarded warm-up.</p>
+
+    <div class="tablewrap">
+      <table>
+        <caption>ogbn-arxiv</caption>
+        <thead><tr><th>Table</th><th>Condition</th><th>Parquet files</th><th>Size (MB)</th><th>Loading time (s)</th></tr></thead>
+        <tbody>
+          <tr><td>edges &middot; 2,315,598 rows</td><td>baseline</td><td class="num">2</td><td class="num">12.68</td><td class="num">0.169</td></tr>
+          <tr class="hi"><td>edges</td><td>Z-ordered</td><td class="num">1</td><td class="num">12.34</td><td class="num">0.101</td></tr>
+          <tr><td>nodes &middot; 169,343 rows</td><td>baseline</td><td class="num">44</td><td class="num">87.62</td><td class="num">0.216</td></tr>
+          <tr class="hi"><td>nodes</td><td>Z-ordered</td><td class="num">1</td><td class="num">87.56</td><td class="num">0.138</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="tablewrap">
+      <table>
+        <caption>ogbn-mag</caption>
+        <thead><tr><th>Table</th><th>Condition</th><th>Parquet files</th><th>Size (MB)</th><th>Loading time (s)</th></tr></thead>
+        <tbody>
+          <tr><td>edges &middot; 10,792,672 rows</td><td>baseline</td><td class="num">1002</td><td class="num">63.40</td><td class="num">0.213</td></tr>
+          <tr class="hi"><td>edges</td><td>Z-ordered</td><td class="num">1</td><td class="num">61.97</td><td class="num">0.156</td></tr>
+          <tr><td>nodes &middot; 736,389 rows</td><td>baseline</td><td class="num">190</td><td class="num">381.46</td><td class="num">0.360</td></tr>
+          <tr class="hi"><td>nodes</td><td>Z-ordered</td><td class="num">1</td><td class="num">381.04</td><td class="num">0.202</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="note warn">
+      <p><strong>Those sizes are logical, not what is on disk.</strong> OPTIMIZE never deletes
+      the files it replaces, so the directory roughly doubles until VACUUM: 87.62 MB of live
+      arxiv nodes occupy <strong>175.18 MB</strong>, and 381.46 MB of mag nodes occupy
+      <strong>762.50 MB</strong>.</p>
+    </div>
+  </section>
+
+  <hr>
+
+  <section>
+    <h2>Which half of the optimization did the work</h2>
+    <p><code>OPTIMIZE</code> compacts files; <code>ZORDER</code> compacts <em>and</em> clusters.
+      Comparing only baseline against Z-ordered cannot tell the two apart, so a
+      compaction-only control was added in the middle. It shows the entire loading-time gain
+      is compaction.</p>
+
+    <div class="tablewrap">
+      <table>
+        <thead><tr><th>Dataset &middot; table</th><th>A baseline</th><th>B OPTIMIZE only</th><th>C OPTIMIZE + ZORDER</th></tr></thead>
+        <tbody>
+          <tr><td>arxiv edges &mdash; load (s)</td><td class="num">0.169</td><td class="num">0.115</td><td class="num">0.101</td></tr>
+          <tr><td>arxiv edges &mdash; bytes read</td><td class="num">12,791,967</td><td class="num">12,458,227</td><td class="num">12,458,242</td></tr>
+          <tr><td>arxiv nodes &mdash; load (s)</td><td class="num">0.216</td><td class="num">0.172</td><td class="num">0.138</td></tr>
+          <tr><td>arxiv nodes &mdash; bytes read</td><td class="num">88,647,812</td><td class="num">88,315,902</td><td class="num">88,315,808</td></tr>
+          <tr><td>mag edges &mdash; load (s)</td><td class="num">0.213</td><td class="num">0.165</td><td class="num">0.156</td></tr>
+          <tr><td>mag edges &mdash; bytes read</td><td class="num">66,270,391</td><td class="num">63,070,649</td><td class="num">63,070,768</td></tr>
+          <tr><td>mag nodes &mdash; load (s)</td><td class="num">0.360</td><td class="num">0.212</td><td class="num">0.202</td></tr>
+          <tr><td>mag nodes &mdash; bytes read</td><td class="num">385,619,313</td><td class="num">384,254,619</td><td class="num">384,254,614</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <p>B and C read the same bytes to within <strong>120 bytes out of 384 MB</strong> and
+      produce the same single file. Z-ordering contributed nothing to loading time; the gain
+      is fewer files, so fewer Spark tasks and less per-file overhead.</p>
+    <div class="note">
+      <p>The residual 5&ndash;10% by which C beats B sits inside a known confound: conditions
+      always ran in the order A, B, C, so later ones met a warmer JVM and page cache.
+      Randomizing the order is on the list.</p>
+    </div>
+  </section>
+
+  <hr>
+
+  <section>
+    <h2>Where Z-ordering actively hurt</h2>
+    <p>Z-ordering exists to skip data on a predicate, so each table was also read with a
+      filter on its ordered column. Bytes read is the metric to trust here &mdash; it comes
+      from Spark's own input metrics and a warm page cache cannot flatter it.</p>
+
+    <div class="tablewrap">
+      <table>
+        <thead><tr><th>Dataset &middot; table</th><th>Predicate</th><th>A baseline</th><th>B OPTIMIZE</th><th>C ZORDER</th></tr></thead>
+        <tbody>
+          <tr><td>arxiv edges</td><td style="text-align:right"><code>src &lt; 1000</code></td><td class="num">1.50 MB</td><td class="num win">1.10 MB</td><td class="num win">1.10 MB</td></tr>
+          <tr><td>arxiv nodes</td><td style="text-align:right"><code>id &lt; 10000</code></td><td class="num">6.15 MB</td><td class="num reg">23.03 MB</td><td class="num reg">23.03 MB</td></tr>
+          <tr><td>mag edges</td><td style="text-align:right"><code>src &lt; 1000</code></td><td class="num">0.43 MB</td><td class="num reg">1.62 MB</td><td class="num reg">1.62 MB</td></tr>
+          <tr><td>mag nodes</td><td style="text-align:right"><code>id &lt; 40000</code></td><td class="num">22.58 MB</td><td class="num reg">86.84 MB</td><td class="num reg">86.84 MB</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <p>Optimization made selective reads <strong>3.7&times;, 3.8&times; and 3.8&times;</strong>
+      more expensive on three of the four tables. The Delta log says why. Phase 0 writes
+      nodes in id order, chunk by chunk, so the baseline arxiv node table is 44 files with
+      perfectly disjoint id ranges:</p>
+
+<pre><code>id[0..3905]   id[3906..7811]   id[7812..11717]   ...   id[166697..169342]
+
+0 of 44 files overlap the previous file's range</code></pre>
+
+    <p>That is already an ideal layout for an id predicate, obtained for free during
+      ingestion. Compaction merges it into one file spanning every id, file-level skipping
+      becomes impossible, and only row-group statistics inside the file remain.</p>
+
+    <div class="note">
+      <p><strong>Delta skips data at file granularity.</strong> Every table here compacts to
+      a single file &mdash; which is also why B and C come out identical. With one file there
+      is nothing to skip, and Z-ordering cannot express itself at all.</p>
+    </div>
+  </section>
+
+  <hr>
+
+  <section>
+    <h2>Isolating Z-ordering itself</h2>
+    <p>To compare B and C at comparable file counts, the arxiv edge table was re-run with
+      OPTIMIZE output capped at 1 MB per file.</p>
+
+    <div class="tablewrap">
+      <table>
+        <thead><tr><th>Metric</th><th>A baseline</th><th>B OPTIMIZE, 1 MB cap</th><th>C ZORDER, 1 MB cap</th></tr></thead>
+        <tbody>
+          <tr><td>active files</td><td class="num">2</td><td class="num">2</td><td class="num">12</td></tr>
+          <tr><td>bytes read, <code>src &lt; 1000</code></td><td class="num">1,501,898</td><td class="num">1,501,439</td><td class="num reg">3,164,031</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <p>Z-ordering <strong>doubled</strong> the bytes read. Of the 12 Z-ordered files, five
+      have <code>min(src) = 0</code>: Z-order interleaves the bits of src and dst, so any src
+      range is smeared across the whole dst axis and a single-column predicate cannot skip
+      it. A plain sort on src would. (B does nothing at this cap, because compaction only
+      merges files already <em>below</em> the target size.)</p>
+  </section>
+
+  <hr>
+
+  <section>
+    <h2>What this means for LakeGRL</h2>
+    <ol>
+      <li><strong>On the loading path the submitted pipeline actually uses, Z-ordering
+        cannot help.</strong> Phase 2 reads the edge table with a full scan and a join
+        (<code>phases/phase2_subgraph.py:115-116</code>); there is no predicate on src or dst
+        for skipping to act on.</li>
+      <li><strong>Compaction is the part that pays</strong>, and it pays through file count,
+        not bytes. The 1002-file mag edge table is the clearest case.</li>
+      <li><strong><code>ZORDER BY (src, dst)</code> is the wrong shape for single-column
+        predicates.</strong> Multi-column Z-order trades per-column selectivity for balance
+        across columns, and the pipeline filters one column at a time.</li>
+      <li><strong>Ingestion already produces a good layout</strong>, and optimization
+        currently destroys it for selective reads. Storage-layer work has to beat that free
+        baseline, not just an unoptimized strawman.</li>
+    </ol>
+  </section>
+
+  <section>
+    <h2>Limits of this measurement</h2>
+    <ul>
+      <li><strong>Local NVMe, no object store</strong> &mdash; the largest caveat. Locally,
+        opening 1002 files costs little beyond task scheduling. On S3 each file is a separate
+        GET with tens of milliseconds of latency, so 1002&rarr;1 should matter far more there
+        than the 27% measured here. That is a prediction, not a measurement, and it is the
+        first thing to check when cluster access returns.</li>
+      <li><strong>Warm page cache</strong> &mdash; timings partly measure RAM. Bytes read
+        does not, which is why it carries the argument above.</li>
+      <li><strong>Fixed condition order</strong> confounds differences below about 10%.</li>
+      <li><strong>Small tables</strong> &mdash; the largest is 381 MB, and all of them compact
+        to one file, exactly the regime where Z-ordering has no room to work.</li>
+      <li>VACUUM was not run; the on-disk figures deliberately show the pre-VACUUM state.</li>
+    </ul>
+  </section>
+
+  <section>
+    <h2>Next steps</h2>
+    <ul>
+      <li>Re-run on <strong>ogbn-products</strong> and <strong>reddit</strong>, whose edge
+        tables stay multi-file after compaction &mdash; the only regime where Z-ordering can
+        be judged fairly.</li>
+      <li>Compare <strong><code>ZORDER BY (src)</code> alone</strong> against
+        <code>ZORDER BY (src, dst)</code> to test finding 3 directly.</li>
+      <li>Randomize condition order and add cold-cache runs.</li>
+      <li>Decide whether Phase 2 should push a predicate down at all. Today the pipeline
+        cannot benefit from any layout optimization on the edge table, because it never asks
+        for a subset of it.</li>
+    </ul>
+  </section>
+
+  <footer>
+    Harness <code>experiments/zorder_bench.py</code> &middot; raw results
+    <code>results/zorder/*.json</code> &middot; write-up
+    <code>results/zorder/SUMMARY.md</code> &middot; three conditions, each on its own copy of
+    identical baseline bytes.
+  </footer>
+
+</div>
