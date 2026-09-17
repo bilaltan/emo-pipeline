@@ -268,17 +268,25 @@
     <div class="eyebrow">Step 2 &middot; 17 September</div>
     <h2>The tables Phase 3 actually reads</h2>
     <p>Step 1's null result had a loose end. The pipeline scans the <em>raw</em> tables, but
-      it does not scan the <em>partitioned</em> ones &mdash; Phase 3 reads those once per
-      training unit, through pyarrow, with a predicate:</p>
+      it does not scan the <em>partitioned</em> ones &mdash; Phase 3b reads those through
+      pyarrow with a predicate, once per (community, block) unit:</p>
 
 <pre><code>edges_ds.to_table(filter=(ds.field("community_id").isin(comm_ids)))
-                                          phase3_training.py:77</code></pre>
+                                    phase3b_caan.py:1627,1636</code></pre>
 
-    <p>That read runs 113 times on reddit and 575 times on ogbn-products. And Phase 2 writes
+    <p>That read runs 149 times on reddit and 823 times on ogbn-products. And Phase 2 writes
       the tables it hits with <code>repartition(200, 'community_id')</code> &mdash; a
       <strong>hash</strong> shuffle. Hash scatters neighbouring community ids across every
       file, so each file's <code>[min, max]</code> range covers most of the id space and
       parquet statistics can prune almost nothing.</p>
+
+    <div class="note warn">
+      <p><strong>Correction.</strong> This section first attributed that read to Phase 3.
+      It does not happen there: <code>phase3_training.py</code> defines the same loader at
+      line 66 but never calls it, and feeds units through
+      <code>groupBy().applyInPandas()</code> instead. The measurements below are unchanged;
+      the phase they apply to is Phase 3b.</p>
+    </div>
 
     <p>Four layouts were compared over the same rows: <strong>A hash</strong> (what Phase 2
       writes today), <strong>B</strong> A then <code>ZORDER BY (community_id)</code>,
@@ -346,8 +354,55 @@
       constant fraction of the table, so total bytes read grows linearly with the number of
       units. Under range or directory partitioning each unit reads about
       <code>table / units</code>, so the total stays near a single table scan however many
-      units there are. At 34 units the difference is 10&times;; reddit has 113 units and
-      ogbn-products 575.</p>
+      units there are. At 34 units the difference is 10&times;; reddit has 149 units and
+      ogbn-products 823.</p>
+  </section>
+
+  <hr>
+
+  <section>
+    <div class="eyebrow">Applied &amp; verified</div>
+    <h2>The change, and what it is actually worth</h2>
+    <p><code>phases/phase2_subgraph.py:178-196</code> now uses
+      <code>repartitionByRange</code>. Re-running Phase 1 and Phase 2 with the changed code
+      on ogbn-mag:</p>
+
+    <div class="tablewrap">
+      <table>
+        <thead><tr><th>Metric</th><th>submitted (hash)</th><th>current (range)</th></tr></thead>
+        <tbody>
+          <tr><td>files</td><td class="num">21</td><td class="num">34</td></tr>
+          <tr><td>table size</td><td class="num">375.17 MB</td><td class="num">623.78 MB</td></tr>
+          <tr><td>bytes read per unit</td><td class="num">103,490,709</td><td class="num">18,230,627</td></tr>
+          <tr class="hi"><td>fraction of table per unit</td><td class="num">27.6%</td><td class="num">2.9%</td></tr>
+          <tr><td>skipped</td><td class="num">72.9%</td><td class="num">97.1%</td></tr>
+          <tr><td>pyarrow load per unit</td><td class="num">36.7 ms</td><td class="num">24.7 ms</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <p>The two tables are not row-identical, so the raw ratio here is not a clean
+      comparison: louvain is non-deterministic, and the current Phase 2 writes a larger table
+      than the submitted one (halo expansion plus the <code>is_member</code> column). As a
+      fraction of its own table the change is unambiguous &mdash; 27.6% to 2.9% &mdash; and
+      it agrees with the same-rows comparison above.</p>
+
+    <div class="note warn">
+      <p><strong>What it is worth in wall clock: probably under 1%.</strong> Phase 3's own
+      breakdown on the cluster was <strong>0.02 s average load against 3.86 s average
+      training</strong> per unit (ogbn-products/lpa, 4,377 communities, 14,793.8 s wall), and
+      an earlier instrumented run attributed about 0.3% of Phase 3 time to per-unit loading.
+      Nothing here touches training time.</p>
+    </div>
+
+    <p>Where it does matter: <strong>Phase 3b at high unit counts</strong>, where total bytes
+      read grow linearly with units — at 823 units and ~28% of the table each, one pass reads
+      on the order of 200&times; the table, which is arithmetic from the measured fraction
+      and the first thing to check on the cluster; <strong>regimes where loading is the
+      work</strong>, such as embedding export, inference, and incremental retraining, where
+      many units are loaded and few are trained; and <strong>defensibility</strong> &mdash; a
+      lake-native system that reads 3.48 GB to deliver 375 MB is hard to defend to a reviewer
+      who looks, whatever it costs in seconds.</p>
   </section>
 
   <hr>
