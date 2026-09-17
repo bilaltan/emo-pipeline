@@ -94,12 +94,13 @@
 <div class="wrap">
 
   <header style="display:flex;flex-direction:column;gap:18px;">
-    <div class="eyebrow">Storage layer study &middot; step 1</div>
+    <div class="eyebrow">Storage layer study &middot; steps 1 &amp; 2</div>
     <h1>Z-Order on the Graph Tables</h1>
     <p class="lede">Delta <code>OPTIMIZE</code> and <code>ZORDER</code> measured on the raw
       ogbn-arxiv and ogbn-mag tables. Loading gets 27&ndash;44% faster &mdash; but every bit of
       that comes from compaction, and Z-ordering makes selective reads almost four times
-      more expensive.</p>
+      more expensive. Following that thread into the tables Phase 3 actually reads found a
+      one-word change that cuts each training unit's read by up to 16&times;.</p>
     <div class="meta">
       <span>2026-09-16</span>
       <span>code pinned at ae683b3 (submitted LakeGRL)</span>
@@ -117,6 +118,8 @@
       <div class="k">more bytes read on a selective query after optimizing</div></div>
     <div class="v warn"><div class="n">2.0&times;</div>
       <div class="k">storage on disk until VACUUM runs</div></div>
+    <div class="v good"><div class="n">16.2&times;</div>
+      <div class="k">less data per training unit from range-partitioning Phase 2 (step 2)</div></div>
   </div>
 
   <section>
@@ -262,6 +265,94 @@
   <hr>
 
   <section>
+    <div class="eyebrow">Step 2 &middot; 17 September</div>
+    <h2>The tables Phase 3 actually reads</h2>
+    <p>Step 1's null result had a loose end. The pipeline scans the <em>raw</em> tables, but
+      it does not scan the <em>partitioned</em> ones &mdash; Phase 3 reads those once per
+      training unit, through pyarrow, with a predicate:</p>
+
+<pre><code>edges_ds.to_table(filter=(ds.field("community_id").isin(comm_ids)))
+                                          phase3_training.py:77</code></pre>
+
+    <p>That read runs 113 times on reddit and 575 times on ogbn-products. And Phase 2 writes
+      the tables it hits with <code>repartition(200, 'community_id')</code> &mdash; a
+      <strong>hash</strong> shuffle. Hash scatters neighbouring community ids across every
+      file, so each file's <code>[min, max]</code> range covers most of the id space and
+      parquet statistics can prune almost nothing.</p>
+
+    <p>Four layouts were compared over the same rows: <strong>A hash</strong> (what Phase 2
+      writes today), <strong>B</strong> A then <code>ZORDER BY (community_id)</code>,
+      <strong>C range</strong> (<code>repartitionByRange</code>), and <strong>D</strong>
+      Delta <code>partitionBy(community_id)</code>. The metric is the bytes that must be read
+      to answer one community's query, derived from parquet row-group statistics &mdash;
+      cache-independent.</p>
+
+    <div class="tablewrap">
+      <table>
+        <caption>ogbn-mag &middot; p2_nodes &middot; 34 communities &middot; 375.2 MB table</caption>
+        <thead><tr><th>Layout</th><th>Files</th><th>Bytes read per unit</th><th>All units</th><th>Skipped</th><th>Load time</th></tr></thead>
+        <tbody>
+          <tr><td>A hash <em>(submitted)</em></td><td class="num">21</td><td class="num reg">109,398,327</td><td class="num">3,480.8 MB</td><td class="num">71.3%</td><td class="num">38.6 ms</td></tr>
+          <tr><td>B zorder</td><td class="num">1</td><td class="num reg">490,743,110</td><td class="num">14,486.2 MB</td><td class="num">35.6%</td><td class="num">129.1 ms</td></tr>
+          <tr class="hi"><td>C range</td><td class="num">34</td><td class="num">10,201,153</td><td class="num">381.3 MB</td><td class="num">97.3%</td><td class="num">16.2 ms</td></tr>
+          <tr><td>D partitioned</td><td class="num">34</td><td class="num">10,035,641</td><td class="num">375.2 MB</td><td class="num">97.3%</td><td class="num">10.4 ms</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="tablewrap">
+      <table>
+        <caption>ogbn-mag &middot; p2_edges &middot; 34 communities &middot; 30.0 MB table</caption>
+        <thead><tr><th>Layout</th><th>Files</th><th>Bytes read per unit</th><th>All units</th><th>Skipped</th><th>Load time</th></tr></thead>
+        <tbody>
+          <tr><td>A hash <em>(submitted)</em></td><td class="num">21</td><td class="num reg">11,616,507</td><td class="num">369.2 MB</td><td class="num">67.4%</td><td class="num">6.3 ms</td></tr>
+          <tr><td>B zorder</td><td class="num">1</td><td class="num reg">124,043,350</td><td class="num">4,191.7 MB</td><td class="num">16.2%</td><td class="num">41.3 ms</td></tr>
+          <tr class="hi"><td>C range</td><td class="num">34</td><td class="num">718,485</td><td class="num">35.1 MB</td><td class="num">98.0%</td><td class="num">1.9 ms</td></tr>
+          <tr><td>D partitioned</td><td class="num">34</td><td class="num">610,824</td><td class="num">29.7 MB</td><td class="num">97.9%</td><td class="num">1.3 ms</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="tablewrap">
+      <table>
+        <caption>ogbn-arxiv &middot; p2_edges &middot; 24 communities &middot; 6.06 MB table</caption>
+        <thead><tr><th>Layout</th><th>Files</th><th>Bytes read per unit</th><th>All units</th><th>Skipped</th><th>Load time</th></tr></thead>
+        <tbody>
+          <tr><td>A hash <em>(submitted)</em></td><td class="num">15</td><td class="num reg">2,103,889</td><td class="num">52.9 MB</td><td class="num">71.3%</td><td class="num">2.2 ms</td></tr>
+          <tr><td>B zorder</td><td class="num">1</td><td class="num reg">12,686,118</td><td class="num">306.9 MB</td><td class="num">29.2%</td><td class="num">5.7 ms</td></tr>
+          <tr class="hi"><td>C range</td><td class="num">22</td><td class="num">234,173</td><td class="num">8.7 MB</td><td class="num">96.7%</td><td class="num">1.8 ms</td></tr>
+          <tr><td>D partitioned</td><td class="num">24</td><td class="num">161,658</td><td class="num">5.9 MB</td><td class="num">97.2%</td><td class="num">0.4 ms</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="note">
+      <p><strong>One word in Phase 2 buys all of it.</strong> <code>repartition</code> &rarr;
+      <code>repartitionByRange</code> in <code>phases/phase2_subgraph.py:168-176</code>.
+      Per-unit reads fall 9.0&times; (arxiv edges), 16.2&times; (mag edges) and 10.7&times;
+      (mag nodes); skipping goes from ~70% to 97&ndash;98%. Same rows, same table size, and
+      the reader needs no change.</p>
+    </div>
+
+    <p><strong>Physical partitioning is slightly faster but needs a reader change.</strong>
+      D prunes whole directories before opening a file, but the submitted reader builds its
+      dataset without a partitioning spec
+      (<code>phases/phase3_training.py:47-57</code>), so a column living in a directory name
+      is invisible to it &mdash; <code>partitionBy</code> would break Phase 3 until the
+      reader passes <code>partitioning="hive"</code>. It also creates one directory per
+      community.</p>
+
+    <p><strong>The gap widens with scale.</strong> Under hash, each unit reads a roughly
+      constant fraction of the table, so total bytes read grows linearly with the number of
+      units. Under range or directory partitioning each unit reads about
+      <code>table / units</code>, so the total stays near a single table scan however many
+      units there are. At 34 units the difference is 10&times;; reddit has 113 units and
+      ogbn-products 575.</p>
+  </section>
+
+  <hr>
+
+  <section>
     <h2>What this means for LakeGRL</h2>
     <ol>
       <li><strong>On the loading path the submitted pipeline actually uses, Z-ordering
@@ -276,6 +367,9 @@
       <li><strong>Ingestion already produces a good layout</strong>, and optimization
         currently destroys it for selective reads. Storage-layer work has to beat that free
         baseline, not just an unoptimized strawman.</li>
+      <li><strong>The payoff is in the partitioned tables, not the raw ones</strong>, because
+        that is where the pipeline issues a predicate. Switching Phase 2 to
+        <code>repartitionByRange</code> is the concrete recommendation out of this study.</li>
     </ol>
   </section>
 
@@ -299,9 +393,15 @@
   <section>
     <h2>Next steps</h2>
     <ul>
-      <li>Re-run on <strong>ogbn-products</strong> and <strong>reddit</strong>, whose edge
-        tables stay multi-file after compaction &mdash; the only regime where Z-ordering can
-        be judged fairly.</li>
+      <li>Apply <code>repartitionByRange</code> in Phase 2 and re-measure Phase 3's wall
+        clock &mdash; on the cluster the saving becomes fewer S3 GETs rather than fewer local
+        page faults.</li>
+      <li>Repeat step 2 on <strong>ogbn-products</strong> (575 units) and with
+        <strong>lpa</strong>, which produces many more, smaller communities and should widen
+        the gap further.</li>
+      <li>Re-run step 1 on <strong>ogbn-products</strong> and <strong>reddit</strong>, whose
+        edge tables stay multi-file after compaction &mdash; the only regime where Z-ordering
+        can be judged fairly.</li>
       <li>Compare <strong><code>ZORDER BY (src)</code> alone</strong> against
         <code>ZORDER BY (src, dst)</code> to test finding 3 directly.</li>
       <li>Randomize condition order and add cold-cache runs.</li>
