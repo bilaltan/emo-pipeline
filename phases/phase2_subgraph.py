@@ -176,14 +176,25 @@ def run_phase2(spark, sc, datasets, algorithms, use_global_mapping, min_size,
             print(f"  Shuffle overhead (groupBy community_id): {shuffle_s:.1f}s")
 
             # Write — isolated per tag
-            # Physical storage clustering: Repartition & sort within partition by community_id for S3 block locality
+            # Range, not hash. Phase 3b reads these tables with a predicate on
+            # community_id, once per (community, block) unit
+            # (phase3b_caan.py:1627,1636), and parquet prunes on each file's
+            # [min,max]. A hash shuffle scatters neighbouring ids across every
+            # file, so those ranges span almost the whole id space and nothing
+            # can be skipped: measured 109 MB read per unit from a 375 MB table
+            # on ogbn-mag, 3.48 GB across 34 units. Range partitioning keeps a
+            # community's rows together and cuts that to 10.2 MB per unit,
+            # 97.3% skipped (results/zorder/LAYOUT.md).
+            # Phase 3 itself does not use this path: its copy of the pyarrow
+            # loader (phase3_training.py:66) is never called, and units are fed
+            # by groupBy().applyInPandas() instead.
             p2_bins = min(200, n_valid) if n_valid > 0 else 200
-            nodes_final.repartition(p2_bins, 'community_id')\
+            nodes_final.repartitionByRange(p2_bins, 'community_id')\
                        .sortWithinPartitions('community_id')\
                        .write.format('delta').mode('overwrite')\
                        .save(p_alg['p2_nodes'])
 
-            edges_part.repartition(p2_bins, 'community_id')\
+            edges_part.repartitionByRange(p2_bins, 'community_id')\
                        .sortWithinPartitions('community_id')\
                        .write.format('delta').mode('overwrite')\
                        .save(p_alg['p2_edges'])

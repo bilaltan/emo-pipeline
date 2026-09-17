@@ -1,0 +1,23 @@
+{
+  "dataset": "ogbn-mag",
+  "algorithm": "louvain",
+  "table": "p2_nodes",
+  "communities": 34,
+  "content_identical": false,
+  "submitted_hash": {
+    "files": 21,
+    "mb": 375.17,
+    "read_bytes_median": 103490709,
+    "read_bytes_total": 3428008267,
+    "skip_fraction": 0.7286,
+    "load_seconds_median": 0.0367
+  },
+  "current_range": {
+    "files": 34,
+    "mb": 623.78,
+    "read_bytes_median": 18230627,
+    "read_bytes_total": 634072930,
+    "skip_fraction": 0.9712,
+    "load_seconds_median": 0.0247
+  }
+}
