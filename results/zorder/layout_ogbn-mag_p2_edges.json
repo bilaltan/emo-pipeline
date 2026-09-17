@@ -1,0 +1,82 @@
+{
+  "dataset": "ogbn-mag",
+  "algorithm": "louvain",
+  "table": "p2_edges",
+  "communities": 34,
+  "rows": 9689554,
+  "code_commit": "ae683b3235a05d32b4e22efae82be192cc3cde8b",
+  "spark_version": "3.5.3",
+  "delta_version": "3.2.0",
+  "read_predicate": "community_id == <cid>, one read per training unit",
+  "metric_note": "read_bytes_* is computed from parquet row-group statistics: a row group whose [min,max] community_id excludes the target cannot be read, every other row group must be. Cache-independent.",
+  "caveats": [
+    "Local NVMe; on S3 the per-file GET latency would add to the file count differences measured here.",
+    "D_partitioned creates one directory per community, which is a small-file problem at high community counts - its file count is reported so that cost is visible."
+  ],
+  "variants": {
+    "A_hash": {
+      "path": "/Users/bilaltan/Desktop/emo-submitted/local_data/layout_bench/ogbn-mag/p2_edges/A_hash",
+      "write_seconds": 1.81,
+      "files": 22,
+      "bytes_on_disk": 29998905,
+      "files_active": 21,
+      "bytes_active": 29998444,
+      "table_bytes_basis": 35668101,
+      "read_bytes_total": 369215851,
+      "read_bytes_median": 11616507,
+      "rowgroups_median": 4,
+      "skip_fraction": 0.6743,
+      "load_seconds_median": 0.0063,
+      "load_seconds_total_sample": 0.205,
+      "sample_rows": 9689554
+    },
+    "B_zorder": {
+      "path": "/Users/bilaltan/Desktop/emo-submitted/local_data/layout_bench/ogbn-mag/p2_edges/B_zorder",
+      "write_seconds": 5.16,
+      "files": 23,
+      "bytes_on_disk": 73135508,
+      "files_active": 1,
+      "bytes_active": 43136603,
+      "table_bytes_basis": 148094944,
+      "read_bytes_total": 4191728513,
+      "read_bytes_median": 124043350,
+      "rowgroups_median": 5,
+      "skip_fraction": 0.1624,
+      "load_seconds_median": 0.0413,
+      "load_seconds_total_sample": 1.417,
+      "sample_rows": 19379108
+    },
+    "C_range": {
+      "path": "/Users/bilaltan/Desktop/emo-submitted/local_data/layout_bench/ogbn-mag/p2_edges/C_range",
+      "write_seconds": 2.16,
+      "files": 34,
+      "bytes_on_disk": 29697927,
+      "files_active": 34,
+      "bytes_active": 29697927,
+      "table_bytes_basis": 35112267,
+      "read_bytes_total": 35112267,
+      "read_bytes_median": 718485,
+      "rowgroups_median": 1,
+      "skip_fraction": 0.9795,
+      "load_seconds_median": 0.0019,
+      "load_seconds_total_sample": 0.076,
+      "sample_rows": 9689554
+    },
+    "D_partitioned": {
+      "path": "/Users/bilaltan/Desktop/emo-submitted/local_data/layout_bench/ogbn-mag/p2_edges/D_partitioned",
+      "write_seconds": 1.91,
+      "files": 34,
+      "bytes_on_disk": 29653583,
+      "files_active": 34,
+      "bytes_active": 29653583,
+      "table_bytes_basis": 29653583,
+      "read_bytes_total": 29653583,
+      "read_bytes_median": 610824,
+      "rowgroups_median": 1,
+      "skip_fraction": 0.9794,
+      "load_seconds_median": 0.0013,
+      "load_seconds_total_sample": 0.058,
+      "sample_rows": 9689554
+    }
+  }
+}
