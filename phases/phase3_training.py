@@ -1324,9 +1324,12 @@ def run_phase3(spark, sc, datasets, algorithms, use_global_mapping,
 
             print(f"  [Phase 3 setup] Loading Phase 2 Delta tables for {dataset}/{alg}...")
             cache_start = time.time()
-            nodes_df = (spark.read.format('delta').load(p_alg['p2_nodes'])
+            # Materialized p2_nodes is read as is; a normalized one is joined
+            # with the raw nodes/masks tables (utils/partition_join.py).
+            from pipeline.utils.partition_join import load_unit_nodes
+            nodes_df = (load_unit_nodes(spark, p_alg)
                         .persist(StorageLevel.MEMORY_AND_DISK))
-            edges_df = (spark.read.format('delta').load(p_alg['p2_edges'])
+            edges_df = (spark.read.format('delta').load(p_alg['p2_edges']).drop('storage_part')
                         .persist(StorageLevel.MEMORY_AND_DISK))
             n_phase2_nodes = nodes_df.count()
             n_phase2_edges = edges_df.count()

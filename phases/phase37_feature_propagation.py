@@ -23,7 +23,8 @@ def _load_graph(spark, paths, graph_source):
     from pyspark.sql import functions as F
 
     if graph_source == "phase2":
-        nodes = spark.read.format("delta").load(paths["p2_nodes"]).select(
+        from pipeline.utils.partition_join import load_unit_nodes
+        nodes = load_unit_nodes(spark, paths).select(
             "id", "label", "split", "features"
         )
         edges = spark.read.format("delta").load(paths["p2_edges"]).select("src", "dst")

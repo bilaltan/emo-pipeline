@@ -183,6 +183,18 @@ def main():
     ap.add_argument("--force-ingest", action="store_true",
                     help="rebuild Delta tables even if they already exist")
     ap.add_argument("--json-out", default="results/local_pipeline_runs.jsonl")
+    # materialized: p2_nodes copies features (LakeGRL default, a materialized view).
+    # normalized: p2_nodes holds ids + community only; features are joined back.
+    ap.add_argument("--partition-table", default="materialized",
+                    choices=["materialized", "normalized"])
+    # Phase 3b: direct per-bin reads of a materialized p2_nodes, or a global Spark
+    # join + shuffle (required for a normalized p2_nodes). auto picks by table form.
+    ap.add_argument("--node-loading", default="auto",
+                    choices=["auto", "direct", "global_join"])
+    # Physical layout of the Phase 2 tables: range (default), hive (partitionBy
+    # community_id) or hive_merged (small communities packed into shared partitions).
+    ap.add_argument("--p2-layout", default="range", choices=["range", "hive", "hive_merged"])
+    ap.add_argument("--merge-target-rows", type=int, default=250_000)
     args = ap.parse_args()
 
     builder = (SparkSession.builder.appName("lakegrl-local-pipeline").master(f"local[{args.cores}]")
@@ -248,7 +260,9 @@ def main():
 
     run_phase2(spark, sc, [DS], [args.alg], use_global_mapping=True,
                min_size=args.min_size, get_paths_fn=paths, timing=timing, results=r2,
-               expand_boundary_nodes=True, tiny_comm_handling="drop", force_rerun=True)
+               expand_boundary_nodes=True, tiny_comm_handling="drop", force_rerun=True,
+               partition_table_mode=args.partition_table, p2_layout=args.p2_layout,
+               merge_target_rows=args.merge_target_rows)
 
     run_phase3(spark, sc, [DS], [args.alg], use_global_mapping=True,
                dataset_cfg=ds_cfg, gcn_cfg=gcn_cfg, get_paths_fn=paths,
@@ -262,7 +276,8 @@ def main():
         run_phase3b(spark, sc, [DS], [args.alg], use_global_mapping=True,
                     dataset_cfg=ds_cfg, gcn_cfg=gcn_cfg, get_paths_fn=paths,
                     timing=timing, results=r3b, models=[args.model], task_type="both",
-                    min_size=args.min_size, force_rerun=True, local_data_dir=STORE)
+                    min_size=args.min_size, force_rerun=True, local_data_dir=STORE,
+                    node_loading=args.node_loading)
     except Exception as e:
         print(f"  [Phase 3b] failed: {type(e).__name__}: {str(e)[:200]}")
 
@@ -305,6 +320,8 @@ def main():
 
     record = {
         "dataset": DS, "algorithm": args.alg, "model": args.model, "epochs": args.epochs,
+        "partition_table": args.partition_table, "node_loading": args.node_loading,
+        "p2_layout": args.p2_layout,
         "n_nodes": n_nodes, "n_edges": n_edges, "n_classes": n_classes,
         "n_communities_phase1": r1.get((DS, args.alg), {}).get("n_comms"),
         "n_units_phase3": a3.get("n_communities"),

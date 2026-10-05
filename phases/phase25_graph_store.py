@@ -65,8 +65,10 @@ def run_phase25(spark, datasets, algorithms, get_paths_fn, timing, results, **kw
             print(f"\n{'=' * 60}\n  PHASE 2.5 — Graph-store materialization: {dataset} / {alg}\n{'=' * 60}")
             print(f"  Writing {num_shards} deterministic node/source-adjacency shards; no edge sampling or aggregation.")
 
-            source_nodes = spark.read.format("delta").load(paths["p2_nodes"])
-            source_edges = spark.read.format("delta").load(paths["p2_edges"])
+            # Unit rows with features, for either form of the partition table.
+            from pipeline.utils.partition_join import load_unit_nodes
+            source_nodes = load_unit_nodes(spark, paths)
+            source_edges = spark.read.format("delta").load(paths["p2_edges"]).drop("storage_part")
 
             # pmod produces [0, num_shards) even when xxhash64 returns negatives.
             nodes = source_nodes.withColumn(

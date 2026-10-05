@@ -71,7 +71,22 @@ def _get_dataset(url):
             _DS_CACHE[url] = ds.dataset(local_path, format="parquet", ignore_prefixes=['_delta_log', '.'])
     return _DS_CACHE[url]
 
-def _load_communities_data_batch(nodes_url, edges_url, comm_ids, block=None, n_blocks=1):
+def _layout_dataset(spec):
+    """pyarrow dataset for a Phase 2 table described by utils.partition_layout.table_layout()."""
+    key = ("layout", spec["url"], len(spec.get("files") or ()), spec.get("part_col"))
+    if key not in _DS_CACHE:
+        from pipeline.utils.partition_layout import open_dataset
+        _DS_CACHE[key] = open_dataset(spec)
+    return _DS_CACHE[key]
+
+
+def _load_communities_data_batch(nodes_url, edges_url, comm_ids, block=None, n_blocks=1, layout=None):
+    """Node rows and intra-unit edges of the given communities (and block).
+
+    layout: utils.partition_layout.table_layout() of the run. With it, the scan reads
+    the snapshot's files only and prunes partition directories (hive / hive_merged);
+    without it, the table directory is scanned as before (range layout only).
+    """
     import pyarrow.dataset as ds
     import pyarrow.compute as pc
     import pandas as pd
@@ -85,18 +100,43 @@ def _load_communities_data_batch(nodes_url, edges_url, comm_ids, block=None, n_b
     _base = ds.field("community_id").isin(comm_ids)
 
     try:
-        nodes_ds = _get_dataset(nodes_url)
+        if layout is not None:
+            from pipeline.utils.partition_layout import unit_filter
+            nodes_ds = _layout_dataset(layout["nodes"])
+            _base = unit_filter(layout["nodes"], comm_ids, layout.get("comm_to_part"))
+        else:
+            nodes_ds = _get_dataset(nodes_url)
         _f = _base if _mask is None else (
             _base & (pc.bit_wise_and(ds.field("id"), _mask) == int(block)))
         nodes_pdf = nodes_ds.to_table(filter=_f, use_threads=True).to_pandas()
+        if 'storage_part' in nodes_pdf.columns:
+            nodes_pdf = nodes_pdf.drop(columns=['storage_part'])
         if len(nodes_pdf) > 0 and 'id' in nodes_pdf.columns:
             nodes_pdf = nodes_pdf.drop_duplicates(subset=['id', 'community_id']).reset_index(drop=True)
     except Exception as e:
         print(f"  ⚠ CAAN _load_communities_data_batch NODES ERROR: {e}")
         nodes_pdf = pd.DataFrame()
 
+    edges_pdf = _load_unit_edges(edges_url, comm_ids, block=block, n_blocks=n_blocks, layout=layout)
+    return nodes_pdf, edges_pdf
+
+
+def _load_unit_edges(edges_url, comm_ids, block=None, n_blocks=1, layout=None):
+    """Intra-unit edges for the given communities (and block), read from p2_edges."""
+    import pyarrow.dataset as ds
+    import pyarrow.compute as pc
+    import pandas as pd
+
+    _mask = int(n_blocks) - 1 if (block is not None and n_blocks and int(n_blocks) > 1) else None
+    _base = ds.field("community_id").isin(comm_ids)
+
     try:
-        edges_ds = _get_dataset(edges_url)
+        if layout is not None:
+            from pipeline.utils.partition_layout import unit_filter
+            edges_ds = _layout_dataset(layout["edges"])
+            _base = unit_filter(layout["edges"], comm_ids, layout.get("comm_to_part"))
+        else:
+            edges_ds = _get_dataset(edges_url)
         # Keep an edge only when BOTH endpoints fall in this block -- the same
         # rule Phase 3 enforces via _src_unit == _dst_unit, applied at the scan.
         _f = _base if _mask is None else (
@@ -104,6 +144,8 @@ def _load_communities_data_batch(nodes_url, edges_url, comm_ids, block=None, n_b
             & (pc.bit_wise_and(ds.field("src"), _mask) == int(block))
             & (pc.bit_wise_and(ds.field("dst"), _mask) == int(block)))
         edges_pdf = edges_ds.to_table(filter=_f, use_threads=True).to_pandas()
+        if 'storage_part' in edges_pdf.columns:
+            edges_pdf = edges_pdf.drop(columns=['storage_part'])
         if len(edges_pdf) > 0 and 'src' in edges_pdf.columns and 'dst' in edges_pdf.columns:
             edges_pdf = (edges_pdf.drop_duplicates()
                          .sort_values(['community_id', 'src', 'dst'], kind='mergesort')
@@ -112,7 +154,7 @@ def _load_communities_data_batch(nodes_url, edges_url, comm_ids, block=None, n_b
         print(f"  ⚠ CAAN _load_communities_data_batch EDGES ERROR: {e}")
         edges_pdf = pd.DataFrame()
 
-    return nodes_pdf, edges_pdf
+    return edges_pdf
 
 
 def _train_minor_global_caan(dataset, gcn_cfg, dataset_cfg, caan_components, model_type, task_type='node_classification'):
@@ -528,7 +570,7 @@ def make_caan_udf(super_nodes_dict_bc, minor_node_to_idx_bc, minor_feats_arr_bc,
                   minor_labels_arr_bc, minor_splits_arr_bc, minor_ids_arr_bc,
                   caan_adj_bc, node_to_comm_bc, major_comms_bc,
                   base_weights_bc=None, base_embeddings_bc=None, base_node_map_bc=None,
-                  p2_nodes_url=None, p2_edges_url=None):
+                  p2_nodes_url=None, p2_edges_url=None, p2_layout=None):
     def _train_gnn_community_caan_single(pdf, comm_edges_pdf):
         import os, time, subprocess, sys, resource
         import numpy as np
@@ -1606,7 +1648,9 @@ def make_caan_udf(super_nodes_dict_bc, minor_node_to_idx_bc, minor_feats_arr_bc,
             'peak_mem_mb':   peak_mem / 1e6,
         }])
         
-    def _train_gnn_bin_caan(key, manifest_pdf):
+    def _train_bin(manifest_pdf, load_batch, load_item):
+        # load_batch(comm_ids) -> (nodes_pdf, edges_pdf) for a whole bin;
+        # load_item(comm_id, block, n_blocks) -> the same for one bounded block.
         # Set inter-op and intra-op thread counts strictly on the worker
         try:
             import torch
@@ -1624,7 +1668,7 @@ def make_caan_udf(super_nodes_dict_bc, minor_node_to_idx_bc, minor_feats_arr_bc,
             nodes_pdf_all = edges_pdf_all = pd.DataFrame()
         else:
             comm_ids = manifest_pdf['community_id'].unique().tolist()
-            nodes_pdf_all, edges_pdf_all = _load_communities_data_batch(p2_nodes_url, p2_edges_url, comm_ids)
+            nodes_pdf_all, edges_pdf_all = load_batch(comm_ids)
 
         results = []
         for _, row in manifest_pdf.iterrows():
@@ -1633,8 +1677,7 @@ def make_caan_udf(super_nodes_dict_bc, minor_node_to_idx_bc, minor_feats_arr_bc,
             if _has_blocks:
                 _nb = int(row['_n_blocks']) if '_n_blocks' in row else 1
                 _bk = int(row['_block']) if '_block' in row else 0
-                pdf, comm_edges_pdf = _load_communities_data_batch(
-                    p2_nodes_url, p2_edges_url, [comm_id], block=_bk, n_blocks=_nb)
+                pdf, comm_edges_pdf = load_item(comm_id, _bk, _nb)
                 # A block holding only halo rows has nothing to train on; fall
                 # through to the empty-result path rather than train on no members.
                 if len(pdf) > 0 and 'is_member' in pdf.columns:
@@ -1686,9 +1729,46 @@ def make_caan_udf(super_nodes_dict_bc, minor_node_to_idx_bc, minor_feats_arr_bc,
             ])
         return pd.concat(results, ignore_index=True)
 
+    def _train_gnn_bin_caan(key, manifest_pdf):
+        # Default (materialized partition table): every bin reads its own units
+        # straight from p2_nodes/p2_edges with a community_id predicate. No data
+        # moves between workers.
+        return _train_bin(
+            manifest_pdf,
+            lambda ids: _load_communities_data_batch(p2_nodes_url, p2_edges_url, ids,
+                                                     layout=p2_layout),
+            lambda c, b, n: _load_communities_data_batch(
+                p2_nodes_url, p2_edges_url, [c], block=b, n_blocks=n, layout=p2_layout))
+
+    def _train_gnn_bin_caan_joined(key, nodes_pdf, manifest_pdf):
+        # Global-join path (normalized partition table): the bin's node rows,
+        # already joined with their features, arrive through Spark's shuffle
+        # (cogroup with the manifest). Edges are read from p2_edges as above.
+        import pandas as pd
+        if len(nodes_pdf) > 0:
+            nodes_pdf = (nodes_pdf.drop_duplicates(subset=['id', 'community_id'])
+                                  .reset_index(drop=True))
+        unit_cols = [c for c in nodes_pdf.columns if c not in ('_block', 'bin_id')]
+
+        def _batch(ids):
+            nodes = nodes_pdf[unit_cols] if len(nodes_pdf) > 0 else pd.DataFrame()
+            return nodes, _load_unit_edges(p2_edges_url, ids, layout=p2_layout)
+
+        def _item(c, b, n):
+            if len(nodes_pdf) == 0:
+                return pd.DataFrame(), _load_unit_edges(p2_edges_url, [c], block=b, n_blocks=n,
+                                                        layout=p2_layout)
+            sel = nodes_pdf[(nodes_pdf['community_id'] == c) & (nodes_pdf['_block'] == b)]
+            nodes = sel[unit_cols].reset_index(drop=True) if len(sel) > 0 else pd.DataFrame()
+            return nodes, _load_unit_edges(p2_edges_url, [c], block=b, n_blocks=n, layout=p2_layout)
+
+        return _train_bin(manifest_pdf, _batch, _item)
+
     # Exposed so the per-community path can be driven directly (local validation,
     # unit tests) without going through the Delta-backed batch loader.
     _train_gnn_bin_caan.community_fn = _train_gnn_community_caan_single
+    # cogroup UDF for node_loading='global_join'
+    _train_gnn_bin_caan.joined_fn = _train_gnn_bin_caan_joined
     return _train_gnn_bin_caan
 
 def run_phase3b(spark, sc, datasets, algorithms, use_global_mapping,
@@ -1696,6 +1776,16 @@ def run_phase3b(spark, sc, datasets, algorithms, use_global_mapping,
     """
     Train GNN models per community using Spark groupBy().applyInPandas() with CaaN Global Graph.
     Optimized for massive EMR clusters and shuffless execution.
+
+    node_loading (kwarg) chooses how a bin gets its units' node rows:
+      'direct'      -- read from the materialized partition table (p2_nodes with
+                       features) inside the worker, one community_id-filtered
+                       scan per bin; no exchange between workers. LakeGRL default.
+      'global_join' -- one Spark join of the whole partition table with the whole
+                       raw nodes/masks tables, then a shuffle of the joined rows
+                       to their bins (cogroup with the manifest). Needed when
+                       p2_nodes is normalized (no features).
+      'auto'        -- 'direct' for a materialized p2_nodes, else 'global_join'.
     """
     task_type = kwargs.get('task_type', 'node_classification')
     gnn_models = kwargs.get('models', ['sage'])
@@ -1704,9 +1794,14 @@ def run_phase3b(spark, sc, datasets, algorithms, use_global_mapping,
     # communities in a single worker. Same caps, read from the same config keys.
     max_nodes_per_community = int(kwargs.get('max_nodes_per_community', 10000) or 0)
     block_oversized = bool(kwargs.get('block_oversized', True))
+    node_loading = kwargs.get('node_loading', 'auto')
+    if node_loading not in ('auto', 'direct', 'global_join'):
+        raise ValueError(f"node_loading must be 'auto', 'direct' or 'global_join', got {node_loading!r}")
 
     from pyspark.sql import functions as F
     from pipeline.phases.phase3_training import _make_result_schema
+    from pipeline.utils.partition_join import is_materialized, load_unit_nodes, attach_units
+    from pipeline.utils.partition_layout import table_layout as _p2_table_layout
     result_schema = _make_result_schema()
     
     for dataset in datasets:
@@ -1727,9 +1822,20 @@ def run_phase3b(spark, sc, datasets, algorithms, use_global_mapping,
         for alg in algorithms:
             p_alg = get_paths_fn(dataset, alg)
             
-            # Load community assignments and p2_nodes (already contains split, community_id, and is_boundary)
+            # Load community assignments and p2_nodes. A materialized p2_nodes
+            # already contains split, features, community_id and is_boundary; a
+            # normalized one is joined with the raw nodes/masks tables.
             comms_df = spark.read.format('delta').load(p_alg['communities'])
-            nodes_w_comm = spark.read.format('delta').load(p_alg['p2_nodes'])
+            p2_table = spark.read.format('delta').load(p_alg['p2_nodes']).drop('storage_part')
+            materialized = is_materialized(p2_table)
+            loading = node_loading if node_loading != 'auto' else (
+                'direct' if materialized else 'global_join')
+            if loading == 'direct' and not materialized:
+                raise ValueError("node_loading='direct' needs a materialized p2_nodes "
+                                 "(run Phase 2 with partition_table_mode='materialized')")
+            nodes_w_comm = p2_table if materialized else load_unit_nodes(spark, p_alg, p2_table)
+            print(f"  [Phase 3b] p2_nodes is {'materialized' if materialized else 'normalized'}; "
+                  f"node loading: {loading}")
             
             # Compute community sizes
             comm_sizes = comms_df.groupBy('community_id').count().collect()
@@ -1947,7 +2053,7 @@ def run_phase3b(spark, sc, datasets, algorithms, use_global_mapping,
                     import dgl
                     
                     print("  [Driver Warmstart] Extracting representative community for driver-side pre-training...")
-                    comms_node_counts_df = nodes_w_comm.select('community_id').groupBy('community_id').count().toPandas()
+                    comms_node_counts_df = p2_table.select('community_id').groupBy('community_id').count().toPandas()
                     comms_sorted = comms_node_counts_df.sort_values(by='count', ascending=False)
                     
                     valid_comms = comms_sorted[comms_sorted['count'] <= 100_000]
@@ -2055,7 +2161,7 @@ def run_phase3b(spark, sc, datasets, algorithms, use_global_mapping,
                 )
                 
                 # 2. Driver-side Community Binning
-                comms_node_counts_df = nodes_w_comm.select('community_id').groupBy('community_id').count().toPandas()
+                comms_node_counts_df = p2_table.select('community_id').groupBy('community_id').count().toPandas()
                 comms_node_counts_df = comms_node_counts_df.sort_values(by='count', ascending=False).reset_index(drop=True)
                 
                 import numpy as _np
@@ -2117,14 +2223,29 @@ def run_phase3b(spark, sc, datasets, algorithms, use_global_mapping,
                     base_embeddings_bc=base_embeddings_bc,
                     base_node_map_bc=base_node_map_bc,
                     p2_nodes_url=p_alg['p2_nodes'],
-                    p2_edges_url=p_alg['p2_edges']
+                    p2_edges_url=p_alg['p2_edges'],
+                    # snapshot file lists + partitioning of the Phase 2 tables, so the
+                    # workers read the current snapshot only, in any p2_layout
+                    p2_layout=_p2_table_layout(spark, p_alg)
                 )
                 
                 sc.setJobDescription(f'phase3b_{dataset}_{alg}_{model_type}')
-                major_results = (manifest_df
-                                 .repartition(num_bins, 'bin_id')
-                                 .groupBy('bin_id')
-                                 .applyInPandas(caan_udf, schema=result_schema))
+                if loading == 'global_join':
+                    # Global join, then shuffle each joined row to its bin. Unlike
+                    # the direct path, this moves every unit row (features
+                    # included) between executors.
+                    unit_rows = attach_units(spark, nodes_w_comm, work)
+                    major_results = (unit_rows
+                                     .repartition(num_bins, 'bin_id')
+                                     .groupBy('bin_id')
+                                     .cogroup(manifest_df.repartition(num_bins, 'bin_id')
+                                                         .groupBy('bin_id'))
+                                     .applyInPandas(caan_udf.joined_fn, schema=result_schema))
+                else:
+                    major_results = (manifest_df
+                                     .repartition(num_bins, 'bin_id')
+                                     .groupBy('bin_id')
+                                     .applyInPandas(caan_udf, schema=result_schema))
                 major_pd = major_results.toPandas()
                 sc.setJobDescription('')
                 

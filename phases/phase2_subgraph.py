@@ -8,9 +8,34 @@ def run_phase2(spark, sc, datasets, algorithms, use_global_mapping, min_size,
     Build induced subgraphs per community for each (dataset, algorithm).
     Adds is_boundary flag to nodes (loses ≥1 edge due to inter-community cut).
     ISOLATION: writes to phase2_nodes/{tag}/ and phase2_edges/{tag}/.
+
+    partition_table_mode (kwarg):
+      'materialized' (default) -- phase2_nodes is a materialized view: each
+          partition row also carries the node's label, features and split, so a
+          worker reads its unit directly with data skipping on community_id.
+      'normalized' -- phase2_nodes stores only the partitioning result
+          (id, community_id, is_boundary, is_member). Features stay in the raw
+          nodes table and splits in masks; readers join them back
+          (utils/partition_join.py). The commit records the raw-table versions
+          the partition was computed from, and readers join against those.
     """
     tiny_comm_handling = kwargs.get('tiny_comm_handling', 'misc')
     expand_boundary_nodes = kwargs.get('expand_boundary_nodes', False)
+    partition_table_mode = kwargs.get('partition_table_mode', 'materialized')
+    # Physical layout of p2_nodes / p2_edges (utils/partition_layout.py):
+    # 'range' (default), 'hive' (partitionBy community_id) or 'hive_merged'
+    # (partitionBy storage_part, small communities packed into shared parts).
+    p2_layout = kwargs.get('p2_layout', 'range')
+    merge_minor_members = int(kwargs.get('merge_minor_members', min_size))
+    merge_min_rows = int(kwargs.get('merge_min_rows', 0))
+    merge_target_rows = int(kwargs.get('merge_target_rows', 250_000))
+    from pipeline.utils.partition_layout import LAYOUTS as _P2_LAYOUTS
+    if p2_layout not in _P2_LAYOUTS:
+        raise ValueError(f"p2_layout must be one of {_P2_LAYOUTS}, got {p2_layout!r}")
+    if partition_table_mode not in ('materialized', 'normalized'):
+        raise ValueError(f"partition_table_mode must be 'materialized' or 'normalized', "
+                         f"got {partition_table_mode!r}")
+    normalized = partition_table_mode == 'normalized'
     
     from pyspark.sql import functions as F
 
@@ -34,6 +59,13 @@ def run_phase2(spark, sc, datasets, algorithms, use_global_mapping, min_size,
                     # Try loading target paths
                     nodes_final = spark.read.format('delta').load(p_alg['p2_nodes'])
                     edges_part = spark.read.format('delta').load(p_alg['p2_edges'])
+                    # A checkpoint written in the other partition_table_mode is
+                    # not reusable; fall through and rebuild it.
+                    if ('features' in nodes_final.columns) == normalized:
+                        raise ValueError('phase2_nodes checkpoint has the other partition_table_mode')
+                    from pipeline.utils.partition_layout import layout_of
+                    if layout_of(spark, p_alg['p2_nodes']) != p2_layout:
+                        raise ValueError('phase2_nodes checkpoint has another p2_layout')
                     
                     comms_df = spark.read.format('delta').load(p_alg['communities'])
                     n_raw = comms_df.select('community_id').distinct().count()
@@ -92,7 +124,13 @@ def run_phase2(spark, sc, datasets, algorithms, use_global_mapping, min_size,
                                      .select('id', F.col('new_community_id').alias('community_id')))
                 
                 valid_nodes = comms_df.join(valid_comms.select('community_id'), on='community_id', how='inner')
-                comms_filt = valid_nodes.union(tiny_nodes_binned)
+                # unionByName: the join puts community_id first, so a positional
+                # union swapped id and community_id in every tiny-node row, and
+                # those rows then matched no node (tiny communities were dropped).
+                comms_filt = valid_nodes.unionByName(tiny_nodes_binned)
+            elif tiny_comm_handling == 'keep':
+                # Every community stays its own unit, however small.
+                comms_filt = comms_df
             else:
                 comms_filt = comms_df.join(valid_comms.select('community_id'), on='community_id', how='inner')
 
@@ -102,13 +140,20 @@ def run_phase2(spark, sc, datasets, algorithms, use_global_mapping, min_size,
                   f"min={mn:,}  max={mx:,}  "
                   f"avg={avg:.1f}")
 
-            # Build partitioned nodes
+            # Build partitioned nodes. The materialized view copies each node's
+            # label, features and split into its partition rows; the normalized
+            # table keeps ids only, so this phase never reads the feature column.
             node_comm = comms_filt.select('id', 'community_id').cache()
-            nodes_w_split = nodes_df.join(masks_df.select('id', 'split'),
-                                          on='id', how='left')
+            if normalized:
+                nodes_w_split = nodes_df.select('id')
+                node_cols = ['id']
+            else:
+                nodes_w_split = nodes_df.join(masks_df.select('id', 'split'),
+                                              on='id', how='left')
+                node_cols = ['id', 'label', 'features', 'split']
             nodes_part = (nodes_w_split
                           .join(node_comm, on='id', how='inner')
-                          .select('id', 'label', 'features', 'split', 'community_id'))
+                          .select(*node_cols, 'community_id'))
             n_kept = nodes_part.count()
 
             # Intra-community edges
@@ -127,10 +172,10 @@ def run_phase2(spark, sc, datasets, algorithms, use_global_mapping, min_size,
                                       .union(halo_nodes.withColumn('is_member', F.lit(False)))
                                       .groupBy('id', 'community_id')
                                       .agg(F.max('is_member').alias('is_member')))
-                nodes_part = nodes_w_split.join(expanded_node_comm, on='id', how='inner').select('id', 'label', 'features', 'split', 'community_id', 'is_member')
+                nodes_part = nodes_w_split.join(expanded_node_comm, on='id', how='inner').select(*node_cols, 'community_id', 'is_member')
             else:
                 edges_part = e_full.filter(F.col('src_comm') == F.col('dst_comm')).select('src', 'dst', F.col('src_comm').alias('community_id'))
-                nodes_part = nodes_w_split.join(node_comm, on='id', how='inner').select('id', 'label', 'features', 'split', 'community_id').withColumn('is_member', F.lit(True))
+                nodes_part = nodes_w_split.join(node_comm, on='id', how='inner').select(*node_cols, 'community_id').withColumn('is_member', F.lit(True))
             
             n_intra    = edges_part.count()
             pct_kept   = 100 * n_intra / n_edges if n_edges > 0 else 0.0
@@ -157,7 +202,7 @@ def run_phase2(spark, sc, datasets, algorithms, use_global_mapping, min_size,
                            .withColumn('intra_deg', F.coalesce('intra_deg', F.lit(0)))
                            .withColumn('is_boundary', (F.col('orig_deg') > F.col('intra_deg')).cast('boolean'))
                            .withColumn('is_boundary', F.coalesce('is_boundary', F.lit(False)))
-                           .select('id', 'label', 'features', 'split', 'community_id', 'is_boundary', 'is_member'))
+                           .select(*node_cols, 'community_id', 'is_boundary', 'is_member'))
 
             n_total_nodes = nodes_final.count()
             n_boundary = nodes_final.filter(F.col('is_boundary')).count()
@@ -189,15 +234,26 @@ def run_phase2(spark, sc, datasets, algorithms, use_global_mapping, min_size,
             # loader (phase3_training.py:66) is never called, and units are fed
             # by groupBy().applyInPandas() instead.
             p2_bins = min(200, n_valid) if n_valid > 0 else 200
-            nodes_final.repartitionByRange(p2_bins, 'community_id')\
-                       .sortWithinPartitions('community_id')\
-                       .write.format('delta').mode('overwrite')\
-                       .save(p_alg['p2_nodes'])
-
-            edges_part.repartitionByRange(p2_bins, 'community_id')\
-                       .sortWithinPartitions('community_id')\
-                       .write.format('delta').mode('overwrite')\
-                       .save(p_alg['p2_edges'])
+            # write_layout overwrites with overwriteSchema: the path may hold a
+            # table written in another partition_table_mode or p2_layout.
+            from pipeline.utils.partition_layout import (write_layout, community_stats,
+                                                         merge_plan, with_storage_part)
+            meta = None
+            if normalized:
+                from pipeline.utils.partition_join import partition_write_metadata
+                meta = partition_write_metadata(spark, p, alg)
+            nodes_out, edges_out = nodes_final, edges_part
+            if p2_layout == 'hive_merged':
+                plan = merge_plan(community_stats(nodes_final), merge_minor_members,
+                                  merge_min_rows, merge_target_rows)
+                n_shared = int(plan.loc[plan['small'], 'storage_part'].nunique())
+                print(f"  p2_layout=hive_merged: {int(plan['small'].sum()):,} small communities -> "
+                      f"{n_shared} shared partitions; {int((~plan['small']).sum()):,} own partitions")
+                nodes_out = with_storage_part(spark, nodes_final, plan)
+                edges_out = with_storage_part(spark, edges_part, plan)
+                p2_bins = min(200, max(1, plan['storage_part'].nunique()))
+            write_layout(nodes_out, p_alg['p2_nodes'], p2_layout, p2_bins, user_metadata=meta)
+            write_layout(edges_out, p_alg['p2_edges'], p2_layout, p2_bins)
 
             elapsed = time.time() - t0
             timing[('phase2', dataset, alg)] = elapsed
@@ -207,8 +263,10 @@ def run_phase2(spark, sc, datasets, algorithms, use_global_mapping, min_size,
                 'n_internal':    n_kept - n_boundary,
                 'n_intra_edges': n_intra,'pct_edges_kept': pct_kept,
                 'shuffle_s':    shuffle_s,
+                'partition_table_mode': partition_table_mode,
+                'p2_layout': p2_layout,
             }
-            print(f"  ✓ [{alg}] Phase 2 done in {elapsed:.1f}s")
+            print(f"  ✓ [{alg}] Phase 2 done in {elapsed:.1f}s ({partition_table_mode} partition table, {p2_layout} layout)")
             
             node_comm.unpersist()
             valid_comms.unpersist()
