@@ -12,7 +12,7 @@ EXPERIMENT_NAME   = 'gatv2_full_sweep'          # labels ALL S3 outputs; change 
 # Standard: 'WikiCS', 'Coauthor-Physics', 'Coauthor-CS', 'DeezerEurope', 'Foursquare'
 # 100M-scale: 'reddit', 'ogbn-products'
 # 1B-scale:   'ogbn-papers100M'
-DATASETS_TO_RUN = ['WikiCS', 'ogbn-products', 'reddit', 'ogbn-mag', 'LiveJournal', 'Orkut',]
+DATASETS_TO_RUN = ['WikiCS', 'ogbn-products', 'reddit', 'ogbn-mag']  # LiveJournal / Orkut excluded 2026-10-12 (synthetic features); code kept
 
 # ── GNN Models to Run ─────────────────────────────────────────────────────────
 # Supported choices: 'sage', 'gat', 'gatv2', 'transformer', 'clusterscl', 'arma', 'asap'

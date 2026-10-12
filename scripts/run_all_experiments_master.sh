@@ -169,8 +169,8 @@ if [[ "$TARGET" == "tables" || "$TARGET" == "report" || "$TARGET" == "latex" ]];
 fi
 
 # ── 3. Determine Dataset List ──────────────────────────────────────────────────
-ALL_DATASETS=("WikiCS" "Coauthor-Physics" "Coauthor-CS" "DeezerEurope" "reddit" "ogbn-products" "ogbn-mag" "LiveJournal" "Orkut")
-HUNDRED_M_DATASETS=("ogbn-products" "reddit" "ogbn-mag" "LiveJournal" "Orkut")
+ALL_DATASETS=("WikiCS" "Coauthor-Physics" "Coauthor-CS" "DeezerEurope" "reddit" "ogbn-products" "ogbn-mag")
+HUNDRED_M_DATASETS=("ogbn-products" "reddit" "ogbn-mag")
 STANDARD_DATASETS=("WikiCS" "Coauthor-Physics" "Coauthor-CS" "DeezerEurope")
 
 case "$TARGET" in
@@ -178,9 +178,9 @@ case "$TARGET" in
         echo "Usage: $0 [TARGET] [NUM_EXECUTORS]"
         echo ""
         echo "Targets:"
-        echo "  all                  Full 9-dataset benchmark suite (WikiCS, Coauthor-Physics, Coauthor-CS, DeezerEurope, reddit, ogbn-products, ogbn-mag, LiveJournal, Orkut)"
+        echo "  all                  Full 7-dataset benchmark suite (WikiCS, Coauthor-Physics, Coauthor-CS, DeezerEurope, reddit, ogbn-products, ogbn-mag)"
         echo "  products             Run OGBN-Products (Louvain default, Node Classification + Link Prediction)"
-        echo "  100m                 Run ~100M-edge scale suite (LiveJournal, Orkut, OGBN-Products, Reddit, OGBN-MAG)"
+        echo "  100m                 Run ~100M-edge scale suite (OGBN-Products, Reddit, OGBN-MAG)"
         echo "  standards            Run small academic standards (WikiCS, Coauthor, DeezerEurope)"
         echo "  reddit               Run Reddit benchmark"
         echo "  mag                  Run OGBN-MAG heterogeneous benchmark"

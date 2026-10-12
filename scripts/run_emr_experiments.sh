@@ -125,11 +125,11 @@ if [[ "$TARGET" == "2worker" || "$TARGET" == "full_sweep_2worker" || "$TARGET" =
     echo ""
     echo "=========================================================================="
     echo " [EXECUTION] Multi-Executor Scalability Sweep (${SWEEP_EXECS[*]} Executors)"
-    echo " Target Datasets: WikiCS, Coauthor-Physics, Coauthor-CS, DeezerEurope, reddit, ogbn-products, ogbn-mag, LiveJournal, Orkut"
+    echo " Target Datasets: WikiCS, Coauthor-Physics, Coauthor-CS, DeezerEurope, reddit, ogbn-products, ogbn-mag"
     echo " Output Directory: $OUT_2WORKER_DIR"
     echo "=========================================================================="
     
-    SWEEP_DATASETS=("WikiCS" "Coauthor-Physics" "Coauthor-CS" "DeezerEurope" "reddit" "ogbn-products" "ogbn-mag" "LiveJournal" "Orkut")
+    SWEEP_DATASETS=("WikiCS" "Coauthor-Physics" "Coauthor-CS" "DeezerEurope" "reddit" "ogbn-products" "ogbn-mag")
     
     for E in "${SWEEP_EXECS[@]}"; do
         echo ""
