@@ -348,7 +348,10 @@ def git_hash():
     """HEAD, suffixed with -dirty when tracked files differ from it (the run's code is then not exactly HEAD)."""
     try:
         h = subprocess.check_output(["git", "-C", REPO, "rev-parse", "--short=10", "HEAD"], text=True).strip()
-        dirty = subprocess.run(["git", "-C", REPO, "diff", "--quiet", "HEAD", "--"], capture_output=True).returncode
+        # core.autocrlf=true as on the Windows side that owns the checkout: WSL's git would otherwise report every
+        # CRLF working-tree file as modified
+        dirty = subprocess.run(["git", "-c", "core.autocrlf=true", "-C", REPO, "diff", "--quiet", "HEAD", "--"],
+                               capture_output=True).returncode
         return h + ("-dirty" if dirty else "")
     except Exception:
         return "unknown"
