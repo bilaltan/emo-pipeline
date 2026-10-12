@@ -292,8 +292,16 @@ def run_units(data, pairs, cfg, device, gen, halo, cut_supervision):
     scores = {}
     for k, (s0, s1) in sides.items():
         both = np.vstack([s0, s1])
-        assert not np.isnan(both).all(axis=0).any(), f"{k}: a pair has no unit on either side"
-        scores[k] = np.nanmean(both, axis=0)
+        none = np.isnan(both).all(axis=0)
+        # vertices with no training edge are in no unit (Louvain never sees them): a pair with neither endpoint in
+        # a unit has no model to score it and falls back to feature cosine; the count is reported per pair set
+        sc = np.nanmean(np.where(none, 0.0, both), axis=0)       # none-columns are filled below
+        if none.any():
+            p = pairs[k][:, none]
+            xa, xb = data.x[torch.from_numpy(p[0])], data.x[torch.from_numpy(p[1])]
+            sc[none] = F.cosine_similarity(xa, xb, dim=1).numpy()
+        stats[f"n_fallback_{k}"] = int(none.sum())
+        scores[k] = sc
     stats["train_seconds"] = round(time.time() - t0, 1)
     return scores, stats
 
