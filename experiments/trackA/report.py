@@ -52,19 +52,22 @@ def table(by):
             rows = (f"{np.mean([r['subgraph_rows'] for r in rs]) / rows_m1a:.2f}x"
                     if rows_m1a and "subgraph_rows" in rs[0] else "-")
             out.append(f"| {m} {NAMES[m]} | {len(rs)} | {vals} | {np.mean([r['train_seconds'] for r in rs]):.0f} | {rows} |")
-        # gap closed: (method - M1b) / (M0 - M1b) per column, on the mean AUCs
-        if cell["M0"] and cell["M1b"]:
-            out += ["", "Share of the M1b → M0 gap closed (negative = worse than M1b):", "",
+        mean = lambda m, c: np.mean([r[c] for r in cell[m]])
+        if cell["M1b"]:
+            out += ["", "Δ AUC vs M1b (Phase 3 today):", "",
                     "| method | " + " | ".join(c[4:].replace("_", " ") for c in COLS) + " |", "|---|" + "---|" * len(COLS)]
-            mean = lambda m, c: np.mean([r[c] for r in cell[m]])
-            for m in ("M1a", "M2"):
-                if not cell[m]:
-                    continue
-                g = []
-                for c in COLS:
-                    den = mean("M0", c) - mean("M1b", c)
-                    g.append(f"{(mean(m, c) - mean('M1b', c)) / den:+.0%}" if abs(den) > 1e-3 else "n/a")
-                out.append(f"| {m} | " + " | ".join(g) + " |")
+            for m in ("M0", "M1a", "M2"):
+                if cell[m]:
+                    out.append(f"| {m} | " + " | ".join(f"{mean(m, c) - mean('M1b', c):+.4f}" for c in COLS) + " |")
+        # gap closed only where M0 is above M1b: elsewhere M0 is not an upper bound and the ratio has no meaning
+        if cell["M0"] and cell["M1b"] and cell["M2"]:
+            g = []
+            for c in COLS:
+                den = mean("M0", c) - mean("M1b", c)
+                g.append(f"{(mean('M2', c) - mean('M1b', c)) / den:+.0%}" if den > 1e-3 else "M0 ≤ M1b")
+            out += ["", "Share of the M1b → M0 gap that M2 closes:", "",
+                    "| | " + " | ".join(c[4:].replace("_", " ") for c in COLS) + " |", "|---|" + "---|" * len(COLS),
+                    "| M2 | " + " | ".join(g) + " |"]
         out += ["", "Runs: " + ", ".join(r["run_id"] for m in METHODS for r in cell[m]), ""]
     return "\n".join(out)
 
