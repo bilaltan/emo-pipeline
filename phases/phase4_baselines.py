@@ -488,8 +488,10 @@ def run_phase4(spark, sc, datasets, dataset_cfg, baseline_cfg, get_paths_fn,
             all_link_times.append(link_train_time)
             print(f"    Run {run_idx+1} — acc={acc:.4f}  auc={baseline_link_auc:.4f}")
 
-        mean_acc = np.mean(all_accs)
-        std_acc = np.std(all_accs)
+        # A skipped node baseline (no DGL) records None, not an accuracy of 0.0.
+        node_ran = run_node and dgl is not None and train_mask.sum() > 0
+        mean_acc = float(np.mean(all_accs)) if node_ran else None
+        std_acc = float(np.std(all_accs)) if node_ran else None
         mean_auc = np.mean(all_aucs)
         std_auc = np.std(all_aucs)
         mean_auc_part = float(np.mean(all_aucs_part)) if all_aucs_part else None
@@ -520,7 +522,8 @@ def run_phase4(spark, sc, datasets, dataset_cfg, baseline_cfg, get_paths_fn,
             'all_accs':          all_accs,
             'all_aucs':          all_aucs,
         }
-        print(f"  ✓ [{dataset}] GraphSAGE Baseline  acc={mean_acc:.4f}±{std_acc:.4f}  "
+        acc_txt = f"{mean_acc:.4f}±{std_acc:.4f}" if node_ran else "not run"
+        print(f"  ✓ [{dataset}] GraphSAGE Baseline  acc={acc_txt}  "
               f"auc={mean_auc:.4f}±{std_auc:.4f}  "
               f"time={mean_node_time + mean_link_time:.1f}s")
               
