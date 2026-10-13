@@ -121,3 +121,18 @@ resolution, and record that in the doc, rather than running anything larger.
     and is mentioned here so the collapse is on record.
   - The M1b / M2 records of this run show the commit that was HEAD when each record was written (535c575 … 40a3ac5).
     All of them ran 3f0c583's harness, whose M1b / M2 code is unchanged since.
+- ogbn-arxiv, 100-epoch protocol (test, 3 seeds; cross AUC global / matched): M0 0.849 / 0.723, M1a 0.590 / 0.556,
+  M1b 0.825 / 0.767, M2 0.826 / 0.753.
+  - Gate table: M1b and M2 close 111% / 142% and 110% / 109% of the Stage 3a → M0 gap on the "all" AUC, at 1.92× Stage
+    3a's estimated bytes. **H-A holds on arxiv at the pre-registered protocol.**
+- Arxiv validation sweep (seed 0): M0 keeps improving with epochs (cross 0.860 → 0.873 → 0.891 at 100 / 300 / 1000), so
+  100 epochs under-trains it here. M1b / M2 are best at 300.
+- Arxiv tuned test (3 seeds; cross / all AUC, global / matched):
+  - M0 (1000 epochs): 0.874 / 0.756, 0.955 / 0.833.
+  - M1b (300): 0.828 / 0.781, 0.949 / 0.858. M2 (300): 0.825 / 0.763, 0.946 / 0.834.
+  - With tuned budgets the full graph wins on global negatives (+0.046 cross), and the halo wins on matched negatives
+    (+0.025 cross and all). Cut-edge supervision does not help on arxiv.
+  - M0 seed 2 at 1000 epochs is again low (0.853 / 0.716 vs 0.883–0.888 / 0.773–0.779 for seeds 0–1): full-graph training
+    at 1000 epochs is unstable on arxiv as well as on Reddit.
+  - So the arxiv gate result depends on the budget: at the protocol it holds, and tuned it is a draw that depends on
+    the negative scheme. Both go into the write-up.
