@@ -46,7 +46,7 @@ evaluation protocol, and the methods come second.
 | M2 | **Halo scoring:** score (u, v) with u's community model when v is in that community's 1-hop halo (both directions, averaged); train with cut edges whose halo endpoint is present as positives | partial (within the halo) | halo rows, already materialized when `EXPAND_BOUNDARY_NODES = True` |
 | M3 | **Macro-space decoder:** decoder on Phase 3b's shared macro embeddings + raw features, trained on training cut edges | yes | the macro graph (already built) |
 | M4 | **Aligned local models:** every community model is initialized from one shared base model (Phase 3 has a driver warm start) and its encoder is regularized toward it, so local spaces stay comparable | approximately | one base model broadcast |
-| M5 | **Cut-edge decoder (late fusion for links):** after Stage 3a, an MLP on `[h_local ‖ h_macro ‖ x]` of both endpoints, trained only on training cut edges | yes (via h_macro and x) | one pass over E_cross |
+| M5 | **Late fusion for links:** Stage 3a (members only) gives h_local; h_macro = parameter-free 2-hop propagation of mean member features over the macro graph; one shared decoder on `[h_local ‖ h_macro ‖ x]` of both endpoints, trained on all training edges, scores every pair | yes (via h_macro and x) | the cut-edge list and one macro row per unit; 1× Stage 3a rows |
 
 M2 and M5 are the main candidates: M2 uses data LakeGRL already stores, and M5 mirrors the paper's late fusion for
 nodes. M3 and M4 are ablations that explain *why* one of them works.
@@ -81,3 +81,33 @@ resolution, and record that in the doc, rather than running anything larger.
   positives per step, hidden 256, dropout 0.5, seeds 0-2. One shared budget for all methods; no per-method tuning in v1.
 - Reddit (`reddit-lp`): 25 Louvain units; the 1-hop halo adds 1.0M rows (4.3× the members). 18.6% of the test
   positives cross units, and every cross positive is coverable by the halo (coverage 1.0).
+- ogbn-products (`ogbn-products-lp`): 4,389 Louvain communities → 1,063 units (tiny ones in shared misc bins); the
+  halo adds 1.32× the members (2.32× the rows of Stage 3a). 9.5% of the test positives cross units. Phases 0–2 took
+  28 min locally.
+- 100-epoch main runs, 3 seeds (T_A.md): cross-unit AUC (global / matched negatives):
+  - Reddit: M1a 0.704 / 0.684, M1b 0.868 / 0.842, M2 0.912 / 0.879, M0 0.853 / 0.784.
+  - Products: M1a 0.532 / 0.546, M1b 0.955 / 0.921, M2 0.958 / 0.923, M0 0.940 / 0.854.
+  - M0 scoring below M1b raised the question of whether 100 epochs under-trains the full graph.
+- Reddit validation sweep, seed 0 (cross AUC, global negatives):
+  - M0: 0.838 (100 ep), 0.868 (300), 0.873 (1000).
+  - M1b: 0.861 (100), 0.898 (300). M2: 0.907 (100), 0.935 (300).
+  - Chosen on validation: M0 1000 epochs, M1b / M2 300 epochs. Tested on 3 seeds (tuned test).
+- Tuned Reddit test, M0 at 1000 epochs: seeds 0 and 2 reach cross AUC 0.873. Seed 1 collapses (intra 0.857, cross 0.682;
+  20261012-223714-M0-s1).
+  - That record is flagged `-dirty`: the harness took the git hash when it wrote each record, and a commit landed
+    during the run. Since 535c575 the hash is taken at process start.
+  - The seed is rerun clean, and M0 at 300 epochs (3 seeds) is added as a stability check. The validation-chosen
+    1000-epoch budget stays the primary row.
+- I/O side of H-A: M1b / M2 read 5.30× Stage 3a's rows on Reddit and 2.32× on products, so the full halo fails the
+  "≤ 2× bytes" clause on both.
+  - `--halo-budget R` caps each unit's halo at R × members, keeping the halo vertices with the most edges into the
+    unit; R = 1 is the gate's 2×.
+  - The Reddit validation sweep runs R = 1, 0.5 and 0.25 for M1b and M2.
+- M5 (late fusion for links) implemented. Stage 3a (members only, 1× rows) gives h_local. h_macro is a parameter-free
+  2-hop propagation of mean member features over the macro graph (units, cut-edge counts). One shared decoder on
+  `[h_local ‖ h_macro ‖ x]` of both endpoints, trained on all training edges, scores **every** pair.
+  - An earlier version scored intra pairs with the unit decoders and the rest with the shared one. On an arxiv smoke run
+    that dropped intra AUC from 0.88 to 0.58 with identical intra scores, because global negatives of intra positives are
+    mostly cross pairs scored on another logit scale.
+- ogbn-arxiv (`ogbn-arxiv-lp`) added as the third dataset: 476 Louvain communities → 392 units; halo 0.98× the members.
+  Phases 0–2 took 2 min.

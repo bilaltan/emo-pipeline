@@ -120,9 +120,26 @@ def main():
             keys = {f"auc_{s}_{t}" for s in ("global", "matched") for t in ("intra", "cross", "all")}
             check(ok and keys <= set(res), f"{name}: every pair scored, all strata reported "
                                            f"(all/global {res['auc_global_all']}, cross/matched {res['auc_matched_cross']})")
+        _, s1a = H.METHODS["M1a"](data, pairs, cfg, dev, torch.Generator().manual_seed(0))
+        _, s5 = H.METHODS["M5"](data, pairs, cfg, dev, torch.Generator().manual_seed(0))
+        check(s5["subgraph_rows"] == s1a["subgraph_rows"] and s5["halo_rows"] == 0
+              and s5["cut_edges"] == int((cu != cv).sum()),
+              f"M5 reads Stage 3a's rows ({s5['subgraph_rows']}) plus the {s5['cut_edges']} cut edges, no halo")
         scores, stats = H.METHODS["M2"](data, pairs, {**cfg, "halo_budget": 0.05}, dev, torch.Generator().manual_seed(0))
         check(all(np.isfinite(s).all() for s in scores.values()) and stats["halo_rows"] == 2 * int(0.05 * 40),
               f"M2 with halo budget 0.05: every pair scored, {stats['halo_rows']} halo rows")
+        import report as R
+        base = {"epochs": 100, "batch": 65536, "hidden": 256, "lr": 0.005, "dropout": 0.5}
+        fake = os.path.join(root, "runs.jsonl")
+        with open(fake, "w") as fh:
+            for m, g, mt, rows, cfg in (("M0", 0.9, 0.8, None, base), ("M1a", 0.7, 0.85, 100, base),
+                                        ("M2", 0.85, 0.9, 150, base), ("M2", 0.8, 0.9, 120, {**base, "halo_budget": 0.2})):
+                rec = {"dataset": "toy", "method": m, "split": "test", "git": "x", "cfg": cfg,
+                       "auc_global_all": g, "auc_matched_all": mt}
+                fh.write(json.dumps({**rec, **({"subgraph_rows": rows} if rows else {})}) + "\n")
+        gate = R.gate_table(fake)
+        check("| toy | M2 | 1 | 1.50x | +75% | M0 ≤ M1a" in gate and "| toy | M2@R=0.2 | 1 | 1.20x | +50% |" in gate,
+              "gate table: gap share per scheme, M0 <= M1a flagged, halo-budget variants as their own rows")
         print("\n  ALL PASSED")
     finally:
         shutil.rmtree(root, ignore_errors=True)

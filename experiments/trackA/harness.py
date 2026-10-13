@@ -238,8 +238,9 @@ def unit_layout(data, halo, budget=0.0):
     return out
 
 
-def run_units(data, pairs, cfg, device, gen, halo, cut_supervision):
-    """Train one model per unit and score every pair side that falls in that unit."""
+def run_units(data, pairs, cfg, device, gen, halo, cut_supervision, member_h=None):
+    """Train one model per unit and score every pair side that falls in that unit. member_h ([n, hidden], optional)
+    receives every member's embedding from its own unit's model."""
     t0 = time.time()
     lay = unit_layout(data, halo, cfg.get("halo_budget", 0.0))
     sides = {}   # pair set -> (side0 scores, side1 scores) filled per unit
@@ -278,6 +279,8 @@ def run_units(data, pairs, cfg, device, gen, halo, cut_supervision):
         enc, dec = train_link(x, A, pos, np.arange(len(u["members"])), dst_pool, cfg, device, gen)
         with torch.no_grad():
             h = enc(x, A)
+            if member_h is not None:
+                member_h[u["members"]] = h[:len(u["members"])].cpu().numpy()
             for k, p in pairs.items():
                 for side in (0, 1):
                     a, b = p[side], p[1 - side]
@@ -314,11 +317,80 @@ def run_units(data, pairs, cfg, device, gen, halo, cut_supervision):
     return scores, stats
 
 
+class Fusion(nn.Module):
+    """M5's cut-edge scorer: a shared projection of [h_local, h_macro, x] per endpoint, then the Siamese decoder."""
+    def __init__(self, d, h, dropout):
+        super().__init__()
+        self.phi = nn.Sequential(nn.Linear(d, h), nn.ReLU(), nn.Dropout(dropout), nn.Linear(h, h))
+        self.dec = Decoder(h, dropout)
+
+    def sym(self, a, b):
+        return self.dec.sym(self.phi(a), self.phi(b))
+
+
+def run_m5(data, pairs, cfg, device, gen):
+    """M5, late fusion for links: Stage 3a (M1a: members only, 1x rows) gives every member an embedding h_local; one
+    shared decoder on [h_local, h_macro, x] of both endpoints, trained on all training edges, scores every pair. (Scoring
+    intra pairs with the unit decoders and the rest with this one mixes two logit scales: a random cross negative of an
+    intra positive would be compared across scorers.)
+    h_local: the endpoint's embedding from its own unit's model. h_macro: its unit's row of a parameter-free 2-hop
+    propagation (row-normalised, self-loops) of mean member features over the macro graph (units, cut-edge counts).
+    Extra data read beyond Stage 3a: the cut-edge list and one macro row per unit."""
+    import scipy.sparse as sp
+    t0 = time.time()
+    H = np.zeros((data.n, cfg["hidden"]), np.float32)
+    scores, stats = run_units(data, pairs, cfg, device, gen, halo=False, cut_supervision=False, member_h=H)
+    k, valid = len(data.units), data.comm != NO_COMM
+    ci = np.full(data.n, k, np.int64)               # k = "no unit": a zero macro row
+    ci[valid] = np.searchsorted(data.units, data.comm[valid])
+    cu, cv = ci[data.edges[0]], ci[data.edges[1]]
+    cut = (cu != cv) & (cu < k) & (cv < k)
+    W = sp.coo_matrix((np.ones(2 * cut.sum()), (np.r_[cu[cut], cv[cut]], np.r_[cv[cut], cu[cut]])), (k, k)).tocsr()
+    W = W + sp.identity(k, format="csr")
+    W = sp.diags(1.0 / np.asarray(W.sum(1)).ravel()) @ W
+    P = sp.coo_matrix((np.ones(valid.sum()), (ci[valid], np.where(valid)[0])), (k, data.n)).tocsr()
+    P = sp.diags(1.0 / np.maximum(np.asarray(P.sum(1)).ravel(), 1)) @ P
+    hm = W @ (W @ (P @ data.x.numpy()))
+    hm = torch.from_numpy(np.vstack([hm, np.zeros((1, hm.shape[1]))]).astype(np.float32)).to(device)
+    Ht, xg, cit = torch.from_numpy(H).to(device), data.x.to(device), torch.from_numpy(ci).to(device)
+    feat = lambda idx: torch.cat([Ht[idx], hm[cit[idx]], xg[idx]], dim=1)
+    # negatives: half uniform over all vertices, half from the unit of the positive's v (unit identity is not enough)
+    order = np.argsort(ci, kind="stable")
+    lo, hi = np.searchsorted(ci[order], np.arange(k + 1)), np.searchsorted(ci[order], np.arange(k + 1), side="right")
+    pos = torch.from_numpy(data.edges).to(device)
+    order_t, lo_t, n_t = (torch.from_numpy(a).to(device) for a in (order, lo, hi - lo))
+    model = Fusion(H.shape[1] + 2 * data.x.shape[1], cfg["hidden"], cfg["dropout"]).to(device)
+    opt = torch.optim.Adam(model.parameters(), lr=cfg["lr"], weight_decay=5e-4)
+    model.train()
+    for _ in range(cfg["epochs"] if pos.shape[1] else 0):
+        b = pos[:, torch.randint(0, pos.shape[1], (min(cfg["batch"], pos.shape[1]),), generator=gen).to(device)]
+        half = b.shape[1] // 2
+        w_glob = torch.randint(0, data.n, (half,), generator=gen).to(device)
+        cvb = cit[b[1, half:]]
+        r = (torch.rand(b.shape[1] - half, generator=gen).to(device) * n_t[cvb]).long()
+        w = torch.cat([w_glob, order_t[lo_t[cvb] + r]])
+        logit = torch.cat([model.sym(feat(b[0]), feat(b[1])), model.sym(feat(b[0]), feat(w))])
+        y = torch.cat([torch.ones(b.shape[1], device=device), torch.zeros(b.shape[1], device=device)])
+        loss = F.binary_cross_entropy_with_logits(logit, y)
+        opt.zero_grad(); loss.backward(); opt.step()
+    model.eval()
+    with torch.no_grad():
+        for key, p in pairs.items():
+            for a in range(0, p.shape[1], 262144):
+                j = np.arange(a, min(a + 262144, p.shape[1]))
+                pa, pb = (torch.from_numpy(p[s, j]).to(device) for s in (0, 1))
+                scores[key][j] = model.sym(feat(pa), feat(pb)).cpu().numpy()
+    stats.update({f"n_fallback_{key}": 0 for key in pairs})       # the decoder scores every pair, no cosine fallback
+    stats.update(cut_edges=int(cut.sum()), macro_units=k, train_seconds=round(time.time() - t0, 1))
+    return scores, stats
+
+
 METHODS = {
     "M0":  lambda d, p, c, dev, g: run_full_graph(d, p, c, dev, g),
     "M1a": lambda d, p, c, dev, g: run_units(d, p, c, dev, g, halo=False, cut_supervision=False),
     "M1b": lambda d, p, c, dev, g: run_units(d, p, c, dev, g, halo=True, cut_supervision=False),
     "M2":  lambda d, p, c, dev, g: run_units(d, p, c, dev, g, halo=True, cut_supervision=True),
+    "M5":  lambda d, p, c, dev, g: run_m5(d, p, c, dev, g),
 }
 
 

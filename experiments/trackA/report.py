@@ -16,9 +16,9 @@ import numpy as np
 REPO = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 RUNS = os.path.join(REPO, "results", "trackA", "runs.jsonl")
 OUT = os.path.join(REPO, "results", "trackA", "T_A.md")
-METHODS = ["M0", "M1a", "M1b", "M2"]
+METHODS = ["M0", "M1a", "M1b", "M2", "M5"]
 NAMES = {"M0": "full graph (upper bound)", "M1a": "units, members only", "M1b": "units + halo (Phase 3 today)",
-         "M2": "units + halo + cut-edge supervision"}
+         "M2": "units + halo + cut-edge supervision", "M5": "units + cut-edge decoder (late fusion)"}
 COLS = [f"auc_{s}_{t}" for s in ("global", "matched") for t in ("all", "intra", "cross")]
 
 
@@ -79,7 +79,7 @@ def table(by, m1a):
         if cell["M1b"]:
             out += ["", "Δ AUC vs M1b (Phase 3 today):", "",
                     "| method | " + " | ".join(c[4:].replace("_", " ") for c in COLS) + " |", "|---|" + "---|" * len(COLS)]
-            for m in ("M0", "M1a", "M2"):
+            for m in ("M0", "M1a", "M2", "M5"):
                 if cell[m]:
                     out.append(f"| {m} | " + " | ".join(f"{mean(m, c) - mean('M1b', c):+.4f}" for c in COLS) + " |")
         # gap closed only where M0 is above M1b: elsewhere M0 is not an upper bound and the ratio has no meaning
@@ -95,6 +95,45 @@ def table(by, m1a):
     return "\n".join(out)
 
 
+def gate_table(path=RUNS, epochs=100):
+    """H-A at the pre-registered budget (every method `epochs` epochs, test split): share of the Stage 3a (M1a) ->
+    full graph (M0) gap on the union ("all") AUC that each candidate closes, per negative scheme, and its rows vs Stage
+    3a. Halo-budget variants are their own rows (method@R). H-A wants >= 50% on both schemes at <= 2x rows."""
+    rows = [json.loads(l) for l in open(path)] if os.path.exists(path) else []
+    m1a = m1a_rows(path)
+    by = defaultdict(list)
+    for r in rows:
+        c = dict(r["cfg"])
+        if r.get("split") != "test" or str(r.get("git", "")).endswith("-dirty") or c.get("epochs") != epochs:
+            continue
+        hb = c.pop("halo_budget", None)
+        if c != {"epochs": epochs, "batch": 65536, "hidden": 256, "lr": 0.005, "dropout": 0.5}:
+            continue
+        by[(r["dataset"], r["method"] + (f"@R={hb:g}" if hb else ""))].append(r)
+    out = [f"# Gate H-A ({epochs}-epoch protocol, test split, mean over seeds)", "",
+           "| dataset | method | n | rows vs M1a | gap closed, global all | gap closed, matched all | H-A |",
+           "|---|---|---|---|---|---|---|"]
+    for ds in sorted({k[0] for k in by}):
+        mean = lambda m, c: np.mean([r[c] for r in by[(ds, m)]])
+        if not by.get((ds, "M0")) or not by.get((ds, "M1a")):
+            continue
+        for m in sorted(k[1] for k in by if k[0] == ds and k[1] not in ("M0", "M1a")):
+            closed, ok = [], True
+            for c in ("auc_global_all", "auc_matched_all"):
+                den = mean("M0", c) - mean("M1a", c)
+                if den <= 1e-3:
+                    closed.append(f"M0 ≤ M1a ({mean('M0', c):.4f} vs {mean('M1a', c):.4f})")
+                    continue
+                share = (mean(m, c) - mean("M1a", c)) / den
+                closed.append(f"{share:+.0%}")
+                ok &= share >= 0.5
+            rr = np.mean([r["subgraph_rows"] for r in by[(ds, m)]]) / m1a[ds] if ds in m1a else float("nan")
+            ok &= rr <= 2.0
+            out.append(f"| {ds} | {m} | {len(by[(ds, m)])} | {rr:.2f}x | {closed[0]} | {closed[1]} | "
+                       f"{'meets' if ok else 'no'} |")
+    return "\n".join(out)
+
+
 def main():
     m1a = m1a_rows()
     os.makedirs(os.path.dirname(OUT), exist_ok=True)
@@ -102,7 +141,7 @@ def main():
         f.write("# Track A: link prediction across unit boundaries (generated, do not edit)\n\n"
                 "Protocol: docs/trackA_link_prediction.md. Runs with uncommitted code (`-dirty`) are excluded. "
                 "Rows vs M1a = subgraph rows read relative to Stage 3a (members only).\n\n"
-                + table(load(), m1a) + "\n\n" + val_table(load(split="val"), m1a) + "\n")
+                + gate_table() + "\n\n" + table(load(), m1a) + "\n\n" + val_table(load(split="val"), m1a) + "\n")
     print(OUT)
 
 
