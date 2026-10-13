@@ -22,16 +22,39 @@ NAMES = {"M0": "full graph (upper bound)", "M1a": "units, members only", "M1b": 
 COLS = [f"auc_{s}_{t}" for s in ("global", "matched") for t in ("all", "intra", "cross")]
 
 
-def load(path=RUNS):
+def load(path=RUNS, split="test"):
     rows = [json.loads(l) for l in open(path)] if os.path.exists(path) else []
     by = defaultdict(list)
     for r in rows:
-        if r.get("split") == "test" and not str(r.get("git", "")).endswith("-dirty"):
+        if r.get("split") == split and not str(r.get("git", "")).endswith("-dirty"):
             by[(r["dataset"], json.dumps(r["cfg"], sort_keys=True), r["method"])].append(r)
     return by
 
 
-def table(by):
+def m1a_rows(path=RUNS):
+    """Stage 3a rows per dataset (members only: the same for every config, seed and split)."""
+    rows = [json.loads(l) for l in open(path)] if os.path.exists(path) else []
+    return {ds: np.mean([r["subgraph_rows"] for r in rows if r["dataset"] == ds and r["method"] == "M1a"])
+            for ds in {r["dataset"] for r in rows if r["method"] == "M1a" and "subgraph_rows" in r}}
+
+
+def val_table(by, m1a):
+    """Validation runs used to pick budgets (epochs) and to trace AUC against the halo budget (rows read)."""
+    out = ["# Validation runs (budget choice and the halo-budget sweep; not test numbers)", "",
+           "| dataset | epochs | halo budget | method | n | global cross | matched cross | global all | matched all | "
+           "rows vs M1a | train s | runs |", "|---|---|---|---|---|---|---|---|---|---|---|---|"]
+    for (ds, cfg, m), rs in sorted(by.items(), key=lambda kv: (kv[0][0], json.loads(kv[0][1])["epochs"],
+                                                               json.loads(kv[0][1]).get("halo_budget", 99), kv[0][2])):
+        c = json.loads(cfg)
+        mean = lambda k: f"{np.mean([r[k] for r in rs]):.4f}"
+        rows = f"{np.mean([r['subgraph_rows'] for r in rs]) / m1a[ds]:.2f}x" if ds in m1a and "subgraph_rows" in rs[0] else "-"
+        out.append(f"| {ds} | {c['epochs']} | {c.get('halo_budget', 'full')} | {m} | {len(rs)} | {mean('auc_global_cross')} | "
+                   f"{mean('auc_matched_cross')} | {mean('auc_global_all')} | {mean('auc_matched_all')} | {rows} | "
+                   f"{np.mean([r['train_seconds'] for r in rs]):.0f} | {', '.join(r['run_id'] for r in rs)} |")
+    return "\n".join(out)
+
+
+def table(by, m1a):
     out = []
     for ds, cfg in sorted({(k[0], k[1]) for k in by}):
         cell = {m: by.get((ds, cfg, m), []) for m in METHODS}
@@ -43,7 +66,7 @@ def table(by):
                 f"{n_cross / n_pos:.1%}). Mean ± std over seeds.", "",
                 "| method | n | " + " | ".join(c[4:].replace("_", " ") for c in COLS) + " | train s | rows vs M1a |",
                 "|---|---|" + "---|" * len(COLS) + "---|---|"]
-        rows_m1a = np.mean([r["subgraph_rows"] for r in cell["M1a"]]) if cell["M1a"] else None
+        rows_m1a = m1a.get(ds)
         for m in METHODS:
             rs = cell[m]
             if not rs:
@@ -73,12 +96,13 @@ def table(by):
 
 
 def main():
-    by = load()
+    m1a = m1a_rows()
     os.makedirs(os.path.dirname(OUT), exist_ok=True)
     with open(OUT, "w", encoding="utf-8") as f:
         f.write("# Track A: link prediction across unit boundaries (generated, do not edit)\n\n"
-                "Protocol: docs/trackA_link_prediction.md. Runs with uncommitted code (`-dirty`) are excluded.\n\n"
-                + table(by) + "\n")
+                "Protocol: docs/trackA_link_prediction.md. Runs with uncommitted code (`-dirty`) are excluded. "
+                "Rows vs M1a = subgraph rows read relative to Stage 3a (members only).\n\n"
+                + table(load(), m1a) + "\n\n" + val_table(load(split="val"), m1a) + "\n")
     print(OUT)
 
 

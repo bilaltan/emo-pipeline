@@ -395,6 +395,7 @@ def main():
     if args.halo_budget:
         cfg["halo_budget"] = args.halo_budget       # only when set, so full-halo runs keep their report group
     device = torch.device(args.device)
+    code = git_hash()       # at start: the code this process loaded, even if the checkout changes while it runs
     cov = halo_coverage(data, pos)
     print(f"{args.dataset}: {data.n:,} nodes, {data.edges.shape[1]:,} train edges, {len(data.units)} units, "
           f"{pos.shape[1]:,} {args.split} positives; halo coverage of cross positives {cov}")
@@ -410,7 +411,7 @@ def main():
             res = evaluate(data, pos, negs, scores)
             rec = {"run_id": time.strftime("%Y%m%d-%H%M%S") + f"-{m}-s{seed}", "dataset": args.dataset,
                    "alg": args.alg, "method": m, "seed": seed, "split": args.split, "cfg": cfg,
-                   "git": git_hash(), "device": str(device), "halo_coverage_cross": cov,
+                   "git": code, "device": str(device), "halo_coverage_cross": cov,
                    **res, **neg_info, **stats,
                    "peak_gpu_mb": round(torch.cuda.max_memory_allocated() / 2**20) if device.type == "cuda" else None}
             print(json.dumps(rec))
