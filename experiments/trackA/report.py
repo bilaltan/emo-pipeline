@@ -117,7 +117,8 @@ def _bytes(by, ds, m, f):
 def gate_table(path=RUNS, epochs=100):
     """H-A at the pre-registered budget (every method `epochs` epochs, test split): share of the Stage 3a (M1a) ->
     full graph (M0) gap on the union ("all") AUC that each candidate closes, per negative scheme, and its rows vs Stage
-    3a. Halo-budget variants are their own rows (method@R). H-A wants >= 50% on both schemes at <= 2x rows."""
+    3a. Halo-budget variants are their own rows (method@R). H-A wants >= 50% on both schemes at <= 2x bytes; where M0
+    does not beat M1a there is no gap, and the candidate must then not fall below M1a."""
     rows = [json.loads(l) for l in open(path)] if os.path.exists(path) else []
     m1a = m1a_rows(path)
     fdim = {r["dataset"]: r["feat_dim"] for r in rows if "feat_dim" in r}
@@ -144,8 +145,10 @@ def gate_table(path=RUNS, epochs=100):
             closed, ok = [], True
             for c in ("auc_global_all", "auc_matched_all"):
                 den = mean("M0", c) - mean("M1a", c)
-                if den <= 1e-3:
-                    closed.append(f"M0 ≤ M1a ({mean('M0', c):.4f} vs {mean('M1a', c):.4f})")
+                if den <= 1e-3:     # no gap to close: the candidate must at least not fall below Stage 3a
+                    d = mean(m, c) - mean("M1a", c)
+                    closed.append(f"M0 ≤ M1a; vs M1a {d:+.4f}")
+                    ok &= d >= 0
                     continue
                 share = (mean(m, c) - mean("M1a", c)) / den
                 closed.append(f"{share:+.0%}")

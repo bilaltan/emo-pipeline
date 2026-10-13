@@ -143,7 +143,7 @@ def main():
                        "auc_global_all": g, "auc_matched_all": mt}
                 fh.write(json.dumps({**rec, **({"subgraph_rows": rows} if rows else {})}) + "\n")
         gate = R.gate_table(fake)
-        check("| toy | M2 | 1 | 1.50x | - | +75% | M0 ≤ M1a" in gate and "| toy | M2@R=0.2 | 1 | 1.20x | - | +50% |" in gate,
+        check("| toy | M2 | 1 | 1.50x | - | +75% | M0 ≤ M1a; vs M1a +0.0500 | meets |" in gate and "| toy | M2@R=0.2 | 1 | 1.20x | - | +50% |" in gate,
               "gate table: gap share per scheme, M0 <= M1a flagged, halo-budget variants as their own rows")
         print("\n  ALL PASSED")
     finally:
