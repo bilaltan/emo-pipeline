@@ -328,18 +328,24 @@ class Fusion(nn.Module):
         return self.dec.sym(self.phi(a), self.phi(b))
 
 
-def run_m5(data, pairs, cfg, device, gen):
+def run_m5(data, pairs, cfg, device, gen, local=True):
     """M5, late fusion for links: Stage 3a (M1a: members only, 1x rows) gives every member an embedding h_local; one
     shared decoder on [h_local, h_macro, x] of both endpoints, trained on all training edges, scores every pair. (Scoring
     intra pairs with the unit decoders and the rest with this one mixes two logit scales: a random cross negative of an
     intra positive would be compared across scorers.)
     h_local: the endpoint's embedding from its own unit's model. h_macro: its unit's row of a parameter-free 2-hop
     propagation (row-normalised, self-loops) of mean member features over the macro graph (units, cut-edge counts).
-    Extra data read beyond Stage 3a: the cut-edge list and one macro row per unit."""
+    Extra data read beyond Stage 3a: the cut-edge list and one macro row per unit.
+    local=False is M3 (ablation): the same decoder on [h_macro, x] only, no per-unit training."""
     import scipy.sparse as sp
     t0 = time.time()
-    H = np.zeros((data.n, cfg["hidden"]), np.float32)
-    scores, stats = run_units(data, pairs, cfg, device, gen, halo=False, cut_supervision=False, member_h=H)
+    H = np.zeros((data.n, cfg["hidden"] if local else 0), np.float32)
+    if local:
+        scores, stats = run_units(data, pairs, cfg, device, gen, halo=False, cut_supervision=False, member_h=H)
+    else:
+        scores = {key: np.zeros(p.shape[1], np.float32) for key, p in pairs.items()}
+        stats = {"units": len(data.units), "subgraph_rows": int((data.comm != NO_COMM).sum()), "halo_rows": 0,
+                 "subgraph_edges": 0, "train_edges": int(data.edges.shape[1])}
     k, valid = len(data.units), data.comm != NO_COMM
     ci = np.full(data.n, k, np.int64)               # k = "no unit": a zero macro row
     ci[valid] = np.searchsorted(data.units, data.comm[valid])
@@ -390,6 +396,7 @@ METHODS = {
     "M1a": lambda d, p, c, dev, g: run_units(d, p, c, dev, g, halo=False, cut_supervision=False),
     "M1b": lambda d, p, c, dev, g: run_units(d, p, c, dev, g, halo=True, cut_supervision=False),
     "M2":  lambda d, p, c, dev, g: run_units(d, p, c, dev, g, halo=True, cut_supervision=True),
+    "M3":  lambda d, p, c, dev, g: run_m5(d, p, c, dev, g, local=False),
     "M5":  lambda d, p, c, dev, g: run_m5(d, p, c, dev, g),
 }
 

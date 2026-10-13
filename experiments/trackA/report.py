@@ -16,9 +16,10 @@ import numpy as np
 REPO = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 RUNS = os.path.join(REPO, "results", "trackA", "runs.jsonl")
 OUT = os.path.join(REPO, "results", "trackA", "T_A.md")
-METHODS = ["M0", "M1a", "M1b", "M2", "M5"]
+METHODS = ["M0", "M1a", "M1b", "M2", "M3", "M5"]
 NAMES = {"M0": "full graph (upper bound)", "M1a": "units, members only", "M1b": "units + halo (Phase 3 today)",
-         "M2": "units + halo + cut-edge supervision", "M5": "units + cut-edge decoder (late fusion)"}
+         "M2": "units + halo + cut-edge supervision", "M3": "macro + features decoder (M5 without h_local)",
+         "M5": "units + cut-edge decoder (late fusion)"}
 COLS = [f"auc_{s}_{t}" for s in ("global", "matched") for t in ("all", "intra", "cross")]
 
 
@@ -79,7 +80,7 @@ def table(by, m1a):
         if cell["M1b"]:
             out += ["", "Δ AUC vs M1b (Phase 3 today):", "",
                     "| method | " + " | ".join(c[4:].replace("_", " ") for c in COLS) + " |", "|---|" + "---|" * len(COLS)]
-            for m in ("M0", "M1a", "M2", "M5"):
+            for m in ("M0", "M1a", "M2", "M3", "M5"):
                 if cell[m]:
                     out.append(f"| {m} | " + " | ".join(f"{mean(m, c) - mean('M1b', c):+.4f}" for c in COLS) + " |")
         # gap closed only where M0 is above M1b: elsewhere M0 is not an upper bound and the ratio has no meaning
