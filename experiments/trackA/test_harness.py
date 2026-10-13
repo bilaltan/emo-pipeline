@@ -89,6 +89,17 @@ def main():
         mine = set((int(v), c) for c, u in lay.items() for v in u["halo"])
         theirs = set(zip(data.halo_rows[0].tolist(), data.halo_rows[1].tolist()))
         check(mine == theirs, f"layout halo equals the Phase 2 halo rows ({len(mine)})")
+        for budget in (0.05, 0.2):
+            ok = True
+            for c, u in H.unit_layout(data, halo=True, budget=budget).items():
+                hv, cnt = np.unique(lay[c]["cut"][1], return_counts=True)
+                k = min(len(hv), int(budget * len(u["members"])))
+                kth = np.sort(cnt)[::-1][k - 1] if k else np.inf       # the k-th largest edge count into the unit
+                n_into = dict(zip(hv.tolist(), cnt.tolist()))
+                ok &= len(u["halo"]) == k and all(n_into[v] >= kth for v in u["halo"].tolist())
+                ok &= bool(np.isin(u["cut"][1], u["halo"]).all())
+            check(ok, f"halo budget {budget}: keeps the floor({budget} x members) halo vertices with the most edges "
+                      "into the unit, and only their cut edges")
 
         pos = data.test
         negs, _ = H.eval_negatives(data, pos, seed=1)
@@ -109,6 +120,9 @@ def main():
             keys = {f"auc_{s}_{t}" for s in ("global", "matched") for t in ("intra", "cross", "all")}
             check(ok and keys <= set(res), f"{name}: every pair scored, all strata reported "
                                            f"(all/global {res['auc_global_all']}, cross/matched {res['auc_matched_cross']})")
+        scores, stats = H.METHODS["M2"](data, pairs, {**cfg, "halo_budget": 0.05}, dev, torch.Generator().manual_seed(0))
+        check(all(np.isfinite(s).all() for s in scores.values()) and stats["halo_rows"] == 2 * int(0.05 * 40),
+              f"M2 with halo budget 0.05: every pair scored, {stats['halo_rows']} halo rows")
         print("\n  ALL PASSED")
     finally:
         shutil.rmtree(root, ignore_errors=True)

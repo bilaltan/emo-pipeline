@@ -194,8 +194,12 @@ def run_full_graph(data, pairs, cfg, device, gen):
     return scores, {"train_seconds": round(time.time() - t0, 1), "units": 1}
 
 
-def unit_layout(data, halo):
-    """Per unit: subgraph vertex list (members first, then halo) and its intra / cut edges."""
+def unit_layout(data, halo, budget=0.0):
+    """Per unit: subgraph vertex list (members first, then halo) and its intra / cut edges.
+
+    budget > 0 caps a unit's halo at floor(budget x members) vertices, keeping those with the most cut edges into the
+    unit (ties: lower id); cut edges to dropped halo vertices are dropped too. This bounds the rows a unit reads.
+    """
     cu, cv = data.comm[data.edges[0]], data.comm[data.edges[1]]
     intra = (cu == cv) & (cu != NO_COMM)
     e = data.edges
@@ -225,7 +229,10 @@ def unit_layout(data, halo):
         mem = order[a:b]
         d = by_unit.get(int(c), {})
         cut = d.get("cut", np.zeros((2, 0), dtype=np.int64))
-        hv = np.unique(cut[1]) if cut.shape[1] else np.zeros(0, dtype=np.int64)
+        hv, cnt = np.unique(cut[1], return_counts=True) if cut.shape[1] else (np.zeros(0, dtype=np.int64), None)
+        if budget > 0 and len(hv) > int(budget * len(mem)):
+            hv = np.sort(hv[np.lexsort((hv, -cnt))[:int(budget * len(mem))]])
+            cut = cut[:, np.isin(cut[1], hv)]
         out[int(c)] = {"members": mem, "halo": hv, "intra": d.get("intra", np.zeros((2, 0), dtype=np.int64)),
                        "cut": cut}
     return out
@@ -234,11 +241,11 @@ def unit_layout(data, halo):
 def run_units(data, pairs, cfg, device, gen, halo, cut_supervision):
     """Train one model per unit and score every pair side that falls in that unit."""
     t0 = time.time()
-    lay = unit_layout(data, halo)
+    lay = unit_layout(data, halo, cfg.get("halo_budget", 0.0))
     sides = {}   # pair set -> (side0 scores, side1 scores) filled per unit
     for k, p in pairs.items():
         sides[k] = [np.full(p.shape[1], np.nan, dtype=np.float32), np.full(p.shape[1], np.nan, dtype=np.float32)]
-    stats = {"units": 0, "subgraph_rows": 0, "halo_rows": 0, "train_edges": 0}
+    stats = {"units": 0, "subgraph_rows": 0, "halo_rows": 0, "subgraph_edges": 0, "train_edges": 0}
     for c, u in lay.items():
         verts = np.concatenate([u["members"], u["halo"]]) if halo else u["members"]
         if len(u["members"]) < 2:
@@ -263,6 +270,7 @@ def run_units(data, pairs, cfg, device, gen, halo, cut_supervision):
             dst_pool = np.arange(len(u["members"]))
         stats["units"] += 1; stats["subgraph_rows"] += len(verts)
         stats["halo_rows"] += len(u["halo"]) if halo else 0
+        stats["subgraph_edges"] += ei.shape[1]
         stats["train_edges"] += pos.shape[1]
         if pos.shape[1] == 0:
             continue
@@ -369,6 +377,8 @@ def main():
     ap.add_argument("--hidden", type=int, default=256)
     ap.add_argument("--lr", type=float, default=0.005)
     ap.add_argument("--dropout", type=float, default=0.5)
+    ap.add_argument("--halo-budget", type=float, default=0.0,
+                    help="M1b / M2: cap each unit's halo at this many x its members (0 = full 1-hop halo)")
     ap.add_argument("--max-pos", type=int, default=0, help="evaluate on the first N positives only (smoke)")
     ap.add_argument("--device", default="cuda" if torch.cuda.is_available() else "cpu")
     ap.add_argument("--out", default=os.path.join(REPO, "results", "trackA", "runs.jsonl"))
@@ -382,6 +392,8 @@ def main():
     negs, neg_info = eval_negatives(data, pos, seed=1000 + (args.split == "test"))
     pairs = {"pos": pos, **negs}
     cfg = {k: getattr(args, k) for k in ("epochs", "batch", "hidden", "lr", "dropout")}
+    if args.halo_budget:
+        cfg["halo_budget"] = args.halo_budget       # only when set, so full-halo runs keep their report group
     device = torch.device(args.device)
     cov = halo_coverage(data, pos)
     print(f"{args.dataset}: {data.n:,} nodes, {data.edges.shape[1]:,} train edges, {len(data.units)} units, "
