@@ -14,7 +14,8 @@ TIME=""; [ -x /usr/bin/time ] && TIME="/usr/bin/time -v"
 $TIME timeout 5400 bash scripts/wsl_run.sh python scripts/run_local_pipeline.py --dataset "$DS" --alg louvain \
   --link-split 50000 --link-seed 0 --stop-after 2 --cores 4 --driver-mem 8g --tiny-comm misc "$@" \
   --json-out "$HOME/lakegrl/trackA_prep.jsonl" >> "$LOG" 2>&1
-echo "pipeline rc=$?" >> "$LOG"
+PRC=$?; echo "pipeline rc=$PRC" >> "$LOG"
 timeout 1800 bash scripts/wsl_run.sh python experiments/trackA/export_cache.py --dataset "$DS-lp" --alg louvain >> "$LOG" 2>&1
-echo "export rc=$? end $(date)" >> "$LOG"
+ERC=$?; echo "export rc=$ERC end $(date)" >> "$LOG"
 tr '\r' '\n' < "$LOG" | grep -a -v "Stage " | grep -a -E "Phase|Link split|communit|rc=|Maximum resident|Elapsed|Error|Traceback|n_units|n_halo|n_members|export_seconds|^start|end " | tail -40
+exit $(( PRC || ERC ))

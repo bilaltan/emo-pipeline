@@ -9,5 +9,6 @@ LOCK=/mnt/c/Users/btan4/Desktop/GNN/idea3/idea3/scripts/gpu_lock.py
 LOG=$HOME/lakegrl/trackA_${DS}_$(date +%Y%m%d-%H%M%S).log
 bash scripts/wsl_run.sh python "$LOCK" run --owner lakegrl --wait -1 -- \
   python experiments/trackA/harness.py --dataset "$DS" --methods "$METHODS" --seeds "$SEEDS" "$@" > "$LOG" 2>&1
-echo "rc=$? log=$LOG"
+RC=$?; echo "rc=$RC log=$LOG"
 grep -v -E "Warning|warnings.warn|sparse_coo_tensor|run_backward" "$LOG" | tail -12
+exit $RC
