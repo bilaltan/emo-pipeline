@@ -111,3 +111,13 @@ resolution, and record that in the doc, rather than running anything larger.
     mostly cross pairs scored on another logit scale.
 - ogbn-arxiv (`ogbn-arxiv-lp`) added as the third dataset: 476 Louvain communities → 392 units; halo 0.98× the members.
   Phases 0–2 took 2 min.
+- Tuned Reddit test, complete (test split, 3 seeds, budgets chosen on validation; cross-unit AUC, global / matched):
+  - M2 (300 epochs): 0.935 / 0.905. M1b (300 epochs): 0.903 / 0.873.
+  - M0 (1000 epochs): 0.871 / 0.810. Its seed 1 is the clean rerun 20261013-002456-M0-s1 (0.866 / 0.804).
+  - M0 at 300 epochs: 0.870 / 0.807, so the full graph plateaus at ≈ 0.87.
+  - So with tuned budgets the halo still beats the full graph on cross-unit links, by +0.064 / +0.095 for M2.
+  - The excluded seed-1 record (0.682) used the same seed and code but did not reproduce. Full-graph training at 1000
+    epochs is nondeterministic on the GPU and collapsed once in five runs. It is not counted (its record is `-dirty`)
+    and is mentioned here so the collapse is on record.
+  - The M1b / M2 records of this run show the commit that was HEAD when each record was written (535c575 … 40a3ac5).
+    All of them ran 3f0c583's harness, whose M1b / M2 code is unchanged since.
