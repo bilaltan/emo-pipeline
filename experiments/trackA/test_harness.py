@@ -121,6 +121,11 @@ def main():
             check(ok and keys <= set(res), f"{name}: every pair scored, all strata reported "
                                            f"(all/global {res['auc_global_all']}, cross/matched {res['auc_matched_cross']})")
         _, s1a = H.METHODS["M1a"](data, pairs, cfg, dev, torch.Generator().manual_seed(0))
+        _, s0 = H.METHODS["M0"](data, pairs, cfg, dev, torch.Generator().manual_seed(0))
+        check(s0["read_bytes_est"] == data.n * (8 + 4 * 8) + data.edges.shape[1] * 16
+              and s1a["read_bytes_est"] == s1a["subgraph_rows"] * 40 + s1a["subgraph_edges"] * 16,
+              f"bytes estimate: rows x (id + float32 features) + edges x 16 (M0 {s0['read_bytes_est']}, "
+              f"M1a {s1a['read_bytes_est']})")
         _, s5 = H.METHODS["M5"](data, pairs, cfg, dev, torch.Generator().manual_seed(0))
         check(s5["subgraph_rows"] == s1a["subgraph_rows"] and s5["halo_rows"] == 0
               and s5["cut_edges"] == int((cu != cv).sum()),
@@ -138,7 +143,7 @@ def main():
                        "auc_global_all": g, "auc_matched_all": mt}
                 fh.write(json.dumps({**rec, **({"subgraph_rows": rows} if rows else {})}) + "\n")
         gate = R.gate_table(fake)
-        check("| toy | M2 | 1 | 1.50x | +75% | M0 ≤ M1a" in gate and "| toy | M2@R=0.2 | 1 | 1.20x | +50% |" in gate,
+        check("| toy | M2 | 1 | 1.50x | - | +75% | M0 ≤ M1a" in gate and "| toy | M2@R=0.2 | 1 | 1.20x | - | +50% |" in gate,
               "gate table: gap share per scheme, M0 <= M1a flagged, halo-budget variants as their own rows")
         print("\n  ALL PASSED")
     finally:

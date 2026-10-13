@@ -114,6 +114,12 @@ def eval_negatives(data, pos, seed):
 
 # ----------------------------------------------------------------------------- model
 
+def bytes_est(data, rows, edges):
+    """Bytes a method reads, estimated from uncompressed rows (id + float32 features) and edges (two int64 ids).
+    Parquet compression changes the absolute numbers; ratios between methods are what the gate uses."""
+    return int(rows * (8 + 4 * data.x.shape[1]) + edges * 16)
+
+
 def mean_adj(n, src, dst, device):
     """Row-normalised sparse adjacency for mean aggregation over both directions."""
     s = np.concatenate([src, dst]); d = np.concatenate([dst, src])
@@ -191,7 +197,8 @@ def run_full_graph(data, pairs, cfg, device, gen):
         h = enc(x, A)
         scores = {k: dec.sym(h[torch.from_numpy(p[0]).to(device)], h[torch.from_numpy(p[1]).to(device)]).cpu().numpy()
                   for k, p in pairs.items()}
-    return scores, {"train_seconds": round(time.time() - t0, 1), "units": 1}
+    return scores, {"train_seconds": round(time.time() - t0, 1), "units": 1,
+                    "read_bytes_est": bytes_est(data, data.n, data.edges.shape[1])}
 
 
 def unit_layout(data, halo, budget=0.0):
@@ -314,6 +321,7 @@ def run_units(data, pairs, cfg, device, gen, halo, cut_supervision, member_h=Non
         stats[f"n_fallback_{k}"] = int(none.sum())
         scores[k] = sc
     stats["train_seconds"] = round(time.time() - t0, 1)
+    stats["read_bytes_est"] = bytes_est(data, stats["subgraph_rows"], stats["subgraph_edges"])
     return scores, stats
 
 
@@ -388,6 +396,8 @@ def run_m5(data, pairs, cfg, device, gen, local=True):
                 scores[key][j] = model.sym(feat(pa), feat(pb)).cpu().numpy()
     stats.update({f"n_fallback_{key}": 0 for key in pairs})       # the decoder scores every pair, no cosine fallback
     stats.update(cut_edges=int(cut.sum()), macro_units=k, train_seconds=round(time.time() - t0, 1))
+    # members' rows and intra edges (Stage 3a; M3 reads the rows only) + the cut-edge list + one macro row per unit
+    stats["read_bytes_est"] = bytes_est(data, stats["subgraph_rows"] + k, stats["subgraph_edges"] + int(cut.sum()))
     return scores, stats
 
 
@@ -490,7 +500,7 @@ def main():
             res = evaluate(data, pos, negs, scores)
             rec = {"run_id": time.strftime("%Y%m%d-%H%M%S") + f"-{m}-s{seed}", "dataset": args.dataset,
                    "alg": args.alg, "method": m, "seed": seed, "split": args.split, "cfg": cfg,
-                   "git": code, "device": str(device), "halo_coverage_cross": cov,
+                   "git": code, "device": str(device), "halo_coverage_cross": cov, "feat_dim": int(data.x.shape[1]),
                    **res, **neg_info, **stats,
                    "peak_gpu_mb": round(torch.cuda.max_memory_allocated() / 2**20) if device.type == "cuda" else None}
             print(json.dumps(rec))

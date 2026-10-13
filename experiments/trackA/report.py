@@ -102,6 +102,7 @@ def gate_table(path=RUNS, epochs=100):
     3a. Halo-budget variants are their own rows (method@R). H-A wants >= 50% on both schemes at <= 2x rows."""
     rows = [json.loads(l) for l in open(path)] if os.path.exists(path) else []
     m1a = m1a_rows(path)
+    fdim = {r["dataset"]: r["feat_dim"] for r in rows if "feat_dim" in r}
     by = defaultdict(list)
     for r in rows:
         c = dict(r["cfg"])
@@ -112,8 +113,11 @@ def gate_table(path=RUNS, epochs=100):
             continue
         by[(r["dataset"], r["method"] + (f"@R={hb:g}" if hb else ""))].append(r)
     out = [f"# Gate H-A ({epochs}-epoch protocol, test split, mean over seeds)", "",
-           "| dataset | method | n | rows vs M1a | gap closed, global all | gap closed, matched all | H-A |",
-           "|---|---|---|---|---|---|---|"]
+           "Bytes vs M1a: estimated bytes read (uncompressed rows + edge pairs) relative to Stage 3a; '-' for runs that "
+           "predate the estimate. H-A wants >= 50% of the gap on both schemes at <= 2x Stage 3a's bytes (rows when "
+           "bytes are missing).", "",
+           "| dataset | method | n | rows vs M1a | bytes vs M1a | gap closed, global all | gap closed, matched all | H-A |",
+           "|---|---|---|---|---|---|---|---|"]
     for ds in sorted({k[0] for k in by}):
         mean = lambda m, c: np.mean([r[c] for r in by[(ds, m)]])
         if not by.get((ds, "M0")) or not by.get((ds, "M1a")):
@@ -129,9 +133,16 @@ def gate_table(path=RUNS, epochs=100):
                 closed.append(f"{share:+.0%}")
                 ok &= share >= 0.5
             rr = np.mean([r["subgraph_rows"] for r in by[(ds, m)]]) / m1a[ds] if ds in m1a else float("nan")
-            ok &= rr <= 2.0
-            out.append(f"| {ds} | {m} | {len(by[(ds, m)])} | {rr:.2f}x | {closed[0]} | {closed[1]} | "
-                       f"{'meets' if ok else 'no'} |")
+            # M1a runs that predate the estimate: members' rows + intra edges (= its train edges), same formula
+            f = fdim.get(ds)
+            b1 = [r.get("read_bytes_est") or (r["subgraph_rows"] * (8 + 4 * f) + r["train_edges"] * 16 if f else None)
+                  for r in by[(ds, "M1a")]]
+            b1 = [b for b in b1 if b]
+            bm = [r["read_bytes_est"] for r in by[(ds, m)] if "read_bytes_est" in r]
+            br = np.mean(bm) / np.mean(b1) if b1 and bm else None
+            ok &= (br if br is not None else rr) <= 2.0
+            out.append(f"| {ds} | {m} | {len(by[(ds, m)])} | {rr:.2f}x | {f'{br:.2f}x' if br is not None else '-'} | "
+                       f"{closed[0]} | {closed[1]} | {'meets' if ok else 'no'} |")
     return "\n".join(out)
 
 
