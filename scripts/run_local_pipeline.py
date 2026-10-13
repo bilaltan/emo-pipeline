@@ -175,8 +175,8 @@ def ingest_reddit(spark, name="reddit"):
 def ingest_ogb_raw(spark, name, ogb_name):
     """OGB node datasets from DATA_ROOT/raw/ogb with the library-agnostic loader and official split.
 
-    ogbn-products is stored in OGB's generic format (processed/data_processed), so no PyG or DGL
-    conversion is needed.
+    ogbn-products and ogbn-arxiv are stored in OGB's generic format (processed/data_processed), so no PyG or DGL
+    conversion is needed. Edges become unique undirected pairs (arxiv's citations are directed).
     """
     from utils.common import _patch_torch_load
     _patch_torch_load()
@@ -336,8 +336,8 @@ def main():
         n_nodes, n_edges, n_classes, feat_dim = ingest_deezer(spark, store=DS)
     elif args.dataset == "reddit":
         n_nodes, n_edges, n_classes, feat_dim = ingest_reddit(spark, DS)
-    elif args.dataset == "ogbn-products":
-        n_nodes, n_edges, n_classes, feat_dim = ingest_ogb_raw(spark, DS, "ogbn-products")
+    elif args.dataset in ("ogbn-products", "ogbn-arxiv"):
+        n_nodes, n_edges, n_classes, feat_dim = ingest_ogb_raw(spark, DS, args.dataset)
     elif args.dataset.startswith("ogbn-"):
         n_nodes, n_edges, n_classes, feat_dim = ingest_ogb(spark, args.dataset, store=DS)
     else:
