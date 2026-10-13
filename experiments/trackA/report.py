@@ -96,6 +96,24 @@ def table(by, m1a):
     return "\n".join(out)
 
 
+def _bytes(by, ds, m, f):
+    """Mean estimated bytes of (dataset, method) runs. Runs that predate read_bytes_est are back-filled with the same
+    formula: M1a and M2 train on exactly their subgraph edges, and M1b reads the same edges as M2 at the same halo."""
+    est = []
+    for r in by.get((ds, m), []):
+        e = r.get("subgraph_edges")
+        if e is None and m.split("@")[0] in ("M1a", "M2"):
+            e = r.get("train_edges")
+        elif e is None and m.startswith("M1b"):
+            twin = by.get((ds, "M2" + m[3:]), [])
+            e = np.mean([t["train_edges"] for t in twin if "train_edges" in t]) if twin else None
+        if "read_bytes_est" in r:
+            est.append(r["read_bytes_est"])
+        elif f and e is not None and "subgraph_rows" in r:
+            est.append(r["subgraph_rows"] * (8 + 4 * f) + e * 16)
+    return float(np.mean(est)) if est else None
+
+
 def gate_table(path=RUNS, epochs=100):
     """H-A at the pre-registered budget (every method `epochs` epochs, test split): share of the Stage 3a (M1a) ->
     full graph (M0) gap on the union ("all") AUC that each candidate closes, per negative scheme, and its rows vs Stage
@@ -133,13 +151,8 @@ def gate_table(path=RUNS, epochs=100):
                 closed.append(f"{share:+.0%}")
                 ok &= share >= 0.5
             rr = np.mean([r["subgraph_rows"] for r in by[(ds, m)]]) / m1a[ds] if ds in m1a else float("nan")
-            # M1a runs that predate the estimate: members' rows + intra edges (= its train edges), same formula
-            f = fdim.get(ds)
-            b1 = [r.get("read_bytes_est") or (r["subgraph_rows"] * (8 + 4 * f) + r["train_edges"] * 16 if f else None)
-                  for r in by[(ds, "M1a")]]
-            b1 = [b for b in b1 if b]
-            bm = [r["read_bytes_est"] for r in by[(ds, m)] if "read_bytes_est" in r]
-            br = np.mean(bm) / np.mean(b1) if b1 and bm else None
+            b1, bm = (_bytes(by, ds, k, fdim.get(ds)) for k in ("M1a", m))
+            br = bm / b1 if b1 and bm else None
             ok &= (br if br is not None else rr) <= 2.0
             out.append(f"| {ds} | {m} | {len(by[(ds, m)])} | {rr:.2f}x | {f'{br:.2f}x' if br is not None else '-'} | "
                        f"{closed[0]} | {closed[1]} | {'meets' if ok else 'no'} |")
