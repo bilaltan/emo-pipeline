@@ -136,3 +136,23 @@ resolution, and record that in the doc, rather than running anything larger.
     at 1000 epochs is unstable on arxiv as well as on Reddit.
   - So the arxiv gate result depends on the budget: at the protocol it holds, and tuned it is a draw that depends on
     the negative scheme. Both go into the write-up.
+- Products validation, M0 at 300 epochs (seed 0): cross 0.940 / 0.862, about the 100-epoch test level (0.940 / 0.854).
+  Products' full halo reads an estimated 1.79× Stage 3a's bytes (2.32× its rows), so **H-A holds on products** for M1b
+  and M2 at the protocol (gap closed +105% / +235% and +106% / +231%).
+- Reddit halo-budget curve (validation, 300 epochs, seed 0; M2 cross AUC global / matched, estimated bytes):
+  - full halo 0.935 / 0.908 (3.1× Stage 3a);
+  - R = 1: 0.892 / 0.867 (2.11 GB);
+  - R = 0.5: 0.858 / 0.831 (1.81 GB);
+  - R = 0.25: 0.816 / 0.792 (1.62 GB).
+  - For reference: Stage 3a ≈ 1.3 GB, full graph 0.873 / 0.810.
+  - Keeping the halo vertices with the most edges into the unit loses AUC smoothly; at the gate's 2× limit M2 still
+    beats the full graph on cross-unit links.
+- Reddit at the protocol (test, 100 epochs, 3 seeds):
+  - M2@R=1 closes 57% of the "all" gap on global negatives at 1.61× bytes and stays above Stage 3a on matched
+    negatives (+0.026), so it **meets H-A**. M1b@R=1 closes 49% (no).
+  - M5 (late fusion) closes 78% at 1.13× bytes (+0.016 vs Stage 3a on matched), so it **meets H-A**.
+  - M3 (M5 without h_local) falls below Stage 3a (−132%, −0.121): the local embeddings carry M5. The same holds on
+    arxiv, where M5 closes 94% / 137% at 1.04× bytes and M3 −302% / −284%.
+- Gate bookkeeping: where M0 does not beat Stage 3a (Reddit, matched negatives: 0.773 vs 0.815) there is no gap to
+  close; since 25ba8da a candidate must then at least not fall below Stage 3a.
+- Open for the H-A decision: products M2@R=1 and M5 (queued). Reddit and arxiv already have a variant that meets.
