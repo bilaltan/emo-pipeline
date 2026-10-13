@@ -30,3 +30,22 @@ features) were never run.
   LakeReplay's `io_accounting`), labelled "modelled".
 
 Order: B1 on arxiv (smoke, runner job `grl-trackB-layout-arxiv`) → reddit → products (largest; alone among big jobs).
+
+## 4. B1 results (2026-10-13, local, Louvain units of the Track A stores, `tiny = misc`)
+Per-unit reads through Phase 3b's loader: data selected by each unit's predicates, summed over units (median of 2
+repeats). Rows, id sums and edges per community are identical across layouts on every dataset. Results are in
+`results/trackB/partition_layout.jsonl`.
+
+| dataset | units | range (default) | range + 1 MB row groups | hive (dir per unit) | hive_merged + row groups |
+|---|---|---|---|---|---|
+| ogbn-arxiv-lp | 392 (37 ≥ 100 members) | 3.75 GB, 4.7 s | 0.67 GB, 1.3 s | 0.18 GB, 0.8 s (760 files < 1 MB) | 0.49 GB, 0.9 s |
+| reddit-lp | 25 | 3.30 GB, 5.6 s | 3.32 GB, 2.1 s | 3.30 GB, 4.0 s | 3.31 GB, 2.3 s |
+| ogbn-products-lp | 1,063 | 79.6 GB, 84.5 s | 4.93 GB, 8.8 s | 2.68 GB, 7.1 s (2,025 files < 1 MB) | 3.76 GB, 5.3 s |
+
+- The default range layout makes every unit read files that span many communities. That costs nothing on Reddit (25
+  large units) and is 21× (arxiv) and 30× (products) more data than one directory per unit.
+- Small row groups recover most of it inside the same files: 5.6× less on arxiv, 16× on products.
+- One directory per unit reads the least but writes thousands of sub-MB files. Merging the minor units into shared
+  directories, with small row groups, stays within 1.4× (products) to 2.7× (arxiv) of it with 20–30× fewer files.
+- First shape of the layout rule: the cost of the default layout grows with the number of units and the share of small
+  units. Unit count and size distribution are the inputs to test in B2 (leave-one-dataset-out, plus WikiCS).
