@@ -156,3 +156,13 @@ resolution, and record that in the doc, rather than running anything larger.
 - Gate bookkeeping: where M0 does not beat Stage 3a (Reddit, matched negatives: 0.773 vs 0.815) there is no gap to
   close; since 25ba8da a candidate must then at least not fall below Stage 3a.
 - Open for the H-A decision: products M2@R=1 and M5 (queued). Reddit and arxiv already have a variant that meets.
+- Products at the protocol (test, 100 epochs, 3 seeds):
+  - The halo capped at R = 1 (1.53× bytes) meets H-A: M1b@R=1 +103% / +229%, M2@R=1 +104% / +225%; cross 0.950 / 0.912
+    for M2@R=1 vs 0.958 / 0.923 with the full halo.
+  - M5 meets H-A at 1.05× bytes (+69% / +132%) but is well below the halo on cross-unit links (0.815 / 0.700). M3 does
+    not meet it (−58% / −792%).
+- Products validation, complete (seed 0): M0 best at 300 epochs (0.940 / 0.862; 100: 0.935 / 0.852; 1000: 0.897 / 0.771).
+  M1b best at 100 (0.9524 vs 0.9522 at 300). M2 best at 300 (0.957 / 0.928). Tuned test queued: M0 300 and M2 300 ×
+  3 seeds; M1b's 100-epoch test already exists.
+- **Gate decision: GO** (docs/trackA_gate_report.md). M2@R=1 meets H-A on Reddit and products (and arxiv) at the
+  protocol, and M5 meets it on all three at about 1.1× Stage 3a's bytes.
