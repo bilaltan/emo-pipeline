@@ -166,3 +166,5 @@ resolution, and record that in the doc, rather than running anything larger.
   3 seeds; M1b's 100-epoch test already exists.
 - **Gate decision: GO** (docs/trackA_gate_report.md). M2@R=1 meets H-A on Reddit and products (and arxiv) at the
   protocol, and M5 meets it on all three at about 1.1× Stage 3a's bytes.
+- Products tuned test (test, 3 seeds; cross AUC global / matched): M0 (300 epochs) 0.945 / 0.865, M1b (100) 0.955 / 0.921,
+  M2 (300) 0.958 / 0.927. The halo beats the tuned full graph on products, as on Reddit (gate report §4).

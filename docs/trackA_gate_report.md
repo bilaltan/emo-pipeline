@@ -50,14 +50,17 @@ estimated: rows × (id + float32 features) + edge pairs × 16 bytes.
 | arxiv | 0.590 / 0.556 | 0.825 / 0.767 | 0.826 / 0.753 | (= full halo) | 0.810 / 0.680 | 0.849 / 0.723 |
 
 ## 4. With tuned budgets (validation-chosen epochs; robustness, not the gate)
-Budgets were chosen on the validation split (seed 0) per method from {100, 300, 1000} (M0) and {100, 300} (units).
+Budgets were chosen on the validation split (seed 0) per method from {100, 300, 1000} (M0) and {100, 300} (units), by
+the cross-unit AUC with global negatives. So with tuned budgets the halo beats the full graph on Reddit and products,
+and arxiv splits by negative scheme.
 - **Reddit** (M0 1000, M1b / M2 300): M2 0.935 / 0.905, M1b 0.903 / 0.873, full graph 0.871 / 0.810 cross AUC. The halo
   stays ahead (+0.064 / +0.095 for M2). M0 at 300 epochs gives the same 0.870 / 0.807: it has plateaued.
 - **arxiv** (M0 1000, M1b / M2 300): full graph 0.874 / 0.756, M1b 0.828 / 0.781, M2 0.825 / 0.763. The full graph wins
   with global negatives (+0.046); the halo wins with matched negatives (+0.025). The 100-epoch protocol under-trains M0
   on arxiv, so the arxiv gate result depends on the budget.
-- **products** (validation): full graph best at 300 epochs (0.940 / 0.862; 1000 epochs drops to 0.897 / 0.771); M1b /
-  M2 0.952–0.957 / 0.921–0.928 at 100–300. Tuned test: M2 at 300 queued (`grl-products-tuned-M2-e300`).
+- **products** (M0 300, M1b 100, M2 300, chosen on validation): M2 0.958 / 0.927, M1b 0.955 / 0.921, full graph
+  0.945 / 0.865 cross AUC. The halo stays ahead (+0.013 / +0.062 for M2). On validation the full graph peaks at 300
+  epochs and drops at 1000 (0.897 / 0.771).
 - **Full-graph training at 1000 epochs is unstable.** It collapsed once on Reddit (seed 1: 0.682; the same seed rerun
   gave 0.866), dropped on arxiv seed 2 (0.853 vs 0.883–0.888) and on products validation (0.897 vs 0.940 at 300).
 
