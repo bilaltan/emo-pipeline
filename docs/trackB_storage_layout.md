@@ -126,6 +126,17 @@ methods for our GRL workload."*
   every Python worker loads it. At B ≥ 16 the saving is gone. Next: a bench that writes the hybrid layout and measures
   real bytes and wall time per unit, the identical-rows check, and the combination with Track A's halo budget R.
 
+### Status (2026-10-14)
+- The 01:34 Windows-update reboot stopped the runner. Restarted 10:51; P1 Coauthor is running again.
+- **P4.** In every B1 store, each Phase 3b bin holds exactly one unit. Phase 3b makes one bin per unit up to 2000
+  units (`num_bins = n if n <= 2000`). So "write in bin order" changes nothing there: hive is already
+  one-directory-per-bin. P4 is measurable only above 2000 units, where 1000 bins hold several units each. It runs on
+  the LPA partitions (P1) and on arxiv with `tiny = keep`. New layout `hive_bin` (layout bench): `storage_part` = the
+  unit's Phase 3b bin, so a bin's task reads one directory. Compared against range_rg and hive_merged_rg at 1 MB row
+  groups → `results/trackB/P4_bin_layout.jsonl`.
+- **P5** queued: the join-vs-MV bench (new `--tiny` flag) on WikiCS, Coauthor-CS / Physics, arxiv and Reddit (misc),
+  → `results/trackB/P5_join_vs_mv.jsonl`.
+
 Order: P1 → P2 (uses B1 / B2 data now) → P3 → P4 / P5 → P6 / P7. Output: `results/trackB/*.jsonl`, generated tables, and
 an EDBT / VLDB-experiments-style write-up. Track A (link prediction, gate GO) is done and goes into the journal version
 unchanged.
