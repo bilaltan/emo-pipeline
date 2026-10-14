@@ -134,6 +134,10 @@ methods for our GRL workload."*
   the LPA partitions (P1) and on arxiv with `tiny = keep`. New layout `hive_bin` (layout bench): `storage_part` = the
   unit's Phase 3b bin, so a bin's task reads one directory. Compared against range_rg and hive_merged_rg at 1 MB row
   groups → `results/trackB/P4_bin_layout.jsonl`.
+- **P1 Coauthor-CS / Physics done** (wide rows, 22–28 units). P2 advisor rerun on 6 stores: on both new stores, the B2
+  rule and the √ rule each pick 0.25 MB with regret 1.00. Phase 2's default 128 MB is 2.1× / 3.3× slower. The rules
+  still agree everywhere, and Reddit's 4 / 16 / 64 MB sweep is what can separate them. These Coauthor walls ran next
+  to LakeFresh's CPU job, so they are noisy.
 - **P5** queued: the join-vs-MV bench (new `--tiny` flag) on WikiCS, Coauthor-CS / Physics, arxiv and Reddit (misc),
   → `results/trackB/P5_join_vs_mv.jsonl`.
 
