@@ -98,6 +98,34 @@ methods for our GRL workload."*
 | P6 | Prefetch | next bins' row groups | overlap reads with training in Phase 3b's loader; wall time |
 | P7 | Cost model | bytes / requests / time of any (layout, unit) | fit on P1–P5 runs; S3 request costs modelled (LakeReplay's price table); one EMR validation run once AWS spend is approved |
 
+### Status (2026-10-13, night)
+- **P1** queued: Coauthor-CS / Physics, then LPA units of WikiCS and arxiv. They wait for RAM behind LakeFresh's
+  products E2 run.
+- **P2, first pass** (`experiments/trackB/advisor.py`, `results/trackB/P2_advisor.md`). Cost model: a unit read costs
+  a·bytes + b·row groups, and each unit reads about one extra row group per table. That gives
+  **s\* = √(β · table / (2 · units))**, where β = b / a is the per-row-group overhead in bytes, a property of the storage
+  environment (local: about 0.4–0.8 MB). With β fitted on the other datasets (leave one dataset out), the √ rule and
+  the B2 rule pick the same measured size on all four stores. Both are within 1.0–1.2× of the best wall time, and
+  Phase 2's default 128 MB row groups are 2.6–9.9× off.
+  - The data cannot yet separate the two rules. The Reddit sweep (4 / 16 / 64 MB) decides it: B2 allows up to
+    126 MB there, while the √ rule predicts about 5 MB.
+  - Reddit already shows an effect outside the model. 128 MB row groups take 5.6 s against 2.1 s at 1 MB, for the same
+    bytes, probably because of less parallel decode.
+  - Repeats of the same setting differ by up to 30% (arxiv 1 MB: 1.33 s vs 0.95 s), so wall times within about 1.3× are
+    ties. The 0.5 / 2 MB bracket runs are queued.
+- **P3, step 1** (`experiments/trackB/halo_reuse.py`, `results/trackB/P3_halo_reuse.md`). This **corrects the
+  direction in the table above.** Phase 2 materializes the halo per unit, so a boundary vertex in r units' halos is read
+  r times. A hot table shared by B readers costs B reads per vertex. So the read-optimal rule is: **replicate halo
+  vertices with reuse ≤ B, and share the rest.** It is decidable before Phase 2 writes, and per-unit inputs stay
+  identical. Rows read relative to the full halo, at B = 2 / 4:
+  - Reddit: 0.47 / 0.66 (halo reuse median 4, max 24; Stage 3a alone is 0.19);
+  - products: 0.75 / 0.88;
+  - arxiv: 0.87 / 0.96.
+
+  B is the number of readers that each load the hot table once: nodes, if it is cached on node-local disk; cores, if
+  every Python worker loads it. At B ≥ 16 the saving is gone. Next: a bench that writes the hybrid layout and measures
+  real bytes and wall time per unit, the identical-rows check, and the combination with Track A's halo budget R.
+
 Order: P1 → P2 (uses B1 / B2 data now) → P3 → P4 / P5 → P6 / P7. Output: `results/trackB/*.jsonl`, generated tables, and
 an EDBT / VLDB-experiments-style write-up. Track A (link prediction, gate GO) is done and goes into the journal version
 unchanged.
