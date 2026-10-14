@@ -464,7 +464,7 @@ def main():
             rec = emit({"kind": "layout", "tiny": tiny, "layout": layout, "write_s": write_s, "storage": st,
                         "snapshot_cold_s": snap_s, "pyarrow_crawl_s": crawl_s,
                         "direct": direct,
-                        "units": len(comms),
+                        "units": len(comms), "rg_mb": args.rg_mb if layout.endswith("_rg") else None,
                         "spark_full_scan_s": scan_s, "spark_point": point})
             results[layout] = (rec, all(d["matches_spark"] for d in direct.values()), spark_check)
             if not args.keep_tables:
