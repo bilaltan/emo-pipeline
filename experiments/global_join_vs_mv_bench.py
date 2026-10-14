@@ -381,6 +381,8 @@ def main():
     ap.add_argument("--min-size", type=int, default=100)
     ap.add_argument("--tiny", default="drop", choices=["keep", "misc", "drop"],
                     help="Phase 2 tiny_comm_handling (Track B stores use misc)")
+    ap.add_argument("--rg-mb", type=float, default=None,
+                    help="parquet row-group size of Phase 2's writes (default: Spark's 128 MB)")
     ap.add_argument("--caps", type=int, nargs="+", default=[10000, 0],
                     help="max_nodes_per_community values (0 = whole communities); 10000 is Phase 3b's default")
     ap.add_argument("--modes", nargs="+", default=list(MODES), choices=MODES)
@@ -398,7 +400,7 @@ def main():
     run_id = time.strftime("%Y%m%d-%H%M%S")
 
     def emit(rec):
-        rec = {"run_id": run_id, "cores": args.cores, "tiny": args.tiny, **rec}
+        rec = {"run_id": run_id, "cores": args.cores, "tiny": args.tiny, "rg_mb": args.rg_mb, **rec}
         with open(args.out, "a") as fh:
             fh.write(json.dumps(rec) + "\n")
 
@@ -406,6 +408,8 @@ def main():
     if args.mem == "auto":
         args.mem = "4g" if ram is None or ram < 15 else "6g" if ram < 30 else "10g"
     spark = build_spark(args)
+    if args.rg_mb:   # Track B P2's row-group choice for the materialized table
+        spark.sparkContext._jsc.hadoopConfiguration().set("parquet.block.size", str(int(args.rg_mb * (1 << 20))))
     get_paths = make_paths(args)
     print(f"\n== {args.dataset}/{args.alg}  local[{args.cores}]  driver {args.mem}  "
           f"RAM {ram:.1f} GB  run {run_id}" if ram else f"\n== {args.dataset}/{args.alg}  run {run_id}")
