@@ -75,3 +75,29 @@ per unit, summed over units, relative to one directory per unit (hive, the minim
   unit (B1). Setting `parquet.block.size` from the rule is a one-line change in Phase 2.
 - Next (B3 / B4): measure the rule on EMR / S3, where per-request cost adds to bytes (needs AWS approval), and check it
   under appends (LakeFresh E4 layouts).
+
+## 6. Plan from 2026-10-13: predictive storage optimization (primary LakeGRL track)
+Advisor's direction: *"while keeping the current LakeGRL structure, brainstorm and test predictive storage-optimization
+methods for our GRL workload."*
+- **Constraint (structure kept).** Phases 0–4 and their outputs stay as they are. Methods may only change *physical*
+  choices: write options (row-group and file size, sort and cluster keys, partitioning, replication of rows) and
+  reader options (prefetching, read order). Every method is checked to give identical per-unit rows, id sums and edges,
+  as the layout bench already does.
+- **Predictive** means the storage decision is taken *before* Phase 2 writes, from what Phases 1–2 already know (the
+  community / unit sizes, the halo, the Phase 3b bin manifest). It is not tuned after the fact by trying layouts.
+- **Metric.** Bytes, files, row groups and modelled GET requests read by Phase 3 / 3b per unit, plus wall time; write
+  time and file counts as the cost side. Regret = bytes of the predicted choice / bytes of the best choice measured.
+
+| Id | Method | What is predicted | Test |
+|---|---|---|---|
+| P1 | Workload capture | — | Per-unit read traces (files, row groups, bytes, order) on more stores: + Coauthor-CS / Physics (very wide rows), + LPA partitions of the existing stores (many small units), + K (tiny threshold) variants |
+| P2 | Layout advisor | best layout, row-group and file size from unit count, size distribution, tiny share, bytes / row, halo ratio | leave-one-dataset-out regret; the B2 rule (row group ≤ table / units) is the baseline, against a small learned model (linear / GBT) |
+| P3 | Halo replication | each boundary vertex's reuse (how many units read it) | replicate high-reuse halo rows into each unit's partition, fetch the rest from a shared table; bytes and requests vs the full materialized halo; a per-unit halo budget R from unit stats, with Track A's AUC as the constraint |
+| P4 | Workload-ordered writes | Phase 3b's bin order (known from the manifest) | write p2 files in bin order, one or a few bins per file; files and row groups per bin vs range |
+| P5 | Materialize vs join | cost of a materialized partition view vs a normalized table plus join | the existing global_join_vs_mv bench on all stores; does a stats-based rule pick the cheaper one? |
+| P6 | Prefetch | next bins' row groups | overlap reads with training in Phase 3b's loader; wall time |
+| P7 | Cost model | bytes / requests / time of any (layout, unit) | fit on P1–P5 runs; S3 request costs modelled (LakeReplay's price table); one EMR validation run once AWS spend is approved |
+
+Order: P1 → P2 (uses B1 / B2 data now) → P3 → P4 / P5 → P6 / P7. Output: `results/trackB/*.jsonl`, generated tables, and
+an EDBT / VLDB-experiments-style write-up. Track A (link prediction, gate GO) is done and goes into the journal version
+unchanged.
