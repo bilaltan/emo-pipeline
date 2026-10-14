@@ -138,7 +138,32 @@ methods for our GRL workload."*
   rule and the √ rule each pick 0.25 MB with regret 1.00. Phase 2's default 128 MB is 2.1× / 3.3× slower. The rules
   still agree everywhere, and Reddit's 4 / 16 / 64 MB sweep is what can separate them. These Coauthor walls ran next
   to LakeFresh's CPU job, so they are noisy.
-- **P5** queued: the join-vs-MV bench (new `--tiny` flag) on WikiCS, Coauthor-CS / Physics, arxiv and Reddit (misc),
+- **P2 decided by Reddit's sweep** (1 / 4 / 16 / 64 / 128 MB: 2.1 / 2.5 / 3.1 / 4.4 / 5.6 s). The B2 rule allows
+  64 MB → regret 2.04. The √ rule picks 4 MB → 1.15. Over 8 stores (incl. 2 LPA): **√ rule max regret 1.46,
+  B2 2.04, default 128 MB 1.5–9.9×.** The √ rule is the P2 predictor. Its worst case is WikiCS/LPA (0.25 vs a best of
+  1 MB, at 0.14 MB per unit).
+- **P3 hybrid halo bench done** (`results/trackB/halo_hybrid.jsonl`; identical unit rows everywhere). Hybrid vs full
+  halo, at B = 1 / 2 / 4 readers:
+
+  | store | bytes read | bytes stored | write time | local wall |
+  |---|---|---|---|---|
+  | Reddit | 0.35 / 0.48 / 0.66 | 0.35–0.46 | 0.34–0.44 | 0.93–1.07 |
+  | products | 0.75 / 0.83 / 0.92 | 0.63–0.77 | 0.60–0.73 | 0.96–1.02 |
+  | arxiv | 0.92 / 0.96 / 0.99 | 0.75–0.91 | 0.56–0.70 | 1.08–1.28 |
+
+  Bytes and write time follow step 1's prediction. Local wall time does not move, because local disk plus the page
+  cache hides the bytes. The saving has to show on S3, which the P7 cost model or an EMR run must check.
+- **P4: the test missed its regime.** The LPA partitions have 367 (WikiCS) and 1123 (arxiv) units, and arxiv with
+  `tiny = keep` has 476. All are below 2000, so `hive_bin` is again one directory per unit, i.e. hive. A side result
+  from the same runs: with many small units, per-unit directories beat range_rg (1 MB): arxiv/LPA reads 234 vs
+  1175 MB and takes 6.6 vs 27.5 s. hive_merged_rg takes 19.4 s. So layout choice belongs in the advisor, not only the
+  row-group size. A real P4 test needs > 2000 units (products with `tiny = keep`, or LPA on products / Reddit).
+- **P5 first pass** (`results/trackB/P5_join_vs_mv.jsonl`, cap none, identical checksums). MV vs global join wall
+  time: WikiCS 1.35 vs 2.16 s, Coauthor-CS 5.1 vs 5.2, Coauthor-Physics 13.9 vs 11.0, arxiv 20.7 vs 14.5. Phase 2
+  writes the normalized table about 1.5× faster. **Confounded:** MV used the default 128 MB row groups and read 3.95 GB
+  for a 172 MB table on arxiv. Rerun queued with the √-rule row group (`--rg-mb`, `grl-p5-join-rg`), and Reddit at
+  128 and 4 MB.
+- P5 initially queued: the join-vs-MV bench (new `--tiny` flag) on WikiCS, Coauthor-CS / Physics, arxiv and Reddit (misc),
   → `results/trackB/P5_join_vs_mv.jsonl`.
 
 Order: P1 → P2 (uses B1 / B2 data now) → P3 → P4 / P5 → P6 / P7. Output: `results/trackB/*.jsonl`, generated tables, and
