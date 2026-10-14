@@ -129,7 +129,7 @@ def run_phase2_both(spark, args, get_paths, emit):
             t0 = time.perf_counter()
             run_phase2(spark, spark.sparkContext, [args.dataset], [tag], use_global_mapping=True,
                        min_size=args.min_size, get_paths_fn=get_paths, timing=timing, results=res,
-                       expand_boundary_nodes=True, tiny_comm_handling="drop", force_rerun=True,
+                       expand_boundary_nodes=True, tiny_comm_handling=args.tiny, force_rerun=True,
                        partition_table_mode=form)
             wall = time.perf_counter() - t0
             rec = {"kind": "phase2", "dataset": args.dataset, "alg": args.alg, "form": form,
@@ -379,6 +379,8 @@ def main():
     ap.add_argument("--bench-dir", required=True,
                     help="scratch dir for both Phase 2 outputs (its tables are deleted and rewritten)")
     ap.add_argument("--min-size", type=int, default=100)
+    ap.add_argument("--tiny", default="drop", choices=["keep", "misc", "drop"],
+                    help="Phase 2 tiny_comm_handling (Track B stores use misc)")
     ap.add_argument("--caps", type=int, nargs="+", default=[10000, 0],
                     help="max_nodes_per_community values (0 = whole communities); 10000 is Phase 3b's default")
     ap.add_argument("--modes", nargs="+", default=list(MODES), choices=MODES)
@@ -396,7 +398,7 @@ def main():
     run_id = time.strftime("%Y%m%d-%H%M%S")
 
     def emit(rec):
-        rec = {"run_id": run_id, "cores": args.cores, **rec}
+        rec = {"run_id": run_id, "cores": args.cores, "tiny": args.tiny, **rec}
         with open(args.out, "a") as fh:
             fh.write(json.dumps(rec) + "\n")
 
