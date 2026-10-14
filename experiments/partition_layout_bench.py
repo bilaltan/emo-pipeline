@@ -13,6 +13,9 @@ Physical layout of the materialized partition table (Phase 2's p2_nodes / p2_edg
                several communities
   hive_merged_size  (optional) as hive_merged, but also packs communities whose
                data is below --merge-min-mb, not only minor ones
+  hive_bin     (optional, Track B P4) .partitionBy("storage_part") with one directory
+               per Phase 3b bin (phase3b_bins): a bin's task reads one directory.
+               Same as hive while communities <= 2000 (one community per bin)
   hive_naive   (optional) .partitionBy("community_id") on input that is not
                clustered by community (hash-partitioned by id, as rows come out
                of Phase 2's joins) and without repartitioning by the key: every
@@ -55,7 +58,7 @@ sys.path.insert(0, ROOT)
 os.environ["PYTHONPATH"] = ROOT + (os.pathsep + os.environ["PYTHONPATH"] if os.environ.get("PYTHONPATH") else "")
 
 LAYOUT_CHOICES = ("range", "range_rg", "hive", "hive_merged", "hive_merged_rg", "hive_merged_size",
-                  "hive_naive")
+                  "hive_bin", "hive_naive")
 
 
 # ------------------------------------------------------------------ spark
@@ -369,6 +372,14 @@ def main():
                 for df, k, key in ((nodes, "p2_nodes", "id"), (edges, "p2_edges", "src")):
                     (df.repartition(nparts, key).write.format("delta").mode("overwrite")
                        .partitionBy("community_id").save(p[k]))
+            elif layout == "hive_bin":
+                import pandas as pd
+                pl = pd.DataFrame([(c, f"b{k}") for k, cs in enumerate(
+                    phase3b_bins(stats, spark.sparkContext.defaultParallelism)) for c in cs],
+                    columns=["community_id", "storage_part"])
+                nb = min(200, pl["storage_part"].nunique())
+                write_layout(with_storage_part(spark, nodes, pl), p["p2_nodes"], "hive_merged", nb)
+                write_layout(with_storage_part(spark, edges, pl), p["p2_edges"], "hive_merged", nb)
             elif layout in ("hive_merged", "hive_merged_rg", "hive_merged_size"):
                 pl = plan_size if layout == "hive_merged_size" else plan
                 nb = min(200, max(1, pl["storage_part"].nunique()))
