@@ -49,3 +49,29 @@ repeats). Rows, id sums and edges per community are identical across layouts on 
   directories, with small row groups, stays within 1.4× (products) to 2.7× (arxiv) of it with 20–30× fewer files.
 - First shape of the layout rule: the cost of the default layout grows with the number of units and the share of small
   units. Unit count and size distribution are the inputs to test in B2 (leave-one-dataset-out, plus WikiCS).
+- WikiCS (33 units, 18 tiny): range 0.18 GB vs hive 0.05 GB (3.6×).
+
+## 5. B2 result: a row-group rule for the range layout (2026-10-13)
+In Phase 2's range layout the number of files equals the number of major communities, so files are shared by many units.
+A unit then reads every row group that overlaps its id range. The row-group size is therefore the knob, and the sweep
+varied it (0.25 / 1 / 4 / 16 MB) on arxiv, WikiCS and products (`results/trackB/rg_sweep.jsonl`). Bytes are selected
+per unit, summed over units, relative to one directory per unit (hive, the minimum):
+
+| dataset | units | table / units | 0.25 MB | 1 MB | 4 MB | 16 MB |
+|---|---|---|---|---|---|---|
+| ogbn-arxiv-lp | 392 | 0.44 MB | 1.6× | 3.7× | 9.7× | 20.9× |
+| WikiCS | 33 | 1.53 MB | 1.1× | 1.4× | 2.5× | 3.4× |
+| ogbn-products-lp | 1,063 | 2.40 MB | 1.20× (23 s) | 1.84× (8 s) | 4.25× (12 s) | 9.75× (24 s) |
+| reddit-lp (B1) | 25 | 126 MB | – | 1.0× | – | – |
+
+- **Rule:** row-group size ≤ table bytes / number of units keeps per-unit reads within 2× of the one-directory-per-unit
+  layout. It does so without that layout's thousands of sub-MB files: the files stay as many as the major communities.
+  The rule held on every dataset. Every setting at or under the bound stayed within 2× (arxiv 0.25 MB, WikiCS 0.25 / 1 MB,
+  products 0.25 / 1 MB, Reddit), and every setting above it exceeded 2×.
+- The excess grows roughly linearly with the row-group size: each unit reads about one extra row group at its edges.
+- Much smaller row groups cut bytes further but cost time in per-row-group overhead (products: 1.20× bytes at 0.25 MB
+  but 23 s, against 1.84× at 1 MB and 8 s). So the setting to use is the largest row group under the bound.
+- LakeGRL writes Phase 2 with Parquet's default 128 MB row groups. On products that reads 30× the necessary bytes per
+  unit (B1). Setting `parquet.block.size` from the rule is a one-line change in Phase 2.
+- Next (B3 / B4): measure the rule on EMR / S3, where per-request cost adds to bytes (needs AWS approval), and check it
+  under appends (LakeFresh E4 layouts).
