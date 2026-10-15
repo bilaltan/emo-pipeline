@@ -192,15 +192,16 @@ _WCACHE = {}
 def load_group(args):
     """Read one group of communities with one predicate (as a Phase 3b worker reads
     its bin), then split per community: (community -> (rows, id sum, edges))."""
-    nodes_spec, edges_spec, comm_to_part, cs = args
-    from utils.partition_layout import open_dataset, unit_filter
+    nodes_spec, edges_spec, comm_to_part, cs, prune = args
+    from utils.partition_layout import open_dataset, unit_dataset, unit_filter
     out = []
     for spec, cols in ((nodes_spec, ["id", "features", "community_id"]),
                        (edges_spec, ["src", "dst", "community_id"])):
         key = (spec["url"], len(spec["files"]), spec.get("part_col"))
         if key not in _WCACHE:
             _WCACHE[key] = open_dataset(spec)
-        out.append(_WCACHE[key].to_table(columns=cols, filter=unit_filter(spec, cs, comm_to_part)))
+        d = unit_dataset(_WCACHE[key], cs) if prune else _WCACHE[key]
+        out.append(d.to_table(columns=cols, filter=unit_filter(spec, cs, comm_to_part)))
     n, e = out
     res = {int(c): [0, 0, 0] for c in cs}
     if n.num_rows:
@@ -218,8 +219,8 @@ def load_group(args):
     return {c: tuple(v) for c, v in res.items()}
 
 
-def direct_loads(pool, lay, groups, repeats):
-    tasks = [(lay["nodes"], lay["edges"], lay["comm_to_part"], [int(c) for c in g]) for g in groups]
+def direct_loads(pool, lay, groups, repeats, prune=False):
+    tasks = [(lay["nodes"], lay["edges"], lay["comm_to_part"], [int(c) for c in g], prune) for g in groups]
     walls, check = [], None
     for _ in range(repeats + 1):                  # first pass = warm-up
         t0 = time.perf_counter()
@@ -425,10 +426,13 @@ def main():
             else:
                 crawl_s = timed(crawl, args.repeats)
                 idx_n, idx_e = rowgroup_index(lay["nodes"]), rowgroup_index(lay["edges"])
-                for mode, groups in groupings.items():
+                # *_pruned: the same reads, each scan given only the files whose community_id statistics can
+                # hold its units (utils.partition_layout.unit_dataset; a reader option, rows unchanged)
+                for mode, groups in list(groupings.items()) + [(m + "_pruned", groupings[m])
+                                                               for m in ("unit", "p3b_bins")]:
                     fn_, rn_, bn_ = planned_reads(idx_n, groups, lay["nodes"], c2p)
                     fe_, re_, be_ = planned_reads(idx_e, groups, lay["edges"], c2p)
-                    walls, chk = direct_loads(pool, lay, groups, args.repeats)
+                    walls, chk = direct_loads(pool, lay, groups, args.repeats, prune=mode.endswith("_pruned"))
                     direct[mode] = {"tasks": len(groups), "wall_s": walls,
                                     "files_selected": fn_ + fe_, "row_groups_selected": rn_ + re_,
                                     "bytes_selected": bn_ + be_, "matches_spark": None}

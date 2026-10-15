@@ -182,3 +182,42 @@ def unit_filter(spec, comm_ids, comm_to_part=None):
         parts = sorted({comm_to_part[int(c)] for c in comm_ids if int(c) in comm_to_part})
         f = ds.field(STORAGE_PART).isin(parts) & f
     return f
+
+
+_RANGES = {}
+
+
+def unit_dataset(dataset, comm_ids):
+    """The dataset restricted to the files whose community_id statistics can hold one of comm_ids.
+
+    Without it, a scan of the range layout visits every file of the table for every unit (no directory to prune),
+    which dominates when there are many small units. Each file's footer is read once per process and cached; files
+    without community_id statistics (hive: the value is the directory) are kept. Rows read are unchanged.
+    """
+    import pyarrow.dataset as ds
+    want = sorted({int(c) for c in comm_ids})
+    if not want:
+        return dataset
+    keep = []
+    for frag in dataset.get_fragments():
+        r = _RANGES.get(frag.path)
+        if r is None:
+            frag.ensure_complete_metadata()
+            lo = hi = None
+            for rg in frag.row_groups:
+                st = (rg.statistics or {}).get("community_id")
+                if not st or st.get("min") is None:
+                    lo = hi = None
+                    break
+                lo = st["min"] if lo is None else min(lo, st["min"])
+                hi = st["max"] if hi is None else max(hi, st["max"])
+            r = _RANGES[frag.path] = (lo, hi)
+        lo, hi = r
+        if lo is None:
+            keep.append(frag)
+            continue
+        import bisect
+        i = bisect.bisect_left(want, lo)
+        if i < len(want) and want[i] <= hi:
+            keep.append(frag)
+    return ds.FileSystemDataset(keep, dataset.schema, dataset.format, dataset.filesystem)
