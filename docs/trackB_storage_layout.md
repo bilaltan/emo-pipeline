@@ -333,6 +333,22 @@ methods for our GRL workload."*
     - Units split into blocks: the join wins (Reddit 1.5–1.7×, products 1.44×).
     - 128 MB row groups favour the join.
     - Block-ordered writes (P4b) are the open way to remove MV's block re-reads.
+- **End to end, arxiv Louvain** (`grl-e2e-arxiv-rg`, 116 min; `run_local_pipeline.py` Phases 2–3b, SAGE 200 epochs,
+  412 units, the same Phase 1 communities, Phase 3b loaders with row-group pruning; results/trackB/e2e.jsonl).
+  Default 128 MB vs √ 0.25 MB row groups:
+
+  | | Phase 2 | Phase 3 | Phase 3b | total |
+  |---|---|---|---|---|
+  | 128 MB | 25.3 s | 1,451 s | 1,874 s | 3,391 s |
+  | 0.25 MB | 26.5 s | 1,511 s | 1,914 s | 3,489 s |
+
+  - Same accuracy in both (Stage 3b node acc 0.6445, link AUC 0.8765). The √ run is 3% slower, within run-to-run
+    noise.
+  - Training dominates. The emulated cold reads of the same units take 27.4 s (128 MB) and 9.3 s (√) under S3
+    latency. That is 1.5% and 0.5% of Phase 3b, so on arxiv the row group would not show end to end on S3 either.
+  - So Track B's read savings matter end to end only where reads are a real share of a unit's time: many or large
+    units, wide rows, few epochs, or faster (GPU) training. Next, products (1,063 units, emulated reads 389 s
+    default vs 46 s √) measures that share on the store with the largest read saving (`grl-e2e-products`).
 - **P4 / P5 real runs queued:** arxiv/LPA with `tiny = keep` (16,250 units, about 16 per bin), products with
   `tiny = keep` (4,389 units), and P5 on products at the √-rule row group (0.5 MB) and at 128 MB.
 - P5 initially queued: the join-vs-MV bench (new `--tiny` flag) on WikiCS, Coauthor-CS / Physics, arxiv and Reddit (misc),
