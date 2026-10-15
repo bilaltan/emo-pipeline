@@ -287,9 +287,10 @@ methods for our GRL workload."*
 - **P4 rerun with hive_bin_rg and row-group pruning** (a411836 + bcc8d19; rows identical). Per-bin reads, pruned:
   - Products: range_rg 1 MB **6.3 s** (write 97 s, 150 files) vs hive_bin_rg 7.8 s (write 140 s, 2,280 files).
     The 128 MB hive_bin took 10.1 s.
-  - arxiv/LPA: range_rg 0.25 MB **3.2 s** (8.0 s with file-level pruning, 34.8 s plain) vs the 128 MB hive_bin at
-    5.6 s. hive_bin_rg is running (`grl-p4-binrg-arxiv-lpa`).
-  - So far P4's bin-aligned layout won only against a reader that did not skip row groups. With row-group pruning,
+  - arxiv/LPA (`grl-p4-binrg-arxiv-lpa`): range_rg 0.25 MB **3.2 s** (8.0 s with file-level pruning, 34.8 s
+    plain; write 8.6 s, 123 files, 4.75 GB selected) vs hive_bin_rg 4.1–4.7 s (5.4 s unpruned; write 19.0 s,
+    1,191 files, 0.24 GB selected). hive_bin_rg selects 20× fewer bytes but pays 10× the files and loses.
+  - P4's bin-aligned layout won only against a reader that did not skip row groups. With row-group pruning,
     range at the √ row group is fastest on both stores, with the fewest files and the fastest write.
 - **S3 emulator, products** (`grl-emu-products`; Louvain misc, 1,063 units, 2.7 GB; GET = 20 ms + 80 MB/s; Phase 3b
   bins, cold; rows identical):
