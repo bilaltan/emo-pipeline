@@ -267,6 +267,23 @@ methods for our GRL workload."*
     the layout here.
   - Open: per-bin reads of range_rg with row-group pruning were not measured locally. The products P4 run (now
     running) uses bcc8d19.
+- **P4 products** (`grl-p4-bins-products-keep`, 39 min; Louvain `tiny = keep`: 4,389 units, median 2 rows, largest
+  357,519; 1,000 bins of about 4.4 units; rows identical; with row-group pruning, bcc8d19). Wall / planned bytes:
+
+  | layout | write | files | per unit | per bin | unit pruned | bin pruned |
+  |---|---|---|---|---|---|---|
+  | range_rg 1 MB | 95.5 s | 150 | 38.4 s / 9.2 GB | 12.4 s / 6.3 GB | 9.5 s | **6.3 s** |
+  | hive | 245 s | 8,778 | 54.7 s / 2.7 GB | 19.0 s / 2.7 GB | 35.6 s | 14.8 s |
+  | hive_merged_rg | 124 s | 156 | 13.1 s / 8.2 GB | 7.0 s / 6.1 GB | 8.9 s | 6.5 s |
+  | hive_bin | 93.5 s | 2,289 | 23.8 s / 2.8 GB | 11.5 s / 2.7 GB | 20.5 s | 10.1 s |
+
+  - Here hive_bin loses: 10.1 s against 6.3–6.5 s for pruned range_rg and hive_merged_rg. But the comparison is
+    confounded, because hive_bin (like hive) kept Spark's 128 MB row groups while the other two use 1 MB.
+    Products' bins are dominated by a few large units, which then decode as single big row groups. Added
+    `hive_bin_rg` (a411836) and queued reruns on products and arxiv/LPA against range_rg with row-group pruning
+    (`grl-p4-binrg-*`).
+  - The predicate-based directory pruning in `unit_dataset` makes hive's per-unit reads 1.5× faster (54.7 →
+    35.6 s): each scan no longer evaluates all 8,778 fragments.
 - **P4 / P5 real runs queued:** arxiv/LPA with `tiny = keep` (16,250 units, about 16 per bin), products with
   `tiny = keep` (4,389 units), and P5 on products at the √-rule row group (0.5 MB) and at 128 MB.
 - P5 initially queued: the join-vs-MV bench (new `--tiny` flag) on WikiCS, Coauthor-CS / Physics, arxiv and Reddit (misc),
