@@ -285,6 +285,8 @@ def main():
     # community_id) or hive_merged (small communities packed into shared partitions).
     ap.add_argument("--p2-layout", default="range", choices=["range", "hive", "hive_merged"])
     ap.add_argument("--merge-target-rows", type=int, default=250_000)
+    # Parquet row-group size of the run's writes (Track B P2: sqrt rule); default Spark's 128 MB
+    ap.add_argument("--p2-rg-mb", type=float, default=None)
     args = ap.parse_args()
 
     builder = (SparkSession.builder.appName("lakegrl-local-pipeline").master(f"local[{args.cores}]")
@@ -302,6 +304,8 @@ def main():
     spark = configure_spark_with_delta_pip(builder).getOrCreate()
     spark.sparkContext.setLogLevel("ERROR")
     sc = spark.sparkContext
+    if args.p2_rg_mb:
+        sc._jsc.hadoopConfiguration().set("parquet.block.size", str(int(args.p2_rg_mb * (1 << 20))))
 
     t_all = time.time()
     DS = args.dataset
@@ -423,7 +427,7 @@ def main():
     record = {
         "dataset": DS, "algorithm": args.alg, "model": args.model, "epochs": args.epochs,
         "partition_table": args.partition_table, "node_loading": args.node_loading,
-        "p2_layout": args.p2_layout,
+        "p2_layout": args.p2_layout, "p2_rg_mb": args.p2_rg_mb,
         "n_nodes": n_nodes, "n_edges": n_edges, "n_classes": n_classes,
         "n_communities_phase1": r1.get((DS, args.alg), {}).get("n_comms"),
         "n_units_phase3": a3.get("n_communities"),
