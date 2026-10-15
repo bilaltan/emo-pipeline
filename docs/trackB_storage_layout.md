@@ -233,9 +233,40 @@ methods for our GRL workload."*
   `unit_dataset` on every scan. `test_partition_layout`, `test_partition_join`, `test_unit_dataset` and `test_s3_emu`
   pass. The helper now checks only the first fragment of a partitioned dataset. The 4.6 → 5.1 s cost on hive came
   from listing all 2,246 fragments on every scan; this has not been re-measured.
-- **Next:** row-group pruning in `unit_dataset` (`ParquetFileFragment.subset(row_group_ids=…)`), also inside the
-  partitions that a hive_merged scan selects. It should bring the hive_merged_rg and range_rg reads down to the
-  planned bytes.
+- **Row-group pruning** (bcc8d19). `unit_dataset` now also skips row groups (`ParquetFileFragment.subset`), and for
+  hive / hive_merged it first prunes directories with the scan predicate. Rerun on arxiv/LPA through the S3
+  emulator (`grl-emu-arxiv-lpa-rgprune`; cold wall / bytes, warm bytes; rows identical):
+
+  | layout | plain | file pruning | row-group pruning |
+  |---|---|---|---|
+  | range_rg 0.25 | 185 s / 68 GB | 28.8 s / 1.9 GB | 24.0 s / 0.59 GB (warm 0.54) |
+  | hive_merged_rg | 147 s / 52 GB | not applied | 22.1 s / 0.55 GB (warm 0.52) |
+  | hive | 31.9 s / 0.30 GB | not applied | 33.2 s / 0.30 GB |
+
+  Warm bytes now match the planned bytes from the row-group index (range_rg: 536 MB planned, 536 MB read), so
+  P3's byte model holds once the reader skips row groups. Under latency both √-row-group layouts now beat hive
+  (22–24 s vs 33 s).
+- **P4 done in its regime** (`grl-p4-bins-arxiv-lpa-keep`, 162 min; arxiv/LPA `tiny = keep`: 16,250 units in 1,000
+  Phase 3b bins of about 16; rows identical in all layouts; local disk, 4 processes). This run predates
+  bcc8d19, so "pruned" is file-level only and leaves the partitioned layouts unchanged. Read wall / planned bytes:
+
+  | layout | write | files | per unit | per bin | per bin, pruned |
+  |---|---|---|---|---|---|
+  | range_rg 0.25 | 8.8 s | 246 | 558 s / 5.0 GB | 38.9 s / 4.75 GB | 8.0 s |
+  | hive | 102 s | 30,582 | 661 s / 0.24 GB | 47.8 s / 0.24 GB | 47.4 s |
+  | hive_merged_rg | 11.8 s | 328 | 393 s / 5.24 GB | 24.8 s / 4.69 GB | 24.9 s |
+  | hive_bin | 18.1 s | 2,387 | 73 s / 2.38 GB | **5.6 s / 0.23 GB** | 5.8 s |
+
+  - When bins hold many units, the bin-aligned layout wins. Each bin reads its own directory: 0.23 GB in total vs
+    4.7 GB for range_rg and hive_merged_rg. With 0.25 MB row groups and a median unit of 4 rows, every tiny unit
+    costs a whole row group. hive_bin is 7× faster than range_rg per bin and 1.4× faster than file-pruned
+    range_rg.
+  - The costs: 2× range_rg's write time and 10× its files. Hive's 16,250 directories cost 102 s to write and are
+    slowest to read.
+  - Reading per unit instead of per bin is 10–14× slower in every layout, so Phase 3b's binning matters more than
+    the layout here.
+  - Open: per-bin reads of range_rg with row-group pruning were not measured locally. The products P4 run (now
+    running) uses bcc8d19.
 - **P4 / P5 real runs queued:** arxiv/LPA with `tiny = keep` (16,250 units, about 16 per bin), products with
   `tiny = keep` (4,389 units), and P5 on products at the √-rule row group (0.5 MB) and at 128 MB.
 - P5 initially queued: the join-vs-MV bench (new `--tiny` flag) on WikiCS, Coauthor-CS / Physics, arxiv and Reddit (misc),
