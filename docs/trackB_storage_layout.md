@@ -169,6 +169,25 @@ methods for our GRL workload."*
   the join. MV there still reads 803 MB of node and edge chunks, against the join's 37 MB from pyarrow plus its Spark
   scan. The halo ratio does not predict the winner (WikiCS: materialized table 3.7× raw, and MV wins; arxiv 2.0×,
   and the join wins), so a rule needs more stores. Reddit (128 and 4 MB) runs next.
+- **2026-10-14 22:00: LakeGRL-only period** (Bilal). Added:
+  - **Stats-pruned unit reads** (`utils.partition_layout.unit_dataset`, a reader option, rows unchanged). The range
+    layout has no directory to prune, so every unit's scan visits every file. The helper gives each scan only the
+    files whose `community_id` statistics can hold its units; each footer is read once per worker. First probe:
+    arxiv per-unit reads 2.3× faster (0.46 → 0.20 s, 37 files). The layout bench now records `unit_pruned` and
+    `p3b_bins_pruned` for every layout. The suspected cause of arxiv/LPA's 27.5 s vs hive's 6.6 s is being tested
+    in `grl-prune-arxiv-lpa`.
+  - **S3 emulator** (`experiments/trackB/s3_emu_bench.py`, P7). Every read call on a data file is one GET: it is
+    counted and pays latency (20 ms) plus bytes at 80 MB/s. pyarrow issues its own call pattern, so the GET counts
+    are real pyarrow behaviour, while the latency and bandwidth are assumptions. Runs are queued on arxiv,
+    arxiv/LPA, Reddit and products for range (128 MB), range_rg (√ pick), hive and hive_merged_rg, with the
+    plain and pruned readers. MinIO was the first choice, but downloading its binary was not permitted in this
+    session, so a real S3 or MinIO check is still to do.
+  - **Observation (Reddit P5, 128 MB):** `mv_direct` read 38.6 GB of column chunks from a 4.6 GB table. Reddit's big
+    units are split into blocks (cap 10,000 rows), and each block re-reads its whole unit's row groups. A
+    block-ordered write (sort within a unit by `id & (n_blocks - 1)`, which Phase 3b's block predicate uses) would
+    let each block skip the others' row groups. Candidate P4b.
+- **P4 / P5 real runs queued:** arxiv/LPA with `tiny = keep` (16,250 units, about 16 per bin), products with
+  `tiny = keep` (4,389 units), and P5 on products at the √-rule row group (0.5 MB) and at 128 MB.
 - P5 initially queued: the join-vs-MV bench (new `--tiny` flag) on WikiCS, Coauthor-CS / Physics, arxiv and Reddit (misc),
   → `results/trackB/P5_join_vs_mv.jsonl`.
 
