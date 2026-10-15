@@ -284,6 +284,28 @@ methods for our GRL workload."*
     (`grl-p4-binrg-*`).
   - The predicate-based directory pruning in `unit_dataset` makes hive's per-unit reads 1.5× faster (54.7 →
     35.6 s): each scan no longer evaluates all 8,778 fragments.
+- **P4 rerun with hive_bin_rg and row-group pruning** (a411836 + bcc8d19; rows identical). Per-bin reads, pruned:
+  - Products: range_rg 1 MB **6.3 s** (write 97 s, 150 files) vs hive_bin_rg 7.8 s (write 140 s, 2,280 files).
+    The 128 MB hive_bin took 10.1 s.
+  - arxiv/LPA: range_rg 0.25 MB **3.2 s** (8.0 s with file-level pruning, 34.8 s plain) vs the 128 MB hive_bin at
+    5.6 s. hive_bin_rg is running (`grl-p4-binrg-arxiv-lpa`).
+  - So far P4's bin-aligned layout won only against a reader that did not skip row groups. With row-group pruning,
+    range at the √ row group is fastest on both stores, with the fewest files and the fastest write.
+- **S3 emulator, products** (`grl-emu-products`; Louvain misc, 1,063 units, 2.7 GB; GET = 20 ms + 80 MB/s; Phase 3b
+  bins, cold; rows identical):
+
+  | layout | plain | pruned (row groups) |
+  |---|---|---|
+  | range 128 MB | 389 s / 85 GB | 383 s / 79 GB |
+  | range_rg 0.5 | 55.3 s / 10.1 GB | 46.0 s / 3.8 GB |
+  | hive | 48.2 s / 2.7 GB | 48.9 s / 2.7 GB |
+  | hive_merged_rg | 49.8 s / 8.8 GB | **44.0 s** / 3.3 GB |
+
+  - Phase 2's default (128 MB row groups) is 8.4× slower than the √ row group with pruning (389 vs 46 s). A
+    128 MB row group holds many units, so pruning cannot help it.
+  - The three tuned layouts land within 10% of each other (44–49 s).
+  - Across all four stores, the √ row group plus row-group pruning beats the default by 3–9× under latency and
+    is within 10% of the best layout.
 - **P5 products done** (`grl-p5-join-products`, 131 min; Louvain misc, 1,063 communities, 1,815 units with the
   10,000-row cap (50 communities split); 2 repeats each; checksums match; the Phase 3b loaders use row-group
   pruning, bcc8d19). Wall s, MV vs best join, with planned MV node+edge reads:
