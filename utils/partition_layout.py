@@ -187,41 +187,46 @@ def unit_filter(spec, comm_ids, comm_to_part=None):
 _RANGES = {}
 
 
-def unit_dataset(dataset, comm_ids):
-    """The dataset restricted to the files whose community_id statistics can hold one of comm_ids.
+def _hits(want, lo, hi):
+    """Does the sorted list want hold a value in [lo, hi]?"""
+    import bisect
+    i = bisect.bisect_left(want, lo)
+    return i < len(want) and want[i] <= hi
 
-    Without it, a scan of the range layout visits every file of the table for every unit (no directory to prune),
-    which dominates when there are many small units. Each file's footer is read once per process and cached; files
-    without community_id statistics are kept; partitioned datasets are returned as they are. Rows read are unchanged.
+
+def unit_dataset(dataset, comm_ids, predicate=None):
+    """The dataset restricted to the files and row groups whose community_id statistics can hold one of comm_ids.
+
+    pyarrow's isin scan does not skip files or row groups by their statistics (Track B, arxiv/LPA: the units read
+    87 GB of a 0.24 GB range table, 52 GB with hive_merged), so the reader skips them itself. predicate (the scan
+    filter) first prunes partition directories; without it a partitioned dataset is returned as it is, since every
+    footer would have to be read. Each file's footer is read once per process and cached; row groups without
+    community_id statistics (hive files, where it is the directory) are kept. Rows read are unchanged.
     """
     import pyarrow.dataset as ds
     want = sorted({int(c) for c in comm_ids})
-    frags = dataset.get_fragments()
+    frags = dataset.get_fragments() if predicate is None else dataset.get_fragments(filter=predicate)
     first = next(frags, None)
-    # partitioned layouts (hive / hive_merged): directories already prune, footers would only cost reads
-    if not want or first is None or str(first.partition_expression) != "true":
+    if not want or (predicate is None and first is not None and str(first.partition_expression) != "true"):
         return dataset
-    frags = [first, *frags]
     keep = []
-    for frag in frags:
+    for frag in ([first] if first is not None else []) + list(frags):
         r = _RANGES.get(frag.path)
         if r is None:
             frag.ensure_complete_metadata()
-            lo = hi = None
+            rgs = []
             for rg in frag.row_groups:
                 st = (rg.statistics or {}).get("community_id")
-                if not st or st.get("min") is None:
-                    lo = hi = None
-                    break
-                lo = st["min"] if lo is None else min(lo, st["min"])
-                hi = st["max"] if hi is None else max(hi, st["max"])
-            r = _RANGES[frag.path] = (lo, hi)
-        lo, hi = r
-        if lo is None:
-            keep.append(frag)
+                rgs.append((st["min"], st["max"]) if st and st.get("min") is not None else None)
+            known = [mm for mm in rgs if mm is not None]
+            whole = (min(m[0] for m in known), max(m[1] for m in known)) if known and len(known) == len(rgs) else None
+            r = _RANGES[frag.path] = (whole, rgs)
+        whole, rgs = r
+        if whole is not None and not _hits(want, *whole):
             continue
-        import bisect
-        i = bisect.bisect_left(want, lo)
-        if i < len(want) and want[i] <= hi:
+        ids = [i for i, mm in enumerate(rgs) if mm is None or _hits(want, *mm)]
+        if len(ids) == len(rgs):
             keep.append(frag)
+        elif ids:
+            keep.append(frag.subset(row_group_ids=ids))
     return ds.FileSystemDataset(keep, dataset.schema, dataset.format, dataset.filesystem)

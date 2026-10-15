@@ -200,8 +200,9 @@ def load_group(args):
         key = (spec["url"], len(spec["files"]), spec.get("part_col"))
         if key not in _WCACHE:
             _WCACHE[key] = open_dataset(spec)
-        d = unit_dataset(_WCACHE[key], cs) if prune else _WCACHE[key]
-        out.append(d.to_table(columns=cols, filter=unit_filter(spec, cs, comm_to_part)))
+        f = unit_filter(spec, cs, comm_to_part)
+        d = unit_dataset(_WCACHE[key], cs, f) if prune else _WCACHE[key]
+        out.append(d.to_table(columns=cols, filter=f))
     n, e = out
     res = {int(c): [0, 0, 0] for c in cs}
     if n.num_rows:

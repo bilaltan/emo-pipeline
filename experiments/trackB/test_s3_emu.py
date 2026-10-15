@@ -69,8 +69,7 @@ def main():
                 assert cold[1] > 0 and cold[2] > 0, (layout, prune, cold)
                 assert time.perf_counter() - t0 >= cold[1] * 0.005 / 2 * 0.9, "latency not paid"
                 got[prune] = cold[1]
-            if layout == "range":
-                assert got[True] < got[False], got
+            assert got[True] < got[False] if layout == "range" else got[True] <= got[False], (layout, got)
             print(f"{layout}: identical rows; cold GETs plain {got[False]}, pruned {got[True]}")
 
 

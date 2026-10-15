@@ -40,7 +40,26 @@ def main():
             assert files == want, (g, files, want)
         single = [len(list(unit_dataset(full, [c]).get_fragments())) for c in range(40)]
         assert max(single) <= 2 < 8, single
-    print("unit_dataset: identical rows for", len(groups), "unit groups; files kept per single unit max", max(single), "of 8")
+        # row groups: a single unit keeps exactly the row groups whose community range holds it
+        rgs = [(rg.statistics["community_id"]["min"], rg.statistics["community_id"]["max"])
+               for fr in full.get_fragments() for rg in fr.row_groups]
+        for c in range(40):
+            kept = sum(fr.num_row_groups for fr in unit_dataset(full, [c]).get_fragments())
+            assert kept == sum(lo <= c <= hi for lo, hi in rgs), (c, kept)
+    with tempfile.TemporaryDirectory() as tmp:
+        # hive: the predicate prunes directories; the files hold no community_id, so whole files are kept
+        pq.write_to_dataset(pa.table({"id": np.arange(len(comm), dtype=np.int64), "community_id": comm.astype(np.int64)}),
+                            tmp, partition_cols=["community_id"])
+        hive = ds.dataset(tmp, format="parquet", partitioning="hive")
+        for g in groups:
+            f = ds.field("community_id").isin(g)
+            rows = lambda d: sorted(zip(*d.to_table(filter=f).to_pydict().values()))  # noqa: E731
+            sub = unit_dataset(hive, g, f)
+            assert rows(sub) == rows(hive), g
+            assert len(list(sub.get_fragments())) == len(set(g) & set(comm.tolist())), g
+        assert unit_dataset(hive, [3]) is hive
+    print("unit_dataset: identical rows for", len(groups), "unit groups (range and hive); files kept per single unit max",
+          max(single), "of 8; row groups kept = row groups holding the unit")
 
 
 if __name__ == "__main__":

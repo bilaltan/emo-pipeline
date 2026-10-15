@@ -185,7 +185,7 @@ def _load(args):
         if part and part != "community_id":
             f = ds.field(part).isin(sorted({_W["c2p"][c] for c in cs})) & f
         if prune:
-            d = unit_dataset(d, cs)
+            d = unit_dataset(d, cs, f)
         t = d.to_table(columns=cols, filter=f)
         cid = t.column("community_id").to_numpy()
         if name == "nodes":
@@ -240,7 +240,7 @@ def main():
         base = mode.replace("_pruned", "")
         passes, check = run_mode(td, desc, c2p, groupings[base], mode.endswith("_pruned"), args.latency_ms, args.mbps,
                                  args.procs, args.passes)
-        rec = {"label": args.label, "table_dir": td, "mode": mode, "units": len(rows), "tasks": len(groupings[base]),
+        rec = {"label": args.label, "time": time.strftime("%Y-%m-%d %H:%M:%S"), "table_dir": td, "mode": mode, "units": len(rows), "tasks": len(groupings[base]),
                "files": len(desc["nodes"][0]) + len(desc["edges"][0]), "table_bytes": nbytes,
                "latency_ms": args.latency_ms, "mbps": args.mbps, "procs": args.procs,
                "cold": dict(zip(("wall_s", "gets", "bytes"), passes[0])),
