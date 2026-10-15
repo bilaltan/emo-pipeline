@@ -186,6 +186,15 @@ methods for our GRL workload."*
     units are split into blocks (cap 10,000 rows), and each block re-reads its whole unit's row groups. A
     block-ordered write (sort within a unit by `id & (n_blocks - 1)`, which Phase 3b's block predicate uses) would
     let each block skip the others' row groups. Candidate P4b.
+- **P5 Reddit done** (identical checksums; 25 units). The block cap decides the winner:
+  - No cap (one task per unit): MV 22.3–22.7 s vs join 30.5–30.7 s, so **MV wins by 1.35×**. The row group
+    (4 vs 128 MB) makes no difference, because Reddit's units are about 126 MB each.
+  - Cap 10,000 rows (units split into blocks): MV 34.2 s (4 MB) / 41.2 s (128 MB) vs join 22.5 / 24.8 s, so **the
+    join wins by 1.5–1.7×**. The cause is MV reading 38.3 GB of column chunks against 3.2 GB: each block re-reads its
+    unit.
+  - Phase 2 writes the materialized table in 118–135 s vs 96–100 s for the normalized one.
+  - So a predictive MV-vs-join rule needs the block count per unit, which Phase 2 can compute from unit sizes and the
+    cap. Block-ordered writes (P4b, above) should remove MV's re-reads and would change the answer again.
 - **P4 / P5 real runs queued:** arxiv/LPA with `tiny = keep` (16,250 units, about 16 per bin), products with
   `tiny = keep` (4,389 units), and P5 on products at the √-rule row group (0.5 MB) and at 128 MB.
 - P5 initially queued: the join-vs-MV bench (new `--tiny` flag) on WikiCS, Coauthor-CS / Physics, arxiv and Reddit (misc),
