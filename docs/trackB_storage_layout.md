@@ -304,8 +304,12 @@ methods for our GRL workload."*
   - Phase 2's default (128 MB row groups) is 8.4× slower than the √ row group with pruning (389 vs 46 s). A
     128 MB row group holds many units, so pruning cannot help it.
   - The three tuned layouts land within 10% of each other (44–49 s).
-  - Across all four stores, the √ row group plus row-group pruning beats the default by 3–9× under latency and
-    is within 10% of the best layout.
+  - Gain of the best √-row-group read over the default range under latency:
+    - products 8.4×
+    - arxiv/LPA 9.3× (224 → 24.0 s)
+    - arxiv/Louvain 2.9× (27.4 → 9.3 s)
+    - Reddit 1.14× (25 big units, bandwidth-bound)
+  - The best √-row-group read is within 0–18% of the best layout on every store.
 - **P5 products done** (`grl-p5-join-products`, 131 min; Louvain misc, 1,063 communities, 1,815 units with the
   10,000-row cap (50 communities split); 2 repeats each; checksums match; the Phase 3b loaders use row-group
   pruning, bcc8d19). Wall s, MV vs best join, with planned MV node+edge reads:
