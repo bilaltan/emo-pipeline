@@ -163,6 +163,12 @@ methods for our GRL workload."*
   writes the normalized table about 1.5× faster. **Confounded:** MV used the default 128 MB row groups and read 3.95 GB
   for a 172 MB table on arxiv. Rerun queued with the √-rule row group (`--rg-mb`, `grl-p5-join-rg`), and Reddit at
   128 and 4 MB.
+- **P5 with the √-rule row group** (`grl-p5-join-rg`, cap none, checksums identical). MV vs best join:
+  WikiCS 1.28 vs 2.19 s, Coauthor-CS 3.50 vs 4.99, **Coauthor-Physics 5.54 vs 9.18 (flipped: it was 13.9 vs 11.0 at
+  128 MB)**, arxiv 18.0 vs 14.4. With the right row group, MV wins on 3 of 4 stores; arxiv (392 units) still favours
+  the join. MV there still reads 803 MB of node and edge chunks, against the join's 37 MB from pyarrow plus its Spark
+  scan. The halo ratio does not predict the winner (WikiCS: materialized table 3.7× raw, and MV wins; arxiv 2.0×,
+  and the join wins), so a rule needs more stores. Reddit (128 and 4 MB) runs next.
 - P5 initially queued: the join-vs-MV bench (new `--tiny` flag) on WikiCS, Coauthor-CS / Physics, arxiv and Reddit (misc),
   → `results/trackB/P5_join_vs_mv.jsonl`.
 
