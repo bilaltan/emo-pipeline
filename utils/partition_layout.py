@@ -192,14 +192,16 @@ def unit_dataset(dataset, comm_ids):
 
     Without it, a scan of the range layout visits every file of the table for every unit (no directory to prune),
     which dominates when there are many small units. Each file's footer is read once per process and cached; files
-    without community_id statistics (hive: the value is the directory) are kept. Rows read are unchanged.
+    without community_id statistics are kept; partitioned datasets are returned as they are. Rows read are unchanged.
     """
     import pyarrow.dataset as ds
     want = sorted({int(c) for c in comm_ids})
-    if not want:
+    frags = list(dataset.get_fragments())
+    # partitioned layouts (hive / hive_merged): directories already prune, footers would only cost reads
+    if not want or any(str(f.partition_expression) != "true" for f in frags[:1]):
         return dataset
     keep = []
-    for frag in dataset.get_fragments():
+    for frag in frags:
         r = _RANGES.get(frag.path)
         if r is None:
             frag.ensure_complete_metadata()
