@@ -284,6 +284,28 @@ methods for our GRL workload."*
     (`grl-p4-binrg-*`).
   - The predicate-based directory pruning in `unit_dataset` makes hive's per-unit reads 1.5× faster (54.7 →
     35.6 s): each scan no longer evaluates all 8,778 fragments.
+- **P5 products done** (`grl-p5-join-products`, 131 min; Louvain misc, 1,063 communities, 1,815 units with the
+  10,000-row cap (50 communities split); 2 repeats each; checksums match; the Phase 3b loaders use row-group
+  pruning, bcc8d19). Wall s, MV vs best join, with planned MV node+edge reads:
+
+  | row group | cap | MV | join | winner | MV planned reads |
+  |---|---|---|---|---|---|
+  | 0.5 MB (√) | none | 53.2–53.5 | 58.6–59.6 | **MV 1.11×** | 10.5 GB |
+  | 0.5 MB (√) | 10k | 124.7–125.0 | 86.4–87.1 | join 1.44× | 84 GB |
+  | 128 MB | none | 116.8–119.0 | 68.4–70.4 | join 1.7× | 88 GB |
+  | 128 MB | 10k | 191.6–195.4 | 94.7–96.0 | join 2.0× | 214 GB |
+
+  - The √ row group makes MV 2.2× faster (117 → 53 s) and flips the winner when there are no blocks. With blocks,
+    the join wins at either row group, because every block re-reads its unit (84 GB of reads vs 14 GB of edges plus
+    a 3.4 GB shuffle for the join).
+  - Phase 2: the normalized table is written 3–8% faster (517–533 s vs 534–571 s) and stores 26 MB of nodes against
+    2.26 GB for the materialized one; both also keep the 0.99 GB raw table.
+  - **P5 rule so far, across 6 stores:**
+    - √ row group and no blocks: MV wins on WikiCS, Coauthor-CS, Physics, Reddit (1.35×) and products (1.11×).
+      arxiv is the exception: join 14.4 s vs MV 18.0 s.
+    - Units split into blocks: the join wins (Reddit 1.5–1.7×, products 1.44×).
+    - 128 MB row groups favour the join.
+    - Block-ordered writes (P4b) are the open way to remove MV's block re-reads.
 - **P4 / P5 real runs queued:** arxiv/LPA with `tiny = keep` (16,250 units, about 16 per bin), products with
   `tiny = keep` (4,389 units), and P5 on products at the √-rule row group (0.5 MB) and at 128 MB.
 - P5 initially queued: the join-vs-MV bench (new `--tiny` flag) on WikiCS, Coauthor-CS / Physics, arxiv and Reddit (misc),
