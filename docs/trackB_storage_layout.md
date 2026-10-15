@@ -195,6 +195,47 @@ methods for our GRL workload."*
   - Phase 2 writes the materialized table in 118–135 s vs 96–100 s for the normalized one.
   - So a predictive MV-vs-join rule needs the block count per unit, which Phase 2 can compute from unit sizes and the
     cap. Block-ordered writes (P4b, above) should remove MV's re-reads and would change the answer again.
+- **Pruning test done** (`grl-prune-arxiv-lpa`; arxiv/LPA misc, 1,123 units, rows identical to Spark). Per-unit
+  read wall, 4 processes, local disk:
+
+  | layout | plain | pruned |
+  |---|---|---|
+  | range (128 MB rg) | 29.9 s | 2.3 s |
+  | range_rg 1 MB | 26.2 s | 1.7 s |
+  | range_rg 0.25 MB | 27.1 s | 1.4 s |
+  | hive | 4.6 s | n/a |
+
+  The 27.5 vs 6.6 s gap in P4 came from unpruned file scans, not from the layout. Pruned range_rg is 3.4× faster
+  than hive here, writes faster (9.4 vs 14.7 s), and has 266 files vs 2,246.
+- **S3 emulator, arxiv and Reddit** (`results/trackB/s3_emu.jsonl`; GET = 20 ms + bytes at 80 MB/s, 4 processes,
+  cold pass, rows identical everywhere). Wall / GETs / bytes read:
+
+  | store | layout | plain | pruned |
+  |---|---|---|---|
+  | arxiv Louvain (392 units, 0.24 GB) | range 128 MB | 27.4 s / 1,557 / 4.1 GB | 26.6 s / 1,449 / 3.8 GB |
+  | | range_rg 0.25 | 9.3 s / 1,152 / 0.81 GB | 10.9 s / 1,080 / 0.75 GB |
+  | | hive | 11.3 s / 1,580 / 0.19 GB | same |
+  | | hive_merged_rg | 9.5 s / 866 / 0.69 GB | same |
+  | arxiv LPA (1,123 units, 0.24 GB) | range 128 MB | 224 s / 68,656 / 87 GB | 30.7 s / 3,316 / 2.0 GB |
+  | | range_rg 0.25 | 185 s / 74,264 / 68 GB | 28.8 s / 3,335 / 1.9 GB |
+  | | hive | 31.9 s / 4,496 / 0.30 GB | same |
+  | | hive_merged_rg | 147 s / 55,978 / 52 GB | same (partitioned: not pruned) |
+  | Reddit Louvain (25 units, 3.3 GB) | range / range_rg 4 / hive / hive_merged_rg | 16.2 / 14.2 / 15.3 / 14.4 s, about 3.3 GB each | no change |
+
+  - pyarrow's `isin` scan does not skip row groups by their statistics here. arxiv/LPA hive_merged_rg reads 52 GB
+    from a 0.24 GB table, because each unit reads its whole merged partition, and unpruned range reads 87 GB. P3's
+    byte ratios are planned bytes from the row-group index, which assume that skipping. The emulator shows the
+    reader has to do the skipping itself.
+  - With file pruning, range_rg ties hive under latency (28.8 vs 31.9 s cold) and is 3.4× faster than hive locally.
+  - Reddit has few, big units, so it is bandwidth-bound: every layout reads about the whole table, and wall times
+    differ by at most 13%.
+- **Production change:** Phase 3b's loaders (`_load_communities_data_batch`, `_load_unit_edges`) now call
+  `unit_dataset` on every scan. `test_partition_layout`, `test_partition_join`, `test_unit_dataset` and `test_s3_emu`
+  pass. The helper now checks only the first fragment of a partitioned dataset. The 4.6 → 5.1 s cost on hive came
+  from listing all 2,246 fragments on every scan; this has not been re-measured.
+- **Next:** row-group pruning in `unit_dataset` (`ParquetFileFragment.subset(row_group_ids=…)`), also inside the
+  partitions that a hive_merged scan selects. It should bring the hive_merged_rg and range_rg reads down to the
+  planned bytes.
 - **P4 / P5 real runs queued:** arxiv/LPA with `tiny = keep` (16,250 units, about 16 per bin), products with
   `tiny = keep` (4,389 units), and P5 on products at the √-rule row group (0.5 MB) and at 128 MB.
 - P5 initially queued: the join-vs-MV bench (new `--tiny` flag) on WikiCS, Coauthor-CS / Physics, arxiv and Reddit (misc),

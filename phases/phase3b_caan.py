@@ -98,6 +98,7 @@ def _load_communities_data_batch(nodes_url, edges_url, comm_ids, block=None, n_b
     # worker. n_blocks is always a power of two, so id & (n-1) == id % n.
     _mask = int(n_blocks) - 1 if (block is not None and n_blocks and int(n_blocks) > 1) else None
     _base = ds.field("community_id").isin(comm_ids)
+    from pipeline.utils.partition_layout import unit_dataset
 
     try:
         if layout is not None:
@@ -106,6 +107,8 @@ def _load_communities_data_batch(nodes_url, edges_url, comm_ids, block=None, n_b
             _base = unit_filter(layout["nodes"], comm_ids, layout.get("comm_to_part"))
         else:
             nodes_ds = _get_dataset(nodes_url)
+        # range layout: only the files whose community_id stats can hold the units (Track B, 13-20x on arxiv/LPA)
+        nodes_ds = unit_dataset(nodes_ds, comm_ids)
         _f = _base if _mask is None else (
             _base & (pc.bit_wise_and(ds.field("id"), _mask) == int(block)))
         nodes_pdf = nodes_ds.to_table(filter=_f, use_threads=True).to_pandas()
@@ -129,6 +132,7 @@ def _load_unit_edges(edges_url, comm_ids, block=None, n_blocks=1, layout=None):
 
     _mask = int(n_blocks) - 1 if (block is not None and n_blocks and int(n_blocks) > 1) else None
     _base = ds.field("community_id").isin(comm_ids)
+    from pipeline.utils.partition_layout import unit_dataset
 
     try:
         if layout is not None:
@@ -137,6 +141,7 @@ def _load_unit_edges(edges_url, comm_ids, block=None, n_blocks=1, layout=None):
             _base = unit_filter(layout["edges"], comm_ids, layout.get("comm_to_part"))
         else:
             edges_ds = _get_dataset(edges_url)
+        edges_ds = unit_dataset(edges_ds, comm_ids)
         # Keep an edge only when BOTH endpoints fall in this block -- the same
         # rule Phase 3 enforces via _src_unit == _dst_unit, applied at the scan.
         _f = _base if _mask is None else (

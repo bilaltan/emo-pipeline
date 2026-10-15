@@ -196,10 +196,12 @@ def unit_dataset(dataset, comm_ids):
     """
     import pyarrow.dataset as ds
     want = sorted({int(c) for c in comm_ids})
-    frags = list(dataset.get_fragments())
+    frags = dataset.get_fragments()
+    first = next(frags, None)
     # partitioned layouts (hive / hive_merged): directories already prune, footers would only cost reads
-    if not want or any(str(f.partition_expression) != "true" for f in frags[:1]):
+    if not want or first is None or str(first.partition_expression) != "true":
         return dataset
+    frags = [first, *frags]
     keep = []
     for frag in frags:
         r = _RANGES.get(frag.path)
