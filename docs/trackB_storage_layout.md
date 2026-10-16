@@ -369,6 +369,17 @@ methods for our GRL workload."*
 - P5 initially queued: the join-vs-MV bench (new `--tiny` flag) on WikiCS, Coauthor-CS / Physics, arxiv and Reddit (misc),
   → `results/trackB/P5_join_vs_mv.jsonl`.
 
+### Status (2026-10-16): storage-layer gains only
+Bilal: end-to-end training time is not the target; a win at the storage layer is. So the metrics are the storage
+layer's own: bytes and GETs read, read time under the S3 emulator, bytes stored, write time. No more full pipeline
+runs (`grl-e2e-products` is on hold). Queued, one emulator job at a time:
+- `grl-p3-halo-emu`: P3's hybrid halo through the emulator (its byte saving was hidden by local disk).
+- `grl-p4b-blocks`: P4b, block-ordered write. A `_blk` column (a node's Phase 3b block, `id & (n-1)`) and rows
+  sorted by (community, `_blk`), so a block's reads skip the rest of its unit (`rg_resize.py --block-cap`). Reddit,
+  products, arxiv at the √ row group, cap 10,000, against the same copy in Phase 2's order.
+- `grl-rg-emu-sweep`: row group (0.125–16 MB; Reddit 1–64) × latency (5 / 20 / 80 ms) on products, arxiv/LPA,
+  arxiv, Reddit. Does the best row group move with latency as the √ rule predicts?
+
 Order: P1 → P2 (uses B1 / B2 data now) → P3 → P4 / P5 → P6 / P7. Output: `results/trackB/*.jsonl`, generated tables, and
 an EDBT / VLDB-experiments-style write-up. Track A (link prediction, gate GO) is done and goes into the journal version
 unchanged.
