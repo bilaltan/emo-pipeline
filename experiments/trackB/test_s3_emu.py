@@ -71,6 +71,25 @@ def main():
                 got[prune] = cold[1]
             assert got[True] < got[False] if layout == "range" else got[True] <= got[False], (layout, got)
             print(f"{layout}: identical rows; cold GETs plain {got[False]}, pruned {got[True]}")
+        # P4b: Phase 3b block work items (cap 20 rows) on a copy of the range table, without and with block order
+        import rg_resize
+        got = {}
+        for name, cap in (("plain", []), ("blocked", ["--block-cap", "20"])):
+            d = os.path.join(tmp, name)
+            sys.argv = ["x", os.path.join(tmp, "range", "p2_nodes"), os.path.join(tmp, "range", "p2_edges"), d,
+                        "--rg-mb", "0.001", *cap]
+            rg_resize.main()
+            desc, c2p, rows = E.describe(d)
+            items = E.phase3b_blocks(rows, 20)
+            assert sum(n > 1 for _, b, n in items if b == 0) > 10, items
+            groups, blocks = [[c] for c, _, _ in items], [(b, n) for _, b, n in items]
+            _, truth = E.run_mode(d, desc, c2p, groups, False, None, None, 2, 1, blocks, use_blk=False)
+            passes, check = E.run_mode(d, desc, c2p, groups, True, 0.0, 1e6, 2, 1, blocks)
+            assert check == truth, name
+            got[name] = (check, passes[0][2])
+        assert got["plain"][0] == got["blocked"][0], "block order changed the rows of a block"
+        assert got["blocked"][1] < got["plain"][1], {k: v[1] for k, v in got.items()}
+        print(f"blocks: identical rows; bytes read plain order {got['plain'][1]}, block order {got['blocked'][1]}")
 
 
 if __name__ == "__main__":

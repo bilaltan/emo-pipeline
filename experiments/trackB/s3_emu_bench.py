@@ -12,13 +12,20 @@ Input: Phase 2 tables kept by the layout bench (--keep-tables): <table-dir>/p2_n
 Phase 3b bins are derived from the table. Per mode (unit, p3b_bins, and *_pruned = utils.partition_layout.unit_dataset)
 it records the cold pass (every process starts without footers) and the warm passes (footers cached in each worker,
 as Spark's reused Python workers keep them), GETs, bytes, and per-unit checksums against a plain local read.
+Mode blocks reads Phase 3b's work items with the --cap block split (community, block of id & (n-1)), one read per
+item as the direct loader does. If the table has a _blk column (P4b block-ordered write, rg_resize --block-cap), the
+scan also gets the implied conjunct _blk == block, which row-group statistics can decide; the checksums are compared
+against a plain read without it.
 
     python experiments/trackB/s3_emu_bench.py --table-dir ~/lakegrl/layoutbench/ogbn-arxiv-lp/misc/range_rg \\
         --label arxiv/range_rg@0.44 --out results/trackB/s3_emu.jsonl
 """
 import argparse
+import functools
+import hashlib
 import json
 import multiprocessing as mp
+import operator
 import os
 import sys
 import threading
@@ -157,6 +164,18 @@ def phase3b_bins(rows, parallelism):
     return bins
 
 
+def n_blocks(rows, cap):
+    """As run_phase3b: the power of two >= rows / cap (1 without a cap)."""
+    need = int(np.ceil(rows / cap)) if cap else 1
+    return 1 if need <= 1 else 1 << (need - 1).bit_length()
+
+
+def phase3b_blocks(rows, cap):
+    """Phase 3b's work items (community, block, n_blocks), communities by size desc."""
+    return [(int(c), b, n) for c, k in rows.sort_values(ascending=False).items()
+            for n in [n_blocks(k, cap)] for b in range(n)]
+
+
 # ------------------------------------------------------------------ worker
 _W = {}
 
@@ -175,17 +194,25 @@ def _init(table_dir, desc, c2p, lat_ms, mbps):
 def _load(args):
     import pyarrow.dataset as ds
     from utils.partition_layout import unit_dataset
-    cs, prune = args
+    import pyarrow.compute as pc
+    cs, prune, blk, use_blk = args
     st = _W["st"]
     g0, b0 = st.gets, st.bytes
-    res = {int(c): [0, 0, 0] for c in cs}
+    key = (lambda c: (int(c), blk[0])) if blk else int
+    res = {key(c): [0, 0, 0] for c in cs}
     for name, cols in (("nodes", ["id", "features", "community_id"]), ("edges", ["src", "dst", "community_id"])):
         d, part = _W[name]
-        f = ds.field("community_id").isin(cs)
+        base = ds.field("community_id").isin(cs)
         if part and part != "community_id":
-            f = ds.field(part).isin(sorted({_W["c2p"][c] for c in cs})) & f
+            base = ds.field(part).isin(sorted({_W["c2p"][c] for c in cs})) & base
+        f = base
+        if blk and blk[1] > 1:          # as Phase 3b's loaders: a node / both endpoints in block b
+            f = functools.reduce(operator.and_, [pc.bit_wise_and(ds.field(k), blk[1] - 1) == blk[0]
+                                                 for k in (["id"] if name == "nodes" else ["src", "dst"])], f)
+            if use_blk and "_blk" in d.schema.names:
+                f = f & (ds.field("_blk") == blk[0])
         if prune:
-            d = unit_dataset(d, cs, f)
+            d = unit_dataset(d, cs, base)
         t = d.to_table(columns=cols, filter=f)
         cid = t.column("community_id").to_numpy()
         if name == "nodes":
@@ -193,19 +220,20 @@ def _load(args):
             ids = t.column("id").to_numpy()
             for c in np.unique(cid):
                 sel = cid == c
-                res[int(c)][0], res[int(c)][1] = int(sel.sum()), int(ids[sel].sum())
+                res[key(c)][0], res[key(c)][1] = int(sel.sum()), int(ids[sel].sum())
         else:
             for c, k in zip(*np.unique(cid, return_counts=True)):
-                res[int(c)][2] = int(k)
+                res[key(c)][2] = int(k)
     return {c: tuple(v) for c, v in res.items()}, st.gets - g0, st.bytes - b0
 
 
-def run_mode(table_dir, desc, c2p, groups, prune, lat_ms, mbps, procs, passes):
-    """passes[0] is cold (fresh workers), the rest warm. Returns per pass (wall, gets, bytes) and the checksums."""
+def run_mode(table_dir, desc, c2p, groups, prune, lat_ms, mbps, procs, passes, blocks=None, use_blk=True):
+    """passes[0] is cold (fresh workers), the rest warm. Returns per pass (wall, gets, bytes) and the checksums.
+    blocks: (block, n_blocks) per group (one community each), for Phase 3b's block work items."""
     ctx = mp.get_context("spawn")
     out, check = [], None
     with ctx.Pool(procs, initializer=_init, initargs=(table_dir, desc, c2p, lat_ms, mbps)) as pool:
-        tasks = [([int(c) for c in g], prune) for g in groups]
+        tasks = [([int(c) for c in g], prune, blocks[i] if blocks else None, use_blk) for i, g in enumerate(groups)]
         for _ in range(passes):
             t0 = time.perf_counter()
             res = pool.map(_load, tasks, chunksize=max(1, len(tasks) // (procs * 8)))
@@ -225,13 +253,21 @@ def main():
     ap.add_argument("--mbps", type=float, default=80.0, help="bandwidth of one GET")
     ap.add_argument("--procs", type=int, default=4, help="reader processes (Phase 3b workers)")
     ap.add_argument("--passes", type=int, default=2, help="1 cold + warm passes")
-    ap.add_argument("--modes", nargs="+", default=["unit", "p3b_bins", "unit_pruned", "p3b_bins_pruned"])
+    ap.add_argument("--modes", nargs="+", default=["unit", "p3b_bins", "unit_pruned", "p3b_bins_pruned"],
+                    help="also: blocks, blocks_pruned (Phase 3b work items with the --cap block split)")
+    ap.add_argument("--cap", type=int, default=10000, help="Phase 3b block cap (rows) for the blocks modes")
     ap.add_argument("--out", default="results/trackB/s3_emu.jsonl")
     args = ap.parse_args()
     td = os.path.abspath(os.path.expanduser(args.table_dir))
     desc, c2p, rows = describe(td)
-    groupings = {"unit": [[int(c)] for c in rows.index], "p3b_bins": phase3b_bins(rows, args.procs)}
-    _, truth = run_mode(td, desc, c2p, groupings["unit"], False, None, None, args.procs, 1)   # plain local read
+    items = phase3b_blocks(rows, args.cap)
+    groupings = {"unit": [[int(c)] for c in rows.index], "p3b_bins": phase3b_bins(rows, args.procs),
+                 "blocks": [[c] for c, _, _ in items]}
+    blocks = {"blocks": [(b, n) for _, b, n in items]}
+    truths = {"unit": run_mode(td, desc, c2p, groupings["unit"], False, None, None, args.procs, 1)[1]}  # plain local
+    if any(m.startswith("blocks") for m in args.modes):     # without the _blk conjunct: checks it too
+        truths["blocks"] = run_mode(td, desc, c2p, groupings["blocks"], False, None, None, args.procs, 1,
+                                    blocks["blocks"], use_blk=False)[1]
     nbytes = sum(os.path.getsize(f) for files, _ in desc.values() for f in files)
     print(f"== {args.label}: {len(rows)} units, {len(groupings['p3b_bins'])} bins, "
           f"{len(desc['nodes'][0])} + {len(desc['edges'][0])} files, {nbytes / 1e6:.1f} MB; "
@@ -239,13 +275,15 @@ def main():
     for mode in args.modes:
         base = mode.replace("_pruned", "")
         passes, check = run_mode(td, desc, c2p, groupings[base], mode.endswith("_pruned"), args.latency_ms, args.mbps,
-                                 args.procs, args.passes)
+                                 args.procs, args.passes, blocks.get(base))
         rec = {"label": args.label, "time": time.strftime("%Y-%m-%d %H:%M:%S"), "table_dir": td, "mode": mode, "units": len(rows), "tasks": len(groupings[base]),
                "files": len(desc["nodes"][0]) + len(desc["edges"][0]), "table_bytes": nbytes,
                "latency_ms": args.latency_ms, "mbps": args.mbps, "procs": args.procs,
                "cold": dict(zip(("wall_s", "gets", "bytes"), passes[0])),
                "warm": [dict(zip(("wall_s", "gets", "bytes"), p)) for p in passes[1:]],
-               "identical": check == truth}
+               "identical": check == truths["unit" if base != "blocks" else "blocks"],
+               "check_md5": hashlib.md5(json.dumps(sorted((str(k), v) for k, v in check.items())).encode()).hexdigest(),
+               **({"cap": args.cap, "split_units": sum(n > 1 for _, b, n in items if b == 0)} if base == "blocks" else {})}
         with open(args.out, "a") as fh:
             fh.write(json.dumps(rec) + "\n")
         w = rec["warm"][-1] if rec["warm"] else rec["cold"]
