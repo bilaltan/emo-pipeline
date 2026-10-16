@@ -11,6 +11,8 @@ Readers are B processes that take the units in Phase 3b's order (size descending
 (row-group statistics skip the rest), add its hot rows from the cache, and return (rows, id sum, feature sum) per unit.
 These must equal the full layout's. Bytes read are planned from the Parquet metadata: the row groups the predicate
 selects, plus B times the hot table and index. Node rows only; edges are read the same way in both layouts.
+With --latency-ms every read (unit rows, hot table, index) goes through the S3 emulator of s3_emu_bench (GET =
+latency + bytes / --mbps), and the measured GETs and bytes are recorded too.
 
     bash scripts/wsl_run.sh python experiments/trackB/halo_hybrid_bench.py --dataset reddit-lp --readers 1 2 4
 """
@@ -20,12 +22,18 @@ import multiprocessing as mp
 import os
 import shutil
 import statistics
+import sys
+import threading
 import time
+import types
 
 import numpy as np
 import pyarrow as pa
 import pyarrow.dataset as pds
 import pyarrow.parquet as pq
+
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+from experiments.trackB.s3_emu_bench import emu_fs  # noqa: E402
 
 NO_COMM = np.iinfo(np.int64).min
 MB = 1 << 20
@@ -77,23 +85,25 @@ def planned_bytes(path, units):
     return int(sum(b[(lo <= u) & (hi >= u)].sum() for u in units))
 
 
-_HOT, _DS = {}, {}
+_HOT, _DS, _IO = {}, {}, {}
 
 
-def _load_hot(hot_path, idx_path):
+def _load_hot(hot_path, idx_path, lat_ms=None, mbps=None):
     _HOT.clear()
+    _IO["st"] = st = types.SimpleNamespace(lock=threading.Lock(), gets=0, bytes=0, seen=(0, 0))
+    _IO["fs"] = emu_fs(lat_ms, mbps, st) if lat_ms is not None else None
     if hot_path:
-        t = pq.read_table(hot_path)
+        t = pq.read_table(hot_path, filesystem=_IO["fs"])
         _HOT["ids"] = t.column("id").to_numpy()
         _HOT["x"] = t.column("features").combine_chunks().flatten().to_numpy().reshape(len(t), -1)
-        ix = pq.read_table(idx_path)
+        ix = pq.read_table(idx_path, filesystem=_IO["fs"])
         _HOT["idx_unit"], _HOT["idx_id"] = ix.column("unit").to_numpy(), ix.column("id").to_numpy()
 
 
 def _read_unit(args):
     path, u = args
     if path not in _DS:                      # one dataset object per worker, as Phase 3b's loader caches it
-        _DS[path] = pds.dataset(path)
+        _DS[path] = pds.dataset(path, filesystem=_IO["fs"])
     t = _DS[path].to_table(filter=pds.field("unit") == u, columns=["id", "features"])
     ids = t.column("id").to_numpy()
     x = t.column("features").combine_chunks().flatten().to_numpy().reshape(len(t), -1)
@@ -103,17 +113,22 @@ def _read_unit(args):
         ids = np.r_[ids, h]
         x = np.vstack([x, _HOT["x"][np.searchsorted(_HOT["ids"], h)]])
     o = np.argsort(ids, kind="stable")
-    return int(u), (len(ids), int(ids.sum()), float(x[o].sum(dtype=np.float64)))
+    st = _IO["st"]
+    io, st.seen = (st.gets - st.seen[0], st.bytes - st.seen[1]), (st.gets, st.bytes)   # first task carries the hot load
+    return int(u), (len(ids), int(ids.sum()), float(x[o].sum(dtype=np.float64))), io
 
 
-def read_all(path, order, B, hot=None, repeats=2):
+def read_all(path, order, B, hot=None, repeats=2, emu=(None, None)):
+    """Wall per repeat (each a fresh, cold pool), checksums, and (GETs, bytes) of the last repeat."""
     walls, check = [], None
     for _ in range(repeats):
         t0 = time.perf_counter()
-        with mp.get_context("spawn").Pool(B, initializer=_load_hot, initargs=hot or (None, None)) as pool:
-            check = dict(pool.map(_read_unit, [(path, int(u)) for u in order], chunksize=1))
+        with mp.get_context("spawn").Pool(B, initializer=_load_hot, initargs=(*(hot or (None, None)), *emu)) as pool:
+            res = pool.map(_read_unit, [(path, int(u)) for u in order], chunksize=1)
         walls.append(time.perf_counter() - t0)
-    return walls, check
+        check = {u: c for u, c, _ in res}
+        io = tuple(int(sum(r[2][k] for r in res)) for k in (0, 1))
+    return walls, check, io
 
 
 def main():
@@ -125,8 +140,11 @@ def main():
     ap.add_argument("--rg-mb", type=float, default=1.0, help="row-group size of the unit tables")
     ap.add_argument("--repeats", type=int, default=2)
     ap.add_argument("--work-dir", default=os.path.expanduser("~/lakegrl/halobench"))
+    ap.add_argument("--latency-ms", type=float, default=None, help="read through the S3 emulator (default: local)")
+    ap.add_argument("--mbps", type=float, default=80.0, help="emulated bandwidth of one GET")
     ap.add_argument("--out", default="results/trackB/halo_hybrid.jsonl")
     args = ap.parse_args()
+    emu = (args.latency_ms, args.mbps)
     cache = os.path.join(args.store, args.dataset, f"trackA_{args.alg}")
     x = np.load(os.path.join(cache, "x.npy"), mmap_mode="r")
     ids, units, member, reuse = unit_rows(cache)
@@ -137,7 +155,8 @@ def main():
     os.makedirs(wd)
     run_id = time.strftime("%Y%m%d-%H%M%S")
     base = {"run_id": run_id, "dataset": args.dataset, "alg": args.alg, "rg_mb": args.rg_mb, "units": len(order),
-            "members": int(member.sum()), "halo_rows": int((~member).sum())}
+            "members": int(member.sum()), "halo_rows": int((~member).sum()), "latency_ms": args.latency_ms,
+            "mbps": args.mbps if args.latency_ms is not None else None}
 
     def emit(rec):
         rec = {**base, **rec}
@@ -151,10 +170,11 @@ def main():
     write_s = time.perf_counter() - t0
     ref = None
     for B in args.readers:
-        walls, chk = read_all(full, order, B, repeats=args.repeats)
+        walls, chk, io = read_all(full, order, B, repeats=args.repeats, emu=emu)
         ref = ref or chk
         emit({"layout": "full", "readers": B, "rows_stored": len(ids), "bytes_stored": stored, "write_s": write_s,
-              "bytes_read": planned_bytes(full, order), "wall_s": walls, "identical": chk == ref})
+              "bytes_read": planned_bytes(full, order), "wall_s": walls, "gets": io[0], "bytes_io": io[1],
+              "identical": chk == ref})
     for B in args.readers:
         hot = (~member) & (reuse[ids] > B)
         hv = np.unique(ids[hot])
@@ -166,10 +186,11 @@ def main():
         pq.write_table(pa.table({"unit": units[hot][o], "id": ids[hot][o]}), ip)
         ib = os.path.getsize(ip)
         write_s = time.perf_counter() - t0
-        walls, chk = read_all(p, order, B, (hp, ip) if len(hv) else None, args.repeats)
+        walls, chk, io = read_all(p, order, B, (hp, ip) if len(hv) else None, args.repeats, emu)
         emit({"layout": "hybrid", "readers": B, "tau": B, "hot_vertices": len(hv),
               "rows_stored": int((~hot).sum()) + len(hv), "bytes_stored": sb + hb + ib, "write_s": write_s,
-              "bytes_read": planned_bytes(p, order) + B * (hb + ib), "wall_s": walls, "identical": chk == ref})
+              "bytes_read": planned_bytes(p, order) + B * (hb + ib), "wall_s": walls, "gets": io[0], "bytes_io": io[1],
+              "identical": chk == ref})
         for f in (p, hp, ip):
             if os.path.exists(f):
                 os.remove(f)

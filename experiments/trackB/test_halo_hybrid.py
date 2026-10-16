@@ -38,6 +38,10 @@ def main():
         full = next(r for r in recs if r["layout"] == "full")
         h1 = next(r for r in recs if r["layout"] == "hybrid" and r["readers"] == 1)
         assert h1["hot_vertices"] > 0 and h1["bytes_read"] < full["bytes_read"] and h1["rows_stored"] < full["rows_stored"]
+        sys.argv += ["--latency-ms", "0", "--mbps", "1e6"]      # the same through the S3 emulator
+        HB.main()
+        emu = [json.loads(line) for line in open(out)][4:]
+        assert len(emu) == 4 and all(r["identical"] and r["gets"] > 0 for r in emu), emu
     print("halo hybrid checks passed")
 
 
