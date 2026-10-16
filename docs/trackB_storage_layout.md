@@ -472,8 +472,27 @@ runs (`grl-e2e-products` is on hold). Queued, one emulator job at a time:
     because every block of a split unit re-reads the unit. Block order removes that.
   - **Stored bytes grow in the pyarrow copies:** 128 MB → √ +46% on products (2,671 → 3,907 MB), +13% on Reddit,
     +34% on arxiv; block order adds 0.3–0.8% on top. Phase 2's Spark writer at products' 0.5 MB target stored 2,739
-    MB (`p4b_spark_write.jsonl`), so most of that growth seems to come from the pyarrow copy. I have not checked
-    Spark's actual row-group sizes or its stored bytes at 128 MB yet.
+    MB (`p4b_spark_write.jsonl`), so most of that growth seems to come from the pyarrow copy. Confirmed below.
+- **The same stack written by Phase 2's Spark path** (`grl-p4b-spark` at the √ row group, `grl-p4b-spark-128` at
+  128 MB, 85 min; `p4b_spark_write.py`, write = median of 3 alternated repeats; reads as above with the pruned
+  reader, cold, warm within 2%; md5 identical in all four tables per store):
+
+  | store | table | write | stored | read time | bytes read |
+  |---|---|---|---|---|---|
+  | products | 128 MB, Phase 2 order | 63.4 s | 2,677 MB | 696.7 s | 146.6 GB |
+  | | 128 MB, block order | 120.6 s | 2,741 MB | 723.0 s | 150.2 GB |
+  | | 0.5 MB, Phase 2 order | 85.4 s | 2,739 MB | 283.0 s | 71.9 GB |
+  | | 0.5 MB, block order | 145.7 s | 2,895 MB | **48.3 s** | 3.4 GB |
+  | Reddit | 128 MB, Phase 2 order | 61.4 s | 3,239 MB | 156.6 s | 38.8 GB |
+  | | 128 MB, block order | 86.8 s | 3,252 MB | 112.0 s | 25.4 GB |
+  | | 4 MB, Phase 2 order | 70.1 s | 3,232 MB | 143.3 s | 38.6 GB |
+  | | 4 MB, block order | 101.4 s | 3,229 MB | **23.3 s** | 4.4 GB |
+
+  - Default → √ + block order: read time **14.4×** on products (43× fewer bytes), **6.7×** on Reddit (8.9×).
+  - Cost: write time 2.3× on products (+82 s) and 1.65× on Reddit (+40 s); stored bytes +8.1% and −0.3%.
+  - In Spark the √ row group stores only +2.3% (products), so the pyarrow copies' +13–46% was the copy, not the row
+    group. Spark's own small row groups also read faster than the pyarrow copies (products 283 vs 387 s).
+  - The same pattern as the stack: block order alone at 128 MB is no gain on products and 1.4× on Reddit.
 
 Order: P1 → P2 (uses B1 / B2 data now) → P3 → P4 / P5 → P6 / P7. Output: `results/trackB/*.jsonl`, generated tables, and
 an EDBT / VLDB-experiments-style write-up. Track A (link prediction, gate GO) is done and goes into the journal version
