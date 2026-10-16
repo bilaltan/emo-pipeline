@@ -7,6 +7,7 @@ The store's Phase 2 tables are rewritten as utils.partition_layout.write_layout 
   plain    sort by community_id (Phase 2 as it is)
   blocked  _blk added (a node's Phase 3b block id & (n-1); an edge's block if both endpoints share it, else n; n from
            the community's node rows and --cap, as run_phase3b computes it) and sort by (community_id, _blk, id | src, dst)
+  blocked_min  the same _blk, sorted by (community_id, _blk) only: enough for block skipping, a cheaper sort
 with the row group from --rg-mb. The blocked time includes counting the community sizes. The last copy of each is kept
 in --out-dir/<order>/p2_{nodes,edges} for s3_emu_bench.
 
@@ -33,6 +34,7 @@ def main():
     ap.add_argument("--rg-mb", type=float, required=True)
     ap.add_argument("--cap", type=int, default=10000)
     ap.add_argument("--repeats", type=int, default=2)
+    ap.add_argument("--orders", nargs="+", default=["plain", "blocked"], choices=["plain", "blocked", "blocked_min"])
     ap.add_argument("--cores", type=int, default=4)
     ap.add_argument("--mem", default="10g")
     ap.add_argument("--spark-tmp", default=None)
@@ -50,7 +52,7 @@ def main():
         t0 = time.perf_counter()
         nodes, edges = (spark.read.format("delta").load(src[k]) for k in ("nodes", "edges"))
         n_comm = None
-        if order == "blocked":
+        if order != "plain":
             cnt = nodes.groupBy("community_id").count().toPandas()
             cnt["_n"] = [n_blocks(int(k), args.cap) for k in cnt["count"]]
             n_comm = len(cnt)
@@ -61,13 +63,13 @@ def main():
             edges = edges.join(nb, "community_id").withColumn("_blk", F.when(bs == bd, bs).otherwise(m + 1)).drop("_n")
         n_bins = min(200, n_comm or nodes.select("community_id").distinct().count())   # as Phase 2: min(200, units)
         for name, df, keys in (("nodes", nodes, ["id"]), ("edges", edges, ["src", "dst"])):
-            sort = ["community_id"] + (["_blk"] + keys if order == "blocked" else [])
+            sort = ["community_id"] + {"plain": [], "blocked": ["_blk"] + keys, "blocked_min": ["_blk"]}[order]
             (df.repartitionByRange(n_bins, "community_id").sortWithinPartitions(*sort)
              .write.format("delta").mode("overwrite").option("overwriteSchema", "true")
              .save(os.path.join(wd, order, f"p2_{name}")))
         return time.perf_counter() - t0, n_bins
 
-    walls = {"plain": [], "blocked": []}
+    walls = {o: [] for o in args.orders}
     for _ in range(args.repeats):
         for order in walls:
             w, n_bins = write(order)
