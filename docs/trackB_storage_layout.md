@@ -412,8 +412,21 @@ runs (`grl-e2e-products` is on hold). Queued, one emulator job at a time:
     conjunct skips them. The block layout is decided before the write from unit sizes and the cap.
   - The gain grows with the share of rows in split units: large on Reddit and products, small on arxiv.
   - Cost: one int64 column (+0.3–0.5% stored) and a sort. The single-process pyarrow copy took 123 vs 42 s
-    (Reddit) and 175 vs 49 s (products). Phase 2 would sort within its existing Spark write; that cost is not
-    measured yet.
+    (Reddit) and 175 vs 49 s (products).
+  - **In Phase 2's own Spark write path** (`grl-p4b-spark`, 41 min; `p4b_spark_write.py`,
+    `results/trackB/p4b_spark_write.jsonl`; `repartitionByRange` + `sortWithinPartitions` as `write_layout` does,
+    plain and blocked writes alternated 3 times, 4 cores; the blocked time includes counting community sizes). The
+    Spark-written tables were then read as above (`p4b_blocks.jsonl`, labels `spark-rg*`), md5 identical:
+
+    | store | write, median of 3 | bytes stored | read time (cold) | bytes read | GETs |
+    |---|---|---|---|---|---|
+    | Reddit (4 MB) | 70.1 → 101.4 s (+31 s) | 3,232 → 3,229 MB (−0.1%) | 143.3 → **23.3 s (6.2×)** | 38.6 → 4.38 GB (8.8×) | 1,580 → 570 |
+    | products (0.5 MB) | 85.4 → 145.7 s (+60 s) | 2,739 → 2,895 MB (+5.7%) | 283.0 → **48.3 s (5.9×)** | 71.9 → 3.38 GB (21×) | 5,758 → 4,418 |
+
+    - The extra write time is below one read pass's saving (Reddit 31 vs 120 s, products 60 vs 235 s). But the write
+      ran on local disk and the read through the emulator, so this compares two different settings.
+    - Products stores 5.7% more in Spark (pyarrow copy: +0.5%); I have not checked why.
+    - The count pass could reuse Phase 2's community sizes; not tried.
   - Rows within a unit are reordered. The per-block row sets are identical; whether training depends on row order
     is not checked.
   - This should change P5's rule (with blocks, the join won because MV re-read its units). Not rerun yet.
