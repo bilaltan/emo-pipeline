@@ -395,6 +395,28 @@ runs (`grl-e2e-products` is on hold). Queued, one emulator job at a time:
   - arxiv does not gain: its 400 GETs for 0.8 GB are latency-bound, and the halo saving is small there.
   - The saving shrinks as B grows (each reader loads the shared table once), as P3 step 1 predicted. B is the number
     of readers that each load it: nodes if it sits on node-local disk, worker processes otherwise.
+- **P4b block-ordered write** (`grl-p4b-blocks`, 32 min; `results/trackB/p4b_blocks.jsonl`). The store's Phase 2
+  tables (Louvain misc) copied at the √ row group, once in Phase 2's row order and once block-ordered
+  (`rg_resize.py --block-cap 10000`). Phase 3b's block work items were read through the emulator (20 ms + 80 MB/s,
+  4 processes, pruned reader). Per-block checksums are identical in both orders (same md5) and equal a plain read
+  without the `_blk` conjunct. Cold pass, Phase 2 order → block order:
+
+  | store | work items (units split) | read time | bytes read | GETs | bytes stored |
+  |---|---|---|---|---|---|
+  | Reddit (4 MB) | 183 (22 of 25) | 162.6 → **25.0 s (6.5×)** | 43.7 → 4.95 GB (8.8×) | 1,900 → 578 | +0.3% |
+  | products (0.5 MB) | 1,815 (50 of 1,063) | 387.6 → **59.9 s (6.5×)** | 102.5 → 6.6 GB (15.5×) | 6,586 → 4,302 | +0.5% |
+  | arxiv (0.25 MB) | 418 (12 of 392) | 12.0 → 10.1 s (1.2×) | 1.06 → 0.51 GB (2.1×) | 1,132 → 1,136 | +0.4% |
+
+  - Without block order every block of a split unit reads the whole unit's row groups, because min / max statistics
+    cannot decide `id & (n-1) == b`. With rows sorted by block and a `_blk` column, the implied `_blk == b`
+    conjunct skips them. The block layout is decided before the write from unit sizes and the cap.
+  - The gain grows with the share of rows in split units: large on Reddit and products, small on arxiv.
+  - Cost: one int64 column (+0.3–0.5% stored) and a sort. The single-process pyarrow copy took 123 vs 42 s
+    (Reddit) and 175 vs 49 s (products). Phase 2 would sort within its existing Spark write; that cost is not
+    measured yet.
+  - Rows within a unit are reordered. The per-block row sets are identical; whether training depends on row order
+    is not checked.
+  - This should change P5's rule (with blocks, the join won because MV re-read its units). Not rerun yet.
 
 Order: P1 → P2 (uses B1 / B2 data now) → P3 → P4 / P5 → P6 / P7. Output: `results/trackB/*.jsonl`, generated tables, and
 an EDBT / VLDB-experiments-style write-up. Track A (link prediction, gate GO) is done and goes into the journal version
