@@ -506,6 +506,24 @@ runs (`grl-e2e-products` is on hold). Queued, one emulator job at a time:
     4,302 GETs ≈ 21.5 s at 20 ms over 4 processes) and local decode.
   - The bytes saving (15.5× products, 8.8× Reddit) does not depend on bandwidth; it matters wherever data moved is
     billed or shared (network, cross-region).
+- **Cheaper block-ordered write** (`grl-p4b-blocked-min`, 53 min; `p4b_spark_write.py --orders`). Block skipping only
+  needs rows grouped by (community, `_blk`), so `blocked_min` sorts by those two keys and drops the id / (src, dst)
+  keys. Phase 2's Spark path, √ row group, write = median of 3 alternated repeats; reads as above, md5 identical in
+  all three orders:
+
+  | store | order | write | stored | read time (cold) | bytes read |
+  |---|---|---|---|---|---|
+  | products (0.5 MB) | Phase 2 | 86.6 s | 2,739 MB | 282.9 s | 71.9 GB |
+  | | full block sort | 146.8 s (+70%) | 2,895 MB | 48.4 s | 3.38 GB |
+  | | `blocked_min` | **95.1 s (+10%)** | 2,922 MB (+6.7%) | **48.1 s** | 3.38 GB |
+  | Reddit (4 MB) | Phase 2 | 71.5 s | 3,232 MB | 143.4 s | 38.6 GB |
+  | | full block sort | 103.9 s (+45%) | 3,229 MB | 23.2 s | 4.38 GB |
+  | | `blocked_min` | **75.3 s (+5%)** | 3,226 MB (−0.2%) | **23.1 s** | 4.38 GB |
+
+  - The same read gain (5.9× products, 6.2× Reddit) for +5–10% write time instead of +45–70%. Most of the earlier
+    write cost was sorting by the id keys, not the `_blk` column or the community-size count.
+  - The plain and full-sort numbers repeat `grl-p4b-spark` within 2% (write) and 0.2% (read).
+  - Stored bytes: products +6.7% over Phase 2's order (+0.9% over the full sort); Reddit unchanged.
 
 Order: P1 → P2 (uses B1 / B2 data now) → P3 → P4 / P5 → P6 / P7. Output: `results/trackB/*.jsonl`, generated tables, and
 an EDBT / VLDB-experiments-style write-up. Track A (link prediction, gate GO) is done and goes into the journal version
