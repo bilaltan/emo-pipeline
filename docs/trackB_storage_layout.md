@@ -380,6 +380,22 @@ runs (`grl-e2e-products` is on hold). Queued, one emulator job at a time:
 - `grl-rg-emu-sweep`: row group (0.125–16 MB; Reddit 1–64) × latency (5 / 20 / 80 ms) on products, arxiv/LPA,
   arxiv, Reddit. Does the best row group move with latency as the √ rule predicts?
 
+- **P3 hybrid halo through the emulator** (`grl-p3-halo-emu`, 30 min; `results/trackB/halo_hybrid_emu.jsonl`; 1 MB
+  row groups, GET = 20 ms + 80 MB/s, two cold repeats agree within 1%; unit rows identical everywhere; measured bytes
+  equal the planned bytes). Hybrid vs full halo at B = 1 / 2 / 4 readers:
+
+  | store | read time | bytes read | bytes stored | write time |
+  |---|---|---|---|---|
+  | Reddit | **0.43** / 0.55 / 0.74 (72 → 31 s at B = 1) | 0.35 / 0.48 / 0.66 | 0.35 / 0.37 / 0.46 | 0.35–0.47 |
+  | products | 0.82 / 0.88 / 0.95 (130 → 106 s) | 0.75 / 0.83 / 0.92 | 0.63 / 0.68 / 0.77 | 0.58–0.73 |
+  | arxiv | 1.00 / 1.00 / 1.02 | 0.92 / 0.96 / 0.99 | 0.75 / 0.79 / 0.91 | 0.6–0.8 |
+
+  - The byte saving that local disk hid shows up as read time once reads cost bandwidth: Reddit 2.3× faster at
+    B = 1, 1.35× at B = 4. Read time follows bytes read.
+  - arxiv does not gain: its 400 GETs for 0.8 GB are latency-bound, and the halo saving is small there.
+  - The saving shrinks as B grows (each reader loads the shared table once), as P3 step 1 predicted. B is the number
+    of readers that each load it: nodes if it sits on node-local disk, worker processes otherwise.
+
 Order: P1 → P2 (uses B1 / B2 data now) → P3 → P4 / P5 → P6 / P7. Output: `results/trackB/*.jsonl`, generated tables, and
 an EDBT / VLDB-experiments-style write-up. Track A (link prediction, gate GO) is done and goes into the journal version
 unchanged.
