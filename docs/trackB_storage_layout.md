@@ -524,6 +524,10 @@ runs (`grl-e2e-products` is on hold). Queued, one emulator job at a time:
     write cost was sorting by the id keys, not the `_blk` column or the community-size count.
   - The plain and full-sort numbers repeat `grl-p4b-spark` within 2% (write) and 0.2% (read).
   - Stored bytes: products +6.7% over Phase 2's order (+0.9% over the full sort); Reddit unchanged.
+  - **arxiv in the Spark path** (`grl-p4b-spark-arxiv`, 5 min; md5 identical). 128 MB Phase 2 order → 0.25 MB
+    `blocked_min`: read 18.9 → 9.3 s (2.0×), 2.20 → 0.30 GB (7.3×), 1,335 → 1,140 GETs; stored 179.3 → 184.3 MB
+    (+2.8%); write 8.2 → 9.7 s (median of 3; the first repeat of each is JVM warm-up at 10–24 s). The pyarrow-copy
+    stack gave 3.1×, because Spark's own 128 MB table already reads faster (18.9 vs 30.3 s).
 
 Order: P1 → P2 (uses B1 / B2 data now) → P3 → P4 / P5 → P6 / P7. Output: `results/trackB/*.jsonl`, generated tables, and
 an EDBT / VLDB-experiments-style write-up. Track A (link prediction, gate GO) is done and goes into the journal version
