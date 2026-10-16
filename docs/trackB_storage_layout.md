@@ -417,6 +417,30 @@ runs (`grl-e2e-products` is on hold). Queued, one emulator job at a time:
   - Rows within a unit are reordered. The per-block row sets are identical; whether training depends on row order
     is not checked.
   - This should change P5's rule (with blocks, the join won because MV re-read its units). Not rerun yet.
+- **Row group × latency** (`grl-rg-emu-sweep`, 136 min; `results/trackB/rg_emu_sweep.jsonl`). The store's Phase 2
+  tables were copied at each row group (`rg_resize.py`; actual sizes 0.7–1.5× the target), and Phase 3b's bins were
+  read with the pruned reader at 5 / 20 / 80 ms per GET (80 MB/s). Rows were identical everywhere. Cold read time:
+
+  | store (table / units) | latency | 0.125 | 0.25 | 0.5 | 1 | 2 | 4 | 16 MB |
+  |---|---|---|---|---|---|---|---|---|
+  | arxiv (0.63 MB) | 5 / 20 / 80 ms | **4.9 / 9.5 / 26.7** | 5.3 / 9.9 / 26.9 | 6.2 / 10.6 / 27.8 | 7.5 / 11.9 / 29.0 | 9.2 / 13.9 / 31.2 | 12.7 / 17.3 / 34.8 | 22.2 / 28.3 / 50.5 |
+  | arxiv/LPA (0.29 MB) | 5 / 20 / 80 ms | **11.4 / 24.7 / 74.2** | 12.1 / 25.5 / 74.8 | 13.7 / 27.1 / 76.5 | 17.4 / 30.7 / 79.7 | 23.2 / 36.6 / 85.5 | 23.4 / 36.6 / 85.4 | 23.4 / 35.9 / 85.7 |
+  | products (3.52 MB) | 5 / 20 / 80 ms | 57.8 / 62.5 / **85.4** | 56.2 / 60.9 / 86.0 | 55.7 / 60.3 / 88.0 | 55.5 / 59.6 / 93.1 | **48.0 / 57.0** / 102.1 | 65.0 / 77.9 / 127.4 | 133.1 / 148.3 / 211.7 |
+
+  Reddit (187 MB per unit), 1 / 4 / 16 / 64 MB: 20.5 / 15.4 / **14.5** / 15.1 s at 5 ms, 21.8 / 16.8 / **15.9** /
+  16.4 at 20 ms, 28.7 / 22.4 / 22.1 / **21.9** at 80 ms.
+  - **The guess that β ≈ latency × bandwidth is wrong.** The best row group does not grow with latency. It stays at
+    the smallest size on arxiv and arxiv/LPA, and on products it moves down at 80 ms. The cause is in the GET counts:
+    pyarrow fetches a unit's adjacent row groups in one coalesced read, so latency is paid per file and unit, not
+    per row group. A row group's own cost stays decode overhead, the same as on local disk.
+  - **The √ rule with the β fitted locally (about 0.6 MB) holds at every latency.** Its picks (arxiv 0.5, LPA 0.25,
+    products 1, Reddit 4 MB) are within 1.27× of the best everywhere: max 1.27 (arxiv, 5 ms), otherwise 1.01–1.16.
+    Using β = latency × bandwidth instead reaches regret 1.49 (products, 80 ms). So the rule does not need
+    re-tuning per storage latency.
+  - The cost of a too-large row group grows with latency: products at 16 MB is 2.3–2.6× slower than the best, arxiv
+    1.9–4.5×.
+  - The 0.125 MB end of the grid is the best on arxiv, so the optimum may lie lower; the curve is flat there
+    (within 8%).
 
 Order: P1 → P2 (uses B1 / B2 data now) → P3 → P4 / P5 → P6 / P7. Output: `results/trackB/*.jsonl`, generated tables, and
 an EDBT / VLDB-experiments-style write-up. Track A (link prediction, gate GO) is done and goes into the journal version
