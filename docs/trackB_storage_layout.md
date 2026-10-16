@@ -493,6 +493,19 @@ runs (`grl-e2e-products` is on hold). Queued, one emulator job at a time:
   - In Spark the √ row group stores only +2.3% (products), so the pyarrow copies' +13–46% was the copy, not the row
     group. Spark's own small row groups also read faster than the pyarrow copies (products 283 vs 387 s).
   - The same pattern as the stack: block order alone at 128 MB is no gain on products and 1.4× on Reddit.
+- **P4b at higher GET bandwidth** (`grl-p4b-bw`, 29 min; `p4b_blocks.jsonl`, `mbps` field; pyarrow copies at the √
+  row group, 20 ms per GET). 80 MB/s is about one S3 connection; faster clients shrink the byte saving. Cold read
+  time, Phase 2 order → block order:
+
+  | store | 80 MB/s | 200 MB/s | 800 MB/s |
+  |---|---|---|---|
+  | products | 387.6 → 59.9 s (6.5×) | 192.8 → 46.6 s (4.1×) | 92.3 → 39.8 s (2.3×) |
+  | Reddit | 162.6 → 25.0 s (6.5×) | 78.2 → 15.2 s (5.1×) | 34.9 → 10.0 s (3.5×) |
+
+  - The gain stays above 2× at 10× the bandwidth. GETs and bytes are unchanged, so what is left is latency (products
+    4,302 GETs ≈ 21.5 s at 20 ms over 4 processes) and local decode.
+  - The bytes saving (15.5× products, 8.8× Reddit) does not depend on bandwidth; it matters wherever data moved is
+    billed or shared (network, cross-region).
 
 Order: P1 → P2 (uses B1 / B2 data now) → P3 → P4 / P5 → P6 / P7. Output: `results/trackB/*.jsonl`, generated tables, and
 an EDBT / VLDB-experiments-style write-up. Track A (link prediction, gate GO) is done and goes into the journal version
