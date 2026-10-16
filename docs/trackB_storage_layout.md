@@ -454,6 +454,26 @@ runs (`grl-e2e-products` is on hold). Queued, one emulator job at a time:
     1.9–4.5×.
   - The 0.125 MB end of the grid is the best on arxiv, so the optimum may lie lower; the curve is flat there
     (within 8%).
+- **Stack: the changes added one at a time** (`grl-stack`, 82 min; `run_stack.sh`, `results/trackB/stack.jsonl`).
+  Phase 3b's block work items (cap 10,000) through the emulator (20 ms + 80 MB/s, 4 processes, one cold pass), from
+  pyarrow copies of the store's Phase 2 tables. Per-block checksums are identical in every column (same md5 per
+  store). Cold read time (bytes read):
+
+  | store | Phase 2 default (128 MB, isin reader) | + pruned reader | + √ row group | + block order | total |
+  |---|---|---|---|---|---|
+  | products | 732.6 s (211.7 GB) | 690.7 s (146.4 GB) | 387.2 s (102.5 GB) | **59.8 s (6.6 GB)** | **12.3×** (32× bytes) |
+  | Reddit | 155.8 s (38.9 GB) | 156.6 s (38.9 GB) | 162.2 s (43.7 GB) | **24.9 s (5.0 GB)** | **6.3×** (7.9× bytes) |
+  | arxiv | 31.4 s (5.0 GB) | 30.3 s (4.4 GB) | 12.0 s (1.1 GB) | **10.2 s (0.5 GB)** | **3.1×** (9.8× bytes) |
+
+  - **The √ row group and block order pay together, not alone.** Block order at 128 MB: products 691 → 737 s, arxiv
+    unchanged, Reddit 157 → 117 s. The √ row group without block order: products 1.8×, Reddit none (162 vs 157 s).
+    Block order sorts each block into its own row groups, which only helps when row groups are small enough to skip.
+  - With blocks, the √ row group alone gives much less than on Phase 3b's bins (products 1.8× here vs 8.4× there),
+    because every block of a split unit re-reads the unit. Block order removes that.
+  - **Stored bytes grow in the pyarrow copies:** 128 MB → √ +46% on products (2,671 → 3,907 MB), +13% on Reddit,
+    +34% on arxiv; block order adds 0.3–0.8% on top. Phase 2's Spark writer at products' 0.5 MB target stored 2,739
+    MB (`p4b_spark_write.jsonl`), so most of that growth seems to come from the pyarrow copy. I have not checked
+    Spark's actual row-group sizes or its stored bytes at 128 MB yet.
 
 Order: P1 → P2 (uses B1 / B2 data now) → P3 → P4 / P5 → P6 / P7. Output: `results/trackB/*.jsonl`, generated tables, and
 an EDBT / VLDB-experiments-style write-up. Track A (link prediction, gate GO) is done and goes into the journal version
