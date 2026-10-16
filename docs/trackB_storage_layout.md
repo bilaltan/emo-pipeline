@@ -349,6 +349,21 @@ methods for our GRL workload."*
   - So Track B's read savings matter end to end only where reads are a real share of a unit's time: many or large
     units, wide rows, few epochs, or faster (GPU) training. Next, products (1,063 units, emulated reads 389 s
     default vs 46 s √) measures that share on the store with the largest read saving (`grl-e2e-products`).
+- **Why the plain scan over-reads** (`experiments/trackB/pyarrow_prune_probe.py`, pyarrow 17.0.0; read-only, seconds).
+  Two separate causes:
+  - **`isin` is not checked against row-group statistics when a row group holds a range of communities.** On a
+    toy file, `isin` keeps 40 of 40 row groups, while `==` and a range predicate keep 1. With one community per row
+    group, `isin` keeps 1 too, which is why an earlier toy check seemed to prune. Phase 2's row groups hold ranges,
+    so `isin` never prunes there.
+  - **Every scan opens every file.** pyarrow reads a 64 KB footer tail from each file on every scan, because a
+    dataset built from paths keeps no footers between scans.
+  - arxiv Louvain p2_nodes at the √ row group (37 files, 715 row groups), one median unit (4 rows):
+    - `isin` plain: 39 read calls, 3.97 MB (37 footers = 2.4 MB, plus row groups 0–5 where only 1 holds the unit).
+    - OR of `==` plain: 2.74 MB (the row groups are pruned, the footers are not).
+    - `unit_dataset`: 1 read call, 0.25 MB, which equals the matching row group.
+  - So the earlier statement stands, now with its mechanism. A fairer plain baseline is the OR-of-`==` predicate,
+    and `unit_dataset` still beats it 11× on this unit, because footers are cached and only matching files are
+    opened. The benches above compared against `isin`, so their plain columns include both causes.
 - **P4 / P5 real runs queued:** arxiv/LPA with `tiny = keep` (16,250 units, about 16 per bin), products with
   `tiny = keep` (4,389 units), and P5 on products at the √-rule row group (0.5 MB) and at 128 MB.
 - P5 initially queued: the join-vs-MV bench (new `--tiny` flag) on WikiCS, Coauthor-CS / Physics, arxiv and Reddit (misc),
