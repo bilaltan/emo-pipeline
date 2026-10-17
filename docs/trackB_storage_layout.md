@@ -678,7 +678,12 @@ runs (`grl-e2e-products` is on hold). Queued, one emulator job at a time:
     - One table serves every cap from 2,500 to 40,000 with the GETs and bytes of a table written for that cap
       (within about 1%). Reddit's read time matches too (0.97–1.03×).
     - Products is 6–12% slower at the coarser caps with the same GETs and bytes. The reader's conjunct is an OR of
-      up to 31 `_blk` equalities there, evaluated on every row read; a range predicate would test this.
+      up to 31 `_blk` equalities there, evaluated on every row read.
+    - With one range predicate (`_blk` between the subtree's bounds; `grl-p4b-tree-range`, 35 min, same table rewritten,
+      md5 equal, same GETs and bytes) products reads 98.9 / 67.5 / 49.7 / 42.4 / 37.1 s at 2,500–40,000 [1.00 / 1.04 /
+      1.03 / 1.02 / 1.00× matched] and Reddit 54.2 / 34.1 / 22.5 / 18.0 / 15.7 s [0.97–1.02×]. The saving grows with
+      the OR's size (none at 2,500, one value; 4.2 s at 40,000, 31 values), so the gap was mostly the filter's CPU.
+      Products' remaining 2–4% at 5,000–20,000 is about the size of Reddit's 0.97–1.02× spread; not checked further.
     - Write: products 104.4 s, Reddit 89.0 s median (repeats 103.4 / 89.0 / 82.4); stored as at cap 10,000.
 
 Order: P1 → P2 (uses B1 / B2 data now) → P3 → P4 / P5 → P6 / P7. Output: `results/trackB/*.jsonl`, generated tables, and
