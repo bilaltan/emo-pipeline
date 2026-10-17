@@ -17,7 +17,8 @@ item as the direct loader does. If the table has a _blk column (P4b block-ordere
 scan also gets the implied conjunct _blk == block, which row-group statistics can decide; the checksums are compared
 against a plain read without it. --write-cap reads a table blocked for another cap (the plan changed after the
 write): the conjunct becomes the _blk values that can hold the block's rows (n_w, the cross-block edge bucket, when
-the read splits a unit into fewer blocks than the write did).
+the read splits a unit into fewer blocks than the write did; with --hier-edges, p4b_spark_write's blocked_hier, only
+the level buckets that hold its edges).
 
     python experiments/trackB/s3_emu_bench.py --table-dir ~/lakegrl/layoutbench/ogbn-arxiv-lp/misc/range_rg \\
         --label arxiv/range_rg@0.44 --out results/trackB/s3_emu.jsonl
@@ -229,11 +230,17 @@ def _load(args):
     return {c: tuple(v) for c, v in res.items()}, st.gets - g0, st.bytes - b0
 
 
-def blk_values(b, n_r, n_w):
-    """_blk values (written with n_w blocks) holding read block b of n_r: nodes, edges."""
+def blk_values(b, n_r, n_w, hier=False):
+    """_blk values (written with n_w blocks) holding read block b of n_r: nodes, edges. hier: cross-block edges are in
+    bucket n_w + 2^j - 1 + (src & (2^j - 1)) by the j low bits their endpoints share (blocked_hier)."""
     m = min(n_r, n_w)
     nodes = [v for v in range(n_w) if v & (m - 1) == b & (m - 1)]
-    return nodes, nodes + ([n_w] if n_r < n_w else [])
+    if n_r >= n_w:
+        return nodes, nodes
+    if not hier:
+        return nodes, nodes + [n_w]
+    return nodes, nodes + [n_w + (1 << j) - 1 + bj for j in range(n_r.bit_length() - 1, n_w.bit_length() - 1)
+                           for bj in range(1 << j) if bj & (n_r - 1) == b]
 
 
 def run_mode(table_dir, desc, c2p, groups, prune, lat_ms, mbps, procs, passes, blocks=None, use_blk=True):
@@ -266,6 +273,7 @@ def main():
                     help="also: blocks, blocks_pruned (Phase 3b work items with the --cap block split)")
     ap.add_argument("--cap", type=int, default=10000, help="Phase 3b block cap (rows) for the blocks modes")
     ap.add_argument("--write-cap", type=int, default=None, help="cap the table's _blk was written with (default --cap)")
+    ap.add_argument("--hier-edges", action="store_true", help="cross-block edges are in level buckets (blocked_hier)")
     ap.add_argument("--out", default="results/trackB/s3_emu.jsonl")
     args = ap.parse_args()
     td = os.path.abspath(os.path.expanduser(args.table_dir))
@@ -274,8 +282,9 @@ def main():
     groupings = {"unit": [[int(c)] for c in rows.index], "p3b_bins": phase3b_bins(rows, args.procs),
                  "blocks": [[c] for c, _, _ in items]}
     wcap = args.write_cap or args.cap
-    blocks = {"blocks": [(b, n, *blk_values(b, n, n_blocks(rows[c], wcap))) for c, b, n in items]}
+    blocks = {"blocks": [(b, n, *blk_values(b, n, n_blocks(rows[c], wcap), args.hier_edges)) for c, b, n in items]}
     assert blk_values(1, 2, 8) == ([1, 3, 5, 7], [1, 3, 5, 7, 8]) and blk_values(5, 8, 2) == ([1], [1])
+    assert blk_values(1, 2, 8, True) == ([1, 3, 5, 7], [1, 3, 5, 7, 10, 12, 14]) and blk_values(5, 8, 2, True) == ([1], [1])
     truths = {"unit": run_mode(td, desc, c2p, groupings["unit"], False, None, None, args.procs, 1)[1]}  # plain local
     if any(m.startswith("blocks") for m in args.modes):     # without the _blk conjunct: checks it too
         truths["blocks"] = run_mode(td, desc, c2p, groupings["blocks"], False, None, None, args.procs, 1,

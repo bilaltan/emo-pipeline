@@ -10,7 +10,8 @@ bash scripts/wsl_run.sh python experiments/trackB/p4b_spark_write.py --dataset $
 for order in ${ORDERS:-plain blocked}; do
   for rc in ${READ_CAPS:-$cap}; do
     bash scripts/wsl_run.sh python experiments/trackB/s3_emu_bench.py --table-dir $HOME/lakegrl/p4b_spark/$ds-louvain/$order \
-      --label "$ds/louvain/spark-rg$rg/$order" --modes blocks_pruned --cap $rc --write-cap $cap --out results/trackB/p4b_blocks.jsonl
+      --label "$ds/louvain/spark-rg$rg/$order" --modes blocks_pruned --cap $rc --write-cap $cap --out results/trackB/p4b_blocks.jsonl \
+      $([ $order = blocked_hier ] && echo --hier-edges)
   done
 done
 rm -rf $HOME/lakegrl/p4b_spark/$ds-louvain
