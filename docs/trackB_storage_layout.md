@@ -577,8 +577,24 @@ runs (`grl-e2e-products` is on hold). Queued, one emulator job at a time:
     cross-block edge bucket (`_blk = n`). On products the block-ordered table then reads 11.7 GB at cap 20,000 vs
     3.4 GB at its own cap. That the edge bucket is most of this is likely (products' rows are edge-heavy, Reddit's
     feature-heavy, and Reddit loses less) but not split out.
-  - Not measured: a table written for the new cap (the regret of keeping the old layout). Writes repeat the earlier
-    runs (products 84.7 vs 93.4 s median, Reddit 71.4 vs 76.3 s).
+  - Writes repeat the earlier runs (products 84.7 vs 93.4 s median, Reddit 71.4 vs 76.3 s).
+  - **Regret of keeping the old layout** (`grl-p4b-capmatch`, 58 min): `blocked_min` written for each read cap and
+    read at it, same setup, md5 equal to the cells above. Cold read time, written for 10,000 → written for the read
+    cap (bytes read), and the matched table's gain over Phase 2's order at that cap:
+
+    | read cap | products | vs Phase 2 | Reddit | vs Phase 2 |
+    |---|---|---|---|---|
+    | 2,500 | 120.5 → 98.9 s (1.22×; 11.6 → 4.9 GB) | 10.7× | 85.9 → 55.7 s (1.54×; 17.5 → 8.8 GB) | 10.1× |
+    | 5,000 | 72.9 → 64.7 s (1.13×; 6.1 → 3.9 GB) | 8.4× | 42.7 → 35.2 s (1.21×; 8.7 → 5.9 GB) | 8.1× |
+    | 20,000 | 78.2 → 41.4 s (1.89×; 11.7 → 3.2 GB) | 3.7× | 25.3 → 17.9 s (1.41×; 5.3 → 3.7 GB) | 4.1× |
+    | 40,000 | 59.4 → 37.0 s (1.61×; 7.5 → 3.1 GB) | 2.5× | 20.1 → 15.4 s (1.31×; 4.4 → 3.3 GB) | 2.5× |
+
+    - Keeping a layout written for another cap costs 1.13–1.89× in read time, against 1.5–8.8× lost by not
+      block-ordering at all. Coarser drift costs more on products (1.6–1.9×), finer drift more on Reddit (1.2–1.5×).
+    - Writing for the right cap costs the same as for any other: write median 92.5–96.3 s on products and 74.2–77.9 s
+      on Reddit at every cap (blocked_min written alone here, the first repeat is warm-up), stored bytes within 0.4%.
+    - The matched gain over Phase 2's order grows as the cap shrinks (2.5× at 40,000 to 10.7× at 2,500), because
+      Phase 2's order re-reads the unit once per block.
 
 Order: P1 → P2 (uses B1 / B2 data now) → P3 → P4 / P5 → P6 / P7. Output: `results/trackB/*.jsonl`, generated tables, and
 an EDBT / VLDB-experiments-style write-up. Track A (link prediction, gate GO) is done and goes into the journal version
