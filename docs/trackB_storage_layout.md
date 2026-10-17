@@ -641,6 +641,28 @@ runs (`grl-e2e-products` is on hold). Queued, one emulator job at a time:
       of `blocked_min` at every coarser cap.
     - Writes repeat the earlier runs (products 89.6 / 97.7 / 105.1 s for Phase 2 / `blocked_min` / `blocked_hier`,
       Reddit 71.1 / 76.4 / 81.1 s).
+  - **Trie order: a coarser cap's block is one contiguous range** (`grl-p4b-tree`, 76 min; `p4b_spark_write.py
+    --orders blocked_tree`, `s3_emu_bench.py --tree-blk`). The level buckets' remaining gap was GETs: a coarse block's
+    written blocks and buckets lay in separate runs. `blocked_tree` keeps the same buckets but numbers them in preorder
+    of the binary trie on id's low bits (lowest bit first): `_blk = Σ_d (1 if bit d is 0 else 2^(k-d+1))` over the
+    bucket's bits, k = log2 n. A node's subtree is then a contiguous `_blk` range, and a read block of any cap at or
+    above the write's is the subtree under its low bits. Written for cap 10,000, alternated with `blocked_hier`, md5
+    equal to the cells above. Cold read time, and in brackets the time over the table written for the read cap
+    (`grl-p4b-capmatch`):
+
+    | store | read cap | `blocked_hier` | `blocked_tree` | GETs (tree / matched) | bytes (tree / matched) |
+    |---|---|---|---|---|---|
+    | products | 20,000 | 49.0 s [1.18×] | **42.2 s [1.02×]** | 3,608 / 3,616 | 3.20 / 3.18 GB |
+    | | 40,000 | 47.7 s [1.29×] | **37.5 s [1.01×]** | 3,214 / 3,222 | 3.15 / 3.12 GB |
+    | Reddit | 20,000 | 20.7 s [1.16×] | **17.9 s [1.00×]** | 429 / 425 | 3.63 / 3.66 GB |
+    | | 40,000 | 18.3 s [1.19×] | **15.7 s [1.02×]** | 363 / 359 | 3.33 / 3.33 GB |
+
+    - A table written for cap 10,000 now reads caps 2× and 4× coarser as fast as a table written for them: GETs and
+      bytes match the matched table within about 1%.
+    - At the write's cap and finer nothing changes (products 48.3 / 72.9 / 120.9 s at 10,000 / 5,000 / 2,500, Reddit
+      22.4 / 43.9 / 84.2 s): a finer block still lies inside one written block, 1.13–1.51× over a matched table.
+    - Cost: none over `blocked_hier` (write median products 105.1 vs 105.2 s, Reddit 82.9 vs 83.0 s; stored 2,945 vs
+      2,958 MB and 3,233 vs 3,237 MB).
 
 Order: P1 → P2 (uses B1 / B2 data now) → P3 → P4 / P5 → P6 / P7. Output: `results/trackB/*.jsonl`, generated tables, and
 an EDBT / VLDB-experiments-style write-up. Track A (link prediction, gate GO) is done and goes into the journal version
