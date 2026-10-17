@@ -15,7 +15,9 @@ as Spark's reused Python workers keep them), GETs, bytes, and per-unit checksums
 Mode blocks reads Phase 3b's work items with the --cap block split (community, block of id & (n-1)), one read per
 item as the direct loader does. If the table has a _blk column (P4b block-ordered write, rg_resize --block-cap), the
 scan also gets the implied conjunct _blk == block, which row-group statistics can decide; the checksums are compared
-against a plain read without it.
+against a plain read without it. --write-cap reads a table blocked for another cap (the plan changed after the
+write): the conjunct becomes the _blk values that can hold the block's rows (n_w, the cross-block edge bucket, when
+the read splits a unit into fewer blocks than the write did).
 
     python experiments/trackB/s3_emu_bench.py --table-dir ~/lakegrl/layoutbench/ogbn-arxiv-lp/misc/range_rg \\
         --label arxiv/range_rg@0.44 --out results/trackB/s3_emu.jsonl
@@ -210,7 +212,7 @@ def _load(args):
             f = functools.reduce(operator.and_, [pc.bit_wise_and(ds.field(k), blk[1] - 1) == blk[0]
                                                  for k in (["id"] if name == "nodes" else ["src", "dst"])], f)
             if use_blk and "_blk" in d.schema.names:
-                f = f & (ds.field("_blk") == blk[0])
+                f = f & functools.reduce(operator.or_, [ds.field("_blk") == v for v in blk[2 if name == "nodes" else 3]])
         if prune:
             d = unit_dataset(d, cs, base)
         t = d.to_table(columns=cols, filter=f)
@@ -225,6 +227,13 @@ def _load(args):
             for c, k in zip(*np.unique(cid, return_counts=True)):
                 res[key(c)][2] = int(k)
     return {c: tuple(v) for c, v in res.items()}, st.gets - g0, st.bytes - b0
+
+
+def blk_values(b, n_r, n_w):
+    """_blk values (written with n_w blocks) holding read block b of n_r: nodes, edges."""
+    m = min(n_r, n_w)
+    nodes = [v for v in range(n_w) if v & (m - 1) == b & (m - 1)]
+    return nodes, nodes + ([n_w] if n_r < n_w else [])
 
 
 def run_mode(table_dir, desc, c2p, groups, prune, lat_ms, mbps, procs, passes, blocks=None, use_blk=True):
@@ -256,6 +265,7 @@ def main():
     ap.add_argument("--modes", nargs="+", default=["unit", "p3b_bins", "unit_pruned", "p3b_bins_pruned"],
                     help="also: blocks, blocks_pruned (Phase 3b work items with the --cap block split)")
     ap.add_argument("--cap", type=int, default=10000, help="Phase 3b block cap (rows) for the blocks modes")
+    ap.add_argument("--write-cap", type=int, default=None, help="cap the table's _blk was written with (default --cap)")
     ap.add_argument("--out", default="results/trackB/s3_emu.jsonl")
     args = ap.parse_args()
     td = os.path.abspath(os.path.expanduser(args.table_dir))
@@ -263,7 +273,9 @@ def main():
     items = phase3b_blocks(rows, args.cap)
     groupings = {"unit": [[int(c)] for c in rows.index], "p3b_bins": phase3b_bins(rows, args.procs),
                  "blocks": [[c] for c, _, _ in items]}
-    blocks = {"blocks": [(b, n) for _, b, n in items]}
+    wcap = args.write_cap or args.cap
+    blocks = {"blocks": [(b, n, *blk_values(b, n, n_blocks(rows[c], wcap))) for c, b, n in items]}
+    assert blk_values(1, 2, 8) == ([1, 3, 5, 7], [1, 3, 5, 7, 8]) and blk_values(5, 8, 2) == ([1], [1])
     truths = {"unit": run_mode(td, desc, c2p, groupings["unit"], False, None, None, args.procs, 1)[1]}  # plain local
     if any(m.startswith("blocks") for m in args.modes):     # without the _blk conjunct: checks it too
         truths["blocks"] = run_mode(td, desc, c2p, groupings["blocks"], False, None, None, args.procs, 1,
@@ -283,7 +295,8 @@ def main():
                "warm": [dict(zip(("wall_s", "gets", "bytes"), p)) for p in passes[1:]],
                "identical": check == truths["unit" if base != "blocks" else "blocks"],
                "check_md5": hashlib.md5(json.dumps(sorted((str(k), v) for k, v in check.items())).encode()).hexdigest(),
-               **({"cap": args.cap, "split_units": sum(n > 1 for _, b, n in items if b == 0)} if base == "blocks" else {})}
+               **({"cap": args.cap, "write_cap": wcap, "split_units": sum(n > 1 for _, b, n in items if b == 0)}
+                  if base == "blocks" else {})}
         with open(args.out, "a") as fh:
             fh.write(json.dumps(rec) + "\n")
         w = rec["warm"][-1] if rec["warm"] else rec["cold"]
