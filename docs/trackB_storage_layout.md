@@ -575,8 +575,8 @@ runs (`grl-e2e-products` is on hold). Queued, one emulator job at a time:
     contiguous run. Phase 2's order gets worse there, because every extra block re-reads the whole unit.
   - A coarser read cap loses most of it: a read block spans several written blocks and must also read the
     cross-block edge bucket (`_blk = n`). On products the block-ordered table then reads 11.7 GB at cap 20,000 vs
-    3.4 GB at its own cap. That the edge bucket is most of this is likely (products' rows are edge-heavy, Reddit's
-    feature-heavy, and Reddit loses less) but not split out.
+    3.4 GB at its own cap. The cross-block edge bucket is most of this: with level buckets (`blocked_hier`, below)
+    the same read takes 3.46 GB.
   - Writes repeat the earlier runs (products 84.7 vs 93.4 s median, Reddit 71.4 vs 76.3 s).
   - **Regret of keeping the old layout** (`grl-p4b-capmatch`, 58 min): `blocked_min` written for each read cap and
     read at it, same setup, md5 equal to the cells above. Cold read time, written for 10,000 → written for the read
@@ -595,6 +595,30 @@ runs (`grl-e2e-products` is on hold). Queued, one emulator job at a time:
       on Reddit at every cap (blocked_min written alone here, the first repeat is warm-up), stored bytes within 0.4%.
     - The matched gain over Phase 2's order grows as the cap shrinks (2.5× at 40,000 to 10.7× at 2,500), because
       Phase 2's order re-reads the unit once per block.
+  - **Level buckets for cross-block edges** (`grl-p4b-hier`, 42 min; `p4b_spark_write.py --orders blocked_hier`,
+    `s3_emu_bench.py --hier-edges`). A cross-block edge gets the bucket of the coarsest level where its endpoints
+    still share a block: j = the low bits src and dst share (j < log2 n), `_blk = n + 2^j - 1 + (src & (2^j - 1))`.
+    A read with 2^j blocks or fewer finds its cross edges in a few buckets, each holding only edges it needs; at the
+    write's own cap nothing changes. Written for cap 10,000, alternated with `blocked_min` (3 repeats), md5 equal to
+    the cells above. Cold read time (bytes read), `blocked_min` → `blocked_hier`, and the table written for the read
+    cap from `grl-p4b-capmatch`:
+
+    | store | read cap | `blocked_min` | `blocked_hier` | written for the read cap |
+    |---|---|---|---|---|
+    | products | 10,000 | 48.4 s (3.38 GB) | 48.8 s (3.38 GB) | (same table) |
+    | | 20,000 | 78.1 s (11.71 GB) | **49.2 s (3.46 GB)** | 41.4 s (3.18 GB) |
+    | | 40,000 | 59.2 s (7.53 GB) | **47.5 s (3.54 GB)** | 37.0 s (3.12 GB) |
+    | Reddit | 10,000 | 23.0 s (4.38 GB) | 23.0 s (4.38 GB) | (same table) |
+    | | 20,000 | 25.2 s (5.27 GB) | **20.4 s (4.25 GB)** | 17.9 s (3.66 GB) |
+    | | 40,000 | 20.0 s (4.38 GB) | **18.2 s (3.96 GB)** | 15.4 s (3.33 GB) |
+
+    - The regret of a coarser cap drops from 1.61–1.89× to 1.19–1.28× on products and from 1.30–1.41× to
+      1.14–1.18× on Reddit. Bytes read come within 9–19% of the matched table; the rest of the time is GETs (products
+      4,790 vs 3,616 at 20,000), since a read block now spans several runs.
+    - Cost: write +8% over `blocked_min` (products 104.8 vs 96.8 s median, Reddit 82.6 vs 76.2 s), stored +1.2% and
+      +0.4%.
+    - So one write serves Phase 3b caps from 4× finer to 4× coarser within 1.13–1.54× of a table written for each
+      (finer caps from `grl-p4b-capmatch`; level buckets do not change which rows a finer read selects, not rerun).
 
 Order: P1 → P2 (uses B1 / B2 data now) → P3 → P4 / P5 → P6 / P7. Output: `results/trackB/*.jsonl`, generated tables, and
 an EDBT / VLDB-experiments-style write-up. Track A (link prediction, gate GO) is done and goes into the journal version
