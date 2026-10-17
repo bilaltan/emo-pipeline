@@ -556,6 +556,29 @@ runs (`grl-e2e-products` is on hold). Queued, one emulator job at a time:
   - Both writes include the plain write plus the OPTIMIZE rewrite (and compaction to 3 files), so part of their read
     cost may be the file layout, not only the row order.
   - Clustering by `community_id` alone was not tried; it would match Phase 2's range order apart from file sizes.
+- **The plan changes after the write** (`grl-p4b-capdrift`, 163 min; `s3_emu_bench.py --write-cap`, `READ_CAPS`).
+  Tables written by Phase 2's Spark path at the √ row group, Phase 2 order and `blocked_min` with `_blk` for cap
+  10,000, then read with Phase 3b caps 2,500–40,000. The reader adds `_blk` in the set of values that can hold its
+  block (plus the cross-block edge bucket when its cap is coarser than the write's). Rows identical in every cell, and
+  the md5 per read cap matches between the two orders. Cold read time, Phase 2 order → block order (bytes read):
+
+  | read cap | products (0.5 MB) | Reddit (4 MB) |
+  |---|---|---|
+  | 2,500 | 1,057.5 → 120.5 s (**8.8×**; 284.6 → 11.6 GB) | 564.2 → 85.9 s (**6.6×**; 154.3 → 17.5 GB) |
+  | 5,000 | 542.5 → 72.9 s (7.4×; 142.8 → 6.1 GB) | 285.3 → 42.7 s (6.7×; 77.2 → 8.7 GB) |
+  | 10,000 (= write) | 282.4 → 48.3 s (5.9×; 72.0 → 3.4 GB) | 143.8 → 23.1 s (6.2×; 38.6 → 4.4 GB) |
+  | 20,000 | 153.0 → 78.2 s (2.0×; 36.5 → 11.7 GB) | 73.9 → 25.3 s (2.9×; 19.3 → 5.3 GB) |
+  | 40,000 | 91.8 → 59.4 s (1.5×; 18.8 → 7.5 GB) | 38.9 → 20.1 s (1.9×; 9.7 → 4.4 GB) |
+
+  - Block order wins at every read cap, from 4× finer to 4× coarser than the cap it was written for.
+  - A finer read cap keeps the gain: each read block lies inside one written block, so the read is a subset of a
+    contiguous run. Phase 2's order gets worse there, because every extra block re-reads the whole unit.
+  - A coarser read cap loses most of it: a read block spans several written blocks and must also read the
+    cross-block edge bucket (`_blk = n`). On products the block-ordered table then reads 11.7 GB at cap 20,000 vs
+    3.4 GB at its own cap. That the edge bucket is most of this is likely (products' rows are edge-heavy, Reddit's
+    feature-heavy, and Reddit loses less) but not split out.
+  - Not measured: a table written for the new cap (the regret of keeping the old layout). Writes repeat the earlier
+    runs (products 84.7 vs 93.4 s median, Reddit 71.4 vs 76.3 s).
 
 Order: P1 → P2 (uses B1 / B2 data now) → P3 → P4 / P5 → P6 / P7. Output: `results/trackB/*.jsonl`, generated tables, and
 an EDBT / VLDB-experiments-style write-up. Track A (link prediction, gate GO) is done and goes into the journal version
