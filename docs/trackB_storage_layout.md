@@ -663,6 +663,23 @@ runs (`grl-e2e-products` is on hold). Queued, one emulator job at a time:
       22.4 / 43.9 / 84.2 s): a finer block still lies inside one written block, 1.13–1.51× over a matched table.
     - Cost: none over `blocked_hier` (write median products 105.1 vs 105.2 s, Reddit 82.9 vs 83.0 s; stored 2,945 vs
       2,958 MB and 3,233 vs 3,237 MB).
+  - **One write for the finest cap** (`grl-p4b-tree-fine`, 36 min). `blocked_tree` written for cap 2,500 and read at
+    2,500–40,000, against the table written for each read cap (`grl-p4b-capmatch`; at 10,000 the `blocked_min`
+    table of `grl-p4b-blocked-min`). md5 equal everywhere. Cold read time [over matched], GETs and bytes:
+
+    | read cap | products | Reddit |
+    |---|---|---|
+    | 2,500 | 99.3 s [1.00×], 9,270 GETs, 4.80 GB | 54.0 s [0.97×], 1,658, 8.31 GB |
+    | 5,000 | 68.9 s [1.06×], 6,028, 3.86 GB | 34.1 s [0.97×], 930, 5.60 GB |
+    | 10,000 | 53.1 s [1.10×], 4,410, 3.40 GB | 22.7 s [0.98×], 566, 4.27 GB |
+    | 20,000 | 45.4 s [1.10×], 3,608, 3.20 GB | 18.1 s [1.01×], 425, 3.64 GB |
+    | 40,000 | 41.3 s [1.12×], 3,214, 3.15 GB | 15.9 s [1.03×], 359, 3.34 GB |
+
+    - One table serves every cap from 2,500 to 40,000 with the GETs and bytes of a table written for that cap
+      (within about 1%). Reddit's read time matches too (0.97–1.03×).
+    - Products is 6–12% slower at the coarser caps with the same GETs and bytes. The reader's conjunct is an OR of
+      up to 31 `_blk` equalities there, evaluated on every row read; a range predicate would test this.
+    - Write: products 104.4 s, Reddit 89.0 s median (repeats 103.4 / 89.0 / 82.4); stored as at cap 10,000.
 
 Order: P1 → P2 (uses B1 / B2 data now) → P3 → P4 / P5 → P6 / P7. Output: `results/trackB/*.jsonl`, generated tables, and
 an EDBT / VLDB-experiments-style write-up. Track A (link prediction, gate GO) is done and goes into the journal version
