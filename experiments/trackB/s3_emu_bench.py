@@ -213,7 +213,11 @@ def _load(args):
             f = functools.reduce(operator.and_, [pc.bit_wise_and(ds.field(k), blk[1] - 1) == blk[0]
                                                  for k in (["id"] if name == "nodes" else ["src", "dst"])], f)
             if use_blk and "_blk" in d.schema.names:
-                f = f & functools.reduce(operator.or_, [ds.field("_blk") == v for v in blk[2 if name == "nodes" else 3]])
+                v = blk[2 if name == "nodes" else 3]
+                if len(v) > 1 and v == list(range(v[0], v[-1] + 1)):   # blocked_tree: one range, cheaper than ORs
+                    f = f & (ds.field("_blk") >= v[0]) & (ds.field("_blk") <= v[-1])
+                else:
+                    f = f & functools.reduce(operator.or_, [ds.field("_blk") == x for x in v])
         if prune:
             d = unit_dataset(d, cs, base)
         t = d.to_table(columns=cols, filter=f)
