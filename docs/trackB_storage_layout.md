@@ -621,6 +621,26 @@ runs (`grl-e2e-products` is on hold). Queued, one emulator job at a time:
       (finer caps from `grl-p4b-capmatch`). Checked in `grl-p4b-hier-fine` (28 min): the `blocked_hier` table read at
       2,500 / 5,000 gives the `blocked_min` bytes exactly (products 11.57 / 6.11 GB, Reddit 17.47 / 8.74 GB) and read
       time within 5% (products 121.5 / 73.1 s, Reddit 85.0 / 44.6 s), md5 equal.
+  - **At 80 ms per GET** (`grl-p4b-hier-lat80`, 129 min; `LAT=80`, same tables and protocol, bytes and GETs equal to
+    the 20 ms runs, md5 equal). Cold read time; in brackets the time over the table written for the read cap:
+
+    | store | read cap | Phase 2 order | `blocked_min` | `blocked_hier` | written for the read cap |
+    |---|---|---|---|---|---|
+    | products | 10,000 | 371.9 s | 117.6 s (**3.2×** faster) | 118.1 s | (same table) |
+    | | 20,000 | 220.5 s | 153.1 s [1.58×] | **125.5 s [1.30×]** | 96.8 s |
+    | | 40,000 | 144.7 s | 125.2 s [1.41×] | **120.3 s [1.36×]** | 88.6 s |
+    | Reddit | 10,000 | 168.0 s | 32.1 s (**5.2×** faster) | 32.2 s | (same table) |
+    | | 20,000 | 88.3 s | 33.3 s [1.34×] | **29.0 s [1.17×]** | 24.8 s |
+    | | 40,000 | 47.6 s | 26.9 s [1.27×] | **25.2 s [1.19×]** | 21.2 s |
+
+    - Block order's gain at its own cap shrinks with latency (products 5.9× at 20 ms → 3.2× at 80 ms, Reddit 6.2× →
+      5.2×): the bytes saving stays, but GETs (4,418 vs 5,758 on products) now cost more of the time.
+    - The level buckets' gap to a matched table grows a little with latency on products (1.19 / 1.28× at 20 ms →
+      1.30 / 1.36×) and stays on Reddit (1.14 / 1.18× → 1.17 / 1.19×), because what is left is GETs. `blocked_min`'s
+      gap shrinks (products 1.89 / 1.61× → 1.58 / 1.41×), as its extra cost is bytes. The level buckets stay ahead
+      of `blocked_min` at every coarser cap.
+    - Writes repeat the earlier runs (products 89.6 / 97.7 / 105.1 s for Phase 2 / `blocked_min` / `blocked_hier`,
+      Reddit 71.1 / 76.4 / 81.1 s).
 
 Order: P1 → P2 (uses B1 / B2 data now) → P3 → P4 / P5 → P6 / P7. Output: `results/trackB/*.jsonl`, generated tables, and
 an EDBT / VLDB-experiments-style write-up. Track A (link prediction, gate GO) is done and goes into the journal version
