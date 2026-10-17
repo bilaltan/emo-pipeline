@@ -2,7 +2,7 @@
 # Track B P4b in Phase 2's Spark write path: write cost of block order (p4b_spark_write.py), then Phase 3b's block
 # work items read from both Spark-written tables through the S3 emulator.
 #   bash experiments/trackB/run_p4b_spark.sh <dataset> <rg_mb> [cap=10000]    (ORDERS="plain blocked blocked_min")
-# READ_CAPS="2500 10000 40000" reads each table with those Phase 3b caps (blocks written for <cap>).
+# READ_CAPS="2500 10000 40000" reads each table with those Phase 3b caps (blocks written for <cap>). LAT: ms per GET.
 set -e
 ds=$1; rg=$2; cap=${3:-10000}
 cd "$(dirname "$0")/../.."
@@ -10,7 +10,7 @@ bash scripts/wsl_run.sh python experiments/trackB/p4b_spark_write.py --dataset $
 for order in ${ORDERS:-plain blocked}; do
   for rc in ${READ_CAPS:-$cap}; do
     bash scripts/wsl_run.sh python experiments/trackB/s3_emu_bench.py --table-dir $HOME/lakegrl/p4b_spark/$ds-louvain/$order \
-      --label "$ds/louvain/spark-rg$rg/$order" --modes blocks_pruned --cap $rc --write-cap $cap --out results/trackB/p4b_blocks.jsonl \
+      --label "$ds/louvain/spark-rg$rg/$order" --modes blocks_pruned --cap $rc --write-cap $cap --latency-ms ${LAT:-20} --out results/trackB/p4b_blocks.jsonl \
       $([ $order = blocked_hier ] && echo --hier-edges)
   done
 done
