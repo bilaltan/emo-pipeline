@@ -18,7 +18,7 @@ scan also gets the implied conjunct _blk == block, which row-group statistics ca
 against a plain read without it. --write-cap reads a table blocked for another cap (the plan changed after the
 write): the conjunct becomes the _blk values that can hold the block's rows (n_w, the cross-block edge bucket, when
 the read splits a unit into fewer blocks than the write did; with --hier-edges, p4b_spark_write's blocked_hier, only
-the level buckets that hold its edges).
+the level buckets that hold its edges; with --tree-blk, blocked_tree, one contiguous _blk range).
 
     python experiments/trackB/s3_emu_bench.py --table-dir ~/lakegrl/layoutbench/ogbn-arxiv-lp/misc/range_rg \\
         --label arxiv/range_rg@0.44 --out results/trackB/s3_emu.jsonl
@@ -243,6 +243,16 @@ def blk_values(b, n_r, n_w, hier=False):
                            for bj in range(1 << j) if bj & (n_r - 1) == b]
 
 
+def tree_values(b, n_r, n_w):
+    """blocked_tree: read block b of n_r is the subtree of the trie node at depth min(r, k) on b's low bits, one
+    contiguous range of preorder indices (nodes and edges alike)."""
+    k, r = n_w.bit_length() - 1, n_r.bit_length() - 1
+    m = min(r, k)
+    lo = sum(1 if not (b >> (d - 1)) & 1 else 1 << (k - d + 1) for d in range(1, m + 1))
+    v = list(range(lo, lo + (1 << (k - m + 1)) - 1))
+    return v, v
+
+
 def run_mode(table_dir, desc, c2p, groups, prune, lat_ms, mbps, procs, passes, blocks=None, use_blk=True):
     """passes[0] is cold (fresh workers), the rest warm. Returns per pass (wall, gets, bytes) and the checksums.
     blocks: (block, n_blocks) per group (one community each), for Phase 3b's block work items."""
@@ -274,6 +284,7 @@ def main():
     ap.add_argument("--cap", type=int, default=10000, help="Phase 3b block cap (rows) for the blocks modes")
     ap.add_argument("--write-cap", type=int, default=None, help="cap the table's _blk was written with (default --cap)")
     ap.add_argument("--hier-edges", action="store_true", help="cross-block edges are in level buckets (blocked_hier)")
+    ap.add_argument("--tree-blk", action="store_true", help="_blk is the trie preorder index (blocked_tree)")
     ap.add_argument("--out", default="results/trackB/s3_emu.jsonl")
     args = ap.parse_args()
     td = os.path.abspath(os.path.expanduser(args.table_dir))
@@ -282,9 +293,11 @@ def main():
     groupings = {"unit": [[int(c)] for c in rows.index], "p3b_bins": phase3b_bins(rows, args.procs),
                  "blocks": [[c] for c, _, _ in items]}
     wcap = args.write_cap or args.cap
-    blocks = {"blocks": [(b, n, *blk_values(b, n, n_blocks(rows[c], wcap), args.hier_edges)) for c, b, n in items]}
+    blocks = {"blocks": [(b, n, *(tree_values(b, n, n_blocks(rows[c], wcap)) if args.tree_blk else
+                                  blk_values(b, n, n_blocks(rows[c], wcap), args.hier_edges))) for c, b, n in items]}
     assert blk_values(1, 2, 8) == ([1, 3, 5, 7], [1, 3, 5, 7, 8]) and blk_values(5, 8, 2) == ([1], [1])
     assert blk_values(1, 2, 8, True) == ([1, 3, 5, 7], [1, 3, 5, 7, 10, 12, 14]) and blk_values(5, 8, 2, True) == ([1], [1])
+    assert [tree_values(v, 4, 4)[0] for v in range(4)] == [[2], [5], [3], [6]] and tree_values(1, 2, 4)[0] == [4, 5, 6]
     truths = {"unit": run_mode(td, desc, c2p, groupings["unit"], False, None, None, args.procs, 1)[1]}  # plain local
     if any(m.startswith("blocks") for m in args.modes):     # without the _blk conjunct: checks it too
         truths["blocks"] = run_mode(td, desc, c2p, groupings["blocks"], False, None, None, args.procs, 1,
