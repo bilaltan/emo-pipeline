@@ -9,6 +9,8 @@ The store's Phase 2 tables are rewritten as utils.partition_layout.write_layout 
            the community's node rows and --cap, as run_phase3b computes it) and sort by (community_id, _blk, id | src, dst)
   blocked_min  the same _blk, sorted by (community_id, _blk) only: enough for block skipping, a cheaper sort
   zorder   baseline: plain, then Delta OPTIMIZE ZORDER BY (community_id, id | src, dst), the standard clustering knob
+  liquid   baseline: a Delta table created with CLUSTER BY (community_id, id | src, dst), the plain write appended, then
+           OPTIMIZE (liquid clustering, Delta's replacement for partitioning and Z-order)
 with the row group from --rg-mb. The blocked time includes counting the community sizes. The last copy of each is kept
 in --out-dir/<order>/p2_{nodes,edges} for s3_emu_bench.
 
@@ -35,7 +37,7 @@ def main():
     ap.add_argument("--rg-mb", type=float, required=True)
     ap.add_argument("--cap", type=int, default=10000)
     ap.add_argument("--repeats", type=int, default=2)
-    ap.add_argument("--orders", nargs="+", default=["plain", "blocked"], choices=["plain", "blocked", "blocked_min", "zorder"])
+    ap.add_argument("--orders", nargs="+", default=["plain", "blocked"], choices=["plain", "blocked", "blocked_min", "zorder", "liquid"])
     ap.add_argument("--cores", type=int, default=4)
     ap.add_argument("--mem", default="10g")
     ap.add_argument("--spark-tmp", default=None)
@@ -66,11 +68,18 @@ def main():
         for name, df, keys in (("nodes", nodes, ["id"]), ("edges", edges, ["src", "dst"])):
             sort = ["community_id"] + {"blocked": ["_blk"] + keys, "blocked_min": ["_blk"]}.get(order, [])
             out = os.path.join(wd, order, f"p2_{name}")
+            if order == "liquid":
+                from delta.tables import DeltaTable
+                shutil.rmtree(out, ignore_errors=True)
+                DeltaTable.create(spark).location(out).addColumns(df.schema).clusterBy("community_id", *keys).execute()
             (df.repartitionByRange(n_bins, "community_id").sortWithinPartitions(*sort)
-             .write.format("delta").mode("overwrite").option("overwriteSchema", "true").save(out))
+             .write.format("delta").mode("append" if order == "liquid" else "overwrite")
+             .option("overwriteSchema", "true").save(out))
             if order == "zorder":
                 from delta.tables import DeltaTable
                 DeltaTable.forPath(spark, out).optimize().executeZOrderBy("community_id", *keys)
+            if order == "liquid":
+                spark.sql(f"OPTIMIZE delta.`{out}`")
         return time.perf_counter() - t0, n_bins
 
     walls = {o: [] for o in args.orders}
