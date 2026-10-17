@@ -528,27 +528,34 @@ runs (`grl-e2e-products` is on hold). Queued, one emulator job at a time:
     `blocked_min`: read 18.9 → 9.3 s (2.0×), 2.20 → 0.30 GB (7.3×), 1,335 → 1,140 GETs; stored 179.3 → 184.3 MB
     (+2.8%); write 8.2 → 9.7 s (median of 3; the first repeat of each is JVM warm-up at 10–24 s). The pyarrow-copy
     stack gave 3.1×, because Spark's own 128 MB table already reads faster (18.9 vs 30.3 s).
-- **Baseline: Delta Z-order** (`grl-p4b-zorder`, 76 min; `p4b_spark_write.py --orders plain zorder`). Phase 2's
-  write, then `OPTIMIZE ZORDER BY (community_id, id | src, dst)`, the standard Delta clustering knob, at the √ row
-  group (the session's `parquet.block.size` also applies to the rewrite). Reads as above, md5 identical. `blocked_min`
-  rows are from `grl-p4b-blocked-min`:
+- **Baselines: Delta Z-order and liquid clustering** (`grl-p4b-zorder`, `grl-p4b-liquid`, 76 + 75 min;
+  `p4b_spark_write.py --orders plain zorder|liquid`). Z-order: Phase 2's write, then
+  `OPTIMIZE ZORDER BY (community_id, id | src, dst)`. Liquid: a table created with `CLUSTER BY` the same columns,
+  Phase 2's write appended, then `OPTIMIZE` (the Delta log shows CREATE TABLE with the clustering columns, WRITE,
+  OPTIMIZE). Both at the √ row group (the session's `parquet.block.size` also applies to the rewrite). Reads as above,
+  md5 identical. `blocked_min` rows are from `grl-p4b-blocked-min`; Phase 2 rows are from the Z-order run (the liquid
+  run's own Phase 2 rows agree within 6% on write and 0.3% on read):
 
   | store | order | write | files | stored | read time (cold) | bytes read | GETs |
   |---|---|---|---|---|---|---|---|
   | products (0.5 MB) | Phase 2 | 89.1 s | 150 | 2,739 MB | 283.3 s | 71.9 GB | 5,758 |
   | | Z-order | 285.6 s (3.2×) | 3 | 2,741 MB | 502.8 s (**1.8× slower**) | 93.9 GB | 46,747 |
+  | | liquid | 284.3 s (3.2×) | 3 | 2,741 MB | 494.3 s (1.7× slower) | 93.9 GB | 45,933 |
   | | `blocked_min` | 95.1 s | 150 | 2,922 MB | **48.1 s** | 3.38 GB | 4,418 |
   | Reddit (4 MB) | Phase 2 | 69.3 s | 50 | 3,232 MB | 143.9 s | 38.6 GB | 1,580 |
   | | Z-order | 224.0 s (3.2×) | 3 | 3,236 MB | 167.1 s (1.16× slower) | 56.6 GB | 4,981 |
+  | | liquid | 219.6 s (3.2×) | 3 | 3,236 MB | 172.4 s (1.2× slower) | 57.5 GB | 5,149 |
   | | `blocked_min` | 75.3 s | 50 | 3,226 MB | **23.1 s** | 4.38 GB | 570 |
 
-  - Z-order is worse than Phase 2's own order on both reads and writes. It interleaves the bits of community and id,
+  - Both are worse than Phase 2's own order on reads and writes, and liquid is within 4% of Z-order everywhere
+    (its Hilbert curve on the same columns clusters the same way). Z-order interleaves the bits of community and id,
     so a unit's rows no longer sit in one contiguous run: GETs grow 3–8× and bytes 1.3–1.5×. Phase 2's range
     partitioning already clusters by community, which is what the reader filters on.
   - It does not help Phase 3b's blocks either: the block predicate `id & (n-1) == b` uses the low bits of id, and
     Z-order clusters on the high bits.
-  - Z-order's write includes the plain write plus the OPTIMIZE rewrite (and compaction to 3 files), so part of its
-    read cost may be the file layout, not only the row order. Liquid clustering is not tested.
+  - Both writes include the plain write plus the OPTIMIZE rewrite (and compaction to 3 files), so part of their read
+    cost may be the file layout, not only the row order.
+  - Clustering by `community_id` alone was not tried; it would match Phase 2's range order apart from file sizes.
 
 Order: P1 → P2 (uses B1 / B2 data now) → P3 → P4 / P5 → P6 / P7. Output: `results/trackB/*.jsonl`, generated tables, and
 an EDBT / VLDB-experiments-style write-up. Track A (link prediction, gate GO) is done and goes into the journal version
