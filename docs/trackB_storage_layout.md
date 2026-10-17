@@ -618,7 +618,9 @@ runs (`grl-e2e-products` is on hold). Queued, one emulator job at a time:
     - Cost: write +8% over `blocked_min` (products 104.8 vs 96.8 s median, Reddit 82.6 vs 76.2 s), stored +1.2% and
       +0.4%.
     - So one write serves Phase 3b caps from 4× finer to 4× coarser within 1.13–1.54× of a table written for each
-      (finer caps from `grl-p4b-capmatch`; level buckets do not change which rows a finer read selects, not rerun).
+      (finer caps from `grl-p4b-capmatch`). Checked in `grl-p4b-hier-fine` (28 min): the `blocked_hier` table read at
+      2,500 / 5,000 gives the `blocked_min` bytes exactly (products 11.57 / 6.11 GB, Reddit 17.47 / 8.74 GB) and read
+      time within 5% (products 121.5 / 73.1 s, Reddit 85.0 / 44.6 s), md5 equal.
 
 Order: P1 → P2 (uses B1 / B2 data now) → P3 → P4 / P5 → P6 / P7. Output: `results/trackB/*.jsonl`, generated tables, and
 an EDBT / VLDB-experiments-style write-up. Track A (link prediction, gate GO) is done and goes into the journal version
