@@ -1,13 +1,18 @@
 #!/usr/bin/env python3
 """
-Baseline: full-graph GraphSAGE on one GPU, node classification.
+Single-GPU baselines for node classification, both on the same model and settings as Phase 3b's node task.
 
-Phase 3b's node task with the whole training graph as one unit: the same 2-layer mean SAGE (PyG SAGEConv
-parametrisation) + linear head, L2-normalised features, Adam, the settings in experiment_config.TRAIN, and the
-same best-validation checkpoint (checked every max(1, epochs // 40) epochs, no early stop). Reads the Track A
-cache (experiments/trackA/export_cache.py), so graph, features and split are the ones the pipeline used.
+  full     full-graph GraphSAGE: one full-batch step per epoch on the whole training graph
+  cluster  Cluster-GCN (Chiang et al., KDD 2019): METIS splits the graph into parts of about --part-nodes
+           vertices; each step trains on the subgraph induced by --parts-per-batch random parts, and an epoch
+           visits every part once (defaults 150 / 20: the paper's Reddit setting, 1,500 parts of 233K vertices)
 
-    bash scripts/wsl_run.sh python experiments/baselines/full_graph_sage.py --dataset ogbn-arxiv-lp --seeds 0,1,2
+Model, training and selection match Phase 3b: 2-layer mean SAGE (PyG SAGEConv parametrisation) + linear head,
+L2-normalised features, Adam, the settings in experiment_config.TRAIN, and the best-validation checkpoint
+(checked on the full graph every max(1, epochs // 40) epochs, no early stop). Reads the Track A cache
+(experiments/trackA/export_cache.py), so graph, features and split are the ones the pipeline used.
+
+    bash scripts/wsl_run.sh python experiments/baselines/node_baselines.py --dataset ogbn-arxiv-lp --method full
 """
 import argparse
 import copy
@@ -45,9 +50,34 @@ def load(cache):
     return x, torch.from_numpy(L("y.npy")), L("split.npy"), L("edges.npy")
 
 
-def train_eval(x, y, split, A, seed, cfg, device):
-    """Returns (best val acc, test acc at that checkpoint, train seconds)."""
+def cluster_batches(edges, n, n_parts, per_batch, device):
+    """METIS parts of the training graph and a generator of one epoch of Cluster-GCN batches:
+    (vertex ids, mean adjacency of the subgraph they induce). Returns (epoch_fn, partition seconds)."""
+    import pymetis
+    import scipy.sparse as sp
+    t0 = time.time()
+    G = sp.coo_matrix((np.ones(edges.shape[1], np.int8), (edges[0], edges[1])), shape=(n, n))
+    G = (G + G.T).tocsr()
+    _, parts = pymetis.part_graph(n_parts, xadj=G.indptr, adjncy=G.indices)
+    parts = np.asarray(parts)
+    order = np.argsort(parts, kind="stable")
+    bounds = np.searchsorted(parts[order], np.arange(n_parts + 1))
+    part_s = time.time() - t0
+
+    def epoch(rng):
+        perm = rng.permutation(n_parts)
+        for i in range(0, n_parts, per_batch):
+            idx = np.concatenate([order[bounds[p]:bounds[p + 1]] for p in perm[i:i + per_batch]])
+            sub = sp.triu(G[idx][:, idx], 1).tocoo()
+            yield torch.from_numpy(idx).to(device), mean_adj(len(idx), sub.row, sub.col, device)
+    return epoch, part_s
+
+
+def train_eval(x, y, split, A, seed, cfg, device, batches=None):
+    """Returns (best val acc, test acc at that checkpoint, train seconds). batches: None = full-batch,
+    else cluster_batches' epoch function."""
     torch.manual_seed(seed)
+    rng = np.random.default_rng(seed)
     model = Net(x.shape[1], cfg["hidden_dim"], int(y.max()) + 1, cfg["dropout"]).to(device)
     opt = torch.optim.Adam(model.parameters(), lr=cfg["lr"], weight_decay=cfg["weight_decay"])
     tr, va, te = (torch.from_numpy(split == k).to(device) for k in (0, 1, 2))
@@ -58,6 +88,10 @@ def train_eval(x, y, split, A, seed, cfg, device):
             pred = model(x, A).argmax(1)
         model.train()
         return float((pred[m] == y[m]).float().mean())
+
+    def step(xb, Ab, yb, mb):
+        loss = F.cross_entropy(model(xb, Ab)[mb], yb[mb])
+        opt.zero_grad(); loss.backward(); opt.step()
 
     val_every = max(1, cfg["epochs"] // 40)
     best, state = -1.0, None
@@ -70,8 +104,12 @@ def train_eval(x, y, split, A, seed, cfg, device):
             v = acc(va)
             if v > best:
                 best, state = v, copy.deepcopy(model.state_dict())
-        loss = F.cross_entropy(model(x, A)[tr], y[tr])
-        opt.zero_grad(); loss.backward(); opt.step()
+        if batches is None:
+            step(x, A, y, tr)
+        else:
+            for idx, Ab in batches(rng):
+                if tr[idx].any():
+                    step(x[idx], Ab, y[idx], tr[idx])
     v = acc(va)
     if v > best:
         best, state = v, copy.deepcopy(model.state_dict())
@@ -84,11 +122,14 @@ def train_eval(x, y, split, A, seed, cfg, device):
 def main(argv=None):
     ap = argparse.ArgumentParser()
     ap.add_argument("--dataset", required=True, help="store name, e.g. ogbn-arxiv-lp")
+    ap.add_argument("--method", default="full", choices=["full", "cluster"])
     ap.add_argument("--alg", default="louvain", help="only names the Track A cache directory")
     ap.add_argument("--cache", default=None, help="cache directory (default $LAKEGRL_STORE/<dataset>/trackA_<alg>)")
     ap.add_argument("--seeds", default=",".join(map(str, TRAIN["seeds"])))
     ap.add_argument("--epochs", type=int, default=TRAIN["epochs"])
     ap.add_argument("--lr", type=float, default=TRAIN["lr"])
+    ap.add_argument("--part-nodes", type=int, default=150, help="cluster: vertices per METIS part")
+    ap.add_argument("--parts-per-batch", type=int, default=20, help="cluster: parts per training step")
     ap.add_argument("--device", default="cuda" if torch.cuda.is_available() else "cpu")
     ap.add_argument("--out", default=os.path.join(REPO, "results", "icde", "baselines.jsonl"))
     args = ap.parse_args(argv)
@@ -100,18 +141,24 @@ def main(argv=None):
     code = git_hash()
     t0 = time.time()
     x, y, split, edges = load(cache)
+    n = len(split)
     x, y = x.to(device), y.to(device)
-    A = mean_adj(len(split), edges[0], edges[1], device)
+    A = mean_adj(n, edges[0], edges[1], device)
     load_s = time.time() - t0
+    extra, batches = {}, None
+    if args.method == "cluster":
+        n_parts = max(1, n // args.part_nodes)
+        batches, part_s = cluster_batches(edges, n, n_parts, args.parts_per_batch, device)
+        extra = {"n_parts": n_parts, "parts_per_batch": args.parts_per_batch, "partition_seconds": round(part_s, 1)}
 
     os.makedirs(os.path.dirname(args.out), exist_ok=True)
     for seed in [int(s) for s in args.seeds.split(",")]:
         if device.type == "cuda":
             torch.cuda.reset_peak_memory_stats()
-        val, test, train_s = train_eval(x, y, split, A, seed, cfg, device)
-        rec = {"dataset": args.dataset, "baseline": "full_graph_sage", "task": "node_classification",
-               "seed": seed, "train": dict(cfg, seed=seed), "git": code, "cache": cache,
-               "n_nodes": len(split), "n_edges_undirected": int(edges.shape[1]),
+        val, test, train_s = train_eval(x, y, split, A, seed, cfg, device, batches)
+        rec = {"dataset": args.dataset, "baseline": {"full": "full_graph_sage", "cluster": "cluster_gcn"}[args.method],
+               "task": "node_classification", "seed": seed, "train": dict(cfg, seed=seed), **extra,
+               "git": code, "cache": cache, "n_nodes": n, "n_edges_undirected": int(edges.shape[1]),
                "n_test": int((split == 2).sum()), "val_acc": val, "test_acc": test,
                "load_seconds": round(load_s, 1), "train_seconds": round(train_s, 1),
                "peak_gpu_mb": round(torch.cuda.max_memory_allocated() / 2**20) if device.type == "cuda" else None,

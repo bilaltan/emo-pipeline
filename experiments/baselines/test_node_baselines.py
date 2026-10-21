@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """
-Check for full_graph_sage.py on a toy cache (CPU, seconds): labels are the community, features alone are
-noise, so a test accuracy near 1 means the adjacency, split masks, checkpoint and output record all work.
+Check for node_baselines.py (both methods) on a toy cache (CPU, seconds): labels are the community, features alone are
+noise, so a test accuracy above 0.9 means the adjacency, split masks, checkpoint and output record all work.
 
-    bash scripts/wsl_run.sh python experiments/baselines/test_full_graph_sage.py
+    bash scripts/wsl_run.sh python experiments/baselines/test_node_baselines.py
 """
 import json
 import os
@@ -14,7 +14,7 @@ import tempfile
 import numpy as np
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-import full_graph_sage as B  # noqa: E402
+import node_baselines as B  # noqa: E402
 
 
 def main():
@@ -34,12 +34,16 @@ def main():
         for name, arr in [("x", x), ("y", y.astype(np.int64)), ("split", split), ("edges", edges)]:
             np.save(os.path.join(root, f"{name}.npy"), arr)
         out = os.path.join(root, "out.jsonl")
-        B.main(["--dataset", "toy", "--cache", root, "--seeds", "0,1", "--epochs", "40",
-                "--device", "cpu", "--out", out])
+        for method in ("full", "cluster"):
+            B.main(["--dataset", "toy", "--method", method, "--cache", root, "--seeds", "0,1", "--epochs", "40",
+                    "--part-nodes", "20", "--parts-per-batch", "3", "--device", "cpu", "--out", out])
         recs = [json.loads(line) for line in open(out)]
-        assert [r["seed"] for r in recs] == [0, 1]
+        assert [(r["baseline"], r["seed"]) for r in recs] == [
+            ("full_graph_sage", 0), ("full_graph_sage", 1), ("cluster_gcn", 0), ("cluster_gcn", 1)]
+        assert recs[2]["n_parts"] == 10
         assert all(r["n_test"] == int((split == 2).sum()) for r in recs)
-        assert all(r["test_acc"] > 0.95 for r in recs), [r["test_acc"] for r in recs]
+        # features alone give about 0.6; Cluster-GCN drops edges between parts, so it lands a little below full
+        assert all(r["test_acc"] > 0.9 for r in recs), [r["test_acc"] for r in recs]
     finally:
         shutil.rmtree(root)
     print("ok")
