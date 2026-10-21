@@ -27,7 +27,7 @@ FORCE_REINGEST    = False   # Set to False to use existing S3 Delta tables
 FORCE_RERUN       = True    # Force clean, fresh training and evaluation for all phases
 USE_OGB_SPLITS    = True    # True = OGB official splits | False = stratified 60/20/20
 RANDOM_SEED       = 42
-N_BASELINE_RUNS   = 1          # number of runs per baseline for mean ± std
+N_BASELINE_RUNS   = 3          # = len(TRAIN['seeds']); TRAIN is defined below
 
 
 # ── Phase 1: Community Detection ──────────────────────────────────────────────
@@ -143,24 +143,37 @@ PHASE3_MAX_EDGES_PER_COMMUNITY = 30000
 # 1/8 run while remaining below the unstable full-edge (1/1) configuration.
 # Set modulus to 1 to retain 100% of eligible edges for link prediction accuracy
 PHASE3_EDGE_SAMPLE_MODULUS = 1
-# Probe-head budget. It early-stops on validation, so this is a ceiling. A flat 10
-# was the accuracy ceiling on datasets with many classes.
-PHASE3_MLP_EPOCHS = 50
-PHASE3_MLP_PATIENCE = 15
+# ── Training: ONE setting for every model we train ────────────────────────────
+# LakeGRL's stages, the full-graph baseline, Cluster-GCN, LLCG, DistDGL and the Track A link methods all read
+# this block (local driver, run_emr, experiments/), and every result record stores a copy. An epoch is one pass
+# over the training nodes; for full-batch training that is one gradient step. No early stopping: each model
+# trains for `epochs` and keeps its best-validation checkpoint.
+TRAIN = {
+    'epochs':       100,
+    'lr':           0.01,
+    'weight_decay': 5e-4,
+    'hidden_dim':   256,
+    'num_layers':   2,          # every encoder in the code is 2-layer
+    'dropout':      0.5,
+    'seeds':        [0, 1, 2],
+    'probe_head':   False,      # True: also fit an MLP on frozen embeddings and keep the better head on validation
+    'link_batch':   65536,      # positive edges per step in link training
+}
+
+# Probe-head budget (only when TRAIN['probe_head']).
+PHASE3_MLP_EPOCHS = TRAIN['epochs']
+PHASE3_MLP_PATIENCE = TRAIN['epochs']
 # Communities larger than PHASE3_MAX_NODES_PER_COMMUNITY are split into bounded
 # blocks and streamed via cogroup rather than hash-sampled down and packed into a
 # single Spark row. The old path lost edges as 1/mod^2 on large communities and
 # hit the JVM 2GB array limit, which is why Papers100M could not be processed.
 PHASE3_BLOCK_OVERSIZED = True
 
-GCN_HIDDEN_DIM    = 256
-# Phase 3 takes one full-batch step per epoch, so this is a gradient-update budget,
-# not a pass count. Training now early-stops on each unit's own validation split, so
-# this is a ceiling rather than a target.
-GCN_NUM_EPOCHS = 50
-PHASE3_NODE_PATIENCE = 20
-GCN_LR            = 0.001
-GCN_DROPOUT       = 0.5
+GCN_HIDDEN_DIM    = TRAIN['hidden_dim']
+GCN_NUM_EPOCHS    = TRAIN['epochs']
+PHASE3_NODE_PATIENCE = TRAIN['epochs']   # patience >= epochs: no early stopping
+GCN_LR            = TRAIN['lr']
+GCN_DROPOUT       = TRAIN['dropout']
 RUN_PHASE3B       = True              # Phase 3b: CaaN Global Graph GNN Training
 
 # ── New Advanced Features ──────────────────────────────────────────────────────
@@ -177,12 +190,11 @@ TASK_TYPE = 'both'
 # ── Phase 4: Full-Graph Baseline ──────────────────────────────────────────────
 # Runs ONCE per dataset (not per algorithm). Uses SAME masks as Phase 3.
 RUN_PHASE4        = False       # runs on a dedicated EC2 box: scripts/run_phase4_ec2.py
-# The baseline defines the upper bound every retention claim is measured against,
-# so it trains to convergence with early stopping rather than to a fixed budget.
-BASELINE_EPOCHS   = 100         # max node-classification epochs (early-stopped on val)
-BASELINE_NODE_PATIENCE = 10     # epochs without val improvement before stopping
-BASELINE_LINK_EPOCHS   = 300    # max link-prediction epochs (full-batch, early-stopped)
-BASELINE_LINK_PATIENCE = 30
+# Same budget as every other model (TRAIN); patience >= epochs means no early stopping.
+BASELINE_EPOCHS   = TRAIN['epochs']
+BASELINE_NODE_PATIENCE = TRAIN['epochs']
+BASELINE_LINK_EPOCHS   = TRAIN['epochs']
+BASELINE_LINK_PATIENCE = TRAIN['epochs']
 
 # Link-split ratios must match Phase 3's per-community 80/10/10 split so both
 # sides measure the same task.
@@ -204,7 +216,7 @@ BASELINE_EDGE_BUDGET = 0
 BASELINE_SINGLE_MACHINE = True
 BASELINE_BATCH    = 1024
 BASELINE_FANOUT   = [15, 10]
-BASELINE_LR       = GCN_LR
+BASELINE_LR       = TRAIN['lr']
 RUN_PHASE4B       = False      # DistDGL Baseline Simulation
 RUN_PHASE4C       = False       # ARMA Baseline
 RUN_PHASE4D       = False       # ASAP Baseline

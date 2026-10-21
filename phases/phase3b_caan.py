@@ -196,6 +196,7 @@ def _train_minor_global_caan(dataset, gcn_cfg, dataset_cfg, caan_components, mod
     lr = gcn_cfg['lr']
     dropout = gcn_cfg['dropout']
     torch.manual_seed(int(gcn_cfg.get('seed', 42)))
+    weight_decay = float(gcn_cfg.get('weight_decay', 5e-4))
 
     super_feats = [super_nodes_dict[cid] for cid in super_nodes_dict.keys()]
     minor_feats = [minor_nodes_dict[nid]['features'] for nid in minor_ids]
@@ -304,7 +305,7 @@ def _train_minor_global_caan(dataset, gcn_cfg, dataset_cfg, caan_components, mod
                 x = self.c2(x, edge_index)
                 return x
         model = GATNet(feat_arr.shape[1], hidden_dim, num_classes)
-        opt = torch.optim.Adam(model.parameters(), lr=lr, weight_decay=5e-4)
+        opt = torch.optim.Adam(model.parameters(), lr=lr, weight_decay=weight_decay)
         crit = nn.CrossEntropyLoss()
 
     elif model_type == 'gatv2':
@@ -321,7 +322,7 @@ def _train_minor_global_caan(dataset, gcn_cfg, dataset_cfg, caan_components, mod
                 x = self.c2(x, edge_index)
                 return x
         model = GATv2Net(feat_arr.shape[1], hidden_dim, num_classes)
-        opt = torch.optim.Adam(model.parameters(), lr=lr, weight_decay=5e-4)
+        opt = torch.optim.Adam(model.parameters(), lr=lr, weight_decay=weight_decay)
         crit = nn.CrossEntropyLoss()
 
     elif model_type == 'arma':
@@ -338,7 +339,7 @@ def _train_minor_global_caan(dataset, gcn_cfg, dataset_cfg, caan_components, mod
                 x = self.c2(x, edge_index)
                 return x
         model = ARMANet(feat_arr.shape[1], hidden_dim, num_classes)
-        opt = torch.optim.Adam(model.parameters(), lr=lr, weight_decay=5e-4)
+        opt = torch.optim.Adam(model.parameters(), lr=lr, weight_decay=weight_decay)
         crit = nn.CrossEntropyLoss()
 
     elif model_type == 'asap':
@@ -355,7 +356,7 @@ def _train_minor_global_caan(dataset, gcn_cfg, dataset_cfg, caan_components, mod
                 x = self.c2(x, edge_index)
                 return x
         model = ASAPNet(feat_arr.shape[1], hidden_dim, num_classes)
-        opt = torch.optim.Adam(model.parameters(), lr=lr, weight_decay=5e-4)
+        opt = torch.optim.Adam(model.parameters(), lr=lr, weight_decay=weight_decay)
         crit = nn.CrossEntropyLoss()
         
     elif model_type == 'transformer':
@@ -372,7 +373,7 @@ def _train_minor_global_caan(dataset, gcn_cfg, dataset_cfg, caan_components, mod
                 x = self.c2(x, edge_index)
                 return x
         model = GraphTransformerNet(feat_arr.shape[1], hidden_dim, num_classes)
-        opt = torch.optim.Adam(model.parameters(), lr=lr, weight_decay=5e-4)
+        opt = torch.optim.Adam(model.parameters(), lr=lr, weight_decay=weight_decay)
         crit = nn.CrossEntropyLoss()
         
     elif model_type == 'clusterscl':
@@ -470,7 +471,7 @@ def _train_minor_global_caan(dataset, gcn_cfg, dataset_cfg, caan_components, mod
             eta=0.1,
             device=torch.device('cpu')
         )
-        opt = torch.optim.Adam(list(model.parameters()) + list(elbo_loss_fn.parameters()), lr=lr, weight_decay=5e-4)
+        opt = torch.optim.Adam(list(model.parameters()) + list(elbo_loss_fn.parameters()), lr=lr, weight_decay=weight_decay)
         crit = nn.CrossEntropyLoss()
         
     else:
@@ -490,7 +491,7 @@ def _train_minor_global_caan(dataset, gcn_cfg, dataset_cfg, caan_components, mod
                 x = torch.relu(self.c1(g, x)); x = self.dr(x)
                 return self.c2(g, x)
         model = GraphSAGECommunity(feat_arr.shape[1], hidden_dim, num_classes)
-        opt   = torch.optim.Adam(model.parameters(), lr=lr, weight_decay=5e-4)
+        opt   = torch.optim.Adam(model.parameters(), lr=lr, weight_decay=weight_decay)
         crit  = nn.CrossEntropyLoss()
 
     model.train()
@@ -689,6 +690,8 @@ def make_caan_udf(super_nodes_dict_bc, minor_node_to_idx_bc, minor_feats_arr_bc,
 
         # Deterministic weight init per unit, matching Phase 3.
         seed = int(pdf['_seed'].iloc[0]) if '_seed' in pdf.columns else 42
+        weight_decay = float(pdf['_wd'].iloc[0]) if '_wd' in pdf.columns else 5e-4
+        probe_head = bool(pdf['_probe'].iloc[0]) if '_probe' in pdf.columns else True
         torch.manual_seed(seed + int(comm_id))
         np.random.seed((seed + int(comm_id)) % (2**32))
 
@@ -937,7 +940,7 @@ def make_caan_udf(super_nodes_dict_bc, minor_node_to_idx_bc, minor_feats_arr_bc,
                         z = self.enc(x, edge_index)
                         return self.fc(z)
                 model = GATNet(feat_arr.shape[1], hidden_dim, num_classes)
-                opt = torch.optim.Adam(model.parameters(), lr=lr, weight_decay=5e-4)
+                opt = torch.optim.Adam(model.parameters(), lr=lr, weight_decay=weight_decay)
                 crit = nn.CrossEntropyLoss()
                 
             elif model_type == 'gatv2':
@@ -961,7 +964,7 @@ def make_caan_udf(super_nodes_dict_bc, minor_node_to_idx_bc, minor_feats_arr_bc,
                         z = self.enc(x, edge_index)
                         return self.fc(z)
                 model = GATv2Net(feat_arr.shape[1], hidden_dim, num_classes)
-                opt = torch.optim.Adam(model.parameters(), lr=lr, weight_decay=5e-4)
+                opt = torch.optim.Adam(model.parameters(), lr=lr, weight_decay=weight_decay)
                 crit = nn.CrossEntropyLoss()
 
             elif model_type == 'arma':
@@ -985,7 +988,7 @@ def make_caan_udf(super_nodes_dict_bc, minor_node_to_idx_bc, minor_feats_arr_bc,
                         z = self.enc(x, edge_index)
                         return self.fc(z)
                 model = ARMANet(feat_arr.shape[1], hidden_dim, num_classes)
-                opt = torch.optim.Adam(model.parameters(), lr=lr, weight_decay=5e-4)
+                opt = torch.optim.Adam(model.parameters(), lr=lr, weight_decay=weight_decay)
                 crit = nn.CrossEntropyLoss()
 
             elif model_type == 'asap':
@@ -1009,7 +1012,7 @@ def make_caan_udf(super_nodes_dict_bc, minor_node_to_idx_bc, minor_feats_arr_bc,
                         z = self.enc(x, edge_index)
                         return self.fc(z)
                 model = ASAPNet(feat_arr.shape[1], hidden_dim, num_classes)
-                opt = torch.optim.Adam(model.parameters(), lr=lr, weight_decay=5e-4)
+                opt = torch.optim.Adam(model.parameters(), lr=lr, weight_decay=weight_decay)
                 crit = nn.CrossEntropyLoss()
                 
             elif model_type == 'transformer':
@@ -1033,7 +1036,7 @@ def make_caan_udf(super_nodes_dict_bc, minor_node_to_idx_bc, minor_feats_arr_bc,
                         z = self.enc(x, edge_index)
                         return self.fc(z)
                 model = GraphTransformerNet(feat_arr.shape[1], hidden_dim, num_classes)
-                opt = torch.optim.Adam(model.parameters(), lr=lr, weight_decay=5e-4)
+                opt = torch.optim.Adam(model.parameters(), lr=lr, weight_decay=weight_decay)
                 crit = nn.CrossEntropyLoss()
                 
             elif model_type == 'clusterscl':
@@ -1131,7 +1134,7 @@ def make_caan_udf(super_nodes_dict_bc, minor_node_to_idx_bc, minor_feats_arr_bc,
                     eta=0.1,
                     device=torch.device('cpu')
                 )
-                opt = torch.optim.Adam(list(model.parameters()) + list(elbo_loss_fn.parameters()), lr=lr, weight_decay=5e-4)
+                opt = torch.optim.Adam(list(model.parameters()) + list(elbo_loss_fn.parameters()), lr=lr, weight_decay=weight_decay)
                 crit = nn.CrossEntropyLoss()
                 
             elif dgl is None:
@@ -1156,7 +1159,7 @@ def make_caan_udf(super_nodes_dict_bc, minor_node_to_idx_bc, minor_feats_arr_bc,
                     def forward(self, x, edge_index):
                         return self.fc(self.enc(x, edge_index))
                 model = PyGSAGECommunity(feat_arr.shape[1], hidden_dim, num_classes)
-                opt   = torch.optim.Adam(model.parameters(), lr=lr, weight_decay=5e-4)
+                opt   = torch.optim.Adam(model.parameters(), lr=lr, weight_decay=weight_decay)
                 crit  = nn.CrossEntropyLoss()
 
             else:
@@ -1175,7 +1178,7 @@ def make_caan_udf(super_nodes_dict_bc, minor_node_to_idx_bc, minor_feats_arr_bc,
                         x = torch.relu(self.c1(g, x)); x = self.dr(x)
                         return self.c2(g, x)
                 model = GraphSAGECommunity(feat_arr.shape[1], hidden_dim, num_classes)
-                opt   = torch.optim.Adam(model.parameters(), lr=lr, weight_decay=5e-4)
+                opt   = torch.optim.Adam(model.parameters(), lr=lr, weight_decay=weight_decay)
                 crit  = nn.CrossEntropyLoss()
 
             # Warm-start weights load
@@ -1339,13 +1342,13 @@ def make_caan_udf(super_nodes_dict_bc, minor_node_to_idx_bc, minor_feats_arr_bc,
             val_idx = np.where(val_m.numpy())[0]
             test_idx = np.where(test_m.numpy())[0]
 
-            if len(train_idx) > 0:
+            if probe_head and len(train_idx) > 0:
                 train_embed = embed[train_idx]
                 train_labels = lbl_t[train_idx]
                 mlp_dataset = TensorDataset(train_embed, train_labels)
                 mlp_loader = DataLoader(mlp_dataset, batch_size=128, shuffle=True)
                 mlp_loss_fn = nn.CrossEntropyLoss()
-                mlp_opt = torch.optim.Adam(mlp_model.parameters(), lr=0.001, weight_decay=5e-4)
+                mlp_opt = torch.optim.Adam(mlp_model.parameters(), lr=0.001, weight_decay=weight_decay)
 
                 best_acc = -1.0
                 best_weights = copy.deepcopy(mlp_model.state_dict())
@@ -1381,16 +1384,11 @@ def make_caan_udf(super_nodes_dict_bc, minor_node_to_idx_bc, minor_feats_arr_bc,
                     return float((pred_vec[mask] == lbl_t[mask]).float().mean()) if n else 0.0
 
                 preds_mlp = mlp_model(embed).argmax(dim=1)
-                try:
-                    if is_pyg:
-                        gnn_logits = model(feat_t, pyg_edge_index)
-                    else:
-                        gnn_logits = model(g, feat_t)
-                    preds_gnn = gnn_logits.argmax(dim=1)
-                except Exception:
-                    preds_gnn = preds_mlp
-                use_gnn = (_acc_of(preds_gnn, val_m) > _acc_of(preds_mlp, val_m)
-                           if int(val_m.sum()) > 0 else False)
+                gnn_logits = model(feat_t, pyg_edge_index) if is_pyg else model(g, feat_t)
+                preds_gnn = gnn_logits.argmax(dim=1)
+                # Without the probe head the GNN's own classifier predicts, as in every baseline.
+                use_gnn = (not probe_head) or (_acc_of(preds_gnn, val_m) > _acc_of(preds_mlp, val_m)
+                                               if int(val_m.sum()) > 0 else False)
                 preds = preds_gnn if use_gnn else preds_mlp
                 head_used = 'gnn' if use_gnn else 'mlp'
                 acc_gnn_head = _acc_of(preds_gnn, test_m)
@@ -1574,7 +1572,7 @@ def make_caan_udf(super_nodes_dict_bc, minor_node_to_idx_bc, minor_feats_arr_bc,
                 predictor = CaaNLinkPredictor(hidden_dim, dropout=dropout)
                 optimizer = torch.optim.Adam(
                     list(encoder.parameters()) + list(predictor.parameters()),
-                    lr=lr, weight_decay=5e-4
+                    lr=lr, weight_decay=weight_decay
                 )
                 pyg_train_edge_index = torch.stack([src_l_t[train_edges_idx], dst_l_t[train_edges_idx]], dim=0)
 
@@ -1633,7 +1631,7 @@ def make_caan_udf(super_nodes_dict_bc, minor_node_to_idx_bc, minor_feats_arr_bc,
                 predictor = CaaNLinkPredictor(hidden_dim, dropout=dropout)
                 optimizer = torch.optim.Adam(
                     list(encoder.parameters()) + list(predictor.parameters()),
-                    lr=lr, weight_decay=5e-4
+                    lr=lr, weight_decay=weight_decay
                 )
 
                 encoder.train()
@@ -1773,6 +1771,10 @@ def make_caan_udf(super_nodes_dict_bc, minor_node_to_idx_bc, minor_feats_arr_bc,
             for _c in ('_seed', '_node_patience'):
                 if _c in row:
                     pdf[_c] = int(row[_c])
+            if '_wd' in row:
+                pdf['_wd'] = float(row['_wd'])
+            if '_probe' in row:
+                pdf['_probe'] = bool(row['_probe'])
             if '_context' in row:
                 pdf['_context'] = str(row['_context'])
 
@@ -2274,7 +2276,9 @@ def run_phase3b(spark, sc, datasets, algorithms, use_global_mapping,
                     .withColumn('_model_type',  F.lit(str(model_type)))
                     .withColumn('_seed',        F.lit(int(gcn_cfg.get('seed', 42))))
                     .withColumn('_context',     F.lit(str(context)))
-                    .withColumn('_node_patience', F.lit(int(kwargs.get('node_patience', 20)))))
+                    .withColumn('_node_patience', F.lit(int(kwargs.get('node_patience') or gcn_cfg['num_epochs'])))
+                    .withColumn('_wd',          F.lit(float(gcn_cfg.get('weight_decay', 5e-4))))
+                    .withColumn('_probe',       F.lit(bool(gcn_cfg.get('probe_head', True)))))
 
                 caan_udf = make_caan_udf(
                     super_nodes_dict_bc=super_nodes_dict_bc,

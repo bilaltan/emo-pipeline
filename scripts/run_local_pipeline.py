@@ -31,6 +31,7 @@ from phases.phase1_community import run_phase1
 from phases.phase2_subgraph import run_phase2
 from phases.phase3b_caan import run_phase3b
 from phases.phase4_baselines import run_phase4
+from experiment_config import TRAIN
 
 # LAKEGRL_STORE puts the Delta tables on a fast local file system (scripts/wsl_run.sh sets it).
 STORE = os.path.abspath(os.environ.get("LAKEGRL_STORE", "data/.local_pipeline"))
@@ -268,9 +269,11 @@ def main():
     # (30k) silently subsamples dense communities, so raise it above anything
     # these graphs contain and assert afterwards that nothing was capped.
     ap.add_argument("--max-edges", type=int, default=5_000_000)
-    ap.add_argument("--epochs", type=int, default=200)
-    ap.add_argument("--lr", type=float, default=0.001)
-    ap.add_argument("--node-patience", type=int, default=20)
+    # Training settings come from experiment_config.TRAIN; these flags exist only for explicit sweeps.
+    ap.add_argument("--epochs", type=int, default=TRAIN["epochs"])
+    ap.add_argument("--lr", type=float, default=TRAIN["lr"])
+    ap.add_argument("--node-patience", type=int, default=None, help="default: no early stopping")
+    ap.add_argument("--probe-head", type=int, choices=[0, 1], default=None, help="override TRAIN['probe_head']")
     # Local mode has no executors: local[N] is N worker threads in the driver
     # JVM. Units train one-per-core, so N sets how many run concurrently.
     ap.add_argument("--cores", type=int, default=4)
@@ -313,6 +316,13 @@ def main():
     if args.p2_rg_mb:
         sc._jsc.hadoopConfiguration().set("parquet.block.size", str(int(args.p2_rg_mb * (1 << 20))))
 
+    # Read at the start: a commit made while the run is going must not relabel it.
+    import subprocess
+    _git = lambda *a: subprocess.run(["git", *a], capture_output=True, text=True,
+                                     cwd=os.path.dirname(os.path.dirname(os.path.abspath(__file__)))).stdout.strip()
+    # core.autocrlf=true as on the Windows side that owns the checkout; WSL's git would call every CRLF file modified
+    git_hash = _git("rev-parse", "--short", "HEAD") + (
+        "-dirty" if _git("-c", "core.autocrlf=true", "status", "--porcelain", "--untracked-files=no") else "")
     t_all = time.time()
     DS = args.dataset
     if args.link_split > 0:
@@ -357,7 +367,13 @@ def main():
         print(f"  Phase 0: {n_nodes:,} nodes, {n_edges:,} directed edges -> Delta  [{t_p0:.1f}s]")
 
     ds_cfg = {DS: {"in_feats": feat_dim, "num_classes": n_classes}}
-    gcn_cfg = {"hidden_dim": 256, "num_epochs": args.epochs, "lr": args.lr, "dropout": 0.5, "seed": args.seed}
+    args.node_patience = args.node_patience or args.epochs
+    train = dict(TRAIN, epochs=args.epochs, lr=args.lr, seed=args.seed, node_patience=args.node_patience)
+    if args.probe_head is not None:
+        train["probe_head"] = bool(args.probe_head)
+    gcn_cfg = {"hidden_dim": train["hidden_dim"], "num_epochs": train["epochs"], "lr": train["lr"],
+               "dropout": train["dropout"], "weight_decay": train["weight_decay"], "seed": train["seed"],
+               "probe_head": train["probe_head"]}
     timing, r1, r2, r3, r3b, r4 = {}, {}, {}, {}, {}, {}
 
     run_phase1(spark, sc, [DS], [args.alg], lpa_max_iter=20, resolution=1.0,
@@ -429,14 +445,10 @@ def main():
     def scored(store):
         d = store.get(k)
         return int(d["n_test"].sum()) if d is not None and "n_test" in getattr(d, "columns", []) else None
-    import subprocess
-    _git = lambda *a: subprocess.run(["git", *a], capture_output=True, text=True,
-                                     cwd=os.path.dirname(os.path.dirname(os.path.abspath(__file__)))).stdout.strip()
-    git_hash = _git("rev-parse", "--short", "HEAD") + ("-dirty" if _git("status", "--porcelain", "--untracked-files=no") else "")
 
     record = {
         "dataset": DS, "algorithm": args.alg, "model": args.model, "epochs": args.epochs,
-        "seed": args.seed, "lr": args.lr, "node_patience": args.node_patience, "task": args.task, "stage3a_halo": args.stage3a_halo, "tiny_comm": args.tiny_comm,
+        "seed": args.seed, "train": train, "task": args.task, "stage3a_halo": args.stage3a_halo, "tiny_comm": args.tiny_comm,
         "min_size": args.min_size, "max_nodes": args.max_nodes, "git": git_hash,
         "n_test_all": n_test_all, "stage3a_n_test_scored": scored(r3), "stage3b_n_test_scored": scored(r3b),
         "partition_table": args.partition_table, "node_loading": args.node_loading,

@@ -34,6 +34,8 @@ import torch.nn.functional as F
 from sklearn.metrics import roc_auc_score
 
 REPO = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+sys.path.insert(0, REPO)
+from experiment_config import TRAIN  # noqa: E402  (one training setting for every model)
 NO_COMM = np.iinfo(np.int64).min
 
 
@@ -166,7 +168,7 @@ def train_link(x, A, pos, neg_pool_src, neg_pool_dst, cfg, device, gen):
     Negatives per step: sources from neg_pool_src, destinations from neg_pool_dst (local ids)."""
     enc = SAGE(x.shape[1], cfg["hidden"], cfg["dropout"]).to(device)
     dec = Decoder(cfg["hidden"], cfg["dropout"]).to(device)
-    opt = torch.optim.Adam(list(enc.parameters()) + list(dec.parameters()), lr=cfg["lr"], weight_decay=5e-4)
+    opt = torch.optim.Adam(list(enc.parameters()) + list(dec.parameters()), lr=cfg["lr"], weight_decay=TRAIN["weight_decay"])
     pos_t = torch.from_numpy(pos).to(device)
     ps = torch.from_numpy(neg_pool_src).to(device)
     pd_ = torch.from_numpy(neg_pool_dst).to(device)
@@ -374,7 +376,7 @@ def run_m5(data, pairs, cfg, device, gen, local=True):
     pos = torch.from_numpy(data.edges).to(device)
     order_t, lo_t, n_t = (torch.from_numpy(a).to(device) for a in (order, lo, hi - lo))
     model = Fusion(H.shape[1] + 2 * data.x.shape[1], cfg["hidden"], cfg["dropout"]).to(device)
-    opt = torch.optim.Adam(model.parameters(), lr=cfg["lr"], weight_decay=5e-4)
+    opt = torch.optim.Adam(model.parameters(), lr=cfg["lr"], weight_decay=TRAIN["weight_decay"])
     model.train()
     for _ in range(cfg["epochs"] if pos.shape[1] else 0):
         b = pos[:, torch.randint(0, pos.shape[1], (min(cfg["batch"], pos.shape[1]),), generator=gen).to(device)]
@@ -461,11 +463,11 @@ def main():
     ap.add_argument("--methods", default="M0,M1a,M1b,M2")
     ap.add_argument("--seeds", default="0")
     ap.add_argument("--split", default="test", choices=["val", "test"])
-    ap.add_argument("--epochs", type=int, default=100)
-    ap.add_argument("--batch", type=int, default=65536, help="positive edges per step")
-    ap.add_argument("--hidden", type=int, default=256)
-    ap.add_argument("--lr", type=float, default=0.005)
-    ap.add_argument("--dropout", type=float, default=0.5)
+    ap.add_argument("--epochs", type=int, default=TRAIN["epochs"])
+    ap.add_argument("--batch", type=int, default=TRAIN["link_batch"], help="positive edges per step")
+    ap.add_argument("--hidden", type=int, default=TRAIN["hidden_dim"])
+    ap.add_argument("--lr", type=float, default=TRAIN["lr"])
+    ap.add_argument("--dropout", type=float, default=TRAIN["dropout"])
     ap.add_argument("--halo-budget", type=float, default=0.0,
                     help="M1b / M2: cap each unit's halo at this many x its members (0 = full 1-hop halo)")
     ap.add_argument("--max-pos", type=int, default=0, help="evaluate on the first N positives only (smoke)")
