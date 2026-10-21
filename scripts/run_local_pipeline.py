@@ -29,7 +29,6 @@ from pyspark.sql import SparkSession
 
 from phases.phase1_community import run_phase1
 from phases.phase2_subgraph import run_phase2
-from phases.phase3_training import run_phase3
 from phases.phase3b_caan import run_phase3b
 from phases.phase4_baselines import run_phase4
 
@@ -248,13 +247,19 @@ def main():
     # as <dataset>-lp so they never mix with the full graph's tables.
     ap.add_argument("--link-split", type=int, default=0, metavar="N")
     ap.add_argument("--link-seed", type=int, default=0)
-    ap.add_argument("--stop-after", default="4", choices=["2", "3", "3b", "4"],
+    # Phase 4's link baseline uses its own split, so it is opt-in; baselines have their own scripts.
+    ap.add_argument("--stop-after", default="3b", choices=["2", "3", "3b", "4"],
                     help="last phase to run (Track A runs Phases 0-2 once, then its own harness)")
-    # drop: communities below --min-size leave the partition (local default so far); misc: they are packed into
-    # shared bins, as Phase 2 does by default on EMR, so every vertex belongs to a unit.
-    ap.add_argument("--tiny-comm", default="drop", choices=["drop", "misc", "keep"])
+    # misc: communities below --min-size are packed into shared bins, so every vertex belongs to a unit and
+    # every test node is scored; drop leaves them out of the test set.
+    ap.add_argument("--tiny-comm", default="misc", choices=["drop", "misc", "keep"])
     ap.add_argument("--reuse-phase1", action="store_true", help="keep an existing communities table")
-    ap.add_argument("--alg", default="lpa", choices=["lpa", "louvain"])
+    ap.add_argument("--alg", default="louvain", choices=["lpa", "louvain"])
+    ap.add_argument("--seed", type=int, default=0, help="training seed for Phases 3, 3b and 4")
+    # Per-unit link AUC is split inside each unit and is not comparable with the baseline; links are
+    # scored on the held-out split by experiments/trackA/harness.py.
+    ap.add_argument("--task", default="node_classification", choices=["node_classification", "both"])
+    ap.add_argument("--stage3a-halo", action="store_true", help="Stage 3a also passes messages from the 1-hop halo")
     ap.add_argument("--model", default="sage",
                     choices=["sage", "gatv2", "gat", "transformer", "arma", "asap"])
     ap.add_argument("--min-size", type=int, default=100)
@@ -264,6 +269,7 @@ def main():
     # these graphs contain and assert afterwards that nothing was capped.
     ap.add_argument("--max-edges", type=int, default=5_000_000)
     ap.add_argument("--epochs", type=int, default=200)
+    ap.add_argument("--lr", type=float, default=0.001)
     ap.add_argument("--node-patience", type=int, default=20)
     # Local mode has no executors: local[N] is N worker threads in the driver
     # JVM. Units train one-per-core, so N sets how many run concurrently.
@@ -351,7 +357,7 @@ def main():
         print(f"  Phase 0: {n_nodes:,} nodes, {n_edges:,} directed edges -> Delta  [{t_p0:.1f}s]")
 
     ds_cfg = {DS: {"in_feats": feat_dim, "num_classes": n_classes}}
-    gcn_cfg = {"hidden_dim": 256, "num_epochs": args.epochs, "lr": 0.001, "dropout": 0.5}
+    gcn_cfg = {"hidden_dim": 256, "num_epochs": args.epochs, "lr": args.lr, "dropout": 0.5, "seed": args.seed}
     timing, r1, r2, r3, r3b, r4 = {}, {}, {}, {}, {}, {}
 
     run_phase1(spark, sc, [DS], [args.alg], lpa_max_iter=20, resolution=1.0,
@@ -368,28 +374,25 @@ def main():
     if args.stop_after != "4":
         args.skip_baseline = True
 
+    # Both stages run the same unit code (Phase 3b's) on the same units and differ only in context: Stage 3a
+    # sees member-member edges (or the halo), Stage 3b the macro-graph. No try/except: a failed stage fails the run.
+    stage_kw = dict(use_global_mapping=True, dataset_cfg=ds_cfg, gcn_cfg=gcn_cfg, get_paths_fn=paths,
+                    models=[args.model], task_type=args.task, min_size=args.min_size, force_rerun=True,
+                    local_data_dir=STORE, node_loading=args.node_loading, max_nodes_per_community=args.max_nodes,
+                    node_patience=args.node_patience)
     if args.stop_after != "2":
-        run_phase3(spark, sc, [DS], [args.alg], use_global_mapping=True,
-                   dataset_cfg=ds_cfg, gcn_cfg=gcn_cfg, get_paths_fn=paths,
-                   timing=timing, results=r3, models=[args.model], task_type="both",
-                   force_rerun=True, max_nodes_per_community=args.max_nodes,
-                   max_edges_per_community=args.max_edges, edge_sample_modulus=1, mlp_epochs=150, mlp_patience=15,
-                   local_data_dir=STORE, block_oversized=True,
-                   node_patience=args.node_patience)
+        t3 = {}
+        run_phase3b(spark, sc, [DS], [args.alg], timing=t3, results=r3,
+                    context="halo" if args.stage3a_halo else "none", **stage_kw)
+        timing.update({("phase3",) + kk[1:]: vv for kk, vv in t3.items()})
 
     if args.stop_after in ("3b", "4"):
-        try:
-            run_phase3b(spark, sc, [DS], [args.alg], use_global_mapping=True,
-                        dataset_cfg=ds_cfg, gcn_cfg=gcn_cfg, get_paths_fn=paths,
-                        timing=timing, results=r3b, models=[args.model], task_type="both",
-                        min_size=args.min_size, force_rerun=True, local_data_dir=STORE,
-                        node_loading=args.node_loading)
-        except Exception as e:
-            print(f"  [Phase 3b] failed: {type(e).__name__}: {str(e)[:200]}")
+        run_phase3b(spark, sc, [DS], [args.alg], timing=timing, results=r3b, context="macro", **stage_kw)
 
     # The full-graph baseline is independent of Phase 1's algorithm — running it once
     # per (dataset, partitioner) computes the identical result twice.
     base_cache = os.path.join(STORE, "baseline_cache.json")
+    base_key = f"{DS}|seed={args.seed}"
     cached_base = {}
     if os.path.exists(base_cache):
         try:
@@ -397,22 +400,19 @@ def main():
         except Exception:
             cached_base = {}
 
-    if not args.skip_baseline and DS in cached_base:
-        r4[DS] = cached_base[DS]
-        print(f"  Phase 4: reusing cached full-graph baseline for {DS}")
+    if not args.skip_baseline and base_key in cached_base:
+        r4[DS] = cached_base[base_key]
+        print(f"  Phase 4: reusing cached full-graph baseline for {base_key}")
     elif not args.skip_baseline:
-        try:
-            run_phase4(spark, sc, [DS], ds_cfg,
-                       {"epochs": 100, "batch": 1024, "fanout": [15, 10], "lr": 0.001,
-                        "hidden_dim": 256, "dropout": 0.5, "link_epochs": 300,
-                        "link_patience": 30, "link_val_frac": 0.10, "link_test_frac": 0.10,
-                        "node_epochs": 100, "node_patience": 10},
-                       paths, timing, r4, task_type="both", n_runs=1)
-        except Exception as e:
-            print(f"  [Phase 4] failed: {type(e).__name__}: {str(e)[:200]}")
+        run_phase4(spark, sc, [DS], ds_cfg,
+                   {"epochs": 100, "batch": 1024, "fanout": [15, 10], "lr": 0.001,
+                    "hidden_dim": 256, "dropout": 0.5, "link_epochs": 300,
+                    "link_patience": 30, "link_val_frac": 0.10, "link_test_frac": 0.10,
+                    "node_epochs": 100, "node_patience": 10},
+                   paths, timing, r4, task_type=args.task, n_runs=1)
         if r4.get(DS):
-            cached_base[DS] = {k: v for k, v in r4[DS].items()
-                               if isinstance(v, (int, float, str, type(None)))}
+            cached_base[base_key] = {k: v for k, v in r4[DS].items()
+                                     if isinstance(v, (int, float, str, type(None)))}
             os.makedirs(os.path.dirname(base_cache), exist_ok=True)
             json.dump(cached_base, open(base_cache, "w"), indent=1)
 
@@ -424,21 +424,27 @@ def main():
     a3, a3b = attrs(r3, k), attrs(r3b, k)
     base = r4.get(DS, {}) or {}
 
+    # Coverage: test nodes scored / test nodes in the masks. Below 1.0 the accuracy is over part of the set.
+    n_test_all = spark.read.format("delta").load(paths(DS)["masks"]).filter("split = 'test'").count()
+    def scored(store):
+        d = store.get(k)
+        return int(d["n_test"].sum()) if d is not None and "n_test" in getattr(d, "columns", []) else None
+    import subprocess
+    _git = lambda *a: subprocess.run(["git", *a], capture_output=True, text=True,
+                                     cwd=os.path.dirname(os.path.dirname(os.path.abspath(__file__)))).stdout.strip()
+    git_hash = _git("rev-parse", "--short", "HEAD") + ("-dirty" if _git("status", "--porcelain", "--untracked-files=no") else "")
+
     record = {
         "dataset": DS, "algorithm": args.alg, "model": args.model, "epochs": args.epochs,
+        "seed": args.seed, "lr": args.lr, "node_patience": args.node_patience, "task": args.task, "stage3a_halo": args.stage3a_halo, "tiny_comm": args.tiny_comm,
+        "min_size": args.min_size, "max_nodes": args.max_nodes, "git": git_hash,
+        "n_test_all": n_test_all, "stage3a_n_test_scored": scored(r3), "stage3b_n_test_scored": scored(r3b),
         "partition_table": args.partition_table, "node_loading": args.node_loading,
         "p2_layout": args.p2_layout, "p2_rg_mb": args.p2_rg_mb,
         "n_nodes": n_nodes, "n_edges": n_edges, "n_classes": n_classes,
         "n_communities_phase1": r1.get((DS, args.alg), {}).get("n_comms"),
-        "n_units_phase3": a3.get("n_communities"),
-        "max_edges_cap": args.max_edges,
-        "edges_retained_phase3": a3.get("total_edges"),
+        "n_units_phase3": len(r3[k]) if k in r3 else None,
         "stage3a_node_acc": a3.get("weighted_comm_acc"),
-        "stage3a_acc_gnn_head": a3.get("acc_gnn_head"),
-        "stage3a_acc_mlp_head": a3.get("acc_mlp_head"),
-        "stage3a_head_used": a3.get("head_used"),
-        "stage3a_n_head_gnn": a3.get("n_head_gnn"),
-        "stage3a_n_head_mlp": a3.get("n_head_mlp"),
         "stage3a_link_auc": a3.get("weighted_comm_link_auc"),
         "stage3b_node_acc": a3b.get("weighted_comm_acc"),
         "stage3b_link_auc": a3b.get("weighted_comm_link_auc"),
@@ -462,6 +468,10 @@ def main():
         shown = f"{v:.4f}" if isinstance(v, float) else ("—" if v is None else v)
         print(f"  {label:<24} {shown}")
     print(f"  {'total wall clock':<24} {record['total_seconds']}s")
+    for stage in ("stage3a", "stage3b"):
+        n = record[f"{stage}_n_test_scored"]
+        if n is not None and n != n_test_all:
+            print(f"  WARNING {stage} scored {n:,} of {n_test_all:,} test nodes")
 
     os.makedirs(os.path.dirname(os.path.abspath(args.json_out)), exist_ok=True)
     with open(args.json_out, "a") as fh:

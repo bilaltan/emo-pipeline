@@ -118,7 +118,7 @@ def _load_communities_data_batch(nodes_url, edges_url, comm_ids, block=None, n_b
             nodes_pdf = nodes_pdf.drop_duplicates(subset=['id', 'community_id']).reset_index(drop=True)
     except Exception as e:
         print(f"  ⚠ CAAN _load_communities_data_batch NODES ERROR: {e}")
-        nodes_pdf = pd.DataFrame()
+        raise  # an empty unit would be scored as a result
 
     edges_pdf = _load_unit_edges(edges_url, comm_ids, block=block, n_blocks=n_blocks, layout=layout)
     return nodes_pdf, edges_pdf
@@ -142,12 +142,12 @@ def _load_unit_edges(edges_url, comm_ids, block=None, n_blocks=1, layout=None):
         else:
             edges_ds = _get_dataset(edges_url)
         edges_ds = unit_dataset(edges_ds, comm_ids, _base)
-        # Keep an edge only when BOTH endpoints fall in this block -- the same
-        # rule Phase 3 enforces via _src_unit == _dst_unit, applied at the scan.
+        # Filter on the source only. A cut edge's other end lives in another community and maps to its
+        # super-node (or a minor node) whatever its id; requiring dst in this block kept only ~1/n of
+        # them. Same-community neighbours in another block are not in this unit's node map, so the
+        # worker drops them, as Phase 3 does.
         _f = _base if _mask is None else (
-            _base
-            & (pc.bit_wise_and(ds.field("src"), _mask) == int(block))
-            & (pc.bit_wise_and(ds.field("dst"), _mask) == int(block)))
+            _base & (pc.bit_wise_and(ds.field("src"), _mask) == int(block)))
         edges_pdf = edges_ds.to_table(filter=_f, use_threads=True).to_pandas()
         if 'storage_part' in edges_pdf.columns:
             edges_pdf = edges_pdf.drop(columns=['storage_part'])
@@ -157,7 +157,7 @@ def _load_unit_edges(edges_url, comm_ids, block=None, n_blocks=1, layout=None):
                          .reset_index(drop=True))
     except Exception as e:
         print(f"  ⚠ CAAN _load_communities_data_batch EDGES ERROR: {e}")
-        edges_pdf = pd.DataFrame()
+        raise
 
     return edges_pdf
 
@@ -195,7 +195,8 @@ def _train_minor_global_caan(dataset, gcn_cfg, dataset_cfg, caan_components, mod
     num_epochs = gcn_cfg['num_epochs']
     lr = gcn_cfg['lr']
     dropout = gcn_cfg['dropout']
-    
+    torch.manual_seed(int(gcn_cfg.get('seed', 42)))
+
     super_feats = [super_nodes_dict[cid] for cid in super_nodes_dict.keys()]
     minor_feats = [minor_nodes_dict[nid]['features'] for nid in minor_ids]
     
@@ -687,8 +688,9 @@ def make_caan_udf(super_nodes_dict_bc, minor_node_to_idx_bc, minor_feats_arr_bc,
                       .reset_index(drop=True))
 
         # Deterministic weight init per unit, matching Phase 3.
-        torch.manual_seed(42 + int(comm_id))
-        np.random.seed((42 + int(comm_id)) % (2**32))
+        seed = int(pdf['_seed'].iloc[0]) if '_seed' in pdf.columns else 42
+        torch.manual_seed(seed + int(comm_id))
+        np.random.seed((seed + int(comm_id)) % (2**32))
 
         local_feats = np.stack(pdf['features'].values).astype(np.float32)
         feat_dim = local_feats.shape[1]
@@ -710,7 +712,16 @@ def make_caan_udf(super_nodes_dict_bc, minor_node_to_idx_bc, minor_feats_arr_bc,
         local_labels = np.array([int(v) if not pd.isna(v) else -1 for v in pdf['label'].values], dtype=np.int64)
         local_splits = list(pdf['split'].values)
         local_bnd = np.array([bool(v) if not (pd.isna(v) or v is None) else False for v in pdf['is_boundary'].values], dtype=bool)
-        
+
+        # Context the unit's model sees: 'macro' = super-nodes and minor nodes (Stage 3b), 'halo' = the 1-hop
+        # halo only, 'none' = member-member edges only (Stage 3a). One code path, so stages differ in context only.
+        context = str(pdf['_context'].iloc[0]) if '_context' in pdf.columns else 'macro'
+        if context != 'macro':
+            super_nodes_dict, minor_node_to_idx, caan_adj, major_comms = {}, {}, {}, set()
+        if context == 'none' and comm_edges_pdf is not None and len(comm_edges_pdf) > 0 and 'is_member' in pdf.columns:
+            _members = pdf.loc[pdf['is_member'].astype(bool), 'id'].values.astype(np.int64)
+            comm_edges_pdf = comm_edges_pdf[np.isin(comm_edges_pdf['dst'].values.astype(np.int64), _members)]
+
         super_feats = []
         super_ids = []
         for cid, feat in super_nodes_dict.items():
@@ -870,18 +881,23 @@ def make_caan_udf(super_nodes_dict_bc, minor_node_to_idx_bc, minor_feats_arr_bc,
         val_m   = torch.tensor([s == 'valid' and member_arr[i] for i, s in enumerate(split_arr)], dtype=torch.bool)
         test_m  = torch.tensor([s == 'test'  and member_arr[i] for i, s in enumerate(split_arr)], dtype=torch.bool)
         bnd_t   = torch.tensor(bnd_arr, dtype=torch.bool)
-        
+
+        # Undirected for message passing: the cut edges arrive as member -> super-node / minor node,
+        # and members must receive that context.
+        from pipeline.utils.common import undirected
+        mp_src, mp_dst = undirected(src_l_g, dst_l_g, n_nodes)
+
         is_pyg = (model_type in ('gat', 'gatv2', 'transformer', 'clusterscl', 'arma', 'asap')) or dgl is None
         if is_pyg:
             import torch_geometric
             pyg_edge_index = torch.stack([
-                torch.tensor(src_l_g, dtype=torch.long),
-                torch.tensor(dst_l_g, dtype=torch.long)
+                torch.tensor(mp_src, dtype=torch.long),
+                torch.tensor(mp_dst, dtype=torch.long)
             ], dim=0)
             feat_t = torch.tensor(feat_arr, dtype=torch.float32)
             lbl_t = torch.tensor(label_arr, dtype=torch.long)
         else:
-            g = dgl.graph((src_l_g, dst_l_g), num_nodes=n_nodes)
+            g = dgl.graph((mp_src, mp_dst), num_nodes=n_nodes)
             g = dgl.to_simple(g)
             g = dgl.add_self_loop(g)
             g.ndata['feat']  = torch.tensor(feat_arr,  dtype=torch.float32)
@@ -1183,8 +1199,35 @@ def make_caan_udf(super_nodes_dict_bc, minor_node_to_idx_bc, minor_feats_arr_bc,
                 except Exception:
                     pass
 
+            # Train to the best validation accuracy with patience, as Phase 3 and the baselines do; a fixed
+            # epoch budget made the two stages differ in training procedure, not only in context.
+            import copy as _copy
+            node_patience = int(pdf['_node_patience'].iloc[0]) if '_node_patience' in pdf.columns else 20
+            val_every = max(1, num_epochs // 40)
+            best_val_acc, best_state, waited = -1.0, None, 0
+
+            def _val_acc():
+                model.eval()
+                with torch.no_grad():
+                    if model_type == 'clusterscl':
+                        lg = model.get_embeddings_and_logits(feat_t, pyg_edge_index)[2]
+                    elif is_pyg:
+                        lg = model(feat_t, pyg_edge_index)
+                    else:
+                        lg = model(g, feat_t)
+                model.train()
+                return float((lg[val_m].argmax(dim=1) == lbl_t[val_m]).float().mean())
+
             model.train()
-            for _ in range(num_epochs):
+            for _ep in range(num_epochs):
+                if int(val_m.sum()) > 0 and _ep > 0 and _ep % val_every == 0:
+                    v = _val_acc()
+                    if v > best_val_acc:
+                        best_val_acc, best_state, waited = v, _copy.deepcopy(model.state_dict()), 0
+                    else:
+                        waited += val_every
+                        if waited >= node_patience:
+                            break
                 if model_type == 'clusterscl':
                     opt.zero_grad()
                     z1, proj1, logits1 = model.get_embeddings_and_logits(feat_t, pyg_edge_index)
@@ -1251,6 +1294,12 @@ def make_caan_udf(super_nodes_dict_bc, minor_node_to_idx_bc, minor_feats_arr_bc,
                             pass
 
                     opt.zero_grad(); loss.backward(); opt.step()
+            if int(val_m.sum()) > 0:
+                v = _val_acc()
+                if v > best_val_acc:
+                    best_val_acc, best_state = v, _copy.deepcopy(model.state_dict())
+            if best_state is not None:
+                model.load_state_dict(best_state)
             node_train_time = time.time() - t_node_start
             
             model.eval()
@@ -1378,7 +1427,7 @@ def make_caan_udf(super_nodes_dict_bc, minor_node_to_idx_bc, minor_feats_arr_bc,
 
         if run_link and n_real_edges >= 5:
             t_link_start = time.time()
-            torch.manual_seed(42)
+            torch.manual_seed(seed)
             _real_pos_t = torch.tensor(_real_edge_pos, dtype=torch.int64)
             shuffled_edge_ids = _real_pos_t[torch.randperm(n_real_edges)]
             n_tr_edges = int(0.8 * n_real_edges)
@@ -1721,6 +1770,11 @@ def make_caan_udf(super_nodes_dict_bc, minor_node_to_idx_bc, minor_feats_arr_bc,
             pdf['_dropout']     = float(row['_dropout'])
             pdf['_task_type']   = str(row['_task_type'])
             pdf['_model_type']  = str(row['_model_type'])
+            for _c in ('_seed', '_node_patience'):
+                if _c in row:
+                    pdf[_c] = int(row[_c])
+            if '_context' in row:
+                pdf['_context'] = str(row['_context'])
 
             res_row = _train_gnn_community_caan_single(pdf, comm_edges_pdf)
             results.append(res_row)
@@ -1863,8 +1917,13 @@ def run_phase3b(spark, sc, datasets, algorithms, use_global_mapping,
                 print("    - No major communities found, skipping Phase 3b.")
                 continue
                 
+            # Stage 3a (context none) and the halo ablation build no macro-graph: skip its Spark jobs.
+            context = kwargs.get("context", "macro")
             # Compute super-node features for major communities
             major_nodes_df = nodes_w_comm.filter(F.col('community_id').isin(list(major_comms)))
+            if 'is_member' in major_nodes_df.columns:
+                # the centroid is the community's own vertices, not the halo it borrows
+                major_nodes_df = major_nodes_df.filter(F.col('is_member'))
             
             def compute_means_udf(pdf):
                 import numpy as np
@@ -1882,10 +1941,10 @@ def run_phase3b(spark, sc, datasets, algorithms, use_global_mapping,
             super_nodes_dict = {
                 int(row['community_id']): [float(x) for x in row['mean_features']]
                 for row in mean_df.collect()
-            }
+            } if context == "macro" else {}
             
             # Gather minor nodes features, labels, and splits
-            minor_nodes_pd = nodes_w_comm.filter(F.col('community_id').isin(list(minor_comms))).toPandas()
+            minor_nodes_pd = nodes_w_comm.filter(F.col('community_id').isin(list(minor_comms))).toPandas() if context == "macro" else pd.DataFrame()
             minor_nodes_dict = {}
             for _, row in minor_nodes_pd.iterrows():
                 minor_nodes_dict[int(row['id'])] = {
@@ -1895,7 +1954,7 @@ def run_phase3b(spark, sc, datasets, algorithms, use_global_mapping,
                 }
                 
             # Map-side broadcast edge mapping (completely shuffless!)
-            node_to_comm_pd = comms_df.toPandas()
+            node_to_comm_pd = comms_df.toPandas() if context == "macro" else pd.DataFrame({'id': [], 'community_id': []})
             node_to_comm = {int(k): int(v) for k, v in zip(node_to_comm_pd['id'], node_to_comm_pd['community_id'])}
 
             node_to_comm_bc = sc.broadcast(node_to_comm)
@@ -1928,7 +1987,7 @@ def run_phase3b(spark, sc, datasets, algorithms, use_global_mapping,
             caan_edges = (raw_edges_df.rdd
                           .mapPartitions(map_edges)
                           .distinct()
-                          .collect())
+                          .collect()) if context == "macro" else []
             
             # Broadcast caan components - Driver-side pre-stacking for optimization
             minor_ids = list(minor_nodes_dict.keys())
@@ -1978,9 +2037,9 @@ def run_phase3b(spark, sc, datasets, algorithms, use_global_mapping,
                 if local_data_dir:
                     ckpt_dir = os.path.join(local_data_dir, "gnn-bench-checkpoint", "phase3b", experiment_name)
                     os.makedirs(ckpt_dir, exist_ok=True)
-                    ckpt_path = os.path.join(ckpt_dir, f"{dataset}_{alg}_{model_type}.parquet")
+                    ckpt_path = os.path.join(ckpt_dir, f"{dataset}_{alg}_{model_type}_{context}.parquet")
                 else:
-                    ckpt_path = f"s3://{s3_bucket}/gnn-bench-checkpoint/phase3b/{experiment_name}/{dataset}_{alg}_{model_type}.parquet"
+                    ckpt_path = f"s3://{s3_bucket}/gnn-bench-checkpoint/phase3b/{experiment_name}/{dataset}_{alg}_{model_type}_{context}.parquet"
 
                 # Checkpoint loading
                 force_rerun = kwargs.get('force_rerun', False)
@@ -1999,7 +2058,7 @@ def run_phase3b(spark, sc, datasets, algorithms, use_global_mapping,
                             import tempfile
                             s3_client = boto3.client('s3')
                             tmp_file = tempfile.mktemp(suffix=".parquet")
-                            s3_key = f"gnn-bench-checkpoint/phase3b/{experiment_name}/{dataset}_{alg}_{model_type}.parquet"
+                            s3_key = f"gnn-bench-checkpoint/phase3b/{experiment_name}/{dataset}_{alg}_{model_type}_{context}.parquet"
                             try:
                                 s3_client.download_file(s3_bucket, s3_key, tmp_file)
                                 comm_pd = pd.read_parquet(tmp_file)
@@ -2053,10 +2112,14 @@ def run_phase3b(spark, sc, datasets, algorithms, use_global_mapping,
                 base_node_map_bc = None
                 
                 try:
+                    # Off by default: it needs DGL, so it ran on EMR and not locally, and it is not part
+                    # of the method we describe.
+                    if not kwargs.get('warm_start', False):
+                        raise RuntimeError("warm start disabled")
                     import torch
                     import torch.nn as nn
                     import dgl
-                    
+
                     print("  [Driver Warmstart] Extracting representative community for driver-side pre-training...")
                     comms_node_counts_df = p2_table.select('community_id').groupBy('community_id').count().toPandas()
                     comms_sorted = comms_node_counts_df.sort_values(by='count', ascending=False)
@@ -2172,13 +2235,9 @@ def run_phase3b(spark, sc, datasets, algorithms, use_global_mapping,
                 import numpy as _np
                 _n_comms_raw = len(comms_node_counts_df)
                 if block_oversized and max_nodes_per_community > 0:
-                    def _nblocks(cnt):
-                        need = int(_np.ceil(float(cnt) / float(max_nodes_per_community)))
-                        nb = 1
-                        while nb < need:
-                            nb *= 2          # power of two -> worker filter is id & (n-1)
-                        return nb
-                    comms_node_counts_df['_n_blocks'] = comms_node_counts_df['count'].map(_nblocks)
+                    from pipeline.utils.common import unit_blocks
+                    comms_node_counts_df['_n_blocks'] = comms_node_counts_df['count'].map(
+                        lambda c: unit_blocks(c, max_nodes_per_community))
                 else:
                     comms_node_counts_df['_n_blocks'] = 1
 
@@ -2212,8 +2271,11 @@ def run_phase3b(spark, sc, datasets, algorithms, use_global_mapping,
                     .withColumn('_lr',          F.lit(float(gcn_cfg['lr'])))
                     .withColumn('_dropout',     F.lit(float(gcn_cfg['dropout'])))
                     .withColumn('_task_type',   F.lit(str(task_type)))
-                    .withColumn('_model_type',  F.lit(str(model_type))))
-                
+                    .withColumn('_model_type',  F.lit(str(model_type)))
+                    .withColumn('_seed',        F.lit(int(gcn_cfg.get('seed', 42))))
+                    .withColumn('_context',     F.lit(str(context)))
+                    .withColumn('_node_patience', F.lit(int(kwargs.get('node_patience', 20)))))
+
                 caan_udf = make_caan_udf(
                     super_nodes_dict_bc=super_nodes_dict_bc,
                     minor_node_to_idx_bc=minor_node_to_idx_bc,
@@ -2298,7 +2360,7 @@ def run_phase3b(spark, sc, datasets, algorithms, use_global_mapping,
                         tmp_file = tempfile.mktemp(suffix=".parquet")
                         comm_pd.to_parquet(tmp_file, index=False)
                         s3_client = boto3.client('s3')
-                        s3_key = f"gnn-bench-checkpoint/phase3b/{experiment_name}/{dataset}_{alg}_{model_type}.parquet"
+                        s3_key = f"gnn-bench-checkpoint/phase3b/{experiment_name}/{dataset}_{alg}_{model_type}_{context}.parquet"
                         s3_client.upload_file(tmp_file, s3_bucket, s3_key)
                         if os.path.exists(tmp_file):
                             os.remove(tmp_file)

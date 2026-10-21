@@ -83,6 +83,30 @@ def _delta_exists(spark, path):
             return False
 
 
+def undirected(src, dst, n):
+    """Both directions of every edge over local indices < n, deduplicated, for message passing.
+
+    Phase 2 stores a cut edge once, under the member's community (member -> halo), and Phase 3b
+    maps it to member -> super-node. GNN layers aggregate in-edges, so without the reverse the
+    members we score never receive halo or macro-graph context.
+    """
+    import numpy as np
+    s = np.asarray(src, dtype=np.int64)
+    d = np.asarray(dst, dtype=np.int64)
+    key = np.unique(np.concatenate([s * n + d, d * n + s]))
+    return key // n, key % n
+
+
+def unit_blocks(count, cap):
+    """Blocks a community of `count` rows is split into: the power of two that brings each under ~`cap`.
+
+    Phases 3 and 3b share this rule, so Stage 3a and Stage 3b train on the same units and differ only
+    in context. A node's block is id & (n - 1).
+    """
+    need = -(-int(count) // int(cap)) if int(cap) > 0 else 1
+    return 1 << max(0, need - 1).bit_length()
+
+
 def resolve_member_mask(pdf, n_rows, n_local=None):
     """Boolean mask marking which rows are a community's own vertices.
 

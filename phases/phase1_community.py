@@ -169,14 +169,17 @@ def run_phase1(spark, sc, datasets, algorithms, lpa_max_iter, resolution,
                         resolution_parameter=resolution, seed=random_seed)
                 elif alg == 'igraph_lpa':
                     partition = G.community_label_propagation()
-                id_to_comm = {}
-                for ci, members in enumerate(partition):
-                    for li in members:
-                        id_to_comm[int(all_nids[li])] = ci
-                comm_rows = list(id_to_comm.items())
-                cschema   = StructType([StructField('id', _LT(), False),
-                                        StructField('community_id', _LT(), False)])
-                communities_df = spark.sparkContext.parallelize(comm_rows).toDF(cschema).cache()
+                # Vertices with no edge are not in the igraph graph; give each its own community so it
+                # is still assigned (Phase 2 packs these tiny ones into shared bins) and scored.
+                import pandas as _pd
+                iso = np.setdiff1d(nodes_df.select('id').toPandas()['id'].values.astype(np.int64), all_nids)
+                comm_pd = _pd.DataFrame({
+                    'id': np.concatenate([all_nids.astype(np.int64), iso]),
+                    'community_id': np.concatenate([np.asarray(partition.membership, dtype=np.int64),
+                                                    len(partition) + np.arange(len(iso), dtype=np.int64)])})
+                if len(iso):
+                    print(f"  {len(iso):,} isolated vertices -> singleton communities")
+                communities_df = spark.createDataFrame(comm_pd).cache()
 
             # ── METIS Baseline ─────────────────────────────────────────────
             elif alg == 'metis':
