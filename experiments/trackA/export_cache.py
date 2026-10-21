@@ -14,6 +14,7 @@ Writes $LAKEGRL_STORE/<dataset>/trackA_<alg>/:
   edges.npy    [2, E] int64 undirected training edges, src < dst (held-out links already removed)
   comm.npy     [N] int64 community (Phase 2 unit) of each member vertex, or INT64_MIN if none
   halo.npy     [2, H] int64 (vertex, community) rows of Phase 2's 1-hop halo (is_member = False)
+  split.npy    [N] int8 node split from the masks table: 0 train, 1 valid, 2 test, -1 none
   links.npy    [3, L] int64 (src, dst, split) held-out positives, split 0 = val, 1 = test
   meta.json    sizes, source table versions and file counts
 """
@@ -105,6 +106,15 @@ def main():
     assert len(np.unique(ids[mem])) == mem.sum(), "a vertex is a member of more than one unit"
     np.save(os.path.join(out, "comm.npy"), comm)
     np.save(os.path.join(out, "halo.npy"), np.stack([ids[~mem], cid[~mem]]))
+
+    # node split, the same masks table Phase 3b reads (node baselines train and score on it)
+    files, ver = snapshot_files(spark, p["masks"])
+    meta["tables"]["masks"] = {"version": ver, "files": len(files)}
+    t = read_columns(files, ["id", "split"])
+    code = {"train": 0, "valid": 1, "test": 2}
+    split = np.full(n, -1, dtype=np.int8)
+    split[t.column("id").to_numpy()] = [code.get(v, -1) for v in t.column("split").to_pylist()]
+    np.save(os.path.join(out, "split.npy"), split)
 
     files, ver = snapshot_files(spark, p["link_split"])
     meta["tables"]["link_split"] = {"version": ver, "files": len(files)}
