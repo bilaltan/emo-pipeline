@@ -3,7 +3,7 @@
 Full LakeGRL pipeline on a single machine, against real Spark and Delta.
 
 Runs Phase 0 (ingest) -> 1 (community detection) -> 2 (partition + abstraction)
--> 3 (decoupled training) -> 3b (CAAN fusion) -> 4 (full-graph baseline) on a
+-> 3b (unit training with CaaN macro context; --stage3a adds the no-context run) on a
 small dataset, so the whole chain can be validated before it costs cluster time.
 Results are written as one JSON record per run.
 
@@ -260,7 +260,9 @@ def main():
     # Per-unit link AUC is split inside each unit and is not comparable with the baseline; links are
     # scored on the held-out split by experiments/trackA/harness.py.
     ap.add_argument("--task", default="node_classification", choices=["node_classification", "both"])
-    ap.add_argument("--stage3a-halo", action="store_true", help="Stage 3a also passes messages from the 1-hop halo")
+    # Stage 3b (CaaN macro context) is the method; Stage 3a (no context) runs only when asked, as an ablation.
+    ap.add_argument("--stage3a", action="store_true", help="also run Stage 3a (units without context)")
+    ap.add_argument("--stage3a-halo", action="store_true", help="run Stage 3a with messages from the 1-hop halo")
     ap.add_argument("--model", default="sage",
                     choices=["sage", "gatv2", "gat", "transformer", "arma", "asap"])
     ap.add_argument("--min-size", type=int, default=100)
@@ -396,7 +398,7 @@ def main():
                     models=[args.model], task_type=args.task, min_size=args.min_size, force_rerun=True,
                     local_data_dir=STORE, node_loading=args.node_loading, max_nodes_per_community=args.max_nodes,
                     node_patience=args.node_patience)
-    if args.stop_after != "2":
+    if args.stop_after != "2" and (args.stage3a or args.stage3a_halo):
         t3 = {}
         run_phase3b(spark, sc, [DS], [args.alg], timing=t3, results=r3,
                     context="halo" if args.stage3a_halo else "none", **stage_kw)
@@ -456,6 +458,7 @@ def main():
         "n_nodes": n_nodes, "n_edges": n_edges, "n_classes": n_classes,
         "n_communities_phase1": r1.get((DS, args.alg), {}).get("n_comms"),
         "n_units_phase3": len(r3[k]) if k in r3 else None,
+        "n_units_stage3b": len(r3b[k]) if k in r3b else None,
         "stage3a_node_acc": a3.get("weighted_comm_acc"),
         "stage3a_link_auc": a3.get("weighted_comm_link_auc"),
         "stage3b_node_acc": a3b.get("weighted_comm_acc"),
