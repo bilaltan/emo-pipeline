@@ -18,6 +18,7 @@ import argparse
 import copy
 import json
 import os
+import resource
 import sys
 import time
 
@@ -162,6 +163,8 @@ def main(argv=None):
                "n_test": int((split == 2).sum()), "val_acc": val, "test_acc": test,
                "load_seconds": round(load_s, 1), "train_seconds": round(train_s, 1),
                "peak_gpu_mb": round(torch.cuda.max_memory_allocated() / 2**20) if device.type == "cuda" else None,
+               # whole process so far (Linux reports KiB): the memory one machine needs for this baseline
+               "peak_rss_mb": round(resource.getrusage(resource.RUSAGE_SELF).ru_maxrss / 1024),
                "device": torch.cuda.get_device_name() if device.type == "cuda" else "cpu",
                "timestamp_utc": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())}
         print(json.dumps(rec))
