@@ -166,6 +166,7 @@ def main(argv=None):
                # whole process so far (Linux reports KiB): the memory one machine needs for this baseline
                "peak_rss_mb": round(resource.getrusage(resource.RUSAGE_SELF).ru_maxrss / 1024),
                "device": torch.cuda.get_device_name() if device.type == "cuda" else "cpu",
+               "threads": torch.get_num_threads(),
                "timestamp_utc": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())}
         print(json.dumps(rec))
         with open(args.out, "a") as fh:
