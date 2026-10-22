@@ -9,9 +9,9 @@ set -e
 REPO="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$REPO"
 ENV=$HOME/mamba/envs/lakegrl
-PKG=$HOME/lakegrl/pkg
+PKG=$HOME/lakegrl/pkg/$(basename "$REPO")   # one link per checkout, so a git worktree imports its own code
 mkdir -p "$PKG"
-[ -L "$PKG/pipeline" ] || ln -sfn "$REPO" "$PKG/pipeline"
+[ "$(readlink "$PKG/pipeline")" = "$REPO" ] || ln -sfn "$REPO" "$PKG/pipeline"
 export JAVA_HOME=$ENV/lib/jvm
 [ -x "$JAVA_HOME/bin/java" ] || export JAVA_HOME=$ENV
 export PATH=$ENV/bin:$PATH

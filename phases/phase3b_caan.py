@@ -80,7 +80,18 @@ def _layout_dataset(spec):
     return _DS_CACHE[key]
 
 
-def _load_communities_data_batch(nodes_url, edges_url, comm_ids, block=None, n_blocks=1, layout=None):
+def _blk_filter(f, dataset, block, n_blocks, n_wblocks):
+    """Adds the block's contiguous _blk range (utils.partition_layout.add_blk / blk_range) to a block read, so
+    parquet row-group statistics skip the community's other blocks. Same rows: the id / src filter stays."""
+    if not n_wblocks or block is None or "_blk" not in dataset.schema.names:
+        return f
+    import pyarrow.dataset as ds
+    from pipeline.utils.partition_layout import blk_range
+    lo, hi = blk_range(int(block), int(n_blocks or 1), int(n_wblocks))
+    return f & (ds.field("_blk") >= lo) & (ds.field("_blk") <= hi)
+
+
+def _load_communities_data_batch(nodes_url, edges_url, comm_ids, block=None, n_blocks=1, layout=None, n_wblocks=0):
     """Node rows and intra-unit edges of the given communities (and block).
 
     layout: utils.partition_layout.table_layout() of the run. With it, the scan reads
@@ -111,20 +122,21 @@ def _load_communities_data_batch(nodes_url, edges_url, comm_ids, block=None, n_b
         nodes_ds = unit_dataset(nodes_ds, comm_ids, _base)
         _f = _base if _mask is None else (
             _base & (pc.bit_wise_and(ds.field("id"), _mask) == int(block)))
+        _f = _blk_filter(_f, nodes_ds, block, n_blocks, n_wblocks)
         nodes_pdf = nodes_ds.to_table(filter=_f, use_threads=True).to_pandas()
-        if 'storage_part' in nodes_pdf.columns:
-            nodes_pdf = nodes_pdf.drop(columns=['storage_part'])
+        nodes_pdf = nodes_pdf.drop(columns=[c for c in ('storage_part', '_blk') if c in nodes_pdf.columns])
         if len(nodes_pdf) > 0 and 'id' in nodes_pdf.columns:
             nodes_pdf = nodes_pdf.drop_duplicates(subset=['id', 'community_id']).reset_index(drop=True)
     except Exception as e:
         print(f"  ⚠ CAAN _load_communities_data_batch NODES ERROR: {e}")
         raise  # an empty unit would be scored as a result
 
-    edges_pdf = _load_unit_edges(edges_url, comm_ids, block=block, n_blocks=n_blocks, layout=layout)
+    edges_pdf = _load_unit_edges(edges_url, comm_ids, block=block, n_blocks=n_blocks, layout=layout,
+                                 n_wblocks=n_wblocks)
     return nodes_pdf, edges_pdf
 
 
-def _load_unit_edges(edges_url, comm_ids, block=None, n_blocks=1, layout=None):
+def _load_unit_edges(edges_url, comm_ids, block=None, n_blocks=1, layout=None, n_wblocks=0):
     """Intra-unit edges for the given communities (and block), read from p2_edges."""
     import pyarrow.dataset as ds
     import pyarrow.compute as pc
@@ -148,9 +160,9 @@ def _load_unit_edges(edges_url, comm_ids, block=None, n_blocks=1, layout=None):
         # worker drops them, as Phase 3 does.
         _f = _base if _mask is None else (
             _base & (pc.bit_wise_and(ds.field("src"), _mask) == int(block)))
+        _f = _blk_filter(_f, edges_ds, block, n_blocks, n_wblocks)
         edges_pdf = edges_ds.to_table(filter=_f, use_threads=True).to_pandas()
-        if 'storage_part' in edges_pdf.columns:
-            edges_pdf = edges_pdf.drop(columns=['storage_part'])
+        edges_pdf = edges_pdf.drop(columns=[c for c in ('storage_part', '_blk') if c in edges_pdf.columns])
         if len(edges_pdf) > 0 and 'src' in edges_pdf.columns and 'dst' in edges_pdf.columns:
             edges_pdf = (edges_pdf.drop_duplicates()
                          .sort_values(['community_id', 'src', 'dst'], kind='mergesort')
@@ -1735,7 +1747,7 @@ def make_caan_udf(super_nodes_dict_bc, minor_node_to_idx_bc, minor_feats_arr_bc,
         
     def _train_bin(manifest_pdf, load_batch, load_item):
         # load_batch(comm_ids) -> (nodes_pdf, edges_pdf) for a whole bin;
-        # load_item(comm_id, block, n_blocks) -> the same for one bounded block.
+        # load_item(comm_id, block, n_blocks, n_wblocks) -> the same for one bounded block.
         # Set inter-op and intra-op thread counts strictly on the worker
         try:
             import torch
@@ -1762,7 +1774,8 @@ def make_caan_udf(super_nodes_dict_bc, minor_node_to_idx_bc, minor_feats_arr_bc,
             if _has_blocks:
                 _nb = int(row['_n_blocks']) if '_n_blocks' in row else 1
                 _bk = int(row['_block']) if '_block' in row else 0
-                pdf, comm_edges_pdf = load_item(comm_id, _bk, _nb)
+                _nw = int(row['_n_wblocks']) if '_n_wblocks' in row else 0
+                pdf, comm_edges_pdf = load_item(comm_id, _bk, _nb, _nw)
                 # A block holding only halo rows has nothing to train on; fall
                 # through to the empty-result path rather than train on no members.
                 if len(pdf) > 0 and 'is_member' in pdf.columns:
@@ -1831,8 +1844,8 @@ def make_caan_udf(super_nodes_dict_bc, minor_node_to_idx_bc, minor_feats_arr_bc,
             manifest_pdf,
             lambda ids: _load_communities_data_batch(p2_nodes_url, p2_edges_url, ids,
                                                      layout=p2_layout),
-            lambda c, b, n: _load_communities_data_batch(
-                p2_nodes_url, p2_edges_url, [c], block=b, n_blocks=n, layout=p2_layout))
+            lambda c, b, n, w: _load_communities_data_batch(
+                p2_nodes_url, p2_edges_url, [c], block=b, n_blocks=n, layout=p2_layout, n_wblocks=w))
 
     def _train_gnn_bin_caan_joined(key, nodes_pdf, manifest_pdf):
         # Global-join path (normalized partition table): the bin's node rows,
@@ -1848,13 +1861,14 @@ def make_caan_udf(super_nodes_dict_bc, minor_node_to_idx_bc, minor_feats_arr_bc,
             nodes = nodes_pdf[unit_cols] if len(nodes_pdf) > 0 else pd.DataFrame()
             return nodes, _load_unit_edges(p2_edges_url, ids, layout=p2_layout)
 
-        def _item(c, b, n):
+        def _item(c, b, n, w=0):
             if len(nodes_pdf) == 0:
                 return pd.DataFrame(), _load_unit_edges(p2_edges_url, [c], block=b, n_blocks=n,
-                                                        layout=p2_layout)
+                                                        layout=p2_layout, n_wblocks=w)
             sel = nodes_pdf[(nodes_pdf['community_id'] == c) & (nodes_pdf['_block'] == b)]
             nodes = sel[unit_cols].reset_index(drop=True) if len(sel) > 0 else pd.DataFrame()
-            return nodes, _load_unit_edges(p2_edges_url, [c], block=b, n_blocks=n, layout=p2_layout)
+            return nodes, _load_unit_edges(p2_edges_url, [c], block=b, n_blocks=n, layout=p2_layout,
+                                           n_wblocks=w)
 
         return _train_bin(manifest_pdf, _batch, _item)
 
@@ -2303,8 +2317,13 @@ def run_phase3b(spark, sc, datasets, algorithms, use_global_mapping,
                     num_bins = min(max(default_para * 4, 1000), num_comms)
                 work['bin_id'] = [i % num_bins for i in range(len(work))]
                 
+                # blocks each community's _blk was written with (Phase 2 block_cap), for the loaders' range
+                from pipeline.utils.partition_layout import block_cap as _p2_block_cap
+                from pipeline.utils.common import unit_blocks as _unit_blocks
+                _wcap = _p2_block_cap(spark, p_alg['p2_nodes'])
+                work['_n_wblocks'] = work['count'].map(lambda c: _unit_blocks(c, _wcap)) if _wcap else 0
                 bin_mapping_df = spark.createDataFrame(
-                    work[['community_id', 'bin_id', '_block', '_n_blocks']])
+                    work[['community_id', 'bin_id', '_block', '_n_blocks', '_n_wblocks']])
                 
                 manifest_df = (bin_mapping_df
                     .withColumn('_num_classes', F.lit(int(cfg['num_classes'])))

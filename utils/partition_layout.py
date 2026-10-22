@@ -77,7 +77,9 @@ def write_layout(df, path, layout, n_bins, user_metadata=None, max_records_per_f
     if layout == "hive_merged" and STORAGE_PART not in df.columns:
         raise ValueError("hive_merged needs a storage_part column (see with_storage_part)")
     order = [key, "community_id"] if key != "community_id" else ["community_id"]
-    out = df.repartitionByRange(int(n_bins), *order).sortWithinPartitions(*order)
+    # _blk (add_blk) groups a community's rows by Phase 3b block, so a block's read skips the rest of the community
+    sort = order + (["_blk"] if "_blk" in df.columns else [])
+    out = df.repartitionByRange(int(n_bins), *order).sortWithinPartitions(*sort)
     w = (out.write.format("delta").mode("overwrite").option("overwriteSchema", "true"))
     if max_records_per_file:
         w = w.option("maxRecordsPerFile", int(max_records_per_file))
@@ -86,6 +88,58 @@ def write_layout(df, path, layout, n_bins, user_metadata=None, max_records_per_f
     if layout != "range":
         w = w.partitionBy(key)
     w.save(path)
+
+
+BLOCK_CAP_PROP = "lakegrl.block_cap"
+
+
+def bit_reverse(x, bits):
+    return int(format(int(x), f"0{bits}b")[::-1], 2) if bits else 0
+
+
+def add_blk(spark, nodes_df, edges_df, cap):
+    """Phase 2's tables with _blk: a row's Phase 3b block (id for nodes, src for edges, & (n - 1), n from
+    utils.common.unit_blocks on the community's rows and `cap`), its k = log2 n bits reversed. A block of any split
+    n_r <= n is then one contiguous _blk range (blk_range). Track B P4b (docs/trackB_storage_layout.md); a bit-reversed
+    key is enough here because Phase 3b filters edges on src only. Returns (nodes, edges, units at this cap)."""
+    from pyspark.sql import functions as F
+    from pipeline.utils.common import unit_blocks
+    cnt = nodes_df.groupBy("community_id").count().toPandas()
+    cnt["_k"] = [unit_blocks(int(c), cap).bit_length() - 1 for c in cnt["count"]]
+    cnt["_k"] = cnt["_k"].astype("int32")
+    kmax = int(cnt["_k"].max()) if len(cnt) else 0
+    kb = F.broadcast(spark.createDataFrame(cnt[["community_id", "_k"]]))
+    rev = lambda key: F.expr(" + ".join(f"CASE WHEN _k > {d} THEN shiftleft(shiftright({key}, {d}) & 1, _k - {d + 1}) "
+                                        f"ELSE 0 END" for d in range(kmax)) or "0").cast("int")
+    nodes = nodes_df.join(kb, "community_id").withColumn("_blk", rev("id")).drop("_k")
+    edges = edges_df.join(kb, "community_id").withColumn("_blk", rev("src")).drop("_k")
+    return nodes, edges, int((2 ** cnt["_k"].astype("int64")).sum())
+
+
+def blk_range(b, n_r, n_w):
+    """Inclusive _blk range holding read block b of n_r on a table written with n_w blocks (add_blk). Finer reads
+    (n_r > n_w) get their written block; the id / src filter keeps the rest."""
+    k, m = n_w.bit_length() - 1, min(n_r, n_w).bit_length() - 1
+    lo = bit_reverse(b & ((1 << m) - 1), m) << (k - m)
+    return lo, lo + (1 << (k - m)) - 1
+
+
+def sqrt_rg_mb(table_bytes, units, beta_mb=0.6):
+    """Row-group size (MB, a power of two >= 1/4) from the √ rule s* = √(β T / (2 U)) (Track B P2: regret <= 1.46 on
+    8 stores at every emulated latency). β = per-row-group overhead in bytes, about 0.6 MB locally."""
+    import math
+    s = math.sqrt(beta_mb * (table_bytes / (1 << 20)) / (2 * max(1, units)))
+    return max(0.25, 2.0 ** round(math.log2(s))) if s > 0 else 0.25
+
+
+def block_cap(spark, path):
+    """The cap a Phase 2 table's _blk was written for (0: none)."""
+    from delta.tables import DeltaTable
+    df = spark.read.format("delta").load(path)
+    if "_blk" not in df.columns:
+        return 0
+    props = DeltaTable.forPath(spark, path).detail().select("properties").first()[0] or {}
+    return int(props.get(BLOCK_CAP_PROP, 0))
 
 
 def current_files(spark, path):

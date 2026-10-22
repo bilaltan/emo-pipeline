@@ -298,8 +298,11 @@ def main():
     # community_id) or hive_merged (small communities packed into shared partitions).
     ap.add_argument("--p2-layout", default="range", choices=["range", "hive", "hive_merged"])
     ap.add_argument("--merge-target-rows", type=int, default=250_000)
-    # Parquet row-group size of the run's writes (Track B P2: sqrt rule); default Spark's 128 MB
-    ap.add_argument("--p2-rg-mb", type=float, default=None)
+    # Track B storage layout of the Phase 2 tables (physical only: every unit reads the same rows).
+    # Row group in MB, or auto = the sqrt rule from table size and unit count (0: Spark's 128 MB default).
+    ap.add_argument("--p2-rg-mb", default="auto")
+    ap.add_argument("--p2-plain", action="store_true",
+                    help="Phase 2's order without _blk (block-ordered for --max-nodes by default)")
     args = ap.parse_args()
 
     builder = (SparkSession.builder.appName("lakegrl-local-pipeline").master(f"local[{args.cores}]")
@@ -317,8 +320,6 @@ def main():
     spark = configure_spark_with_delta_pip(builder).getOrCreate()
     spark.sparkContext.setLogLevel("ERROR")
     sc = spark.sparkContext
-    if args.p2_rg_mb:
-        sc._jsc.hadoopConfiguration().set("parquet.block.size", str(int(args.p2_rg_mb * (1 << 20))))
 
     # Read at the start: a commit made while the run is going must not relabel it.
     import subprocess
@@ -389,7 +390,9 @@ def main():
                min_size=args.min_size, get_paths_fn=paths, timing=timing, results=r2,
                expand_boundary_nodes=True, tiny_comm_handling=args.tiny_comm, force_rerun=True,
                partition_table_mode=args.partition_table, p2_layout=args.p2_layout,
-               merge_target_rows=args.merge_target_rows)
+               merge_target_rows=args.merge_target_rows,
+               rg_mb=args.p2_rg_mb if args.p2_rg_mb == "auto" else float(args.p2_rg_mb) or None,
+               block_cap=None if args.p2_plain else args.max_nodes)
 
     if args.stop_after != "4":
         args.skip_baseline = True
@@ -456,7 +459,8 @@ def main():
         "min_size": args.min_size, "max_nodes": args.max_nodes, "git": git_hash,
         "n_test_all": n_test_all, "stage3a_n_test_scored": scored(r3), "stage3b_n_test_scored": scored(r3b),
         "partition_table": args.partition_table, "node_loading": args.node_loading,
-        "p2_layout": args.p2_layout, "p2_rg_mb": args.p2_rg_mb,
+        "p2_layout": args.p2_layout, "p2_rg_mb": r2.get((DS, args.alg), {}).get("rg_mb"),
+        "p2_block_cap": r2.get((DS, args.alg), {}).get("block_cap"),
         "n_nodes": n_nodes, "n_edges": n_edges, "n_classes": n_classes,
         "n_communities_phase1": r1.get((DS, args.alg), {}).get("n_comms"),
         "n_units_phase3": len(r3[k]) if k in r3 else None,
