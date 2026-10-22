@@ -158,7 +158,11 @@ def run_phase2(spark, sc, datasets, algorithms, use_global_mapping, min_size,
 
             # Intra-community edges
             e_src = (edges_df.join(node_comm.withColumnRenamed('id','src').withColumnRenamed('community_id','src_comm'), on='src', how='inner'))
-            e_full = (e_src.join(node_comm.withColumnRenamed('id','dst').withColumnRenamed('community_id','dst_comm'), on='dst', how='inner'))
+            # 'drop': minor-community vertices leave the units but stay as major units' 1-hop halo (their edges kept),
+            # as in CaaN Eq. 2, where a community's local graph includes the minor nodes; Phase 3b's global model
+            # scores them. Looking dst up in the kept units only would cut those edges.
+            dst_map = comms_df.select('id', 'community_id') if tiny_comm_handling == 'drop' else node_comm
+            e_full = (e_src.join(dst_map.withColumnRenamed('id','dst').withColumnRenamed('community_id','dst_comm'), on='dst', how='inner'))
             
             if expand_boundary_nodes:
                 edges_part = e_full.select('src', 'dst', F.col('src_comm').alias('community_id'))

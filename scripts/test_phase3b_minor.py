@@ -43,6 +43,9 @@ def main():
         run_phase2(spark, spark.sparkContext, ["synth"], ["louvain"], use_global_mapping=True,
                    min_size=10, get_paths_fn=E.paths, timing={}, results={},
                    expand_boundary_nodes=True, tiny_comm_handling="drop", force_rerun=True)
+        # minor vertices are not units of their own but stay as the halo of the major units they touch
+        p2 = spark.read.format("delta").load(E.paths("synth", "louvain")["p2_nodes"]).filter(f"id < {N_MINOR}")
+        assert p2.filter("is_member").count() == 0 and p2.select("id").distinct().count() == N_MINOR
         res = {}
         run_phase3b(spark, spark.sparkContext, ["synth"], ["louvain"], use_global_mapping=True, dataset_cfg=cfg,
                     gcn_cfg={"hidden_dim": 32, "num_epochs": 20, "lr": 0.01, "dropout": 0.3,
