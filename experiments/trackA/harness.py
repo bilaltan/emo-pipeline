@@ -471,7 +471,7 @@ def main():
     ap.add_argument("--halo-budget", type=float, default=0.0,
                     help="M1b / M2: cap each unit's halo at this many x its members (0 = full 1-hop halo)")
     ap.add_argument("--max-pos", type=int, default=0, help="evaluate on the first N positives only (smoke)")
-    ap.add_argument("--device", default="cuda" if torch.cuda.is_available() else "cpu")
+    ap.add_argument("--device", default="cpu")   # ICDE rule (Bilal, 2026-10-22): every model runs on CPU
     ap.add_argument("--out", default=os.path.join(REPO, "results", "trackA", "runs.jsonl"))
     args = ap.parse_args()
 

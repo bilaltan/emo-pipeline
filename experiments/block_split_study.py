@@ -561,7 +561,7 @@ def main():
     if device == "auto":
         try:
             import torch
-            device = "cuda" if torch.cuda.is_available() else "cpu"
+            device = "cpu"   # ICDE rule (Bilal, 2026-10-22): every model runs on CPU
         except Exception:
             device = "cpu"
     p2_root = args.p2_root or f"local_data/joinbench/gjbench/{args.dataset}/materialized"

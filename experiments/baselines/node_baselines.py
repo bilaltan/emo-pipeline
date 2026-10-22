@@ -130,7 +130,7 @@ def main(argv=None):
     ap.add_argument("--lr", type=float, default=TRAIN["lr"])
     ap.add_argument("--part-nodes", type=int, default=150, help="cluster: vertices per METIS part")
     ap.add_argument("--parts-per-batch", type=int, default=20, help="cluster: parts per training step")
-    ap.add_argument("--device", default="cuda" if torch.cuda.is_available() else "cpu")
+    ap.add_argument("--device", default="cpu")   # ICDE rule (Bilal, 2026-10-22): every model runs on CPU
     ap.add_argument("--out", default=os.path.join(REPO, "results", "icde", "baselines.jsonl"))
     args = ap.parse_args(argv)
 
