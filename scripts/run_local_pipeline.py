@@ -474,7 +474,7 @@ def main():
         "stage3a_link_auc": a3.get("weighted_comm_link_auc"),
         "stage3b_node_acc": a3b.get("weighted_comm_acc"),
         "stage3b_link_auc": a3b.get("weighted_comm_link_auc"),
-        "s3_emu": args.s3_emu, "stage3b_read_s": a3b.get("read_s"), "stage3b_read_gets": a3b.get("read_gets"),
+        "cores": args.cores, "s3_emu": args.s3_emu, "stage3b_read_s": a3b.get("read_s"), "stage3b_read_gets": a3b.get("read_gets"),
         "stage3b_read_bytes": a3b.get("read_bytes"),
         "baseline_node_acc": base.get("test_acc"),
         "baseline_link_auc": base.get("link_auc"),
