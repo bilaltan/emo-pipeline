@@ -32,6 +32,7 @@ from phases.phase2_subgraph import run_phase2
 from phases.phase3b_caan import run_phase3b
 from phases.phase4_baselines import run_phase4
 from experiment_config import TRAIN
+from pipeline.utils.store_io import parse_emu
 
 # LAKEGRL_STORE puts the Delta tables on a fast local file system (scripts/wsl_run.sh sets it).
 STORE = os.path.abspath(os.environ.get("LAKEGRL_STORE", "data/.local_pipeline"))
@@ -303,6 +304,9 @@ def main():
     ap.add_argument("--p2-rg-mb", default="auto")
     ap.add_argument("--p2-plain", action="store_true",
                     help="Phase 2's order without _blk (block-ordered for --max-nodes by default)")
+    ap.add_argument("--s3-emu", default=None, metavar="LAT_MS,MBPS|count",
+                    help="Stage 3b reads the Phase 2 tables through an emulated S3 (e.g. 20,80: 20 ms + 80 MB/s "
+                         "per GET), or 'count' to count GETs and bytes only (utils/store_io.py)")
     args = ap.parse_args()
 
     builder = (SparkSession.builder.appName("lakegrl-local-pipeline").master(f"local[{args.cores}]")
@@ -402,7 +406,8 @@ def main():
     stage_kw = dict(use_global_mapping=True, dataset_cfg=ds_cfg, gcn_cfg=gcn_cfg, get_paths_fn=paths,
                     models=[args.model], task_type=args.task, min_size=args.min_size, force_rerun=True,
                     local_data_dir=STORE, node_loading=args.node_loading, max_nodes_per_community=args.max_nodes,
-                    node_patience=args.node_patience, tiny_comm_handling=args.tiny_comm)
+                    node_patience=args.node_patience, tiny_comm_handling=args.tiny_comm,
+                    s3_emu=parse_emu(args.s3_emu))
     if args.stop_after != "2" and (args.stage3a or args.stage3a_halo):
         t3 = {}
         run_phase3b(spark, sc, [DS], [args.alg], timing=t3, results=r3,
@@ -469,6 +474,8 @@ def main():
         "stage3a_link_auc": a3.get("weighted_comm_link_auc"),
         "stage3b_node_acc": a3b.get("weighted_comm_acc"),
         "stage3b_link_auc": a3b.get("weighted_comm_link_auc"),
+        "s3_emu": args.s3_emu, "stage3b_read_s": a3b.get("read_s"), "stage3b_read_gets": a3b.get("read_gets"),
+        "stage3b_read_bytes": a3b.get("read_bytes"),
         "baseline_node_acc": base.get("test_acc"),
         "baseline_link_auc": base.get("link_auc"),
         "phase_seconds": {str(kk): round(vv, 2) for kk, vv in timing.items()},

@@ -453,6 +453,7 @@ from pipeline.phases import (
     print_accuracy_table, print_timing_table, save_plots_and_xlsx, print_summary
 )
 from pipeline.utils.paths import get_paths
+from pipeline.utils.store_io import parse_emu
 
 print("\nConfig and Modular Pipeline fully loaded into EMR Context.")
 
@@ -582,7 +583,9 @@ if ALGORITHMS_TO_RUN and getattr(config, 'RUN_PHASE3B', True):
         results            = phase3b_results,
         task_type          = TASK_TYPE,
         models             = config.GNN_MODELS,
-        min_size           = MIN_COMMUNITY_SIZE
+        min_size           = MIN_COMMUNITY_SIZE,
+        # 'count': count Stage 3b's GETs and bytes on S3 (utils/store_io.py); unset for timing runs
+        s3_emu             = parse_emu(getattr(config, 'S3_EMU', None))
     )
 
 # Phase 4: Full-Graph Baseline

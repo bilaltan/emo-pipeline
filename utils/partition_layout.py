@@ -169,15 +169,18 @@ def layout_of(spark, path):
     return "hive_merged" if cols == [STORAGE_PART] else "hive" if cols == ["community_id"] else "other"
 
 
-def table_layout(spark, p_alg):
+def table_layout(spark, p_alg, emu=None):
     """Everything a pyarrow worker needs to read the Phase 2 tables of one run.
 
-    {"nodes": {"url", "files", "part_col", "part_type"}, "edges": {...},
+    {"nodes": {"url", "files", "part_col", "part_type", "emu"}, "edges": {...},
      "layout": str, "comm_to_part": {community_id: storage_part} or None}
+    emu: utils.store_io.parse_emu() of the run, None for plain reads.
     """
+    from pipeline.utils.store_io import check
     out = {}
     for name, key in (("nodes", "p2_nodes"), ("edges", "p2_edges")):
         url = p_alg[key]
+        check(url, emu)   # on the driver, before any task starts
         df = spark.read.format("delta").load(url)
         cols = partition_columns(spark, url)
         part_col = cols[0] if cols else None
@@ -185,7 +188,7 @@ def table_layout(spark, p_alg):
         if part_col:
             part_type = "string" if dict(df.dtypes)[part_col] == "string" else "int64"
         out[name] = {"url": url, "files": current_files(spark, url), "part_col": part_col,
-                     "part_type": part_type}
+                     "part_type": part_type, "emu": emu}
     out["layout"] = {None: "range", "community_id": "hive", STORAGE_PART: "hive_merged"}.get(
         out["nodes"]["part_col"], "other")
     out["comm_to_part"] = None
@@ -196,36 +199,22 @@ def table_layout(spark, p_alg):
     return out
 
 
-def _local(uri):
-    from urllib.parse import urlparse, unquote
-    if uri.startswith("file:"):
-        return unquote(urlparse(uri).path)
-    return uri
-
-
 def open_dataset(spec):
-    """pyarrow dataset over one Phase 2 table described by table_layout()[name]."""
+    """pyarrow dataset over one Phase 2 table described by table_layout()[name] (or just {"url": ...}), read from
+    the store its URL names (utils.store_io: local disk or S3, metered when spec["emu"] is set)."""
     import pyarrow as pa
     import pyarrow.dataset as ds
+    from pipeline.utils.store_io import filesystem, to_path
     files, url = spec.get("files"), spec["url"]
     part = None
     if spec.get("part_col"):
         typ = pa.string() if spec.get("part_type") == "string" else pa.int64()
         part = ds.partitioning(pa.schema([(spec["part_col"], typ)]), flavor="hive")
-    if url.startswith(("s3://", "s3a://")):
-        import pyarrow.fs as fs
-        s3 = fs.S3FileSystem(region="us-east-1")
-        strip = lambda u: u.split("://", 1)[1].rstrip("/")  # noqa: E731
-        if files:
-            return ds.dataset([strip(f) for f in files], filesystem=s3, format="parquet",
-                              partitioning=part, partition_base_dir=strip(url) if part else None)
-        return ds.dataset(strip(url), filesystem=s3, format="parquet", partitioning=part,
-                          ignore_prefixes=["_delta_log", "."])
-    base = _local(url).rstrip("/")
+    fs, base = filesystem(url, spec.get("emu")), to_path(url)
     if files:
-        return ds.dataset([_local(f) for f in files], format="parquet", partitioning=part,
+        return ds.dataset([to_path(f) for f in files], filesystem=fs, format="parquet", partitioning=part,
                           partition_base_dir=base if part else None)
-    return ds.dataset(base, format="parquet", partitioning=part, ignore_prefixes=["_delta_log", "."])
+    return ds.dataset(base, filesystem=fs, format="parquet", partitioning=part, ignore_prefixes=["_delta_log", "."])
 
 
 def unit_filter(spec, comm_ids, comm_to_part=None):

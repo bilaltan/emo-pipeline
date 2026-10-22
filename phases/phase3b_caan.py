@@ -19,6 +19,7 @@ except Exception:
 
 _DS_CACHE = {}
 _LOOKUP_CACHE = {}
+READ_COLS = ('read_s', 'read_gets', 'read_bytes')   # per unit, on top of Phase 3's result schema (utils.store_io)
 
 
 def _comm_lookup(node_to_comm):
@@ -60,20 +61,13 @@ def _sorted_keys(mapping):
 
 def _get_dataset(url):
     if url not in _DS_CACHE:
-        import pyarrow.dataset as ds
-        if url.startswith("s3://"):
-            import pyarrow.fs as fs
-            clean_url = url.replace("s3://", "").rstrip('/')
-            s3 = fs.S3FileSystem(region="us-east-1")
-            _DS_CACHE[url] = ds.dataset(clean_url, filesystem=s3, format="parquet", ignore_prefixes=['_delta_log', '.'])
-        else:
-            local_path = url.replace("file://", "")
-            _DS_CACHE[url] = ds.dataset(local_path, format="parquet", ignore_prefixes=['_delta_log', '.'])
+        from pipeline.utils.partition_layout import open_dataset
+        _DS_CACHE[url] = open_dataset({"url": url})
     return _DS_CACHE[url]
 
 def _layout_dataset(spec):
     """pyarrow dataset for a Phase 2 table described by utils.partition_layout.table_layout()."""
-    key = ("layout", spec["url"], len(spec.get("files") or ()), spec.get("part_col"))
+    key = ("layout", spec["url"], len(spec.get("files") or ()), spec.get("part_col"), spec.get("emu"))
     if key not in _DS_CACHE:
         from pipeline.utils.partition_layout import open_dataset
         _DS_CACHE[key] = open_dataset(spec)
@@ -1757,6 +1751,15 @@ def make_caan_udf(super_nodes_dict_bc, minor_node_to_idx_bc, minor_feats_arr_bc,
             pass
 
         import pandas as pd
+        from pipeline.utils.store_io import STATS
+
+        def _read(load, *a):
+            # wall time of a unit's read, and its GETs / bytes when the store is metered (0 otherwise)
+            g0, b0, t0 = STATS['gets'], STATS['bytes'], time.time()
+            out = load(*a)
+            return out, {'read_s': time.time() - t0, 'read_gets': float(STATS['gets'] - g0),
+                         'read_bytes': float(STATS['bytes'] - b0)}
+
         # With blocking active each work item is one (community, block), so the
         # batch preload would defeat the bound; load per item instead.
         _has_blocks = ('_n_blocks' in manifest_pdf.columns
@@ -1765,7 +1768,7 @@ def make_caan_udf(super_nodes_dict_bc, minor_node_to_idx_bc, minor_feats_arr_bc,
             nodes_pdf_all = edges_pdf_all = pd.DataFrame()
         else:
             comm_ids = manifest_pdf['community_id'].unique().tolist()
-            nodes_pdf_all, edges_pdf_all = load_batch(comm_ids)
+            (nodes_pdf_all, edges_pdf_all), io = _read(load_batch, comm_ids)   # the bin's read, on its first row
 
         results = []
         for _, row in manifest_pdf.iterrows():
@@ -1775,7 +1778,7 @@ def make_caan_udf(super_nodes_dict_bc, minor_node_to_idx_bc, minor_feats_arr_bc,
                 _nb = int(row['_n_blocks']) if '_n_blocks' in row else 1
                 _bk = int(row['_block']) if '_block' in row else 0
                 _nw = int(row['_n_wblocks']) if '_n_wblocks' in row else 0
-                pdf, comm_edges_pdf = load_item(comm_id, _bk, _nb, _nw)
+                (pdf, comm_edges_pdf), io = _read(load_item, comm_id, _bk, _nb, _nw)
                 # A block holding only halo rows has nothing to train on; fall
                 # through to the empty-result path rather than train on no members.
                 if len(pdf) > 0 and 'is_member' in pdf.columns:
@@ -1803,8 +1806,9 @@ def make_caan_udf(super_nodes_dict_bc, minor_node_to_idx_bc, minor_feats_arr_bc,
                     'acc_gnn_head': 0.0, 'acc_mlp_head': 0.0, 'head_used': 'none',
                     'boundary_acc': 0.0,
                     'internal_acc':   0.0, 'comm_link_auc': 0.5, 'size_bucket': 'empty',
-                    'load_time_s':    0.0, 'node_train_time_s': 0.0, 'link_train_time_s': 0.0, 'peak_mem_mb': 0.0
-                }]))
+                    'load_time_s':    0.0, 'node_train_time_s': 0.0, 'link_train_time_s': 0.0, 'peak_mem_mb': 0.0,
+                    **io}]))
+                io = dict.fromkeys(io, 0.0)
                 continue
 
             pdf['_num_classes'] = int(row['_num_classes'])
@@ -1825,14 +1829,15 @@ def make_caan_udf(super_nodes_dict_bc, minor_node_to_idx_bc, minor_feats_arr_bc,
                 pdf['_context'] = str(row['_context'])
 
             res_row = _train_gnn_community_caan_single(pdf, comm_edges_pdf)
-            results.append(res_row)
+            results.append(res_row.assign(**io))
+            io = dict.fromkeys(io, 0.0)
 
         if len(results) == 0:
             return pd.DataFrame(columns=[
                 'community_id', 'n_nodes', 'n_edges', 'n_train', 'n_val', 'n_test',
                 'n_boundary', 'n_internal', 'comm_test_acc', 'boundary_acc',
                 'internal_acc', 'comm_link_auc', 'size_bucket', 'load_time_s',
-                'node_train_time_s', 'link_train_time_s', 'peak_mem_mb'
+                'node_train_time_s', 'link_train_time_s', 'peak_mem_mb', *READ_COLS
             ])
         return pd.concat(results, ignore_index=True)
 
@@ -1910,7 +1915,13 @@ def run_phase3b(spark, sc, datasets, algorithms, use_global_mapping,
     from pipeline.phases.phase3_training import _make_result_schema
     from pipeline.utils.partition_join import is_materialized, load_unit_nodes, attach_units, join_features
     from pipeline.utils.partition_layout import table_layout as _p2_table_layout
+    from pyspark.sql.types import DoubleType
     result_schema = _make_result_schema()
+    for _c in READ_COLS:
+        result_schema = result_schema.add(_c, DoubleType())
+    # utils.store_io.parse_emu(): None reads the store as it is (local disk or S3, by URL); (0, 0) counts GETs and
+    # bytes; (latency_ms, MB/s) emulates S3 on a local store
+    s3_emu = kwargs.get('s3_emu')
     
     for dataset in datasets:
         cfg = dataset_cfg.get(dataset)
@@ -2356,7 +2367,7 @@ def run_phase3b(spark, sc, datasets, algorithms, use_global_mapping,
                     p2_edges_url=p_alg['p2_edges'],
                     # snapshot file lists + partitioning of the Phase 2 tables, so the
                     # workers read the current snapshot only, in any p2_layout
-                    p2_layout=_p2_table_layout(spark, p_alg)
+                    p2_layout=_p2_table_layout(spark, p_alg, emu=s3_emu)
                 )
                 
                 sc.setJobDescription(f'phase3b_{dataset}_{alg}_{model_type}')
@@ -2396,6 +2407,12 @@ def run_phase3b(spark, sc, datasets, algorithms, use_global_mapping,
                 results[key].attrs['weighted_comm_acc']  = weighted_comm_acc
                 results[key].attrs['weighted_comm_link_auc'] = weighted_comm_link_auc
                 results[key].attrs['wall_time_s'] = elapsed
+                results[key].attrs['s3_emu'] = s3_emu
+                for _c in READ_COLS:
+                    results[key].attrs[_c] = float(comm_pd[_c].sum())
+                print(f"  ✓ Unit reads: {comm_pd['read_s'].sum():.1f} s over all tasks"
+                      + (f", {comm_pd['read_gets'].sum():,.0f} GETs, {comm_pd['read_bytes'].sum() / 2**30:.2f} GiB"
+                         f" (s3_emu={s3_emu})" if s3_emu else ""))
                 # Blocking makes Phase 3b emit one row per (community, block),
                 # so len(df) is a unit count now, not a community count.
                 # Reporting reads attrs first; without this Reddit would be
