@@ -271,7 +271,11 @@ def _train_minor_global_caan(dataset, gcn_cfg, dataset_cfg, caan_components, mod
     val_m   = torch.tensor([s == 'valid' and i >= len(super_ids) for i, s in enumerate(split_arr)], dtype=torch.bool) & has_lbl
     test_m  = torch.tensor([s == 'test'  and i >= len(super_ids) for i, s in enumerate(split_arr)], dtype=torch.bool) & has_lbl
     
-    is_pyg = (model_type in ('gat', 'gatv2', 'transformer', 'clusterscl', 'arma', 'asap'))
+    try:
+        import dgl  # noqa: F401
+    except ImportError:
+        dgl = None  # no DGL wheel here: SAGE runs on PyG, as in the units
+    is_pyg = (model_type in ('gat', 'gatv2', 'transformer', 'clusterscl', 'arma', 'asap')) or dgl is None
     if is_pyg:
         import torch_geometric
         pyg_edge_index = torch.stack([
@@ -474,6 +478,21 @@ def _train_minor_global_caan(dataset, gcn_cfg, dataset_cfg, caan_components, mod
         opt = torch.optim.Adam(list(model.parameters()) + list(elbo_loss_fn.parameters()), lr=lr, weight_decay=weight_decay)
         crit = nn.CrossEntropyLoss()
         
+    elif dgl is None:
+        # the units' PyG GraphSAGE (2 mean-SAGE layers + linear head)
+        from torch_geometric.nn import SAGEConv
+        class PyGSAGECommunity(nn.Module):
+            def __init__(self, in_f, h, nc):
+                super().__init__()
+                self.c1, self.c2, self.fc = SAGEConv(in_f, h), SAGEConv(h, h), nn.Linear(h, nc)
+                self.dr = nn.Dropout(dropout)
+            def forward(self, x, edge_index):
+                x = self.dr(torch.relu(self.c1(x, edge_index)))
+                return self.fc(self.c2(x, edge_index))
+        model = PyGSAGECommunity(feat_arr.shape[1], hidden_dim, num_classes)
+        opt   = torch.optim.Adam(model.parameters(), lr=lr, weight_decay=weight_decay)
+        crit  = nn.CrossEntropyLoss()
+
     else:
         import dgl.nn as dglnn
         class GraphSAGECommunity(nn.Module):
@@ -494,8 +513,23 @@ def _train_minor_global_caan(dataset, gcn_cfg, dataset_cfg, caan_components, mod
         opt   = torch.optim.Adam(model.parameters(), lr=lr, weight_decay=weight_decay)
         crit  = nn.CrossEntropyLoss()
 
+    import copy
+    def _val_acc():
+        model.eval()
+        with torch.no_grad():
+            pred = (model(feat_t, pyg_edge_index) if is_pyg else model(g, feat_t)).argmax(dim=1)
+        model.train()
+        return float((pred[val_m] == lbl_t[val_m]).float().mean())
+
+    # Same selection as the units: best validation accuracy, checked every max(1, epochs // 40) epochs
+    val_every = max(1, num_epochs // 40) if bool(val_m.any()) else 0
+    best_val, best_state = -1.0, None
     model.train()
-    for _ in range(num_epochs):
+    for _ep in range(num_epochs):
+        if val_every and _ep > 0 and _ep % val_every == 0:
+            v = _val_acc()
+            if v > best_val:
+                best_val, best_state = v, copy.deepcopy(model.state_dict())
         if model_type == 'clusterscl':
             opt.zero_grad()
             z1, proj1, logits1 = model.get_embeddings_and_logits(feat_t, pyg_edge_index)
@@ -529,9 +563,15 @@ def _train_minor_global_caan(dataset, gcn_cfg, dataset_cfg, caan_components, mod
             logits = model(g, feat_t)
             loss   = crit(logits[train_m], lbl_t[train_m])
             opt.zero_grad(); loss.backward(); opt.step()
-            
+    if val_every:
+        v = _val_acc()
+        if v > best_val:
+            best_val, best_state = v, copy.deepcopy(model.state_dict())
+    if best_state is not None:
+        model.load_state_dict(best_state)
+
     train_time = time.time() - t_train_start
-    
+
     model.eval()
     with torch.no_grad():
         if is_pyg:
@@ -627,17 +667,10 @@ def make_caan_udf(super_nodes_dict_bc, minor_node_to_idx_bc, minor_feats_arr_bc,
             import dgl
             import dgl.nn as dglnn
         except Exception:
-            try:
-                subprocess.run([sys.executable, '-m', 'pip', 'install', '--user', '--quiet', '--no-cache-dir',
-                                'dgl==1.1.3', '-f', 'https://data.dgl.ai/wheels/repo.html'],
-                                stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=True)
-                import dgl
-                import dgl.nn as dglnn
-            except Exception:
-                # DGL is unavailable (no wheel for this platform). PyG covers every
-                # backbone, so route SAGE through PyG rather than failing the run.
-                dgl = None
-                dglnn = None
+            # No DGL here (EMR bootstrap installs it, local envs do not): SAGE runs on PyG. No pip install at run
+            # time: it cost ~2.5 s per unit and let units in later worker processes switch to DGL mid-run.
+            dgl = None
+            dglnn = None
 
         try:
             omp_threads = int(os.environ.get('OMP_NUM_THREADS', '1'))
@@ -1861,7 +1894,7 @@ def run_phase3b(spark, sc, datasets, algorithms, use_global_mapping,
 
     from pyspark.sql import functions as F
     from pipeline.phases.phase3_training import _make_result_schema
-    from pipeline.utils.partition_join import is_materialized, load_unit_nodes, attach_units
+    from pipeline.utils.partition_join import is_materialized, load_unit_nodes, attach_units, join_features
     from pipeline.utils.partition_layout import table_layout as _p2_table_layout
     result_schema = _make_result_schema()
     
@@ -1945,8 +1978,15 @@ def run_phase3b(spark, sc, datasets, algorithms, use_global_mapping,
                 for row in mean_df.collect()
             } if context == "macro" else {}
             
-            # Gather minor nodes features, labels, and splits
-            minor_nodes_pd = nodes_w_comm.filter(F.col('community_id').isin(list(minor_comms))).toPandas() if context == "macro" else pd.DataFrame()
+            # CaaN Eq. 1: nodes of minor communities (Phase 1 ids, < min_size) are learned by the global model on
+            # the CaaN graph and are its only output. Only when Phase 2 dropped them from the units (tiny 'drop');
+            # 'misc'/'keep' already score them in units. Phase 2 does not carry them, so read the raw tables.
+            if context == "macro" and kwargs.get('tiny_comm_handling', 'misc') == 'drop':
+                minor_part = (comms_df.filter(~F.col('community_id').isin(list(major_comms)))
+                              .withColumn('is_boundary', F.lit(False)).withColumn('is_member', F.lit(True)))
+                minor_nodes_pd = join_features(spark, p_alg, partition_df=minor_part).toPandas()
+            else:
+                minor_nodes_pd = pd.DataFrame()
             minor_nodes_dict = {}
             for _, row in minor_nodes_pd.iterrows():
                 minor_nodes_dict[int(row['id'])] = {

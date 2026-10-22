@@ -251,9 +251,11 @@ def main():
     # Phase 4's link baseline uses its own split, so it is opt-in; baselines have their own scripts.
     ap.add_argument("--stop-after", default="3b", choices=["2", "3", "3b", "4"],
                     help="last phase to run (Track A runs Phases 0-2 once, then its own harness)")
-    # misc: communities below --min-size are packed into shared bins, so every vertex belongs to a unit and
-    # every test node is scored; drop leaves them out of the test set.
-    ap.add_argument("--tiny-comm", default="misc", choices=["drop", "misc", "keep"])
+    # drop (CaaN, default): communities below --min-size leave the units and Stage 3b scores their nodes with
+    # CaaN's global model (super-nodes + minor nodes); misc packs them into shared bins; keep makes each a unit.
+    ap.add_argument("--tiny-comm", default="drop", choices=["drop", "misc", "keep"])
+    ap.add_argument("--merge-minor", action="store_true",
+                    help="Phase 1 moves small-community vertices into a major neighbour community (not in CaaN)")
     ap.add_argument("--reuse-phase1", action="store_true", help="keep an existing communities table")
     ap.add_argument("--alg", default="louvain", choices=["lpa", "louvain"])
     ap.add_argument("--seed", type=int, default=0, help="training seed for Phases 3, 3b and 4")
@@ -381,7 +383,7 @@ def main():
     run_phase1(spark, sc, [DS], [args.alg], lpa_max_iter=20, resolution=1.0,
                random_seed=42, min_size=args.min_size, dataset_cfg=ds_cfg,
                get_paths_fn=paths, timing=timing, results=r1, force_rerun=not args.reuse_phase1,
-               lpa_tol=0.001, merge_minor_communities=True)
+               lpa_tol=0.001, merge_minor_communities=args.merge_minor)
 
     run_phase2(spark, sc, [DS], [args.alg], use_global_mapping=True,
                min_size=args.min_size, get_paths_fn=paths, timing=timing, results=r2,
@@ -397,7 +399,7 @@ def main():
     stage_kw = dict(use_global_mapping=True, dataset_cfg=ds_cfg, gcn_cfg=gcn_cfg, get_paths_fn=paths,
                     models=[args.model], task_type=args.task, min_size=args.min_size, force_rerun=True,
                     local_data_dir=STORE, node_loading=args.node_loading, max_nodes_per_community=args.max_nodes,
-                    node_patience=args.node_patience)
+                    node_patience=args.node_patience, tiny_comm_handling=args.tiny_comm)
     if args.stop_after != "2" and (args.stage3a or args.stage3a_halo):
         t3 = {}
         run_phase3b(spark, sc, [DS], [args.alg], timing=t3, results=r3,
@@ -450,7 +452,7 @@ def main():
 
     record = {
         "dataset": DS, "algorithm": args.alg, "model": args.model, "epochs": args.epochs,
-        "seed": args.seed, "train": train, "task": args.task, "stage3a_halo": args.stage3a_halo, "tiny_comm": args.tiny_comm,
+        "seed": args.seed, "train": train, "task": args.task, "stage3a_halo": args.stage3a_halo, "tiny_comm": args.tiny_comm, "merge_minor": args.merge_minor,
         "min_size": args.min_size, "max_nodes": args.max_nodes, "git": git_hash,
         "n_test_all": n_test_all, "stage3a_n_test_scored": scored(r3), "stage3b_n_test_scored": scored(r3b),
         "partition_table": args.partition_table, "node_loading": args.node_loading,
