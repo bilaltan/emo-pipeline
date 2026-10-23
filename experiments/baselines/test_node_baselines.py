@@ -33,6 +33,9 @@ def main():
     try:
         for name, arr in [("x", x), ("y", y.astype(np.int64)), ("split", split), ("edges", edges)]:
             np.save(os.path.join(root, f"{name}.npy"), arr)
+        spark = {"spark_master": "local[2]", "spark_executors": 1, "spark_executor_cores": 2}
+        with open(os.path.join(root, "meta.json"), "w") as fh:
+            json.dump({"export_seconds": 1.5, "spark": spark}, fh)
         out = os.path.join(root, "out.jsonl")
         for method in ("full", "cluster"):
             B.main(["--dataset", "toy", "--method", method, "--cache", root, "--seeds", "0,1", "--epochs", "40",
@@ -42,6 +45,7 @@ def main():
             ("full_graph_sage", 0), ("full_graph_sage", 1), ("cluster_gcn", 0), ("cluster_gcn", 1)]
         assert recs[2]["n_parts"] == 10
         assert all(r["n_test"] == int((split == 2).sum()) for r in recs)
+        assert all(r["export_spark"] == spark and r["export_seconds"] == 1.5 for r in recs)
         # features alone give about 0.6; Cluster-GCN drops edges between parts, so it lands a little below full
         assert all(r["test_acc"] > 0.9 for r in recs), [r["test_acc"] for r in recs]
     finally:

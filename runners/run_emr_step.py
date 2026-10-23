@@ -453,6 +453,7 @@ from pipeline.phases import (
     print_accuracy_table, print_timing_table, save_plots_and_xlsx, print_summary
 )
 from pipeline.utils.paths import get_paths
+from pipeline.utils.common import spark_resources
 
 print("\nConfig and Modular Pipeline fully loaded into EMR Context.")
 
@@ -766,5 +767,6 @@ print_summary(
 )
 
 t_elapsed = time.time() - t_pipeline_start
+print(f"\nSpark resources: {spark_resources(sc)}")   # the step log is this run's record on EMR
 print(f"\n[SUCCESS] EMR BACKGROUND STEP COMPLETED SUCCESSFULLY in {t_elapsed:.1f} seconds.")
 print("="*80 + "\n")

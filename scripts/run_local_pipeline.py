@@ -32,6 +32,7 @@ from phases.phase2_subgraph import run_phase2
 from phases.phase3b_caan import run_phase3b
 from phases.phase4_baselines import run_phase4
 from experiment_config import TRAIN
+from pipeline.utils.common import spark_resources
 
 # LAKEGRL_STORE puts the Delta tables on a fast local file system (scripts/wsl_run.sh sets it).
 STORE = os.path.abspath(os.environ.get("LAKEGRL_STORE", "data/.local_pipeline"))
@@ -469,6 +470,7 @@ def main():
         "baseline_link_auc": base.get("link_auc"),
         "phase_seconds": {str(kk): round(vv, 2) for kk, vv in timing.items()},
         "total_seconds": round(time.time() - t_all, 1),
+        **spark_resources(sc),
         "timestamp_utc": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
     }
 

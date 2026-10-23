@@ -83,6 +83,21 @@ def _delta_exists(spark, path):
             return False
 
 
+def spark_resources(sc):
+    """Spark executors and cores this run had, read from the live SparkContext; saved with every result.
+
+    local[N] is one executor (the driver JVM) with N task slots. On a cluster the count is live at the
+    time of the call: dynamic allocation can add or release executors during a run.
+    """
+    local = sc.master.startswith("local")
+    n = sc._jsc.sc().getExecutorMemoryStatus().size()   # one block manager per executor, plus the driver's
+    conf = sc.getConf()
+    return {"spark_master": sc.master,
+            "spark_executors": 1 if local else n - 1,
+            "spark_executor_cores": sc.defaultParallelism if local else int(conf.get("spark.executor.cores", "1")),
+            "spark_dynamic_allocation": not local and conf.get("spark.dynamicAllocation.enabled", "false") == "true"}
+
+
 def undirected(src, dst, n):
     """Both directions of every edge over local indices < n, deduplicated, for message passing.
 

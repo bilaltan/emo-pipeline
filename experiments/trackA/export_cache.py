@@ -55,6 +55,7 @@ def main():
     from delta import configure_spark_with_delta_pip
     from pyspark.sql import SparkSession
     from scripts.run_local_pipeline import STORE, paths
+    from pipeline.utils.common import spark_resources
 
     spark = configure_spark_with_delta_pip(
         SparkSession.builder.appName("trackA-export").master("local[2]")
@@ -126,7 +127,7 @@ def main():
     meta.update(n_nodes=int(n), feat_dim=int(dim), n_edges_undirected=int(edges.shape[1]),
                 n_members=int(mem.sum()), n_halo_rows=int((~mem).sum()),
                 n_units=int(len(np.unique(cid[mem]))), n_links=int(len(sp)),
-                export_seconds=round(time.time() - t0, 1))
+                export_seconds=round(time.time() - t0, 1), spark=spark_resources(spark.sparkContext))
     json.dump(meta, open(os.path.join(out, "meta.json"), "w"), indent=1)
     print(json.dumps(meta, indent=1))
     spark.stop()
