@@ -141,6 +141,8 @@ def main(argv=None):
     code = git_hash()
     t0 = time.time()
     x, y, split, edges = load(cache)
+    with open(os.path.join(cache, "meta.json")) as fh:
+        meta = json.load(fh)
     n = len(split)
     x, y = x.to(device), y.to(device)
     A = mean_adj(n, edges[0], edges[1], device)
@@ -163,6 +165,10 @@ def main(argv=None):
                "load_seconds": round(load_s, 1), "train_seconds": round(train_s, 1),
                "peak_gpu_mb": round(torch.cuda.max_memory_allocated() / 2**20) if device.type == "cuda" else None,
                "device": torch.cuda.get_device_name() if device.type == "cuda" else "cpu",
+               "threads": torch.get_num_threads(),
+               # Spark only exports the Delta tables (None: cache written before export_cache saved it);
+               # training is this one process, no executors
+               "export_seconds": meta.get("export_seconds"), "export_spark": meta.get("spark"),
                "timestamp_utc": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())}
         print(json.dumps(rec))
         with open(args.out, "a") as fh:
