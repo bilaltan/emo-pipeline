@@ -256,6 +256,9 @@ def main():
     # drop (CaaN, default): communities below --min-size leave the units and Stage 3b scores their nodes with
     # CaaN's global model (super-nodes + minor nodes); misc packs them into shared bins; keep makes each a unit.
     ap.add_argument("--tiny-comm", default="drop", choices=["drop", "misc", "keep"])
+    ap.add_argument("--minor-score", default="global", choices=["global", "unit"],
+                    help="who scores minor-community nodes in stage3b_node_acc: CaaN's global model or the unit "
+                         "they have most edges into (both are recorded)")
     ap.add_argument("--merge-minor", action="store_true",
                     help="Phase 1 moves small-community vertices into a major neighbour community (not in CaaN)")
     ap.add_argument("--reuse-phase1", action="store_true", help="keep an existing communities table")
@@ -408,7 +411,7 @@ def main():
                     models=[args.model], task_type=args.task, min_size=args.min_size, force_rerun=True,
                     local_data_dir=STORE, node_loading=args.node_loading, max_nodes_per_community=args.max_nodes,
                     node_patience=args.node_patience, tiny_comm_handling=args.tiny_comm,
-                    s3_emu=parse_emu(args.s3_emu))
+                    s3_emu=parse_emu(args.s3_emu), minor_score=args.minor_score)
     if args.stop_after != "2" and (args.stage3a or args.stage3a_halo):
         t3 = {}
         run_phase3b(spark, sc, [DS], [args.alg], timing=t3, results=r3,
@@ -474,6 +477,9 @@ def main():
         "stage3a_node_acc": a3.get("weighted_comm_acc"),
         "stage3a_link_auc": a3.get("weighted_comm_link_auc"),
         "stage3b_node_acc": a3b.get("weighted_comm_acc"),
+        "stage3b_node_val_acc": a3b.get("weighted_comm_val_acc"), "minor_score": a3b.get("minor_score"),
+        **{f"stage3b_{kk}": a3b.get(kk) for kk in ("acc_minor_global", "acc_minor_unit", "val_acc_minor_global",
+                                                    "val_acc_minor_unit", "minor_test_reached")},
         "stage3b_link_auc": a3b.get("weighted_comm_link_auc"),
         "cores": args.cores, "s3_emu": args.s3_emu, "stage3b_read_s": a3b.get("read_s"), "stage3b_read_gets": a3b.get("read_gets"),
         "stage3b_read_bytes": a3b.get("read_bytes"),
