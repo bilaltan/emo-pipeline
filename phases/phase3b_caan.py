@@ -1963,7 +1963,7 @@ def run_phase3b(spark, sc, datasets, algorithms, use_global_mapping,
     min_size = kwargs.get('min_size', 100)
     # Phase 3 bounds every training unit; Phase 3b did not, and trained whole
     # communities in a single worker. Same caps, read from the same config keys.
-    max_nodes_per_community = int(kwargs.get('max_nodes_per_community', 10000) or 0)
+    max_nodes_per_community = int(kwargs.get('max_nodes_per_community', 20000) or 0)
     block_oversized = bool(kwargs.get('block_oversized', True))
     node_loading = kwargs.get('node_loading', 'auto')
     if node_loading not in ('auto', 'direct', 'global_join'):

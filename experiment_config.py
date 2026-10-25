@@ -130,7 +130,8 @@ PHASE3_DIAGNOSTICS = True
 
 # Phase 3 graph limits. Spark hash-samples toward the node limit and filters
 # edges before aggregation; the UDF then enforces these final hard limits.
-PHASE3_MAX_NODES_PER_COMMUNITY = 10000
+# 20,000 (2026-10-25): higher validation accuracy than 10,000 on arxiv, Reddit and products (decide_runs.jsonl).
+PHASE3_MAX_NODES_PER_COMMUNITY = 20000
 # Units are also split so no unit carries more than this many TRAIN nodes.
 # Cost tracks n_train (corr +0.52), which varied 9.1x across units and made
 # Phase 3 straggler-bound; row count alone does not balance it.

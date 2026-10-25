@@ -31,7 +31,7 @@ from phases.phase1_community import run_phase1
 from phases.phase2_subgraph import run_phase2
 from phases.phase3b_caan import run_phase3b
 from phases.phase4_baselines import run_phase4
-from experiment_config import TRAIN
+from experiment_config import TRAIN, PHASE3_MAX_NODES_PER_COMMUNITY
 from pipeline.utils.store_io import parse_emu
 from pipeline.utils.common import spark_resources
 
@@ -273,7 +273,7 @@ def main():
     ap.add_argument("--model", default="sage",
                     choices=["sage", "gatv2", "gat", "transformer", "arma", "asap"])
     ap.add_argument("--min-size", type=int, default=100)
-    ap.add_argument("--max-nodes", type=int, default=10000)
+    ap.add_argument("--max-nodes", type=int, default=PHASE3_MAX_NODES_PER_COMMUNITY)
     # Small datasets exist to be run whole. The production per-unit edge cap
     # (30k) silently subsamples dense communities, so raise it above anything
     # these graphs contain and assert afterwards that nothing was capped.
