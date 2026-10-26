@@ -13,6 +13,44 @@ def _dgl_metis_worker(src, dst, num_nodes, k, conn):
     except Exception as e:
         conn.send(e)
 
+def refine_communities(G, membership, max_members, resolution=1.0):
+    """Splits every community above max_members with Louvain on its own subgraph, recursively, and packs the
+    pieces first-fit-decreasing into communities of at most max_members (experiments/block_split_study.py's
+    rule). Without it Stage 3b cuts such a community by id & (n - 1), which keeps ~11% of products' intra-unit
+    edges at 20,000 rows; as communities of their own, sibling pieces also reach each other as super-nodes.
+    Returns the new membership (pieces keep the old id or get new ones above the old maximum)."""
+    import numpy as np
+    memb = np.asarray(membership, dtype=np.int64).copy()
+    next_id = int(memb.max()) + 1 if len(memb) else 0
+    counts = np.bincount(memb)
+    for c in np.nonzero(counts > max_members)[0]:
+        pieces, stack = [], [np.nonzero(memb == c)[0]]
+        while stack:
+            grp = stack.pop()
+            if len(grp) <= max_members:
+                pieces.append(grp)
+                continue
+            sub = np.asarray(G.induced_subgraph(grp).community_multilevel(resolution=resolution).membership)
+            if sub.max() == 0:   # no structure left: plain chunks
+                pieces += [grp[i:i + max_members] for i in range(0, len(grp), max_members)]
+                continue
+            stack += [grp[sub == k] for k in range(sub.max() + 1)]
+        pieces.sort(key=len, reverse=True)
+        bins, room = [], []
+        for p in pieces:
+            i = next((j for j, r in enumerate(room) if r >= len(p)), None)
+            if i is None:
+                bins.append([p])
+                room.append(max_members - len(p))
+            else:
+                bins[i].append(p)
+                room[i] -= len(p)
+        for i, b in enumerate(bins[1:]):   # the largest bin keeps the community's id
+            memb[np.concatenate(b)] = next_id + i
+        next_id += len(bins) - 1
+    return memb
+
+
 def run_phase1(spark, sc, datasets, algorithms, lpa_max_iter, resolution,
                random_seed, min_size, dataset_cfg, get_paths_fn, timing, results, **kwargs):
     """
@@ -169,14 +207,21 @@ def run_phase1(spark, sc, datasets, algorithms, lpa_max_iter, resolution,
                         resolution_parameter=resolution, seed=random_seed)
                 elif alg == 'igraph_lpa':
                     partition = G.community_label_propagation()
+                membership = np.asarray(partition.membership, dtype=np.int64)
+                refine = int(kwargs.get('refine_members') or 0)
+                if refine:
+                    t_ref, n_before = time.time(), int(membership.max()) + 1
+                    membership = refine_communities(G, membership, refine, resolution)
+                    print(f"  Refined communities above {refine:,} members with Louvain: "
+                          f"{n_before:,} -> {int(membership.max()) + 1:,} communities  [{time.time() - t_ref:.1f}s]")
                 # Vertices with no edge are not in the igraph graph; give each its own community so it
                 # is still assigned (Phase 2 packs these tiny ones into shared bins) and scored.
                 import pandas as _pd
                 iso = np.setdiff1d(nodes_df.select('id').toPandas()['id'].values.astype(np.int64), all_nids)
                 comm_pd = _pd.DataFrame({
                     'id': np.concatenate([all_nids.astype(np.int64), iso]),
-                    'community_id': np.concatenate([np.asarray(partition.membership, dtype=np.int64),
-                                                    len(partition) + np.arange(len(iso), dtype=np.int64)])})
+                    'community_id': np.concatenate([membership,
+                                                    int(membership.max()) + 1 + np.arange(len(iso), dtype=np.int64)])})
                 if len(iso):
                     print(f"  {len(iso):,} isolated vertices -> singleton communities")
                 communities_df = spark.createDataFrame(comm_pd).cache()

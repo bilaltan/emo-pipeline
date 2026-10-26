@@ -287,6 +287,8 @@ def main():
     ap.add_argument("--minor-score", default="global", choices=["global", "unit"],
                     help="who scores minor-community nodes in stage3b_node_acc: CaaN's global model or the unit "
                          "they have most edges into (both are recorded)")
+    ap.add_argument("--refine-members", type=int, default=0, metavar="N",
+                    help="Phase 1 splits communities above N members with Louvain (store <dataset>-refN; 0 = off)")
     ap.add_argument("--merge-minor", action="store_true",
                     help="Phase 1 moves small-community vertices into a major neighbour community (not in CaaN)")
     ap.add_argument("--reuse-phase1", action="store_true", help="keep an existing communities table")
@@ -373,6 +375,8 @@ def main():
     if args.node_split == "random":
         NODE_SPLIT["random"] = True
         DS += "-rand"
+    if args.refine_members:
+        DS += f"-ref{args.refine_members}"
     print(f"\n{'='*70}\n  LakeGRL full pipeline — {DS} / {args.alg} / {args.model}\n{'='*70}")
 
     t0 = time.time()
@@ -424,7 +428,8 @@ def main():
     run_phase1(spark, sc, [DS], [args.alg], lpa_max_iter=20, resolution=1.0,
                random_seed=42, min_size=args.min_size, dataset_cfg=ds_cfg,
                get_paths_fn=paths, timing=timing, results=r1, force_rerun=not args.reuse_phase1,
-               lpa_tol=0.001, merge_minor_communities=args.merge_minor)
+               lpa_tol=0.001, merge_minor_communities=args.merge_minor,
+               refine_members=args.refine_members)
 
     run_phase2(spark, sc, [DS], [args.alg], use_global_mapping=True,
                min_size=args.min_size, get_paths_fn=paths, timing=timing, results=r2,
@@ -498,6 +503,7 @@ def main():
         "dataset": DS, "algorithm": args.alg, "model": args.model, "epochs": args.epochs,
         "seed": args.seed, "train": train, "task": args.task, "stage3a_halo": args.stage3a_halo, "tiny_comm": args.tiny_comm, "merge_minor": args.merge_minor,
         "min_size": args.min_size, "max_nodes": args.max_nodes, "git": git_hash, "node_split": args.node_split,
+        "refine_members": args.refine_members,
         "n_test_all": n_test_all, "stage3a_n_test_scored": scored(r3), "stage3b_n_test_scored": scored(r3b),
         "partition_table": args.partition_table, "node_loading": args.node_loading,
         "p2_layout": args.p2_layout, "p2_rg_mb": r2.get((DS, args.alg), {}).get("rg_mb"),
