@@ -18,6 +18,9 @@ export PATH=$ENV/bin:$PATH
 export PYSPARK_PYTHON=$ENV/bin/python
 export PYSPARK_DRIVER_PYTHON=$ENV/bin/python
 export PYTHONPATH=$PKG:$REPO${PYTHONPATH:+:$PYTHONPATH}
+# A git worktree made on Windows names its git dir as C:/...; translate it, or the run records no code version.
+GD=$(sed -n 's|^gitdir: \([A-Za-z]\):/|/mnt/\L\1/|p' "$REPO/.git" 2>/dev/null | tr -d '\r')
+[ -n "$GD" ] && export GIT_DIR="$GD" GIT_WORK_TREE="$REPO"
 export LAKEGRL_STORE=${LAKEGRL_STORE:-$HOME/lakegrl/store}
 export DATA_ROOT=${DATA_ROOT:-/mnt/c/data}
 export OUTDATED_IGNORE=1   # ogb's version-check thread can deadlock imports
