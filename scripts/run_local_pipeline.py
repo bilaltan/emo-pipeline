@@ -41,6 +41,8 @@ STORE = os.path.abspath(os.environ.get("LAKEGRL_STORE", "data/.local_pipeline"))
 DATA_ROOT = os.environ.get("DATA_ROOT", "/mnt/c/data")
 # Set by --link-split: edges held out before Phase 0 writes the training graph.
 LINK_HOLDOUT = {"n_val": 0, "n_test": 0, "seed": 0}
+# Set by --node-split random: the stratified 60/20/20 split this driver used for every dataset before 2026-10-12.
+NODE_SPLIT = {"random": False}
 
 
 def paths(dataset, alg=None):
@@ -85,7 +87,7 @@ def _write_delta(spark, name, x, y, src, dst, seed=42, split=None, link_split=No
         print(f"  Link split: held out {len(link_split):,} undirected edges "
               f"({LINK_HOLDOUT['n_val']:,} val / {LINK_HOLDOUT['n_test']:,} test, seed {LINK_HOLDOUT['seed']})")
     sym = np.concatenate([np.stack([src, dst]), np.stack([dst, src])], axis=1)
-    if split is None:
+    if split is None or NODE_SPLIT["random"]:
         rng = np.random.default_rng(seed)
         split = np.array(["none"] * n, dtype=object)
         for cls in np.unique(y):
@@ -255,6 +257,8 @@ def main():
     # as <dataset>-lp so they never mix with the full graph's tables.
     ap.add_argument("--link-split", type=int, default=0, metavar="N")
     ap.add_argument("--link-seed", type=int, default=0)
+    ap.add_argument("--node-split", default="official", choices=["official", "random"],
+                    help="random: stratified 60/20/20 per class instead of the dataset's split (store <dataset>-rand)")
     # Phase 4's link baseline uses its own split, so it is opt-in; baselines have their own scripts.
     ap.add_argument("--stop-after", default="3b", choices=["2", "3", "3b", "4"],
                     help="last phase to run (Track A runs Phases 0-2 once, then its own harness)")
@@ -346,6 +350,9 @@ def main():
     if args.link_split > 0:
         LINK_HOLDOUT.update(n_val=args.link_split, n_test=args.link_split, seed=args.link_seed)
         DS = f"{args.dataset}-lp"
+    if args.node_split == "random":
+        NODE_SPLIT["random"] = True
+        DS += "-rand"
     print(f"\n{'='*70}\n  LakeGRL full pipeline — {DS} / {args.alg} / {args.model}\n{'='*70}")
 
     t0 = time.time()
@@ -470,7 +477,7 @@ def main():
     record = {
         "dataset": DS, "algorithm": args.alg, "model": args.model, "epochs": args.epochs,
         "seed": args.seed, "train": train, "task": args.task, "stage3a_halo": args.stage3a_halo, "tiny_comm": args.tiny_comm, "merge_minor": args.merge_minor,
-        "min_size": args.min_size, "max_nodes": args.max_nodes, "git": git_hash,
+        "min_size": args.min_size, "max_nodes": args.max_nodes, "git": git_hash, "node_split": args.node_split,
         "n_test_all": n_test_all, "stage3a_n_test_scored": scored(r3), "stage3b_n_test_scored": scored(r3b),
         "partition_table": args.partition_table, "node_loading": args.node_loading,
         "p2_layout": args.p2_layout, "p2_rg_mb": r2.get((DS, args.alg), {}).get("rg_mb"),
