@@ -248,6 +248,25 @@ def ingest_deezer(spark, root="data/deezer_europe_extracted/deezer_europe", feat
                         edges["node_2"].values.astype(np.int64))
 
 
+def peak_tree_rss():
+    """Samples the summed RSS of this process and its descendants (Spark's JVM, Python workers) every 2 s in a
+    daemon thread; returns a function giving the peak so far in MB. Pages shared between processes count once
+    per process, so this is an upper bound on the run's memory."""
+    import threading
+    import psutil
+    me, peak = psutil.Process(), [0]
+
+    def sample():
+        while True:
+            try:
+                peak[0] = max(peak[0], sum(p.memory_info().rss for p in [me] + me.children(recursive=True)))
+            except psutil.Error:
+                pass  # a worker exited mid-sample
+            time.sleep(2)
+    threading.Thread(target=sample, daemon=True).start()
+    return lambda: round(peak[0] / 2 ** 20)
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--dataset", default="DeezerEurope",
@@ -321,6 +340,7 @@ def main():
                     help="Stage 3b reads the Phase 2 tables through an emulated S3 (e.g. 20,80: 20 ms + 80 MB/s "
                          "per GET), or 'count' to count GETs and bytes only (utils/store_io.py)")
     args = ap.parse_args()
+    peak_mb = peak_tree_rss()
 
     builder = (SparkSession.builder.appName("lakegrl-local-pipeline").master(f"local[{args.cores}]")
                .config("spark.sql.extensions", "io.delta.sql.DeltaSparkSessionExtension")
@@ -499,6 +519,7 @@ def main():
         "baseline_link_auc": base.get("link_auc"),
         "phase_seconds": {str(kk): round(vv, 2) for kk, vv in timing.items()},
         "total_seconds": round(time.time() - t_all, 1),
+        "peak_rss_tree_mb": peak_mb(),
         **spark_resources(sc),
         "timestamp_utc": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
     }
