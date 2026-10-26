@@ -57,10 +57,31 @@ STRATEGY_CHOICES = ("id_pow2", "id_equal") + GRAPH_METHODS
 _DS = {}
 
 
+def snapshot_files(path):
+    """Data files of a Delta table's current version (add minus remove over _delta_log), or None if not Delta.
+    A pipeline store keeps every overwritten version's files, so reading the directory would repeat rows."""
+    import glob
+    from urllib.parse import unquote
+    logs = sorted(glob.glob(os.path.join(path, "_delta_log", "*.json")))
+    if not logs:
+        return None
+    live = set()
+    for f in logs:
+        for line in open(f):
+            a = json.loads(line)
+            if "add" in a:
+                live.add(unquote(a["add"]["path"]))
+            elif "remove" in a:
+                live.discard(unquote(a["remove"]["path"]))
+    return sorted(os.path.join(path, p) for p in live)
+
+
 def dataset(path):
     import pyarrow.dataset as ds
     if path not in _DS:
-        _DS[path] = ds.dataset(path, format="parquet", ignore_prefixes=["_delta_log", "."])
+        files = snapshot_files(path)
+        _DS[path] = (ds.dataset(files, format="parquet") if files is not None
+                     else ds.dataset(path, format="parquet", ignore_prefixes=["_delta_log", "."]))
     return _DS[path]
 
 
