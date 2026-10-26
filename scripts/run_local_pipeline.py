@@ -31,7 +31,8 @@ from phases.phase1_community import run_phase1
 from phases.phase2_subgraph import run_phase2
 from phases.phase3b_caan import run_phase3b
 from phases.phase4_baselines import run_phase4
-from experiment_config import TRAIN
+from experiment_config import TRAIN, PHASE3_MAX_NODES_PER_COMMUNITY
+from pipeline.utils.store_io import parse_emu
 from pipeline.utils.common import spark_resources
 
 # LAKEGRL_STORE puts the Delta tables on a fast local file system (scripts/wsl_run.sh sets it).
@@ -40,6 +41,8 @@ STORE = os.path.abspath(os.environ.get("LAKEGRL_STORE", "data/.local_pipeline"))
 DATA_ROOT = os.environ.get("DATA_ROOT", "/mnt/c/data")
 # Set by --link-split: edges held out before Phase 0 writes the training graph.
 LINK_HOLDOUT = {"n_val": 0, "n_test": 0, "seed": 0}
+# Set by --node-split random: the stratified 60/20/20 split this driver used for every dataset before 2026-10-12.
+NODE_SPLIT = {"random": False}
 
 
 def paths(dataset, alg=None):
@@ -84,7 +87,7 @@ def _write_delta(spark, name, x, y, src, dst, seed=42, split=None, link_split=No
         print(f"  Link split: held out {len(link_split):,} undirected edges "
               f"({LINK_HOLDOUT['n_val']:,} val / {LINK_HOLDOUT['n_test']:,} test, seed {LINK_HOLDOUT['seed']})")
     sym = np.concatenate([np.stack([src, dst]), np.stack([dst, src])], axis=1)
-    if split is None:
+    if split is None or NODE_SPLIT["random"]:
         rng = np.random.default_rng(seed)
         split = np.array(["none"] * n, dtype=object)
         for cls in np.unique(y):
@@ -176,7 +179,7 @@ def ingest_reddit(spark, name="reddit"):
 def ingest_ogb_raw(spark, name, ogb_name):
     """OGB node datasets from DATA_ROOT/raw/ogb with the library-agnostic loader and official split.
 
-    ogbn-products and ogbn-arxiv are stored in OGB's generic format (processed/data_processed), so no PyG or DGL
+    ogbn-products, ogbn-arxiv and ogbn-mag are stored in OGB's generic format (processed/data_processed), so no PyG or DGL
     conversion is needed. Edges become unique undirected pairs (arxiv's citations are directed).
     """
     from utils.common import _patch_torch_load
@@ -184,10 +187,15 @@ def ingest_ogb_raw(spark, name, ogb_name):
     from ogb.nodeproppred import NodePropPredDataset
     ds = NodePropPredDataset(name=ogb_name, root=os.path.join(DATA_ROOT, "raw", "ogb"))
     graph, label = ds[0]
+    if ogb_name == "ogbn-mag":
+        # papers and their citations only, as OGB's homogeneous GCN / GraphSAGE baselines use ogbn-mag
+        graph = {"num_nodes": graph["num_nodes_dict"]["paper"], "node_feat": graph["node_feat_dict"]["paper"],
+                 "edge_index": graph["edge_index_dict"][("paper", "cites", "paper")]}
+        label = label["paper"]
     n = graph["num_nodes"]
     split = np.array(["none"] * n, dtype=object)
     for k, v in ds.get_idx_split().items():
-        split[v] = {"train": "train", "valid": "valid", "test": "test"}[k]
+        split[v["paper"] if isinstance(v, dict) else v] = {"train": "train", "valid": "valid", "test": "test"}[k]
     ei = graph["edge_index"]
     lo, hi = np.minimum(ei[0], ei[1]), np.maximum(ei[0], ei[1])
     und = np.unique(np.stack([lo[lo != hi], hi[lo != hi]]), axis=1)
@@ -240,21 +248,45 @@ def ingest_deezer(spark, root="data/deezer_europe_extracted/deezer_europe", feat
                         edges["node_2"].values.astype(np.int64))
 
 
+def peak_tree_rss():
+    """Samples the summed RSS of this process and its descendants (Spark's JVM, Python workers) every 2 s in a
+    daemon thread; returns a function giving the peak so far in MB. Pages shared between processes count once
+    per process, so this is an upper bound on the run's memory."""
+    import threading
+    import psutil
+    me, peak = psutil.Process(), [0]
+
+    def sample():
+        while True:
+            try:
+                peak[0] = max(peak[0], sum(p.memory_info().rss for p in [me] + me.children(recursive=True)))
+            except psutil.Error:
+                pass  # a worker exited mid-sample
+            time.sleep(2)
+    threading.Thread(target=sample, daemon=True).start()
+    return lambda: round(peak[0] / 2 ** 20)
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--dataset", default="DeezerEurope",
                     choices=["DeezerEurope", "WikiCS", "Coauthor-CS",
-                             "Coauthor-Physics", "ogbn-arxiv", "reddit", "ogbn-products"])
+                             "Coauthor-Physics", "ogbn-arxiv", "reddit", "ogbn-products", "ogbn-mag"])
     # Track A: hold out N val and N test undirected edges before Phase 0; tables are stored
     # as <dataset>-lp so they never mix with the full graph's tables.
     ap.add_argument("--link-split", type=int, default=0, metavar="N")
     ap.add_argument("--link-seed", type=int, default=0)
+    ap.add_argument("--node-split", default="official", choices=["official", "random"],
+                    help="random: stratified 60/20/20 per class instead of the dataset's split (store <dataset>-rand)")
     # Phase 4's link baseline uses its own split, so it is opt-in; baselines have their own scripts.
     ap.add_argument("--stop-after", default="3b", choices=["2", "3", "3b", "4"],
                     help="last phase to run (Track A runs Phases 0-2 once, then its own harness)")
     # drop (CaaN, default): communities below --min-size leave the units and Stage 3b scores their nodes with
     # CaaN's global model (super-nodes + minor nodes); misc packs them into shared bins; keep makes each a unit.
     ap.add_argument("--tiny-comm", default="drop", choices=["drop", "misc", "keep"])
+    ap.add_argument("--minor-score", default="global", choices=["global", "unit"],
+                    help="who scores minor-community nodes in stage3b_node_acc: CaaN's global model or the unit "
+                         "they have most edges into (both are recorded)")
     ap.add_argument("--merge-minor", action="store_true",
                     help="Phase 1 moves small-community vertices into a major neighbour community (not in CaaN)")
     ap.add_argument("--reuse-phase1", action="store_true", help="keep an existing communities table")
@@ -269,7 +301,7 @@ def main():
     ap.add_argument("--model", default="sage",
                     choices=["sage", "gatv2", "gat", "transformer", "arma", "asap"])
     ap.add_argument("--min-size", type=int, default=100)
-    ap.add_argument("--max-nodes", type=int, default=10000)
+    ap.add_argument("--max-nodes", type=int, default=PHASE3_MAX_NODES_PER_COMMUNITY)
     # Small datasets exist to be run whole. The production per-unit edge cap
     # (30k) silently subsamples dense communities, so raise it above anything
     # these graphs contain and assert afterwards that nothing was capped.
@@ -299,9 +331,16 @@ def main():
     # community_id) or hive_merged (small communities packed into shared partitions).
     ap.add_argument("--p2-layout", default="range", choices=["range", "hive", "hive_merged"])
     ap.add_argument("--merge-target-rows", type=int, default=250_000)
-    # Parquet row-group size of the run's writes (Track B P2: sqrt rule); default Spark's 128 MB
-    ap.add_argument("--p2-rg-mb", type=float, default=None)
+    # Track B storage layout of the Phase 2 tables (physical only: every unit reads the same rows).
+    # Row group in MB, or auto = the sqrt rule from table size and unit count (0: Spark's 128 MB default).
+    ap.add_argument("--p2-rg-mb", default="auto")
+    ap.add_argument("--p2-plain", action="store_true",
+                    help="Phase 2's order without _blk (block-ordered for --max-nodes by default)")
+    ap.add_argument("--s3-emu", default=None, metavar="LAT_MS,MBPS|count",
+                    help="Stage 3b reads the Phase 2 tables through an emulated S3 (e.g. 20,80: 20 ms + 80 MB/s "
+                         "per GET), or 'count' to count GETs and bytes only (utils/store_io.py)")
     args = ap.parse_args()
+    peak_mb = peak_tree_rss()
 
     builder = (SparkSession.builder.appName("lakegrl-local-pipeline").master(f"local[{args.cores}]")
                .config("spark.sql.extensions", "io.delta.sql.DeltaSparkSessionExtension")
@@ -318,8 +357,6 @@ def main():
     spark = configure_spark_with_delta_pip(builder).getOrCreate()
     spark.sparkContext.setLogLevel("ERROR")
     sc = spark.sparkContext
-    if args.p2_rg_mb:
-        sc._jsc.hadoopConfiguration().set("parquet.block.size", str(int(args.p2_rg_mb * (1 << 20))))
 
     # Read at the start: a commit made while the run is going must not relabel it.
     import subprocess
@@ -333,6 +370,9 @@ def main():
     if args.link_split > 0:
         LINK_HOLDOUT.update(n_val=args.link_split, n_test=args.link_split, seed=args.link_seed)
         DS = f"{args.dataset}-lp"
+    if args.node_split == "random":
+        NODE_SPLIT["random"] = True
+        DS += "-rand"
     print(f"\n{'='*70}\n  LakeGRL full pipeline — {DS} / {args.alg} / {args.model}\n{'='*70}")
 
     t0 = time.time()
@@ -361,7 +401,7 @@ def main():
         n_nodes, n_edges, n_classes, feat_dim = ingest_deezer(spark, store=DS)
     elif args.dataset == "reddit":
         n_nodes, n_edges, n_classes, feat_dim = ingest_reddit(spark, DS)
-    elif args.dataset in ("ogbn-products", "ogbn-arxiv"):
+    elif args.dataset in ("ogbn-products", "ogbn-arxiv", "ogbn-mag"):
         n_nodes, n_edges, n_classes, feat_dim = ingest_ogb_raw(spark, DS, args.dataset)
     elif args.dataset.startswith("ogbn-"):
         n_nodes, n_edges, n_classes, feat_dim = ingest_ogb(spark, args.dataset, store=DS)
@@ -390,7 +430,9 @@ def main():
                min_size=args.min_size, get_paths_fn=paths, timing=timing, results=r2,
                expand_boundary_nodes=True, tiny_comm_handling=args.tiny_comm, force_rerun=True,
                partition_table_mode=args.partition_table, p2_layout=args.p2_layout,
-               merge_target_rows=args.merge_target_rows)
+               merge_target_rows=args.merge_target_rows,
+               rg_mb=args.p2_rg_mb if args.p2_rg_mb == "auto" else float(args.p2_rg_mb) or None,
+               block_cap=None if args.p2_plain else args.max_nodes)
 
     if args.stop_after != "4":
         args.skip_baseline = True
@@ -400,7 +442,8 @@ def main():
     stage_kw = dict(use_global_mapping=True, dataset_cfg=ds_cfg, gcn_cfg=gcn_cfg, get_paths_fn=paths,
                     models=[args.model], task_type=args.task, min_size=args.min_size, force_rerun=True,
                     local_data_dir=STORE, node_loading=args.node_loading, max_nodes_per_community=args.max_nodes,
-                    node_patience=args.node_patience, tiny_comm_handling=args.tiny_comm)
+                    node_patience=args.node_patience, tiny_comm_handling=args.tiny_comm,
+                    s3_emu=parse_emu(args.s3_emu), minor_score=args.minor_score)
     if args.stop_after != "2" and (args.stage3a or args.stage3a_halo):
         t3 = {}
         run_phase3b(spark, sc, [DS], [args.alg], timing=t3, results=r3,
@@ -454,10 +497,11 @@ def main():
     record = {
         "dataset": DS, "algorithm": args.alg, "model": args.model, "epochs": args.epochs,
         "seed": args.seed, "train": train, "task": args.task, "stage3a_halo": args.stage3a_halo, "tiny_comm": args.tiny_comm, "merge_minor": args.merge_minor,
-        "min_size": args.min_size, "max_nodes": args.max_nodes, "git": git_hash,
+        "min_size": args.min_size, "max_nodes": args.max_nodes, "git": git_hash, "node_split": args.node_split,
         "n_test_all": n_test_all, "stage3a_n_test_scored": scored(r3), "stage3b_n_test_scored": scored(r3b),
         "partition_table": args.partition_table, "node_loading": args.node_loading,
-        "p2_layout": args.p2_layout, "p2_rg_mb": args.p2_rg_mb,
+        "p2_layout": args.p2_layout, "p2_rg_mb": r2.get((DS, args.alg), {}).get("rg_mb"),
+        "p2_block_cap": r2.get((DS, args.alg), {}).get("block_cap"),
         "n_nodes": n_nodes, "n_edges": n_edges, "n_classes": n_classes,
         "n_communities_phase1": r1.get((DS, args.alg), {}).get("n_comms"),
         "n_units_phase3": len(r3[k]) if k in r3 else None,
@@ -465,11 +509,17 @@ def main():
         "stage3a_node_acc": a3.get("weighted_comm_acc"),
         "stage3a_link_auc": a3.get("weighted_comm_link_auc"),
         "stage3b_node_acc": a3b.get("weighted_comm_acc"),
+        "stage3b_node_val_acc": a3b.get("weighted_comm_val_acc"), "minor_score": a3b.get("minor_score"),
+        **{f"stage3b_{kk}": a3b.get(kk) for kk in ("acc_minor_global", "acc_minor_unit", "val_acc_minor_global",
+                                                    "val_acc_minor_unit", "minor_test_reached")},
         "stage3b_link_auc": a3b.get("weighted_comm_link_auc"),
+        "cores": args.cores, "s3_emu": args.s3_emu, "stage3b_read_s": a3b.get("read_s"), "stage3b_read_gets": a3b.get("read_gets"),
+        "stage3b_read_bytes": a3b.get("read_bytes"),
         "baseline_node_acc": base.get("test_acc"),
         "baseline_link_auc": base.get("link_auc"),
         "phase_seconds": {str(kk): round(vv, 2) for kk, vv in timing.items()},
         "total_seconds": round(time.time() - t_all, 1),
+        "peak_rss_tree_mb": peak_mb(),
         **spark_resources(sc),
         "timestamp_utc": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
     }

@@ -241,23 +241,48 @@ def run_phase2(spark, sc, datasets, algorithms, use_global_mapping, min_size,
             # write_layout overwrites with overwriteSchema: the path may hold a
             # table written in another partition_table_mode or p2_layout.
             from pipeline.utils.partition_layout import (write_layout, community_stats,
-                                                         merge_plan, with_storage_part)
+                                                         merge_plan, with_storage_part,
+                                                         add_blk, sqrt_rg_mb, BLOCK_CAP_PROP)
             meta = None
             if normalized:
                 from pipeline.utils.partition_join import partition_write_metadata
                 meta = partition_write_metadata(spark, p, alg)
             nodes_out, edges_out = nodes_final, edges_part
+            # Track B storage layout (docs/trackB_storage_layout.md): physical only, every unit reads the same rows.
+            # block_cap: rows grouped by Phase 3b block (_blk) for that cap, so a block read skips the rest of its
+            # community. rg_mb: row-group size; 'auto' = the √ rule from the table size and the unit count.
+            blk_cap = int(kwargs.get('block_cap') or 0)
+            n_units = n_valid
+            if blk_cap:
+                nodes_out, edges_out, n_units = add_blk(spark, nodes_out, edges_out, blk_cap)
+            rg_mb = kwargs.get('rg_mb')
+            if rg_mb == 'auto':
+                from delta.tables import DeltaTable
+                size = lambda u: int(DeltaTable.forPath(spark, u).detail().first()['sizeInBytes'])
+                t_est = (size(p['nodes']) * n_total_nodes / max(1, nodes_df.count())
+                         + size(p['edges']) * n_intra / max(1, n_edges))
+                rg_mb = sqrt_rg_mb(t_est, n_units, float(kwargs.get('rg_beta_mb', 0.6)))
+                print(f"  Row group (√ rule): {rg_mb:g} MB from ~{t_est / 2**20:,.0f} MB over {n_units:,} units")
+            hconf = sc._jsc.hadoopConfiguration()
+            rg_prev = hconf.get('parquet.block.size')
+            if rg_mb:
+                hconf.set('parquet.block.size', str(int(float(rg_mb) * (1 << 20))))
             if p2_layout == 'hive_merged':
                 plan = merge_plan(community_stats(nodes_final), merge_minor_members,
                                   merge_min_rows, merge_target_rows)
                 n_shared = int(plan.loc[plan['small'], 'storage_part'].nunique())
                 print(f"  p2_layout=hive_merged: {int(plan['small'].sum()):,} small communities -> "
                       f"{n_shared} shared partitions; {int((~plan['small']).sum()):,} own partitions")
-                nodes_out = with_storage_part(spark, nodes_final, plan)
-                edges_out = with_storage_part(spark, edges_part, plan)
+                nodes_out = with_storage_part(spark, nodes_out, plan)
+                edges_out = with_storage_part(spark, edges_out, plan)
                 p2_bins = min(200, max(1, plan['storage_part'].nunique()))
             write_layout(nodes_out, p_alg['p2_nodes'], p2_layout, p2_bins, user_metadata=meta)
             write_layout(edges_out, p_alg['p2_edges'], p2_layout, p2_bins)
+            if rg_mb:   # the row group applies to Phase 2's tables only
+                hconf.set('parquet.block.size', rg_prev) if rg_prev is not None else hconf.unset('parquet.block.size')
+            if blk_cap:
+                for k in ('p2_nodes', 'p2_edges'):
+                    spark.sql(f"ALTER TABLE delta.`{p_alg[k]}` SET TBLPROPERTIES ('{BLOCK_CAP_PROP}' = '{blk_cap}')")
 
             elapsed = time.time() - t0
             timing[('phase2', dataset, alg)] = elapsed
@@ -269,6 +294,7 @@ def run_phase2(spark, sc, datasets, algorithms, use_global_mapping, min_size,
                 'shuffle_s':    shuffle_s,
                 'partition_table_mode': partition_table_mode,
                 'p2_layout': p2_layout,
+                'block_cap': blk_cap, 'rg_mb': rg_mb, 'n_units': n_units,
             }
             print(f"  ✓ [{alg}] Phase 2 done in {elapsed:.1f}s ({partition_table_mode} partition table, {p2_layout} layout)")
             

@@ -77,7 +77,9 @@ def write_layout(df, path, layout, n_bins, user_metadata=None, max_records_per_f
     if layout == "hive_merged" and STORAGE_PART not in df.columns:
         raise ValueError("hive_merged needs a storage_part column (see with_storage_part)")
     order = [key, "community_id"] if key != "community_id" else ["community_id"]
-    out = df.repartitionByRange(int(n_bins), *order).sortWithinPartitions(*order)
+    # _blk (add_blk) groups a community's rows by Phase 3b block, so a block's read skips the rest of the community
+    sort = order + (["_blk"] if "_blk" in df.columns else [])
+    out = df.repartitionByRange(int(n_bins), *order).sortWithinPartitions(*sort)
     w = (out.write.format("delta").mode("overwrite").option("overwriteSchema", "true"))
     if max_records_per_file:
         w = w.option("maxRecordsPerFile", int(max_records_per_file))
@@ -86,6 +88,58 @@ def write_layout(df, path, layout, n_bins, user_metadata=None, max_records_per_f
     if layout != "range":
         w = w.partitionBy(key)
     w.save(path)
+
+
+BLOCK_CAP_PROP = "lakegrl.block_cap"
+
+
+def bit_reverse(x, bits):
+    return int(format(int(x), f"0{bits}b")[::-1], 2) if bits else 0
+
+
+def add_blk(spark, nodes_df, edges_df, cap):
+    """Phase 2's tables with _blk: a row's Phase 3b block (id for nodes, src for edges, & (n - 1), n from
+    utils.common.unit_blocks on the community's rows and `cap`), its k = log2 n bits reversed. A block of any split
+    n_r <= n is then one contiguous _blk range (blk_range). Track B P4b (docs/trackB_storage_layout.md); a bit-reversed
+    key is enough here because Phase 3b filters edges on src only. Returns (nodes, edges, units at this cap)."""
+    from pyspark.sql import functions as F
+    from pipeline.utils.common import unit_blocks
+    cnt = nodes_df.groupBy("community_id").count().toPandas()
+    cnt["_k"] = [unit_blocks(int(c), cap).bit_length() - 1 for c in cnt["count"]]
+    cnt["_k"] = cnt["_k"].astype("int32")
+    kmax = int(cnt["_k"].max()) if len(cnt) else 0
+    kb = F.broadcast(spark.createDataFrame(cnt[["community_id", "_k"]]))
+    rev = lambda key: F.expr(" + ".join(f"CASE WHEN _k > {d} THEN shiftleft(shiftright({key}, {d}) & 1, _k - {d + 1}) "
+                                        f"ELSE 0 END" for d in range(kmax)) or "0").cast("int")
+    nodes = nodes_df.join(kb, "community_id").withColumn("_blk", rev("id")).drop("_k")
+    edges = edges_df.join(kb, "community_id").withColumn("_blk", rev("src")).drop("_k")
+    return nodes, edges, int((2 ** cnt["_k"].astype("int64")).sum())
+
+
+def blk_range(b, n_r, n_w):
+    """Inclusive _blk range holding read block b of n_r on a table written with n_w blocks (add_blk). Finer reads
+    (n_r > n_w) get their written block; the id / src filter keeps the rest."""
+    k, m = n_w.bit_length() - 1, min(n_r, n_w).bit_length() - 1
+    lo = bit_reverse(b & ((1 << m) - 1), m) << (k - m)
+    return lo, lo + (1 << (k - m)) - 1
+
+
+def sqrt_rg_mb(table_bytes, units, beta_mb=0.6):
+    """Row-group size (MB, a power of two >= 1/4) from the √ rule s* = √(β T / (2 U)) (Track B P2: regret <= 1.46 on
+    8 stores at every emulated latency). β = per-row-group overhead in bytes, about 0.6 MB locally."""
+    import math
+    s = math.sqrt(beta_mb * (table_bytes / (1 << 20)) / (2 * max(1, units)))
+    return max(0.25, 2.0 ** round(math.log2(s))) if s > 0 else 0.25
+
+
+def block_cap(spark, path):
+    """The cap a Phase 2 table's _blk was written for (0: none)."""
+    from delta.tables import DeltaTable
+    df = spark.read.format("delta").load(path)
+    if "_blk" not in df.columns:
+        return 0
+    props = DeltaTable.forPath(spark, path).detail().select("properties").first()[0] or {}
+    return int(props.get(BLOCK_CAP_PROP, 0))
 
 
 def current_files(spark, path):
@@ -115,15 +169,18 @@ def layout_of(spark, path):
     return "hive_merged" if cols == [STORAGE_PART] else "hive" if cols == ["community_id"] else "other"
 
 
-def table_layout(spark, p_alg):
+def table_layout(spark, p_alg, emu=None):
     """Everything a pyarrow worker needs to read the Phase 2 tables of one run.
 
-    {"nodes": {"url", "files", "part_col", "part_type"}, "edges": {...},
+    {"nodes": {"url", "files", "part_col", "part_type", "emu"}, "edges": {...},
      "layout": str, "comm_to_part": {community_id: storage_part} or None}
+    emu: utils.store_io.parse_emu() of the run, None for plain reads.
     """
+    from pipeline.utils.store_io import check
     out = {}
     for name, key in (("nodes", "p2_nodes"), ("edges", "p2_edges")):
         url = p_alg[key]
+        check(url, emu)   # on the driver, before any task starts
         df = spark.read.format("delta").load(url)
         cols = partition_columns(spark, url)
         part_col = cols[0] if cols else None
@@ -131,7 +188,7 @@ def table_layout(spark, p_alg):
         if part_col:
             part_type = "string" if dict(df.dtypes)[part_col] == "string" else "int64"
         out[name] = {"url": url, "files": current_files(spark, url), "part_col": part_col,
-                     "part_type": part_type}
+                     "part_type": part_type, "emu": emu}
     out["layout"] = {None: "range", "community_id": "hive", STORAGE_PART: "hive_merged"}.get(
         out["nodes"]["part_col"], "other")
     out["comm_to_part"] = None
@@ -142,36 +199,22 @@ def table_layout(spark, p_alg):
     return out
 
 
-def _local(uri):
-    from urllib.parse import urlparse, unquote
-    if uri.startswith("file:"):
-        return unquote(urlparse(uri).path)
-    return uri
-
-
 def open_dataset(spec):
-    """pyarrow dataset over one Phase 2 table described by table_layout()[name]."""
+    """pyarrow dataset over one Phase 2 table described by table_layout()[name] (or just {"url": ...}), read from
+    the store its URL names (utils.store_io: local disk or S3, metered when spec["emu"] is set)."""
     import pyarrow as pa
     import pyarrow.dataset as ds
+    from pipeline.utils.store_io import filesystem, to_path
     files, url = spec.get("files"), spec["url"]
     part = None
     if spec.get("part_col"):
         typ = pa.string() if spec.get("part_type") == "string" else pa.int64()
         part = ds.partitioning(pa.schema([(spec["part_col"], typ)]), flavor="hive")
-    if url.startswith(("s3://", "s3a://")):
-        import pyarrow.fs as fs
-        s3 = fs.S3FileSystem(region="us-east-1")
-        strip = lambda u: u.split("://", 1)[1].rstrip("/")  # noqa: E731
-        if files:
-            return ds.dataset([strip(f) for f in files], filesystem=s3, format="parquet",
-                              partitioning=part, partition_base_dir=strip(url) if part else None)
-        return ds.dataset(strip(url), filesystem=s3, format="parquet", partitioning=part,
-                          ignore_prefixes=["_delta_log", "."])
-    base = _local(url).rstrip("/")
+    fs, base = filesystem(url, spec.get("emu")), to_path(url)
     if files:
-        return ds.dataset([_local(f) for f in files], format="parquet", partitioning=part,
+        return ds.dataset([to_path(f) for f in files], filesystem=fs, format="parquet", partitioning=part,
                           partition_base_dir=base if part else None)
-    return ds.dataset(base, format="parquet", partitioning=part, ignore_prefixes=["_delta_log", "."])
+    return ds.dataset(base, filesystem=fs, format="parquet", partitioning=part, ignore_prefixes=["_delta_log", "."])
 
 
 def unit_filter(spec, comm_ids, comm_to_part=None):

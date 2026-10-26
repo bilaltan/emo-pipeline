@@ -9,15 +9,18 @@ set -e
 REPO="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$REPO"
 ENV=$HOME/mamba/envs/lakegrl
-PKG=$HOME/lakegrl/pkg
+PKG=$HOME/lakegrl/pkg/$(basename "$REPO")   # one link per checkout, so a git worktree imports its own code
 mkdir -p "$PKG"
-[ -L "$PKG/pipeline" ] || ln -sfn "$REPO" "$PKG/pipeline"
+[ "$(readlink "$PKG/pipeline")" = "$REPO" ] || ln -sfn "$REPO" "$PKG/pipeline"
 export JAVA_HOME=$ENV/lib/jvm
 [ -x "$JAVA_HOME/bin/java" ] || export JAVA_HOME=$ENV
 export PATH=$ENV/bin:$PATH
 export PYSPARK_PYTHON=$ENV/bin/python
 export PYSPARK_DRIVER_PYTHON=$ENV/bin/python
 export PYTHONPATH=$PKG:$REPO${PYTHONPATH:+:$PYTHONPATH}
+# A git worktree made on Windows names its git dir as C:/...; translate it, or the run records no code version.
+GD=$(sed -n 's|^gitdir: \([A-Za-z]\):/|/mnt/\L\1/|p' "$REPO/.git" 2>/dev/null | tr -d '\r')
+[ -n "$GD" ] && export GIT_DIR="$GD" GIT_WORK_TREE="$REPO"
 export LAKEGRL_STORE=${LAKEGRL_STORE:-$HOME/lakegrl/store}
 export DATA_ROOT=${DATA_ROOT:-/mnt/c/data}
 export OUTDATED_IGNORE=1   # ogb's version-check thread can deadlock imports

@@ -19,6 +19,40 @@ except Exception:
 
 _DS_CACHE = {}
 _LOOKUP_CACHE = {}
+READ_COLS = ('read_s', 'read_gets', 'read_bytes')   # per unit, on top of Phase 3's result schema (utils.store_io)
+
+
+def _encode_minor(ids, splits, correct, deg):
+    """Outcomes on minor-community nodes as 'id,split,correct,deg;...' (split 1 = valid, 2 = test; deg -1 = CaaN's
+    global model, else the node's edges into the scoring unit's members). Read back by _score_minor."""
+    code = {'valid': 1, 'test': 2}
+    return ";".join(f"{int(i)},{code[s]},{int(c)},{int(d)}"
+                    for i, s, c, d in zip(ids, splits, correct, deg) if s in code)
+
+
+def _score_minor(comm_pd):
+    """Test and validation accuracy with minor-community nodes scored two ways: by CaaN's global model (Eq. 1),
+    and by the trained unit they have the most edges into (they are its halo rows, Eq. 2), keeping the global
+    model's prediction for nodes no trained unit holds. Major units count the same in both."""
+    recs = [(cid, *map(int, t.split(","))) for cid, s in zip(comm_pd['community_id'], comm_pd['minor_scores'])
+            if s for t in s.split(";")]
+    m = pd.DataFrame(recs, columns=['community_id', 'id', 'split', 'correct', 'deg'])
+    glob = m[m['deg'] < 0].set_index('id')
+    unit = (m[m['deg'] >= 0].sort_values(['deg', 'community_id'], ascending=[False, True], kind='mergesort')
+            .drop_duplicates('id').set_index('id'))
+    reached = glob.index.isin(unit.index)
+    by_unit = glob['correct'].to_numpy().copy()
+    by_unit[reached] = unit.loc[glob.index[reached], 'correct'].to_numpy()
+    major = comm_pd[comm_pd['community_id'] >= 0]
+    out = {}
+    for name, acc_col, n_col, code in (('acc', 'comm_test_acc', 'n_test', 2), ('val_acc', 'comm_val_acc', 'n_val', 1)):
+        sel = (glob['split'] == code).to_numpy()
+        hits, n = (major[acc_col] * major[n_col]).sum(), major[n_col].sum() + sel.sum()
+        out[f'{name}_minor_global'] = float((hits + glob['correct'].to_numpy()[sel].sum()) / n) if n else 0.0
+        out[f'{name}_minor_unit'] = float((hits + by_unit[sel].sum()) / n) if n else 0.0
+    test = (glob['split'] == 2).to_numpy()
+    out['minor_test_reached'] = float(reached[test].mean()) if test.any() else 0.0
+    return out
 
 
 def _comm_lookup(node_to_comm):
@@ -60,27 +94,31 @@ def _sorted_keys(mapping):
 
 def _get_dataset(url):
     if url not in _DS_CACHE:
-        import pyarrow.dataset as ds
-        if url.startswith("s3://"):
-            import pyarrow.fs as fs
-            clean_url = url.replace("s3://", "").rstrip('/')
-            s3 = fs.S3FileSystem(region="us-east-1")
-            _DS_CACHE[url] = ds.dataset(clean_url, filesystem=s3, format="parquet", ignore_prefixes=['_delta_log', '.'])
-        else:
-            local_path = url.replace("file://", "")
-            _DS_CACHE[url] = ds.dataset(local_path, format="parquet", ignore_prefixes=['_delta_log', '.'])
+        from pipeline.utils.partition_layout import open_dataset
+        _DS_CACHE[url] = open_dataset({"url": url})
     return _DS_CACHE[url]
 
 def _layout_dataset(spec):
     """pyarrow dataset for a Phase 2 table described by utils.partition_layout.table_layout()."""
-    key = ("layout", spec["url"], len(spec.get("files") or ()), spec.get("part_col"))
+    key = ("layout", spec["url"], len(spec.get("files") or ()), spec.get("part_col"), spec.get("emu"))
     if key not in _DS_CACHE:
         from pipeline.utils.partition_layout import open_dataset
         _DS_CACHE[key] = open_dataset(spec)
     return _DS_CACHE[key]
 
 
-def _load_communities_data_batch(nodes_url, edges_url, comm_ids, block=None, n_blocks=1, layout=None):
+def _blk_filter(f, dataset, block, n_blocks, n_wblocks):
+    """Adds the block's contiguous _blk range (utils.partition_layout.add_blk / blk_range) to a block read, so
+    parquet row-group statistics skip the community's other blocks. Same rows: the id / src filter stays."""
+    if not n_wblocks or block is None or "_blk" not in dataset.schema.names:
+        return f
+    import pyarrow.dataset as ds
+    from pipeline.utils.partition_layout import blk_range
+    lo, hi = blk_range(int(block), int(n_blocks or 1), int(n_wblocks))
+    return f & (ds.field("_blk") >= lo) & (ds.field("_blk") <= hi)
+
+
+def _load_communities_data_batch(nodes_url, edges_url, comm_ids, block=None, n_blocks=1, layout=None, n_wblocks=0):
     """Node rows and intra-unit edges of the given communities (and block).
 
     layout: utils.partition_layout.table_layout() of the run. With it, the scan reads
@@ -111,20 +149,21 @@ def _load_communities_data_batch(nodes_url, edges_url, comm_ids, block=None, n_b
         nodes_ds = unit_dataset(nodes_ds, comm_ids, _base)
         _f = _base if _mask is None else (
             _base & (pc.bit_wise_and(ds.field("id"), _mask) == int(block)))
+        _f = _blk_filter(_f, nodes_ds, block, n_blocks, n_wblocks)
         nodes_pdf = nodes_ds.to_table(filter=_f, use_threads=True).to_pandas()
-        if 'storage_part' in nodes_pdf.columns:
-            nodes_pdf = nodes_pdf.drop(columns=['storage_part'])
+        nodes_pdf = nodes_pdf.drop(columns=[c for c in ('storage_part', '_blk') if c in nodes_pdf.columns])
         if len(nodes_pdf) > 0 and 'id' in nodes_pdf.columns:
             nodes_pdf = nodes_pdf.drop_duplicates(subset=['id', 'community_id']).reset_index(drop=True)
     except Exception as e:
         print(f"  ⚠ CAAN _load_communities_data_batch NODES ERROR: {e}")
         raise  # an empty unit would be scored as a result
 
-    edges_pdf = _load_unit_edges(edges_url, comm_ids, block=block, n_blocks=n_blocks, layout=layout)
+    edges_pdf = _load_unit_edges(edges_url, comm_ids, block=block, n_blocks=n_blocks, layout=layout,
+                                 n_wblocks=n_wblocks)
     return nodes_pdf, edges_pdf
 
 
-def _load_unit_edges(edges_url, comm_ids, block=None, n_blocks=1, layout=None):
+def _load_unit_edges(edges_url, comm_ids, block=None, n_blocks=1, layout=None, n_wblocks=0):
     """Intra-unit edges for the given communities (and block), read from p2_edges."""
     import pyarrow.dataset as ds
     import pyarrow.compute as pc
@@ -148,9 +187,9 @@ def _load_unit_edges(edges_url, comm_ids, block=None, n_blocks=1, layout=None):
         # worker drops them, as Phase 3 does.
         _f = _base if _mask is None else (
             _base & (pc.bit_wise_and(ds.field("src"), _mask) == int(block)))
+        _f = _blk_filter(_f, edges_ds, block, n_blocks, n_wblocks)
         edges_pdf = edges_ds.to_table(filter=_f, use_threads=True).to_pandas()
-        if 'storage_part' in edges_pdf.columns:
-            edges_pdf = edges_pdf.drop(columns=['storage_part'])
+        edges_pdf = edges_pdf.drop(columns=[c for c in ('storage_part', '_blk') if c in edges_pdf.columns])
         if len(edges_pdf) > 0 and 'src' in edges_pdf.columns and 'dst' in edges_pdf.columns:
             edges_pdf = (edges_pdf.drop_duplicates()
                          .sort_values(['community_id', 'src', 'dst'], kind='mergesort')
@@ -589,7 +628,12 @@ def _train_minor_global_caan(dataset, gcn_cfg, dataset_cfg, caan_components, mod
     comm_acc, n_test_node = safe_acc(test_m)
     bnd_acc, _ = safe_acc(test_m)
     int_acc, _ = safe_acc(test_m)
-    
+    val_acc, _ = safe_acc(val_m)
+    _r = np.where((val_m | test_m).numpy())[0]
+    _ok = (preds == lbl_t).numpy()
+    minor_scores = _encode_minor([minor_ids[i - len(super_ids)] for i in _r], [split_arr[i] for i in _r],
+                                 _ok[_r], [-1] * len(_r))
+
     return pd.DataFrame([{
         'community_id': -1,
         'n_nodes': len(minor_ids),
@@ -600,6 +644,8 @@ def _train_minor_global_caan(dataset, gcn_cfg, dataset_cfg, caan_components, mod
         'n_boundary': 0,
         'n_internal': len(minor_ids),
         'comm_test_acc': comm_acc,
+        'comm_val_acc': val_acc,
+        'minor_scores': minor_scores,
         'acc_gnn_head':  float(locals().get('acc_gnn_head', comm_acc)),
         'acc_mlp_head':  float(locals().get('acc_mlp_head', comm_acc)),
         'head_used':     str(locals().get('head_used', 'mlp')),
@@ -945,6 +991,8 @@ def make_caan_udf(super_nodes_dict_bc, minor_node_to_idx_bc, minor_feats_arr_bc,
         comm_acc = 0.0
         bnd_acc = 0.0
         int_acc = 0.0
+        val_acc = 0.0
+        minor_scores = ''
         n_test_node = int(test_m.sum())
         
         run_node = (task_type in ('node_classification', 'both'))
@@ -1436,6 +1484,19 @@ def make_caan_udf(super_nodes_dict_bc, minor_node_to_idx_bc, minor_feats_arr_bc,
             comm_acc, n_test_node = safe_acc(test_m)
             bnd_acc,  _     = safe_acc(test_m & bnd_t)
             int_acc,  _     = safe_acc(test_m & ~bnd_t)
+            val_acc,  _     = safe_acc(val_m)
+
+            # This unit's predictions for the labelled minor-community nodes it holds (halo or context rows) and
+            # their edges into its members, so the driver can score minor nodes by unit as well (_score_minor)
+            _all = np.concatenate([np.asarray(local_ids, np.int64), np.asarray(super_ids, np.int64),
+                                   np.asarray(minor_ids, np.int64)])
+            _r = (np.where(np.isin(_all, _sorted_keys(minor_node_to_idx)) & ~member_arr & (label_arr >= 0))[0]
+                  if minor_node_to_idx else [])   # Stage 3a context: no minor nodes (and no stale key cache)
+            if len(_r):
+                _deg = (np.bincount(dst_l_g[member_arr[src_l_g]], minlength=n_nodes)
+                        + np.bincount(src_l_g[member_arr[dst_l_g]], minlength=n_nodes))
+                minor_scores = _encode_minor(_all[_r], [split_arr[i] for i in _r],
+                                             (preds == lbl_t).numpy()[_r], _deg[_r])
 
         link_train_time = 0.0
         comm_link_auc = 0.5
@@ -1717,6 +1778,8 @@ def make_caan_udf(super_nodes_dict_bc, minor_node_to_idx_bc, minor_feats_arr_bc,
             'n_boundary':    int(bnd_t[:n_local].sum()),
             'n_internal':    n_local - int(bnd_t[:n_local].sum()),
             'comm_test_acc': comm_acc,
+            'comm_val_acc':  val_acc,
+            'minor_scores':  minor_scores,
         'acc_gnn_head':  float(locals().get('acc_gnn_head', comm_acc)),
         'acc_mlp_head':  float(locals().get('acc_mlp_head', comm_acc)),
         'head_used':     str(locals().get('head_used', 'mlp')),
@@ -1735,7 +1798,7 @@ def make_caan_udf(super_nodes_dict_bc, minor_node_to_idx_bc, minor_feats_arr_bc,
         
     def _train_bin(manifest_pdf, load_batch, load_item):
         # load_batch(comm_ids) -> (nodes_pdf, edges_pdf) for a whole bin;
-        # load_item(comm_id, block, n_blocks) -> the same for one bounded block.
+        # load_item(comm_id, block, n_blocks, n_wblocks) -> the same for one bounded block.
         # Set inter-op and intra-op thread counts strictly on the worker
         try:
             import torch
@@ -1745,6 +1808,15 @@ def make_caan_udf(super_nodes_dict_bc, minor_node_to_idx_bc, minor_feats_arr_bc,
             pass
 
         import pandas as pd
+        from pipeline.utils.store_io import STATS
+
+        def _read(load, *a):
+            # wall time of a unit's read, and its GETs / bytes when the store is metered (0 otherwise)
+            g0, b0, t0 = STATS['gets'], STATS['bytes'], time.time()
+            out = load(*a)
+            return out, {'read_s': time.time() - t0, 'read_gets': float(STATS['gets'] - g0),
+                         'read_bytes': float(STATS['bytes'] - b0)}
+
         # With blocking active each work item is one (community, block), so the
         # batch preload would defeat the bound; load per item instead.
         _has_blocks = ('_n_blocks' in manifest_pdf.columns
@@ -1753,7 +1825,7 @@ def make_caan_udf(super_nodes_dict_bc, minor_node_to_idx_bc, minor_feats_arr_bc,
             nodes_pdf_all = edges_pdf_all = pd.DataFrame()
         else:
             comm_ids = manifest_pdf['community_id'].unique().tolist()
-            nodes_pdf_all, edges_pdf_all = load_batch(comm_ids)
+            (nodes_pdf_all, edges_pdf_all), io = _read(load_batch, comm_ids)   # the bin's read, on its first row
 
         results = []
         for _, row in manifest_pdf.iterrows():
@@ -1762,7 +1834,8 @@ def make_caan_udf(super_nodes_dict_bc, minor_node_to_idx_bc, minor_feats_arr_bc,
             if _has_blocks:
                 _nb = int(row['_n_blocks']) if '_n_blocks' in row else 1
                 _bk = int(row['_block']) if '_block' in row else 0
-                pdf, comm_edges_pdf = load_item(comm_id, _bk, _nb)
+                _nw = int(row['_n_wblocks']) if '_n_wblocks' in row else 0
+                (pdf, comm_edges_pdf), io = _read(load_item, comm_id, _bk, _nb, _nw)
                 # A block holding only halo rows has nothing to train on; fall
                 # through to the empty-result path rather than train on no members.
                 if len(pdf) > 0 and 'is_member' in pdf.columns:
@@ -1787,11 +1860,13 @@ def make_caan_udf(super_nodes_dict_bc, minor_node_to_idx_bc, minor_feats_arr_bc,
                     'community_id':   comm_id,
                     'n_nodes':        0, 'n_edges': 0, 'n_train': 0, 'n_val': 0, 'n_test': 0,
                     'n_boundary':     0, 'n_internal': 0, 'comm_test_acc': 0.0,
+                    'comm_val_acc': 0.0, 'minor_scores': '',
                     'acc_gnn_head': 0.0, 'acc_mlp_head': 0.0, 'head_used': 'none',
                     'boundary_acc': 0.0,
                     'internal_acc':   0.0, 'comm_link_auc': 0.5, 'size_bucket': 'empty',
-                    'load_time_s':    0.0, 'node_train_time_s': 0.0, 'link_train_time_s': 0.0, 'peak_mem_mb': 0.0
-                }]))
+                    'load_time_s':    0.0, 'node_train_time_s': 0.0, 'link_train_time_s': 0.0, 'peak_mem_mb': 0.0,
+                    **io}]))
+                io = dict.fromkeys(io, 0.0)
                 continue
 
             pdf['_num_classes'] = int(row['_num_classes'])
@@ -1812,14 +1887,15 @@ def make_caan_udf(super_nodes_dict_bc, minor_node_to_idx_bc, minor_feats_arr_bc,
                 pdf['_context'] = str(row['_context'])
 
             res_row = _train_gnn_community_caan_single(pdf, comm_edges_pdf)
-            results.append(res_row)
+            results.append(res_row.assign(**io))
+            io = dict.fromkeys(io, 0.0)
 
         if len(results) == 0:
             return pd.DataFrame(columns=[
                 'community_id', 'n_nodes', 'n_edges', 'n_train', 'n_val', 'n_test',
                 'n_boundary', 'n_internal', 'comm_test_acc', 'boundary_acc',
                 'internal_acc', 'comm_link_auc', 'size_bucket', 'load_time_s',
-                'node_train_time_s', 'link_train_time_s', 'peak_mem_mb'
+                'node_train_time_s', 'link_train_time_s', 'peak_mem_mb', *READ_COLS, 'comm_val_acc', 'minor_scores'
             ])
         return pd.concat(results, ignore_index=True)
 
@@ -1831,8 +1907,8 @@ def make_caan_udf(super_nodes_dict_bc, minor_node_to_idx_bc, minor_feats_arr_bc,
             manifest_pdf,
             lambda ids: _load_communities_data_batch(p2_nodes_url, p2_edges_url, ids,
                                                      layout=p2_layout),
-            lambda c, b, n: _load_communities_data_batch(
-                p2_nodes_url, p2_edges_url, [c], block=b, n_blocks=n, layout=p2_layout))
+            lambda c, b, n, w: _load_communities_data_batch(
+                p2_nodes_url, p2_edges_url, [c], block=b, n_blocks=n, layout=p2_layout, n_wblocks=w))
 
     def _train_gnn_bin_caan_joined(key, nodes_pdf, manifest_pdf):
         # Global-join path (normalized partition table): the bin's node rows,
@@ -1848,13 +1924,14 @@ def make_caan_udf(super_nodes_dict_bc, minor_node_to_idx_bc, minor_feats_arr_bc,
             nodes = nodes_pdf[unit_cols] if len(nodes_pdf) > 0 else pd.DataFrame()
             return nodes, _load_unit_edges(p2_edges_url, ids, layout=p2_layout)
 
-        def _item(c, b, n):
+        def _item(c, b, n, w=0):
             if len(nodes_pdf) == 0:
                 return pd.DataFrame(), _load_unit_edges(p2_edges_url, [c], block=b, n_blocks=n,
-                                                        layout=p2_layout)
+                                                        layout=p2_layout, n_wblocks=w)
             sel = nodes_pdf[(nodes_pdf['community_id'] == c) & (nodes_pdf['_block'] == b)]
             nodes = sel[unit_cols].reset_index(drop=True) if len(sel) > 0 else pd.DataFrame()
-            return nodes, _load_unit_edges(p2_edges_url, [c], block=b, n_blocks=n, layout=p2_layout)
+            return nodes, _load_unit_edges(p2_edges_url, [c], block=b, n_blocks=n, layout=p2_layout,
+                                           n_wblocks=w)
 
         return _train_bin(manifest_pdf, _batch, _item)
 
@@ -1886,7 +1963,7 @@ def run_phase3b(spark, sc, datasets, algorithms, use_global_mapping,
     min_size = kwargs.get('min_size', 100)
     # Phase 3 bounds every training unit; Phase 3b did not, and trained whole
     # communities in a single worker. Same caps, read from the same config keys.
-    max_nodes_per_community = int(kwargs.get('max_nodes_per_community', 10000) or 0)
+    max_nodes_per_community = int(kwargs.get('max_nodes_per_community', 20000) or 0)
     block_oversized = bool(kwargs.get('block_oversized', True))
     node_loading = kwargs.get('node_loading', 'auto')
     if node_loading not in ('auto', 'direct', 'global_join'):
@@ -1896,7 +1973,19 @@ def run_phase3b(spark, sc, datasets, algorithms, use_global_mapping,
     from pipeline.phases.phase3_training import _make_result_schema
     from pipeline.utils.partition_join import is_materialized, load_unit_nodes, attach_units, join_features
     from pipeline.utils.partition_layout import table_layout as _p2_table_layout
+    from pyspark.sql.types import DoubleType, StringType
     result_schema = _make_result_schema()
+    for _c in READ_COLS:
+        result_schema = result_schema.add(_c, DoubleType())
+    result_schema = result_schema.add('comm_val_acc', DoubleType()).add('minor_scores', StringType())
+    # who scores minor-community nodes in the reported accuracy: CaaN's global model (Eq. 1) or the unit they have
+    # most edges into; both are computed and recorded either way (_score_minor)
+    minor_score = kwargs.get('minor_score', 'global')
+    if minor_score not in ('global', 'unit'):
+        raise ValueError(f"minor_score must be 'global' or 'unit', got {minor_score!r}")
+    # utils.store_io.parse_emu(): None reads the store as it is (local disk or S3, by URL); (0, 0) counts GETs and
+    # bytes; (latency_ms, MB/s) emulates S3 on a local store
+    s3_emu = kwargs.get('s3_emu')
     
     for dataset in datasets:
         cfg = dataset_cfg.get(dataset)
@@ -2280,6 +2369,30 @@ def run_phase3b(spark, sc, datasets, algorithms, use_global_mapping,
                     from pipeline.utils.common import unit_blocks
                     comms_node_counts_df['_n_blocks'] = comms_node_counts_df['count'].map(
                         lambda c: unit_blocks(c, max_nodes_per_community))
+                    # A block without training labels trains nothing and scores its test nodes 0. Halve such a
+                    # community's block count until every block has one: blocks are id & (n - 1), so halving
+                    # merges sibling pairs (and the _blk layout reads coarser blocks as a contiguous range).
+                    _split = comms_node_counts_df['_n_blocks'] > 1
+                    if _split.any() and {'split', 'is_member'} <= set(nodes_w_comm.columns):
+                        _tr = (nodes_w_comm.filter(F.col('is_member') & (F.col('split') == 'train'))
+                               .filter(F.col('community_id').isin(
+                                   [int(c) for c in comms_node_counts_df.loc[_split, 'community_id']]))
+                               .select('community_id', 'id').toPandas())
+                        _tr_ids = {c: g.to_numpy(np.int64) for c, g in _tr.groupby('community_id')['id']}
+
+                        def _labelled_blocks(c, n):
+                            ids = _tr_ids.get(c)
+                            while ids is not None and n > 1 and len(np.unique(ids & (n - 1))) < n:
+                                n //= 2
+                            return n
+                        _before = comms_node_counts_df['_n_blocks'].copy()
+                        comms_node_counts_df['_n_blocks'] = [
+                            _labelled_blocks(int(c), int(n)) for c, n in
+                            zip(comms_node_counts_df['community_id'], comms_node_counts_df['_n_blocks'])]
+                        _merged = int((comms_node_counts_df['_n_blocks'] < _before).sum())
+                        if _merged:
+                            print(f"    - Blocks without training labels: {_merged} communities coarsened "
+                                  f"({int(_before.sum() - comms_node_counts_df['_n_blocks'].sum())} fewer units)")
                 else:
                     comms_node_counts_df['_n_blocks'] = 1
 
@@ -2303,8 +2416,13 @@ def run_phase3b(spark, sc, datasets, algorithms, use_global_mapping,
                     num_bins = min(max(default_para * 4, 1000), num_comms)
                 work['bin_id'] = [i % num_bins for i in range(len(work))]
                 
+                # blocks each community's _blk was written with (Phase 2 block_cap), for the loaders' range
+                from pipeline.utils.partition_layout import block_cap as _p2_block_cap
+                from pipeline.utils.common import unit_blocks as _unit_blocks
+                _wcap = _p2_block_cap(spark, p_alg['p2_nodes'])
+                work['_n_wblocks'] = work['count'].map(lambda c: _unit_blocks(c, _wcap)) if _wcap else 0
                 bin_mapping_df = spark.createDataFrame(
-                    work[['community_id', 'bin_id', '_block', '_n_blocks']])
+                    work[['community_id', 'bin_id', '_block', '_n_blocks', '_n_wblocks']])
                 
                 manifest_df = (bin_mapping_df
                     .withColumn('_num_classes', F.lit(int(cfg['num_classes'])))
@@ -2337,7 +2455,7 @@ def run_phase3b(spark, sc, datasets, algorithms, use_global_mapping,
                     p2_edges_url=p_alg['p2_edges'],
                     # snapshot file lists + partitioning of the Phase 2 tables, so the
                     # workers read the current snapshot only, in any p2_layout
-                    p2_layout=_p2_table_layout(spark, p_alg)
+                    p2_layout=_p2_table_layout(spark, p_alg, emu=s3_emu)
                 )
                 
                 sc.setJobDescription(f'phase3b_{dataset}_{alg}_{model_type}')
@@ -2369,7 +2487,15 @@ def run_phase3b(spark, sc, datasets, algorithms, use_global_mapping,
                 weighted_comm_acc = (comm_pd['comm_test_acc'] * comm_pd['n_test']).sum() / total_test_nodes if total_test_nodes > 0 else 0.0
                 total_edges = comm_pd['n_edges'].sum()
                 weighted_comm_link_auc = (comm_pd['comm_link_auc'] * comm_pd['n_edges']).sum() / total_edges if total_edges > 0 else 0.5
-                
+                minor_acc = _score_minor(comm_pd)
+                assert abs(minor_acc['acc_minor_global'] - weighted_comm_acc) < 1e-6, (minor_acc, weighted_comm_acc)
+                weighted_comm_acc = minor_acc[f'acc_minor_{minor_score}']
+                print(f"  ✓ Minor-community nodes scored by the global model / by units: test "
+                      f"{minor_acc['acc_minor_global']:.4f} / {minor_acc['acc_minor_unit']:.4f}, val "
+                      f"{minor_acc['val_acc_minor_global']:.4f} / {minor_acc['val_acc_minor_unit']:.4f} "
+                      f"({minor_acc['minor_test_reached']:.1%} of minor test nodes held by a trained unit; "
+                      f"reported: {minor_score})")
+
                 elapsed = time.time() - t0
                 timing[('phase3b', dataset, alg, model_type)] = elapsed
                 
@@ -2377,6 +2503,14 @@ def run_phase3b(spark, sc, datasets, algorithms, use_global_mapping,
                 results[key].attrs['weighted_comm_acc']  = weighted_comm_acc
                 results[key].attrs['weighted_comm_link_auc'] = weighted_comm_link_auc
                 results[key].attrs['wall_time_s'] = elapsed
+                results[key].attrs['s3_emu'] = s3_emu
+                results[key].attrs.update(minor_acc, minor_score=minor_score,
+                                          weighted_comm_val_acc=minor_acc[f'val_acc_minor_{minor_score}'])
+                for _c in READ_COLS:
+                    results[key].attrs[_c] = float(comm_pd[_c].sum())
+                print(f"  ✓ Unit reads: {comm_pd['read_s'].sum():.1f} s over all tasks"
+                      + (f", {comm_pd['read_gets'].sum():,.0f} GETs, {comm_pd['read_bytes'].sum() / 2**30:.2f} GiB"
+                         f" (s3_emu={s3_emu})" if s3_emu else ""))
                 # Blocking makes Phase 3b emit one row per (community, block),
                 # so len(df) is a unit count now, not a community count.
                 # Reporting reads attrs first; without this Reddit would be

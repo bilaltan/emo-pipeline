@@ -328,7 +328,7 @@ def main():
                     help="append the run's metrics as a JSON line for aggregation")
     ap.add_argument("--cache-dir", default="data/.partition_cache",
                     help="where to persist the Louvain artifact; '' disables reuse")
-    ap.add_argument("--max-nodes", type=int, default=10000,
+    ap.add_argument("--max-nodes", type=int, default=20000,
                     help="per-community node cap (PHASE3_MAX_NODES_PER_COMMUNITY)")
     ap.add_argument("--max-edges", type=int, default=30000,
                     help="per-community edge cap (PHASE3_MAX_EDGES_PER_COMMUNITY)")
