@@ -16,7 +16,9 @@ DATASETS_TO_RUN = ['WikiCS', 'ogbn-products', 'reddit', 'ogbn-mag']  # LiveJourn
 
 # ── GNN Models to Run ─────────────────────────────────────────────────────────
 # Supported choices: 'sage', 'gat', 'gatv2', 'transformer', 'clusterscl', 'arma', 'asap'
-GNN_MODELS = ['gatv2']
+# 2026-10-26: EMR runs the local driver's configuration (scripts/run_local_pipeline.py), so AWS and local numbers
+# come from the same method: GraphSAGE, minor communities dropped (CaaN), Stage 3b only, node classification.
+GNN_MODELS = ['sage']
 
 # ── Phase 0: Delta Lake Ingestion ─────────────────────────────────────────────
 # True  = re-download OGB dataset and overwrite Delta tables.
@@ -44,9 +46,9 @@ LPA_TOL            = 0.001   # stop when <0.1% of labels move in an iteration
 # Fold communities smaller than MIN_COMMUNITY_SIZE into the major community they
 # have the most edges into, instead of leaving a long tail for Phase 2 to drop
 # and Phase 3b to carry as explicit minor nodes.
-MERGE_MINOR_COMMUNITIES = True
+MERGE_MINOR_COMMUNITIES = False   # CaaN drops them and scores their nodes with the global model (e638064)
 RESOLUTION         = 1.0              # louvain / leiden resolution parameter
-MIN_COMMUNITY_SIZE = 1000             # communities smaller than this are excluded
+MIN_COMMUNITY_SIZE = 100              # communities smaller than this are minor (local driver --min-size)
 
 # ── Phase 2 / 3: Partitioning & GNN Training ──────────────────────────────────
 # USE_GLOBAL_MAPPING = True  (RECOMMENDED):
@@ -121,7 +123,7 @@ RUN_PHASE38        = False
 PHASE38_MAX_ITER   = 30
 PHASE38_REG_PARAM  = 0.0001
 PHASE38_ELASTIC_NET_PARAM = 0.0
-RUN_PHASE3         = True
+RUN_PHASE3         = False            # Stage 3a is an ablation only (Bilal, 2026-10-21)
 USE_GLOBAL_MAPPING = True
 
 # Emits Phase 3 driver/executor timing markers to diagnose slow or stalled runs.
@@ -186,7 +188,7 @@ TINY_COMM_HANDLING  = 'drop'
 EXPAND_BOUNDARY_NODES = True
 
 # Task Type: 'node_classification' or 'link_prediction'
-TASK_TYPE = 'both'
+TASK_TYPE = 'node_classification'   # links are scored by experiments/trackA, not per unit
 
 # ── Phase 4: Full-Graph Baseline ──────────────────────────────────────────────
 # Runs ONCE per dataset (not per algorithm). Uses SAME masks as Phase 3.
@@ -283,6 +285,9 @@ GCN_CFG = {
     'num_epochs': GCN_NUM_EPOCHS,
     'lr':         GCN_LR,
     'dropout':    GCN_DROPOUT,
+    'weight_decay': TRAIN['weight_decay'],
+    'seed':       TRAIN['seeds'][0],   # Stage 3b's default is 42; local runs use 0
+    'probe_head': TRAIN['probe_head'],
 }
 
 # Bundled baseline config dict

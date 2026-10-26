@@ -484,6 +484,7 @@ FORCE_REINGEST = getattr(config, 'FORCE_REINGEST', False)
 USE_OGB_SPLITS = getattr(config, 'USE_OGB_SPLITS', True)
 MIN_COMMUNITY_SIZE = getattr(config, 'MIN_COMMUNITY_SIZE', 10)
 TINY_COMM_HANDLING = getattr(config, 'TINY_COMM_HANDLING', 'misc')
+MAX_NODES = getattr(config, 'PHASE3_MAX_NODES_PER_COMMUNITY', 20000)   # rows per Stage 3b unit (and Phase 2 block layout)
 EXPAND_BOUNDARY_NODES = getattr(config, 'EXPAND_BOUNDARY_NODES', True)
 USE_GLOBAL_MAPPING = getattr(config, 'USE_GLOBAL_MAPPING', True)
 
@@ -526,7 +527,9 @@ run_phase1(
     get_paths_fn = get_paths_fn,
     timing       = timing,
     results      = phase1_results,
-    metis_k      = getattr(config, 'METIS_K', 100)
+    metis_k      = getattr(config, 'METIS_K', 100),
+    lpa_tol      = getattr(config, 'LPA_TOL', 0.001),
+    merge_minor_communities = getattr(config, 'MERGE_MINOR_COMMUNITIES', False)
 )
 
 # Phase 1 Stats
@@ -550,7 +553,10 @@ run_phase2(
     timing              = timing,
     results             = phase2_results,
     tiny_comm_handling  = TINY_COMM_HANDLING,
-    expand_boundary_nodes = EXPAND_BOUNDARY_NODES
+    expand_boundary_nodes = EXPAND_BOUNDARY_NODES,
+    # Track B layout as in the local driver: rows grouped by Stage 3b block, √-rule row groups
+    block_cap           = MAX_NODES,
+    rg_mb               = "auto"
 )
 
 # Phase 3: Parallel GNN UDF Training
@@ -585,6 +591,8 @@ if ALGORITHMS_TO_RUN and getattr(config, 'RUN_PHASE3B', True):
         task_type          = TASK_TYPE,
         models             = config.GNN_MODELS,
         min_size           = MIN_COMMUNITY_SIZE,
+        max_nodes_per_community = MAX_NODES,
+        tiny_comm_handling = TINY_COMM_HANDLING,   # Stage 3b's own default is 'misc': without it, no CaaN global model
         # 'count': count Stage 3b's GETs and bytes on S3 (utils/store_io.py); unset for timing runs
         s3_emu             = parse_emu(getattr(config, 'S3_EMU', None))
     )
