@@ -177,7 +177,7 @@ def ingest_reddit(spark, name="reddit"):
 def ingest_ogb_raw(spark, name, ogb_name):
     """OGB node datasets from DATA_ROOT/raw/ogb with the library-agnostic loader and official split.
 
-    ogbn-products and ogbn-arxiv are stored in OGB's generic format (processed/data_processed), so no PyG or DGL
+    ogbn-products, ogbn-arxiv and ogbn-mag are stored in OGB's generic format (processed/data_processed), so no PyG or DGL
     conversion is needed. Edges become unique undirected pairs (arxiv's citations are directed).
     """
     from utils.common import _patch_torch_load
@@ -185,10 +185,15 @@ def ingest_ogb_raw(spark, name, ogb_name):
     from ogb.nodeproppred import NodePropPredDataset
     ds = NodePropPredDataset(name=ogb_name, root=os.path.join(DATA_ROOT, "raw", "ogb"))
     graph, label = ds[0]
+    if ogb_name == "ogbn-mag":
+        # papers and their citations only, as OGB's homogeneous GCN / GraphSAGE baselines use ogbn-mag
+        graph = {"num_nodes": graph["num_nodes_dict"]["paper"], "node_feat": graph["node_feat_dict"]["paper"],
+                 "edge_index": graph["edge_index_dict"][("paper", "cites", "paper")]}
+        label = label["paper"]
     n = graph["num_nodes"]
     split = np.array(["none"] * n, dtype=object)
     for k, v in ds.get_idx_split().items():
-        split[v] = {"train": "train", "valid": "valid", "test": "test"}[k]
+        split[v["paper"] if isinstance(v, dict) else v] = {"train": "train", "valid": "valid", "test": "test"}[k]
     ei = graph["edge_index"]
     lo, hi = np.minimum(ei[0], ei[1]), np.maximum(ei[0], ei[1])
     und = np.unique(np.stack([lo[lo != hi], hi[lo != hi]]), axis=1)
@@ -245,7 +250,7 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--dataset", default="DeezerEurope",
                     choices=["DeezerEurope", "WikiCS", "Coauthor-CS",
-                             "Coauthor-Physics", "ogbn-arxiv", "reddit", "ogbn-products"])
+                             "Coauthor-Physics", "ogbn-arxiv", "reddit", "ogbn-products", "ogbn-mag"])
     # Track A: hold out N val and N test undirected edges before Phase 0; tables are stored
     # as <dataset>-lp so they never mix with the full graph's tables.
     ap.add_argument("--link-split", type=int, default=0, metavar="N")
@@ -369,7 +374,7 @@ def main():
         n_nodes, n_edges, n_classes, feat_dim = ingest_deezer(spark, store=DS)
     elif args.dataset == "reddit":
         n_nodes, n_edges, n_classes, feat_dim = ingest_reddit(spark, DS)
-    elif args.dataset in ("ogbn-products", "ogbn-arxiv"):
+    elif args.dataset in ("ogbn-products", "ogbn-arxiv", "ogbn-mag"):
         n_nodes, n_edges, n_classes, feat_dim = ingest_ogb_raw(spark, DS, args.dataset)
     elif args.dataset.startswith("ogbn-"):
         n_nodes, n_edges, n_classes, feat_dim = ingest_ogb(spark, args.dataset, store=DS)
