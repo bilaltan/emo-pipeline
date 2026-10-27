@@ -92,9 +92,11 @@ def spark_resources(sc):
     local = sc.master.startswith("local")
     n = sc._jsc.sc().getExecutorMemoryStatus().size()   # one block manager per executor, plus the driver's
     conf = sc.getConf()
+    slots = sc.master[6:-1] if local and sc.master.startswith("local[") else ""   # local[N]; local[*] = all cores
     return {"spark_master": sc.master,
             "spark_executors": 1 if local else n - 1,
-            "spark_executor_cores": sc.defaultParallelism if local else int(conf.get("spark.executor.cores", "1")),
+            "spark_executor_cores": (int(slots) if slots.isdigit() else os.cpu_count() if slots else 1) if local
+                                    else int(conf.get("spark.executor.cores", "1")),
             "spark_dynamic_allocation": not local and conf.get("spark.dynamicAllocation.enabled", "false") == "true"}
 
 

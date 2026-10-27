@@ -49,6 +49,8 @@ LPA_TOL            = 0.001   # stop when <0.1% of labels move in an iteration
 MERGE_MINOR_COMMUNITIES = False   # CaaN drops them and scores their nodes with the global model (e638064)
 RESOLUTION         = 1.0              # louvain / leiden resolution parameter
 MIN_COMMUNITY_SIZE = 100              # communities smaller than this are minor (local driver --min-size)
+# Split communities above this many members with Louvain on their own subgraph (local driver --refine-members); 0 = off
+REFINE_MEMBERS     = 0
 
 # ── Phase 2 / 3: Partitioning & GNN Training ──────────────────────────────────
 # USE_GLOBAL_MAPPING = True  (RECOMMENDED):
@@ -67,14 +69,14 @@ RUN_PHASE2         = True            # Reuse the completed bounded Phase 2 subgr
 # (retention falls as 1/mod^2), so the run either fails or returns a model
 # trained on a fragment. These phases materialize the graph as shard-addressable
 # Delta blocks so workers read bounded units directly instead.
-RUN_PHASE25        = True             # Shard-addressable graph store (required for 100M+)
+RUN_PHASE25        = False            # not part of LakeGRL's method (Stage 3b reads Phase 2 directly); off since 2026-10-26
 PHASE25_NUM_SHARDS = 512
-RUN_PHASE26        = True             # Bounded source-seed training blocks
+RUN_PHASE26        = False            # Bounded source-seed training blocks
 PHASE26_SEED_BLOCKS = 16
 PHASE26_NEIGHBOR_BLOCKS = 4
 # Reunites the four edge partitions logically per source seed unit and records
 # exact halo/workload statistics. It does not train or materialize adjacency.
-RUN_PHASE27        = True             # Audits block halo/workload before training
+RUN_PHASE27        = False            # Audits block halo/workload before training
 PHASE27_WORKING_SET_HEADROOM = 4.0
 # Initial direct-Delta validation: trains bounded, complete source-seed units
 # without collect_list. This is intentionally a local-block validation, not a
@@ -134,6 +136,9 @@ PHASE3_DIAGNOSTICS = True
 # edges before aggregation; the UDF then enforces these final hard limits.
 # 20,000 (2026-10-25): higher validation accuracy than 10,000 on arxiv, Reddit and products (decide_runs.jsonl).
 PHASE3_MAX_NODES_PER_COMMUNITY = 20000
+# Phase 2 table layout: 'block' groups rows by Stage 3b unit with sqrt-rule row groups (Track B, local default);
+# 'plain' is the layout before Track B (local --p2-plain, no row-group target). Stage 3b reads either.
+STORAGE_LAYOUT = 'block'
 # Units are also split so no unit carries more than this many TRAIN nodes.
 # Cost tracks n_train (corr +0.52), which varied 9.1x across units and made
 # Phase 3 straggler-bound; row count alone does not balance it.

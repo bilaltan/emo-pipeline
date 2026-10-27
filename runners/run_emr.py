@@ -240,6 +240,21 @@ def main():
                         help="S3 Bucket storing experiment code, assets, and output Delta tables")
     parser.add_argument("--s3-prefix", type=str, default="pipeline",
                         help="Prefix/folder within the S3 bucket where code is stored")
+    parser.add_argument("--master", default="yarn",
+                        help="Spark master; local[N] with --local-store runs this runner on one machine (dry run)")
+    parser.add_argument("--local-store", default=None, metavar="DIR",
+                        help="keep the Delta tables under DIR instead of s3://<bucket>/ (local dry run)")
+    parser.add_argument("--layout", default=None, choices=["block", "plain"],
+                        help="Phase 2 table layout (config STORAGE_LAYOUT): block = Track B, plain = before it")
+    parser.add_argument("--s3-emu", default=None, metavar="count",
+                        help="'count': count Stage 3b's GETs and bytes (a separate run from the timing run)")
+    parser.add_argument("--context", default="macro", choices=["macro", "halo", "none"],
+                        help="Stage 3b context: macro = CaaN (the method); halo / none = Stage 3a's variants, "
+                             "which build no driver-side macro-graph")
+    parser.add_argument("--refine-members", type=int, default=None,
+                        help="split communities above N members with Louvain (config REFINE_MEMBERS)")
+    parser.add_argument("--json-out", default="results/icde/emr_runs.jsonl",
+                        help="one JSON record per (dataset, algorithm), as the local driver writes")
     parser.add_argument("--no-install", action="store_true", default=False,
                         help="Skip dynamic package verification/installation on YARN executors")
     parser.add_argument("--executor-instances", type=int, default=None,
@@ -345,7 +360,7 @@ def main():
         pass
 
     # Fallback: Hadoop slaves file
-    if nodes_count < 2:
+    if nodes_count < 1:
         for slaves_file in ['/etc/hadoop/conf/slaves', '/etc/hadoop/conf/workers']:
             if os.path.exists(slaves_file):
                 try:
@@ -356,7 +371,7 @@ def main():
                             break
                 except Exception:
                     pass
-    if nodes_count < 2:
+    if nodes_count < 1:   # unknown; a 1-worker dry-run cluster is 1, not 8
         nodes_count = 8
 
     # 2. Detect per-node hardware (from driver host as proxy)
@@ -512,7 +527,7 @@ def main():
         )
 
     container_gb = executor_mem_gb + executor_overhead_gb
-    if container_gb > usable_node_mem_gb:
+    if container_gb > usable_node_mem_gb and args.master == "yarn":   # local[N] has no executors to size
         raise ValueError(
             f"Requested executor container ({container_gb}g) exceeds usable per-node memory "
             f"budget ({usable_node_mem_gb:.1f}g)"
@@ -601,8 +616,8 @@ def main():
     _omp = str(max(1, int(getattr(args, "omp_threads", None) or 1)))
     spark = SparkSession.builder \
         .appName(f"GRL-{args.experiment_name}") \
-        .config("spark.master", "yarn") \
-        .config("spark.eventLog.enabled", "true") \
+        .config("spark.master", args.master) \
+        .config("spark.eventLog.enabled", str(args.master == "yarn").lower()) \
         .config("spark.driver.memory", driver_mem) \
         .config("spark.driver.maxResultSize", "0") \
         .config("spark.driver.cores", driver_cores) \
@@ -655,7 +670,7 @@ def main():
         .config("spark.hadoop.dfs.datanode.du.reserved", "1073741824") \
         .config("spark.sql.extensions", "io.delta.sql.DeltaSparkSessionExtension") \
         .config("spark.sql.catalog.spark_catalog", "org.apache.spark.sql.delta.catalog.DeltaCatalog") \
-        .config("spark.sql.execution.arrow.pyspark.enabled", "false") \
+        .config("spark.sql.execution.arrow.pyspark.enabled", "true") \
         .config("spark.sql.execution.arrow.pyspark.fallback.enabled", "true") \
         .config("spark.sql.execution.arrow.maxRecordsPerBatch", "500") \
         .config("spark.sql.parquet.columnarReaderBatchSize", "512") \
@@ -665,9 +680,13 @@ def main():
         .config("spark.sql.adaptive.skewJoin.skewedPartitionFactor", "3") \
         .config("spark.sql.adaptive.skewJoin.skewedPartitionThresholdInBytes", "268435456") \
         .config("spark.databricks.delta.retentionDurationCheck.enabled", "false") \
-        .config("spark.databricks.delta.vacuum.parallelDelete.enabled", "true") \
-        .enableHiveSupport() \
-        .getOrCreate()
+        .config("spark.databricks.delta.vacuum.parallelDelete.enabled", "true")
+    if args.master == "yarn":
+        spark = spark.enableHiveSupport()
+    else:   # EMR ships Delta; a local dry run gets it from pip, as the local driver does (and no Hive metastore)
+        from delta import configure_spark_with_delta_pip
+        spark = configure_spark_with_delta_pip(spark)
+    spark = spark.getOrCreate()
 
     sc = spark.sparkContext
     sc.setLogLevel("ERROR")
@@ -1039,7 +1058,7 @@ def main():
             s = os.path.join(script_dir, item)
             d = os.path.join('/tmp/pipeline_stage/pipeline', item)
             if os.path.isdir(s):
-                if item not in ['.git', '__pycache__', 'results', 'pipeline']:
+                if item not in ['.git', '__pycache__', 'results', 'pipeline', 'data', 'papers']:
                     shutil.copytree(s, d)
             else:
                 shutil.copyfile(s, d)
@@ -1221,12 +1240,15 @@ def main():
     learning_rate = args.lr if args.lr is not None else getattr(config, 'GCN_CFG', {}).get('lr', 1e-2)
     drop_out = args.dropout if args.dropout is not None else getattr(config, 'GCN_CFG', {}).get('dropout', 0.5)
 
-    GCN_CFG = {
-        'hidden_dim': h_dim,
-        'num_epochs': n_epochs,
-        'lr':         learning_rate,
-        'dropout':    drop_out,
-    }
+    # the config's seed, weight decay and probe head (the local driver's TRAIN) with the CLI's overrides
+    GCN_CFG = dict(getattr(config, 'GCN_CFG', {}), hidden_dim=h_dim, num_epochs=n_epochs, lr=learning_rate,
+                   dropout=drop_out)
+    MAX_NODES = getattr(config, 'PHASE3_MAX_NODES_PER_COMMUNITY', 20000)   # rows per Stage 3b unit
+    LAYOUT = args.layout or getattr(config, 'STORAGE_LAYOUT', 'block')
+    REFINE = args.refine_members if args.refine_members is not None else getattr(config, 'REFINE_MEMBERS', 0)
+    S3_EMU = args.s3_emu or getattr(config, 'S3_EMU', None)
+    from pipeline.utils.store_io import parse_emu
+    from pipeline.utils.common import spark_resources
     
     baseline_epochs = args.num_epochs if args.num_epochs is not None else getattr(config, 'BASELINE_EPOCHS', n_epochs)
     BASELINE_CFG = {
@@ -1270,10 +1292,60 @@ def main():
     get_paths_fn = lambda dataset, alg=None: get_paths(
         dataset, alg,
         experiment_name=EXPERIMENT_NAME,
-        s3_bucket=args.s3_bucket
+        s3_bucket=args.s3_bucket,
+        local_data_dir=args.local_store
     )
 
     t_pipeline_start = time.time()
+    git_hash = subprocess.run(["git", "rev-parse", "--short", "HEAD"], capture_output=True, text=True,
+                              cwd=os.path.dirname(os.path.dirname(os.path.abspath(__file__)))).stdout.strip()
+
+    def write_run_records(json_out):
+        """One record per (dataset, algorithm, model), with the local driver's field names, so EMR and local runs
+        go through the same analysis. Written right after Stage 3b, before any optional phase can fail."""
+        import json
+        from importlib.metadata import version, PackageNotFoundError
+        versions = {}
+        for pkg in ("torch", "torch_geometric", "pyspark", "igraph", "numpy"):   # EMR's Python 3.9 gets other wheels
+            try:
+                versions[pkg] = version(pkg)
+            except PackageNotFoundError:
+                versions[pkg] = None
+        os.makedirs(os.path.dirname(os.path.abspath(json_out)), exist_ok=True)
+        for ds in DATASETS_TO_RUN:
+            for alg in ALGORITHMS_TO_RUN:
+                for model in config.GNN_MODELS:
+                    d = phase3b_results.get((ds, alg, model))
+                    a = dict(d.attrs) if d is not None and hasattr(d, "attrs") else {}
+                    n_test = int(d["n_test"].sum()) if d is not None and "n_test" in d.columns else None
+                    sec = {str(k): round(v, 2) for k, v in timing.items() if ds in k}
+                    rec = {
+                        "dataset": ds, "algorithm": alg, "model": model, "runner": "run_emr",
+                        "experiment": EXPERIMENT_NAME, "git": git_hash, "epochs": GCN_CFG.get("num_epochs"),
+                        "seed": GCN_CFG.get("seed"), "train": GCN_CFG, "task": TASK_TYPE,
+                        "tiny_comm": TINY_COMM_HANDLING, "merge_minor": getattr(config, "MERGE_MINOR_COMMUNITIES", None),
+                        "min_size": MIN_COMMUNITY_SIZE, "max_nodes": MAX_NODES, "refine_members": REFINE,
+                        "layout": LAYOUT, "context": args.context, "p2_block_cap": phase2_results.get((ds, alg), {}).get("block_cap"),
+                        "p2_rg_mb": phase2_results.get((ds, alg), {}).get("rg_mb"),
+                        "store": args.local_store or f"s3://{args.s3_bucket}",
+                        "n_communities_phase1": phase1_results.get((ds, alg), {}).get("n_comms"),
+                        "n_units_stage3b": len(d) if d is not None else None, "stage3b_n_test_scored": n_test,
+                        "stage3b_node_acc": a.get("weighted_comm_acc"),
+                        "stage3b_node_val_acc": a.get("weighted_comm_val_acc"), "minor_score": a.get("minor_score"),
+                        "s3_emu": S3_EMU, "stage3b_read_s": a.get("read_s"), "stage3b_read_gets": a.get("read_gets"),
+                        "stage3b_read_bytes": a.get("read_bytes"),
+                        "phase_seconds": sec, "total_seconds": round(time.time() - t_pipeline_start, 1),
+                        "yarn_nodes": nodes_count, "node_vcores": node_vcores, "node_mem_gb": round(node_mem_gb, 1),
+                        "executor_memory": executor_mem, "executor_overhead": executor_overhead, "omp_threads": _omp,
+                        "driver_memory": driver_mem, "versions": versions,
+                        **spark_resources(sc),
+                        "timestamp_utc": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+                    }
+                    with open(json_out, "a") as f:
+                        f.write(json.dumps(rec, default=str) + "\n")
+                    print(f"  Run record -> {json_out}: Stage 3b acc {rec['stage3b_node_acc']}, "
+                          f"{rec['n_units_stage3b']} units, {rec['spark_executors']} executors x "
+                          f"{rec['spark_executor_cores']} cores")
 
     # Phase 0: Ingestion
     run_phase0(
@@ -1308,7 +1380,8 @@ def main():
             timing       = timing,
             results      = phase1_results,
             metis_k      = getattr(config, 'METIS_K', 100),
-            force_rerun  = FORCE_RERUN
+            force_rerun  = FORCE_RERUN,
+            refine_members = REFINE
         )
 
         # Phase 1 Stats
@@ -1334,7 +1407,10 @@ def main():
             results             = phase2_results,
             tiny_comm_handling  = TINY_COMM_HANDLING,
             expand_boundary_nodes = EXPAND_BOUNDARY_NODES,
-            force_rerun         = FORCE_RERUN
+            force_rerun         = FORCE_RERUN,
+            # block: rows grouped by Stage 3b unit, sqrt-rule row groups (local default); plain: --p2-plain before Track B
+            block_cap           = MAX_NODES if LAYOUT == 'block' else None,
+            rg_mb               = "auto" if LAYOUT == 'block' else None
         )
 
     # Phase 2.5: Lossless distributed graph-store shards for the direct-parquet
@@ -1494,12 +1570,17 @@ def main():
             task_type          = TASK_TYPE,
             models             = config.GNN_MODELS,
             min_size           = MIN_COMMUNITY_SIZE,
-            max_nodes_per_community = getattr(config, 'PHASE3_MAX_NODES_PER_COMMUNITY', 10000),
+            max_nodes_per_community = MAX_NODES,
             block_oversized     = getattr(config, 'PHASE3_BLOCK_OVERSIZED', True),
             force_rerun        = FORCE_RERUN,
             s3_bucket          = args.s3_bucket,
-            experiment_name    = EXPERIMENT_NAME
+            experiment_name    = EXPERIMENT_NAME,
+            local_data_dir     = args.local_store,
+            tiny_comm_handling = TINY_COMM_HANDLING,   # Stage 3b's own default is 'misc': no CaaN global model
+            s3_emu             = parse_emu(S3_EMU),
+            context            = args.context
         )
+        write_run_records(args.json_out)
 
     # Phase 4: Full-Graph Baseline
     if RUN_PHASE4:
@@ -1736,7 +1817,8 @@ def main():
         phase4g_results = phase4g_results,
         phase4h_results = phase4h_results,
         phase3b_results = phase3b_results,
-        gnn_models      = config.GNN_MODELS
+        gnn_models      = config.GNN_MODELS,
+        local_data_dir  = args.local_store
     )
 
     # SUMMARY — Print final execution report box
@@ -1774,8 +1856,10 @@ def main():
     sys.stderr = original_stderr
     log_file.close()
 
-    # Consolidated output upload to S3 (logs/ and excels/)
+    # Consolidated output upload to S3 (logs/ and excels/); a local dry run writes nothing to S3
     try:
+        if args.local_store:
+            return
         import secrets
         import boto3
         run_id = secrets.token_hex(8)

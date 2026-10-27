@@ -61,6 +61,38 @@ def filesystem(uri, emu=None):
     return _FS[key]
 
 
+def snapshot(uri):
+    """A Delta table's current version read from its _delta_log, without Spark: (pyarrow filesystem, data file
+    paths in that store, version). The store keeps every overwritten version's files until VACUUM, so listing
+    the directory would repeat rows. Starts from the last checkpoint when there is one, then replays the commits."""
+    import json
+    import pyarrow.fs as pafs
+    import pyarrow.parquet as pq
+    from urllib.parse import unquote
+    fs, root = filesystem(uri), to_path(uri)
+    log = f"{root}/_delta_log"
+    names = sorted(i.base_name for i in fs.get_file_info(pafs.FileSelector(log)))
+    live, start = set(), -1
+    if "_last_checkpoint" in names:
+        with fs.open_input_stream(f"{log}/_last_checkpoint") as f:
+            start = int(json.loads(f.read())["version"])
+        for n in names:
+            if n.startswith(f"{start:020d}.checkpoint") and n.endswith(".parquet"):
+                adds = pq.read_table(f"{log}/{n}", filesystem=fs, columns=["add"]).column("add").to_pylist()
+                live.update(unquote(a["path"]) for a in adds if a)
+    commits = [n for n in names if n.endswith(".json") and n[:20].isdigit() and int(n[:20]) > start]
+    for n in commits:
+        with fs.open_input_stream(f"{log}/{n}") as f:
+            for line in f.read().decode().splitlines():
+                a = json.loads(line)
+                if "add" in a:
+                    live.add(unquote(a["add"]["path"]))
+                elif "remove" in a:
+                    live.discard(unquote(a["remove"]["path"]))
+    version = max([int(n[:20]) for n in commits] + [start])
+    return fs, sorted(f"{root}/{p}" for p in live), version
+
+
 class _MeteredFile:
     """A store file whose every read call is one GET: counted, and delayed by latency + bytes / bandwidth."""
 

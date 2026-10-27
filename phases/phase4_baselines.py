@@ -536,9 +536,11 @@ def run_phase4(spark, sc, datasets, dataset_cfg, baseline_cfg, get_paths_fn,
 def run_phase4b(spark, sc, datasets, dataset_cfg, baseline_cfg, get_paths_fn,
                 timing, results, **kwargs):
     """
-    Train one DistDGL (Distributed DGL) baseline on the full graph per dataset.
-    Performs METIS graph partitioning and distributed GNN training simulation.
+    Not DistDGL: single-process DGL on the driver, with a slept "bootstrap" and hard-coded partition and bootstrap
+    times. Its numbers must not be reported as DistDGL (the September tables' DistDGL column came from here).
+    The DistDGL baseline is experiments/distdgl/ (real servers, trainers and METIS parts on the worker nodes).
     """
+    raise NotImplementedError("Phase 4b is a single-process simulation, not DistDGL; use experiments/distdgl/")
     _patch_torch_load()
     import dgl
     import dgl.nn as dglnn
