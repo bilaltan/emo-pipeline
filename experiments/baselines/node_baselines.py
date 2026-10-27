@@ -139,6 +139,10 @@ def main(argv=None):
                                        args.dataset, f"trackA_{args.alg}")
     cfg = dict(TRAIN, epochs=args.epochs, lr=args.lr)
     device = torch.device(args.device)
+    # Cluster-GCN takes thousands of Adam steps; the moments of zero-gradient weights then decay into denormals and
+    # CPU math on them is several times slower (arxiv, 30 epochs: 128.5 s vs 71.2 s, identical accuracy). Every CPU
+    # trainer flushes them: these baselines, Phase 3b and DistDGL.
+    torch.set_flush_denormal(True)
     code = git_hash()
     t0 = time.time()
     x, y, split, edges = load(cache)
@@ -168,7 +172,7 @@ def main(argv=None):
                # whole process so far (Linux reports KiB): the memory one machine needs for this baseline
                "peak_rss_mb": round(resource.getrusage(resource.RUSAGE_SELF).ru_maxrss / 1024),
                "device": torch.cuda.get_device_name() if device.type == "cuda" else "cpu",
-               "threads": torch.get_num_threads(),
+               "threads": torch.get_num_threads(), "flush_denormal": True,
                # Spark only exports the Delta tables (None: cache written before export_cache saved it);
                # training is this one process, no executors
                "export_seconds": meta.get("export_seconds"), "export_spark": meta.get("spark"),

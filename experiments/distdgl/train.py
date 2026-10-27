@@ -74,6 +74,9 @@ def main():
 
     from experiment_config import TRAIN
     cfg = dict(TRAIN, epochs=args.epochs or TRAIN["epochs"], lr=args.lr or TRAIN["lr"])
+    # Thousands of mini-batch steps drive Adam's moments for zero-gradient weights into denormals, and CPU math on
+    # them is ~10x slower: arxiv epochs went 2.2 s -> 23 s after ~30 epochs, 2.2 s throughout with this (same accuracy)
+    torch.set_flush_denormal(True)
     torch.manual_seed(args.seed)
     np.random.seed(args.seed)
 
@@ -167,7 +170,7 @@ def main():
         rec = {"dataset": args.tag, "baseline": "distdgl_sage", "task": "node_classification", "seed": args.seed,
                "train": dict(cfg, seed=args.seed), "fanout": fanout, "batch_size_per_trainer": args.batch_size,
                "trainers": world, "machines": pb.num_partitions(),
-               "omp_threads": int(os.environ.get("OMP_NUM_THREADS", "0") or 0),
+               "omp_threads": int(os.environ.get("OMP_NUM_THREADS", "0") or 0), "flush_denormal": True,
                "val_acc_sampled": best, "val_acc": rv / max(sv, 1), "test_acc": rt / max(st, 1),
                "n_test": int(st), "init_seconds": round(init_s, 1), "train_seconds": round(train_s, 1),
                "val_seconds": round(val_s, 1), "epoch_seconds_mean": round(float(np.mean(epoch_s)), 2),

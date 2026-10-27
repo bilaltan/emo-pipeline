@@ -206,6 +206,7 @@ def _train_minor_global_caan(dataset, gcn_cfg, dataset_cfg, caan_components, mod
     import numpy as np
     import pandas as pd
     import torch
+    torch.set_flush_denormal(True)   # as every CPU trainer (make_caan_udf)
     import torch.nn as nn
     import torch.nn.functional as F
     
@@ -723,6 +724,7 @@ def make_caan_udf(super_nodes_dict_bc, minor_node_to_idx_bc, minor_feats_arr_bc,
             torch.set_num_threads(omp_threads)
         except Exception:
             pass
+        torch.set_flush_denormal(True)   # every CPU trainer does (Cluster-GCN, DistDGL): denormals cost ~10x
         
         t_start = time.time()
         comm_id = int(pdf['community_id'].iloc[0])
