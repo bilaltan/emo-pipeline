@@ -237,8 +237,8 @@ def _hits(want, lo, hi):
     return i < len(want) and want[i] <= hi
 
 
-def unit_dataset(dataset, comm_ids, predicate=None):
-    """The dataset restricted to the files and row groups whose community_id statistics can hold one of comm_ids.
+def unit_dataset(dataset, comm_ids, predicate=None, col="community_id"):
+    """The dataset restricted to the files and row groups whose `col` statistics can hold one of comm_ids.
 
     pyarrow's isin scan does not skip files or row groups by their statistics (Track B, arxiv/LPA: the units read
     87 GB of a 0.24 GB range table, 52 GB with hive_merged), so the reader skips them itself. predicate (the scan
@@ -254,16 +254,16 @@ def unit_dataset(dataset, comm_ids, predicate=None):
         return dataset
     keep = []
     for frag in ([first] if first is not None else []) + list(frags):
-        r = _RANGES.get(frag.path)
+        r = _RANGES.get((frag.path, col))
         if r is None:
             frag.ensure_complete_metadata()
             rgs = []
             for rg in frag.row_groups:
-                st = (rg.statistics or {}).get("community_id")
+                st = (rg.statistics or {}).get(col)
                 rgs.append((st["min"], st["max"]) if st and st.get("min") is not None else None)
             known = [mm for mm in rgs if mm is not None]
             whole = (min(m[0] for m in known), max(m[1] for m in known)) if known and len(known) == len(rgs) else None
-            r = _RANGES[frag.path] = (whole, rgs)
+            r = _RANGES[(frag.path, col)] = (whole, rgs)
         whole, rgs = r
         if whole is not None and not _hits(want, *whole):
             continue

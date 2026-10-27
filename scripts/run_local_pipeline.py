@@ -292,7 +292,7 @@ def main():
     ap.add_argument("--merge-minor", action="store_true",
                     help="Phase 1 moves small-community vertices into a major neighbour community (not in CaaN)")
     ap.add_argument("--reuse-phase1", action="store_true", help="keep an existing communities table")
-    ap.add_argument("--alg", default="louvain", choices=["lpa", "louvain"])
+    ap.add_argument("--alg", default="louvain", choices=["lpa", "louvain", "leiden"])
     ap.add_argument("--seed", type=int, default=0, help="training seed for Phases 3, 3b and 4")
     # Per-unit link AUC is split inside each unit and is not comparable with the baseline; links are
     # scored on the held-out split by experiments/trackA/harness.py.
