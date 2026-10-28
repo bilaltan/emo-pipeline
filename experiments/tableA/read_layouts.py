@@ -4,9 +4,11 @@ Table A, step 2: Stage 3b's storage reads of every work item, from each layout w
 the S3 emulator (utils.store_io: every read call on a data file is one GET of --emu latency + bytes / bandwidth,
 counted). Reads only: no model, no training.
 
-Each work item is read by Stage 3b's own loader (phase3b_caan._load_communities_data_batch: the same columns,
-community / block predicates, statistics pruning and _blk ranges). Row 1 (join) reads its unit's p2_map rows the same
-way, then fetches those ids' features and split from the raw node and mask tables (row groups pruned by id statistics).
+The work items are read in run_phase3b's bins (one task each) by Stage 3b's own loader
+(phase3b_caan._load_communities_data_batch: the same columns, community / block predicates, statistics pruning and
+_blk ranges): a bin without a split community is one batched read, any other bin one read per (community, block).
+Row 1 (join) reads its p2_map rows the same way, then fetches those ids' features and split from the raw node and mask
+tables (row groups pruned by id statistics).
 
 A run is cold: the page cache is dropped (as root) and fresh reader processes start (no cached footers or datasets).
 --runs runs per layout (seeds 0..runs-1 label them; reads are deterministic). Per run: wall time, GETs, bytes, rows,
@@ -73,25 +75,47 @@ def _by_ids(sp, ids, cols):
     return d.to_table(columns=cols, filter=ds.field("id").isin(ids))
 
 
-def _read(item):
-    """One work item as Stage 3b loads it: (key, (node rows, id sum, edges), GETs, bytes)."""
+def bins(items):
+    """run_phase3b's bins (one Spark task each): the work rows (community, block, n_blocks, n_wblocks), communities
+    by rows desc, dealt round-robin into one bin per row up to 2,000 rows, else max(4 x 20 slots, 1000) bins."""
+    rows = [(c, b, n, w) for c, n, w in items for b in range(n)]
+    nb = len(rows) if len(rows) <= 2000 else min(max(4 * 20, 1000), len(rows))
+    return [rows[i::nb] for i in range(nb)]
+
+
+def _use(nodes):
+    """What training needs from a read: the decoded features (row 1: fetched by id from the raw tables first)."""
+    if not len(nodes):
+        return
+    if _W["join"] is not None:
+        ids = np.unique(nodes["id"].to_numpy(np.int64)).tolist()
+        f = _by_ids(_W["join"]["nodes"], ids, ["id", "label", "features"])
+        m = _by_ids(_W["join"]["masks"], ids, ["id", "split"])
+        f.column("features").combine_chunks().flatten().to_numpy(zero_copy_only=False)
+        assert f.num_rows == len(ids) and m.num_rows == len(ids), (f.num_rows, m.num_rows, len(ids))
+    else:
+        np.concatenate(nodes["features"].to_numpy())
+
+
+def _read(rows):
+    """One bin as Stage 3b's _train_bin reads it: one batched read of its communities, or one read per row when it
+    holds a split community. -> ([((c, b), (node rows, id sum, edges))], GETs, bytes)"""
     from pipeline.phases.phase3b_caan import _load_communities_data_batch
     from pipeline.utils import store_io
-    c, n, w = item
     g0, b0 = store_io.STATS["gets"], store_io.STATS["bytes"]
+    check = lambda nodes, edges: (len(nodes), int(nodes["id"].sum()) if len(nodes) else 0, len(edges))  # noqa: E731
     out = []
-    for b in range(n):
-        nodes, edges = _load_communities_data_batch(None, None, [c], block=b, n_blocks=n, layout=_W["lay"],
-                                                    n_wblocks=w)
-        if _W["join"] is not None and len(nodes):     # row 1: the features and split of the unit's rows, by id
-            ids = np.unique(nodes["id"].to_numpy(np.int64)).tolist()
-            f = _by_ids(_W["join"]["nodes"], ids, ["id", "label", "features"])
-            m = _by_ids(_W["join"]["masks"], ids, ["id", "split"])
-            f.column("features").combine_chunks().flatten().to_numpy(zero_copy_only=False)
-            assert f.num_rows == len(ids) and m.num_rows == len(ids), (c, b, f.num_rows, m.num_rows, len(ids))
-        elif len(nodes):
-            np.concatenate(nodes["features"].to_numpy())     # decoded, as training would use it
-        out.append(((c, b), (len(nodes), int(nodes["id"].sum()) if len(nodes) else 0, len(edges))))
+    if max(n for _, _, n, _ in rows) > 1:
+        for c, b, n, w in rows:
+            nodes, edges = _load_communities_data_batch(None, None, [c], block=b, n_blocks=n, layout=_W["lay"],
+                                                        n_wblocks=w)
+            _use(nodes)
+            out.append(((c, b), check(nodes, edges)))
+    else:
+        cs = [c for c, _, _, _ in rows]
+        nodes, edges = _load_communities_data_batch(None, None, cs, layout=_W["lay"])
+        _use(nodes)
+        out = [((c, 0), check(nodes[nodes["community_id"] == c], edges[edges["community_id"] == c])) for c in cs]
     return out, store_io.STATS["gets"] - g0, store_io.STATS["bytes"] - b0
 
 
@@ -124,8 +148,8 @@ def main():
     man = json.load(open(os.path.join(wd, "manifest.json")))
     items = [tuple(int(v) for v in it) for it in man["items"]]
     os.makedirs(os.path.dirname(os.path.abspath(args.out)), exist_ok=True)
-    print(f"== {args.dataset}: {len(items):,} communities, {sum(n for _, n, _ in items):,} work items, "
-          f"{args.procs} readers, GET = {args.emu}", flush=True)
+    print(f"== {args.dataset}: {len(items):,} communities, {sum(n for _, n, _ in items):,} work items in "
+          f"{len(bins(items)):,} Stage 3b bins, {args.procs} readers, GET = {args.emu}", flush=True)
     for layout in args.layouts:
         d = os.path.join(wd, layout)
         meta = json.load(open(os.path.join(d, "meta.json")))
@@ -134,7 +158,7 @@ def main():
                "comm_to_part": {int(k): v for k, v in meta["comm_to_part"].items()} if meta.get("comm_to_part") else None}
         lay["layout"] = {None: "range", "community_id": "hive", "storage_part": "hive_merged"}[lay["nodes"]["part_col"]]
         join_src = {k: spec(u, emu) for k, u in meta["features"].items()} if layout == "join" else None
-        its = [(c, n, w if meta["written_blocks"] else 0) for c, n, w in items]
+        its = bins([(c, n, w if meta["written_blocks"] else 0) for c, n, w in items])
         for seed in range(args.runs):
             if not args.no_drop_caches:
                 drop_caches()
