@@ -44,9 +44,8 @@ def table(ds, writes, reads, out_dir, runs):
     p2 = [r for r in writes if r["dataset"] == ds and r["kind"] == "phase2"]
     if not w:
         return f"**{ds}**: no write records\n"
-    rid = max(r["run_id"] for r in w)
-    w = {r["layout"]: r for r in w if r["run_id"] == rid}
-    p2 = next((r for r in p2 if r["run_id"] == rid), {})
+    w = {r["layout"]: r for r in w}     # latest write per layout: a resumed run rewrites only the missing layouts
+    p2 = p2[-1] if p2 else {}
     rd = {}
     for r in reads:
         if r["dataset"] == ds:
@@ -54,7 +53,7 @@ def table(ds, writes, reads, out_dir, runs):
     rd = {k: v[-runs:] for k, v in rd.items()}
     mv = os.path.join(out_dir, ds, "mv")
     bpr = (bytes_per_row(f"{mv}/p2_nodes"), bytes_per_row(f"{mv}/p2_edges")) if os.path.isdir(mv) else None
-    md5s = {r["check_md5"] for v in rd.values() for r in v}
+    md5s = {r["check_md5"] for v in rd.values() for r in v if r.get("bin_sample", 1) == 1}
     assert len(md5s) <= 1, f"{ds}: work items read different rows across layouts: {md5s}"
     lines = [f"**{ds}** ({p2.get('communities', '?'):,} communities, {p2.get('minor', '?'):,} minor; "
              f"{p2.get('work_items', '?'):,} work items at cap {p2.get('cap', '?'):,}; Phase 2 "
@@ -73,12 +72,15 @@ def table(ds, writes, reads, out_dir, runs):
             cells += ["", ""]
         if key in rd:
             v = rd[key]
+            k = v[-1].get("bin_sample", 1)   # every k-th bin read: bytes and time scaled up by k, marked est.
             assert len({r["bytes"] for r in v}) == 1, f"{ds}/{key}: bytes differ across runs"
             amp = ""
             if bpr:
                 need = v[0]["node_rows"] * bpr[0] + v[0]["edge_rows"] * bpr[1]
                 amp = f", {v[0]['bytes'] / need:.1f}x"
-            cells += [f"{v[0]['bytes'] / 1e9:.2f}{amp}", ms([r["wall_s"] for r in v]) + f" (n={len(v)}, {v[-1]['procs']} readers)"]
+            est = f", est. from 1/{k} of the bins" if k > 1 else ""
+            cells += [f"{v[0]['bytes'] * k / 1e9:.2f}{amp}{' est.' if k > 1 else ''}",
+                      ms([r["wall_s"] * k for r in v]) + f" (n={len(v)}, {v[-1]['procs']} readers{est})"]
         else:
             cells += ["", ""]
         lines.append("| " + " | ".join(cells) + " |")

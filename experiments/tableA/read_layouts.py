@@ -138,6 +138,8 @@ def main():
     ap.add_argument("--runs", type=int, default=3)
     ap.add_argument("--procs", type=int, default=os.cpu_count(), help="reader processes (Stage 3b's task slots)")
     ap.add_argument("--emu", default="20,80", help="utils.store_io.parse_emu: 'LAT_MS,MBPS' per GET, or 'count'")
+    ap.add_argument("--bin-sample", type=int, default=1,
+                    help="read every k-th bin only: an estimate, which summary.py scales up by k (products Z-order)")
     ap.add_argument("--no-drop-caches", action="store_true", help="warm runs (tests only)")
     ap.add_argument("--out-dir", default=os.path.expanduser("~/lakegrl/tableA"))
     ap.add_argument("--out", default="results/tableA/read.jsonl")
@@ -158,13 +160,14 @@ def main():
                "comm_to_part": {int(k): v for k, v in meta["comm_to_part"].items()} if meta.get("comm_to_part") else None}
         lay["layout"] = {None: "range", "community_id": "hive", "storage_part": "hive_merged"}[lay["nodes"]["part_col"]]
         join_src = {k: spec(u, emu) for k, u in meta["features"].items()} if layout == "join" else None
-        its = bins([(c, n, w if meta["written_blocks"] else 0) for c, n, w in items])
+        its = bins([(c, n, w if meta["written_blocks"] else 0) for c, n, w in items])[::args.bin_sample]
         for seed in range(args.runs):
             if not args.no_drop_caches:
                 drop_caches()
             wall, gets, nbytes, check = run(lay, join_src, its, args.procs)
             rec = {"time": time.strftime("%Y-%m-%d %H:%M:%S"), "dataset": args.dataset, "layout": layout, "seed": seed,
                    "cold": not args.no_drop_caches, "emu": args.emu, "procs": args.procs, "wall_s": wall,
+                   "bin_sample": args.bin_sample, "bins": len(its),
                    "gets": gets, "bytes": nbytes, "items": len(check),
                    "node_rows": sum(v[0] for _, v in check), "edge_rows": sum(v[2] for _, v in check),
                    "check_md5": hashlib.md5(json.dumps(check).encode()).hexdigest()}
