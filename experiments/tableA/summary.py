@@ -73,13 +73,16 @@ def table(ds, writes, reads, out_dir, runs):
         if key in rd:
             v = rd[key]
             k = v[-1].get("bin_sample", 1)   # every k-th bin read: bytes and time scaled up by k, marked est.
-            assert len({r["bytes"] for r in v}) == 1, f"{ds}/{key}: bytes differ across runs"
+            nb = [r["bytes"] for r in v]
+            # which reader gets which bin changes per run, and with it a few footer GETs (Reddit: < 0.01 %)
+            assert max(nb) - min(nb) <= 1e-3 * max(nb), f"{ds}/{key}: bytes differ across runs: {nb}"
+            nb = float(np.mean(nb))
             amp = ""
             if bpr:
                 need = v[0]["node_rows"] * bpr[0] + v[0]["edge_rows"] * bpr[1]
-                amp = f", {v[0]['bytes'] / need:.1f}x"
+                amp = f", {nb / need:.1f}x"
             est = f", est. from 1/{k} of the bins" if k > 1 else ""
-            cells += [f"{v[0]['bytes'] * k / 1e9:.2f}{amp}{' est.' if k > 1 else ''}",
+            cells += [f"{nb * k / 1e9:.2f}{amp}{' est.' if k > 1 else ''}",
                       ms([r["wall_s"] * k for r in v]) + f" (n={len(v)}, {v[-1]['procs']} readers{est})"]
         else:
             cells += ["", ""]
