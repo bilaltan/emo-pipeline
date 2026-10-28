@@ -7,5 +7,9 @@ set -eo pipefail
 ds=$1; shift
 cd "$(dirname "$0")/../.."
 bash scripts/wsl_run.sh python experiments/tableA/write_layouts.py --dataset "$ds" --alg leiden --repeats 3 "$@"
-bash scripts/wsl_run.sh python experiments/tableA/read_layouts.py --dataset "$ds" --runs 3
+bash scripts/wsl_run.sh python experiments/tableA/read_layouts.py --dataset "$ds" --runs 3 \
+  --layouts join mv hive merged merged_rg merged_blk
+# Z-order / Liquid: OPTIMIZE puts every community in each ~40M-row edge row group, so a reader peaks at 7.2 GB on
+# Reddit (mv 3.3 GB) and 20 readers crashed the 26 GB WSL VM 3 times; 3 readers fit.
+bash scripts/wsl_run.sh python experiments/tableA/read_layouts.py --dataset "$ds" --runs 3 --layouts zorder liquid --procs 3
 bash scripts/wsl_run.sh python experiments/tableA/summary.py --datasets "$ds" --md "results/tableA/tableA_$ds.md"

@@ -78,7 +78,7 @@ def table(ds, writes, reads, out_dir, runs):
             if bpr:
                 need = v[0]["node_rows"] * bpr[0] + v[0]["edge_rows"] * bpr[1]
                 amp = f", {v[0]['bytes'] / need:.1f}x"
-            cells += [f"{v[0]['bytes'] / 1e9:.2f}{amp}", ms([r["wall_s"] for r in v]) + f" (n={len(v)})"]
+            cells += [f"{v[0]['bytes'] / 1e9:.2f}{amp}", ms([r["wall_s"] for r in v]) + f" (n={len(v)}, {v[-1]['procs']} readers)"]
         else:
             cells += ["", ""]
         lines.append("| " + " | ".join(cells) + " |")
