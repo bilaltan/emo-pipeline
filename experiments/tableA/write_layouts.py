@@ -14,6 +14,7 @@ every layout is written from those rows, so Stage 3b's work items read identical
   merged      row 6  .partitionBy(storage_part): communities with < --min-size members share directories (merge_plan)
   merged_rg   row 7  merged with the sqrt-rule row group (sqrt_rg_mb over mv's bytes and the written blocks)
   merged_blk  row 8  merged_rg with _blk (add_blk, bit-reversed block key): every --cap block is a contiguous run
+  blk_128     diagnostic: merged with _blk but Spark's 128 MB row groups (row 8 without row 7)
 
 Each layout is written --repeats times (every write timed, table deleted first); the last copy stays in
 <out-dir>/<dataset>/<layout> for read_layouts.py. Also written there: manifest.json (Stage 3b's work items, as
@@ -34,7 +35,7 @@ ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)
 sys.path.insert(0, ROOT)
 from experiments.partition_layout_bench import build_spark, storage_stats  # noqa: E402
 
-LAYOUTS = ("mv", "join", "hive", "zorder", "liquid", "merged", "merged_rg", "merged_blk")   # mv first: rows 7-8 size from it
+LAYOUTS = ("mv", "join", "hive", "zorder", "liquid", "merged", "merged_rg", "merged_blk", "blk_128")   # mv first: rows 7-8 size from it
 
 
 def manifest(spark, nodes, stats, cap):
@@ -157,13 +158,13 @@ def main():
                 (df.repartitionByRange(bins, "community_id").sortWithinPartitions("community_id")
                  .write.format("delta").mode("append").save(out))
                 spark.sql(f"OPTIMIZE delta.`{out}`")
-        else:   # merged, merged_rg, merged_blk
+        else:   # merged, merged_rg, merged_blk, blk_128
             fr = frames
-            if layout == "merged_blk":
+            if layout in ("merged_blk", "blk_128"):
                 n_b, e_b, _ = add_blk(spark, nodes, edges, args.cap)
                 fr = {"nodes": n_b, "edges": e_b}
                 meta["written_blocks"] = True
-            if layout != "merged":
+            if layout in ("merged_rg", "merged_blk"):
                 if rg_mb is None:   # mv written by an earlier run
                     rg_mb = sqrt_rg_mb(sum(storage_stats(spark, f"{wd}/mv/p2_{t}")["bytes"] for t in frames),
                                        written_units, args.rg_beta_mb)
@@ -172,7 +173,7 @@ def main():
             try:
                 for name, df in fr.items():
                     write_layout(with_storage_part(spark, df, plan), f"{d}/p2_{name}", "hive_merged", nb)
-                    if layout == "merged_blk":
+                    if layout in ("merged_blk", "blk_128"):
                         spark.sql(f"ALTER TABLE delta.`{d}/p2_{name}` SET TBLPROPERTIES ('{BLOCK_CAP_PROP}' = '{args.cap}')")
             finally:
                 hconf.unset("parquet.block.size")
@@ -193,7 +194,8 @@ def main():
         if layout == "mv":
             rg_mb = sqrt_rg_mb(sum(s["bytes"] for s in st.values()), written_units, args.rg_beta_mb)
         meta.update(layout=layout, rg_mb=rg_mb if layout in ("merged_rg", "merged_blk") else None)
-        json.dump(meta, open(os.path.join(d, "meta.json"), "w"))
+        with open(os.path.join(d, "meta.json"), "w") as fh:   # closed: an unflushed meta.json was lost on 10-27
+            json.dump(meta, fh)
         emit({"kind": "layout", "layout": layout, "write_s": walls, "storage": st,
               "rg_mb": meta["rg_mb"], "table_dir": d})
         tot = {k: sum(s[k] for s in st.values()) for k in ("bytes", "files", "files_lt_1mb")}

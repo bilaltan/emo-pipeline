@@ -18,7 +18,8 @@ ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)
 sys.path.insert(0, ROOT)
 ROWS = [("join", "1. Global join"), ("mv", "2. Default MV"), ("hive", "3. Naive partitionBy"), ("zorder", "4. Z-order"),
         ("liquid", "5. Liquid clustering"), ("merged", "6. Ours: merging"), ("merged_rg", "7. Ours: + sqrt row group"),
-        ("merged_blk", "8. Ours: + block order")]
+        ("merged_blk", "8. Ours: + block order"),
+        ("blk_128", "Diagnostic: 8 with 128 MB row groups")]
 
 
 def ms(v, fmt="{:.1f}"):
@@ -62,6 +63,8 @@ def table(ds, writes, reads, out_dir, runs):
              "| Layout | Write time (s) | Storage (GB), files (< 1 MB) | Bytes read (GB), amplification | "
              "Stage 3b read time (s) |", "| --- | --- | --- | --- | --- |"]
     for key, name in ROWS:
+        if key == "blk_128" and key not in w and key not in rd:   # diagnostic row: arxiv and Reddit only
+            continue
         cells = [name]
         if key in w:
             st = w[key]["storage"].values()
