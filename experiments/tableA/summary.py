@@ -40,7 +40,8 @@ def bytes_per_row(table):
     return tot / max(1, rows)
 
 
-def table(ds, writes, reads, out_dir, runs):
+def table(ds, writes, reads, out_dir, runs, out=None):
+    """One dataset's markdown table; with out (a list), also appends one flat record per layout (--csv)."""
     w = [r for r in writes if r["dataset"] == ds and r["kind"] == "layout"]
     p2 = [r for r in writes if r["dataset"] == ds and r["kind"] == "phase2"]
     if not w:
@@ -66,11 +67,17 @@ def table(ds, writes, reads, out_dir, runs):
         if key == "blk_128" and key not in w and key not in rd:   # diagnostic row: arxiv and Reddit only
             continue
         cells = [name]
+        rec = {"dataset": ds, "row": name, "layout": key, "cap": p2.get("cap"), "communities": p2.get("communities"),
+               "work_items": p2.get("work_items")}
         if key in w:
             st = w[key]["storage"].values()
             cells += [ms(w[key]["write_s"]),
                       f"{sum(s['bytes'] for s in st) / 1e9:.2f}, {sum(s['files'] for s in st):,} "
                       f"({sum(s['files_lt_1mb'] for s in st):,})"]
+            ws = np.asarray(w[key]["write_s"], dtype=float)
+            rec.update(write_s_mean=ws.mean(), write_s_std=ws.std(ddof=1) if len(ws) > 1 else 0.0,
+                       storage_gb=sum(s["bytes"] for s in st) / 1e9, files=sum(s["files"] for s in st),
+                       files_lt_1mb=sum(s["files_lt_1mb"] for s in st), rg_mb=w[key].get("rg_mb"))
         else:
             cells += ["", ""]
         if key in rd:
@@ -87,9 +94,16 @@ def table(ds, writes, reads, out_dir, runs):
             est = f", est. from 1/{k} of the bins" if k > 1 else ""
             cells += [f"{nb * k / 1e9:.2f}{amp}{' est.' if k > 1 else ''}",
                       ms([r["wall_s"] * k for r in v]) + f" (n={len(v)}, {v[-1]['procs']} readers{est})"]
+            rt = np.asarray([r["wall_s"] * k for r in v])
+            rec.update(bytes_gb=nb * k / 1e9, amplification=nb / need if bpr else None, read_s_mean=rt.mean(),
+                       read_s_std=rt.std(ddof=1) if len(rt) > 1 else 0.0, read_runs=len(v), readers=v[-1]["procs"],
+                       bin_sample=k, gets=float(np.mean([r["gets"] for r in v])) * k, node_rows=v[0]["node_rows"],
+                       edge_rows=v[0]["edge_rows"], check_md5=v[0]["check_md5"], emu=v[0]["emu"])
         else:
             cells += ["", ""]
         lines.append("| " + " | ".join(cells) + " |")
+        if out is not None:
+            out.append(rec)
     return "\n".join(lines) + "\n"
 
 
@@ -101,11 +115,19 @@ def main():
     ap.add_argument("--runs", type=int, default=3)
     ap.add_argument("--out-dir", default=os.path.expanduser("~/lakegrl/tableA"))
     ap.add_argument("--md", default="results/tableA/tableA.md")
+    ap.add_argument("--csv", help="also write one row per (dataset, layout), for comparing run sets")
     args = ap.parse_args()
     load = lambda p: [json.loads(l) for l in open(p) if l.strip()] if os.path.exists(p) else []  # noqa: E731
     writes, reads = load(args.writes), load(args.reads)
-    md = "\n".join(table(ds, writes, reads, args.out_dir, args.runs) for ds in args.datasets)
+    rows = []
+    md = "\n".join(table(ds, writes, reads, args.out_dir, args.runs, rows) for ds in args.datasets)
     open(args.md, "w").write(md)
+    if args.csv:
+        import csv
+        with open(args.csv, "w", newline="") as fh:
+            cw = csv.DictWriter(fh, list(dict.fromkeys(k for r in rows for k in r)))
+            cw.writeheader()
+            cw.writerows(rows)
     print(md)
 
 
