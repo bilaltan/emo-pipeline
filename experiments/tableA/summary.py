@@ -107,6 +107,23 @@ def table(ds, writes, reads, out_dir, runs, out=None):
     return "\n".join(lines) + "\n"
 
 
+def halo_table(halo, auc):
+    """Halo sub-table: halo_table.py's storage and cold read (latest per dataset and variant) with Track A M2's
+    cross-community link AUC over seeds (harness.py records, matched to the variant by halo_rows)."""
+    lines = ["| Dataset | Halo | Units | Halo rows | Stored (GB) | Read (GB), GETs | AUC cross, global negatives | "
+             "AUC cross, matched negatives | Seeds |", "| --- | --- | --- | --- | --- | --- | --- | --- | --- |"]
+    for r in {(r["dataset"], r["halo"]): r for r in halo}.values():
+        a = [x for x in auc if x["dataset"] == r["dataset"] and x["halo_rows"] == r["halo_rows"]]
+        a = list({x["seed"]: x for x in a}.values())
+        name = "uncapped" if r["halo"] == "uncapped" else f"capped (R = {r['budget']:g})"
+        lines.append(f"| {r['dataset']} | {name} | {r['units']:,} | {r['halo_rows']:,} | {r['bytes_stored'] / 1e9:.2f} | "
+                     f"{r['bytes_read'] / 1e9:.2f}, {r['gets']:,} | "
+                     f"{ms([x['auc_global_cross'] for x in a], '{:.4f}') if a else ''} | "
+                     f"{ms([x['auc_matched_cross'] for x in a], '{:.4f}') if a else ''} | "
+                     f"{','.join(str(x['seed']) for x in sorted(a, key=lambda x: x['seed']))} |")
+    return "\n".join(lines) + "\n"
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--datasets", nargs="+", default=["ogbn-arxiv", "reddit", "ogbn-products"])
@@ -116,11 +133,14 @@ def main():
     ap.add_argument("--out-dir", default=os.path.expanduser("~/lakegrl/tableA"))
     ap.add_argument("--md", default="results/tableA/tableA.md")
     ap.add_argument("--csv", help="also write one row per (dataset, layout), for comparing run sets")
+    ap.add_argument("--halo", nargs=2, metavar=("HALO_JSONL", "AUC_JSONL"), help="also the halo sub-table")
     args = ap.parse_args()
     load = lambda p: [json.loads(l) for l in open(p) if l.strip()] if os.path.exists(p) else []  # noqa: E731
     writes, reads = load(args.writes), load(args.reads)
     rows = []
     md = "\n".join(table(ds, writes, reads, args.out_dir, args.runs, rows) for ds in args.datasets)
+    if args.halo:
+        md += "\n**Halo sub-table**\n\n" + halo_table(load(args.halo[0]), load(args.halo[1]))
     open(args.md, "w").write(md)
     if args.csv:
         import csv

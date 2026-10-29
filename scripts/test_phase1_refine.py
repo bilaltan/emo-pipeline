@@ -3,6 +3,8 @@
 Phase 1 refinement (phases/phase1_community.refine_communities) on a planted graph: one community of four dense
 clusters (300 vertices each, a few edges between) and one small community. With a 400-member cap the large one
 splits along its clusters, every piece is <= 400, and the small community keeps its id.
+split_units (recursive Leiden, cap on members + 1-hop halo) on the same graph plus a hub of 500 neighbours: every unit
+of two or more vertices has <= 400 rows, the hub is the only unit above, hub-free clusters stay whole.
 
     bash scripts/wsl_run.sh python scripts/test_phase1_refine.py
 """
@@ -13,7 +15,7 @@ import sys
 import numpy as np
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from phases.phase1_community import refine_communities  # noqa: E402
+from phases.phase1_community import closed_nbhd, refine_communities, split_units  # noqa: E402
 
 
 def main():
@@ -50,6 +52,25 @@ def main():
         assert len(ids) == 1, (c, ids)
     print(f"ok: 1 community of {k * size} -> {len(np.unique(out[:k * size]))} pieces of <= 400, "
           f"clusters intact, small community unchanged")
+
+    hub = 0   # in cluster 0, 500 neighbours anywhere
+    edges |= {(hub, int(v)) for v in rng.choice(np.arange(1, n), 500, replace=False)}
+    G = ig.Graph(n=n, edges=sorted(edges))
+    el = np.asarray(G.get_edgelist())
+    s, d = np.r_[el[:, 0], el[:, 1]], np.r_[el[:, 1], el[:, 0]]
+    indices = d[np.argsort(s, kind="stable")]
+    indptr = np.r_[0, np.cumsum(np.bincount(s, minlength=n))]
+    out, st = split_units(G, indptr, indices, memb, 400, 1.0, 0)
+    assert (out[k * size:] == 1).all(), "the small community must keep its id"
+    for u in np.unique(out):
+        vs = np.nonzero(out == u)[0]
+        rows = len(closed_nbhd(indptr, indices, vs))
+        assert rows <= 400 or (len(vs) == 1 and vs[0] == hub), (u, len(vs), rows)
+    assert st["hub_units"] == 1 and st["max_unit_rows"] <= 400, st
+    for c in range(1, k):
+        assert len(np.unique(out[c * size:(c + 1) * size])) == 1, c
+    print(f"ok: split_units, cap 400 rows: {st['units_before']} -> {st['units']} units, max {st['max_unit_rows']} "
+          f"rows, 1 hub unit ({st['max_hub_rows']} rows), hub-free clusters intact")
 
 
 if __name__ == "__main__":

@@ -51,6 +51,88 @@ def refine_communities(G, membership, max_members, resolution=1.0):
     return memb
 
 
+def closed_nbhd(indptr, indices, vs):
+    """N[vs]: vs and every 1-hop neighbour, sorted. Its size is the rows Phase 2 writes for a unit (members + halo)."""
+    import numpy as np
+    vs = np.asarray(vs, dtype=np.int64)
+    st, ln = indptr[vs], indptr[vs + 1] - indptr[vs]
+    off = np.repeat(st - np.cumsum(ln) + ln, ln) + np.arange(int(ln.sum()), dtype=np.int64)
+    return np.unique(np.concatenate([vs, indices[off]]))
+
+
+def split_units(G, indptr, indices, membership, c_max, resolution=1.0, seed=0):
+    """Recursive Leiden, Phase 1's unit rule: no unit may hold more than c_max rows, members + 1-hop halo (|N[S]|).
+
+    A community above c_max is split by Leiden on its own subgraph, and every part still above c_max again; when
+    Leiden returns one part it is rerun at twice the resolution (a high enough resolution always splits >= 2
+    vertices). The leaves, in the tree's preorder, are packed next-fit: a leaf joins the current unit while the
+    union of their closed neighbourhoods stays <= c_max (exact, so siblings that share halo pack tighter than their
+    row counts add up), so every unit is a contiguous run of the tree. The only leaves still above c_max are single
+    vertices with >= c_max neighbours (hubs); each stays a unit of its own and Phase 2 caps its halo (halo_cap).
+    The first unit keeps the community's id, the others get new ids above the old maximum.
+    Returns (membership, stats)."""
+    import leidenalg
+    import numpy as np
+    memb = np.asarray(membership, dtype=np.int64).copy()
+    n_comm = int(memb.max()) + 1 if len(memb) else 0
+    next_id = n_comm
+    deg = np.diff(indptr)
+    members = np.bincount(memb, minlength=n_comm)
+    # rows <= members + edge volume: only those above c_max need the exact count
+    cand = np.nonzero(members + np.bincount(memb, weights=deg, minlength=n_comm) > c_max)[0]
+    order = np.argsort(memb, kind="stable")
+    starts = np.r_[0, np.cumsum(members)]
+    st = dict(split=0, leiden_calls=0, max_resolution=float(resolution), leaves=0, units_before=n_comm,
+              hub_units=0, max_hub_rows=0, max_unit_rows=0)
+    for c in cand:
+        vs = order[starts[c]:starts[c + 1]]
+        if len(closed_nbhd(indptr, indices, vs)) <= c_max:
+            continue
+        st["split"] += 1
+        leaves, stack = [], [vs]
+        while stack:   # depth-first, children in Leiden's order (largest first): leaves come out in preorder
+            p = stack.pop()
+            nb = closed_nbhd(indptr, indices, p)
+            if len(nb) <= c_max or len(p) == 1:
+                leaves.append((p, nb))
+                continue
+            sub, r = G.induced_subgraph(p), float(resolution)
+            for _ in range(40):
+                part = np.asarray(leidenalg.find_partition(sub, leidenalg.RBConfigurationVertexPartition,
+                                                           resolution_parameter=r, seed=seed).membership)
+                st["leiden_calls"] += 1
+                if part.max() > 0:
+                    break
+                r *= 2
+            else:
+                raise RuntimeError(f"Leiden kept {len(p)} vertices of community {c} together up to resolution {r}")
+            st["max_resolution"] = max(st["max_resolution"], r)
+            stack += [p[part == k] for k in range(part.max(), -1, -1)]
+        st["leaves"] += len(leaves)
+        units, cur, cur_nb = [], [], None
+        for p, nb in leaves:
+            u = nb if cur_nb is None else np.union1d(cur_nb, nb)
+            if len(u) <= c_max:
+                cur.append(p)
+                cur_nb = u
+                continue
+            if cur:
+                units.append((cur, cur_nb))
+            cur, cur_nb = [p], nb
+        units.append((cur, cur_nb))
+        for i, (ps, nb) in enumerate(units):
+            if len(nb) > c_max:
+                st["hub_units"] += 1
+                st["max_hub_rows"] = max(st["max_hub_rows"], len(nb))
+            else:
+                st["max_unit_rows"] = max(st["max_unit_rows"], len(nb))
+            if i:
+                memb[np.concatenate(ps)] = next_id
+                next_id += 1
+    st["units"] = int(len(np.unique(memb)))
+    return memb, st
+
+
 def run_phase1(spark, sc, datasets, algorithms, lpa_max_iter, resolution,
                random_seed, min_size, dataset_cfg, get_paths_fn, timing, results, **kwargs):
     """
@@ -214,6 +296,21 @@ def run_phase1(spark, sc, datasets, algorithms, lpa_max_iter, resolution,
                     membership = refine_communities(G, membership, refine, resolution)
                     print(f"  Refined communities above {refine:,} members with Louvain: "
                           f"{n_before:,} -> {int(membership.max()) + 1:,} communities  [{time.time() - t_ref:.1f}s]")
+                c_max = int(kwargs.get('c_max') or 0)
+                if c_max:
+                    t_ref = time.time()
+                    _s = np.concatenate([u_mapped, v_mapped])
+                    indices = np.concatenate([v_mapped, u_mapped])[np.argsort(_s, kind='stable')]
+                    indptr = np.zeros(len(all_nids) + 1, dtype=np.int64)
+                    np.cumsum(np.bincount(_s, minlength=len(all_nids)), out=indptr[1:])
+                    del _s
+                    membership, split_stats = split_units(G, indptr, indices, membership, c_max, resolution,
+                                                          int(random_seed))
+                    del indices, indptr
+                    print(f"  Recursive Leiden, C_max {c_max:,} rows (members + 1-hop halo): {split_stats['split']:,} "
+                          f"communities split, {split_stats['units_before']:,} -> {split_stats['units']:,} units, "
+                          f"{split_stats['hub_units']:,} hub units over C_max (halo capped in Phase 2)  "
+                          f"[{time.time() - t_ref:.1f}s]")
                 # Vertices with no edge are not in the igraph graph; give each its own community so it
                 # is still assigned (Phase 2 packs these tiny ones into shared bins) and scored.
                 import pandas as _pd
@@ -381,6 +478,8 @@ def run_phase1(spark, sc, datasets, algorithms, lpa_max_iter, resolution,
 
             timing[('phase1', dataset, alg)] = runtime
             results[key] = {'n_comms': n_comms, 'runtime_s': runtime, 'nmi': nmi}
+            if alg in ('louvain', 'leiden', 'igraph_lpa') and int(kwargs.get('c_max') or 0):
+                results[key]['split_units'] = split_stats
             print(f"  ✓ [{alg}] {n_comms:,} communities | NMI={nmi:.4f} | {runtime:.1f}s")
             
             communities_df.unpersist()

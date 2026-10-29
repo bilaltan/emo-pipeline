@@ -31,7 +31,7 @@ from phases.phase1_community import run_phase1
 from phases.phase2_subgraph import run_phase2
 from phases.phase3b_caan import run_phase3b
 from phases.phase4_baselines import run_phase4
-from experiment_config import TRAIN, PHASE3_MAX_NODES_PER_COMMUNITY
+from experiment_config import TRAIN, C_MAX, UNIT_SPLIT
 from pipeline.utils.store_io import parse_emu
 from pipeline.utils.common import spark_resources
 
@@ -43,6 +43,9 @@ DATA_ROOT = os.environ.get("DATA_ROOT", "/mnt/c/data")
 LINK_HOLDOUT = {"n_val": 0, "n_test": 0, "seed": 0}
 # Set by --node-split random: the stratified 60/20/20 split this driver used for every dataset before 2026-10-12.
 NODE_SPLIT = {"random": False}
+# Set by --unit-split leiden: Phase 1-2 tables of the recursive Leiden units at C_max sit next to the unsplit ones
+# (communities/leiden_c10000/ beside communities/leiden/); Phase 0's tables are shared.
+UNIT_TAG = {"tag": ""}
 
 
 def paths(dataset, alg=None):
@@ -51,10 +54,11 @@ def paths(dataset, alg=None):
          "link_split": f"{base}/link_split/",
          "checkpoints": f"{STORE}/ckpt/{dataset}/"}
     if alg:
-        p.update({"communities": f"{base}/communities/{alg}/",
-                  "p2_nodes": f"{base}/p2_nodes/{alg}/",
-                  "p2_edges": f"{base}/p2_edges/{alg}/",
-                  "tag": f"local_{dataset}_{alg}"})
+        a = alg + UNIT_TAG["tag"]
+        p.update({"communities": f"{base}/communities/{a}/",
+                  "p2_nodes": f"{base}/p2_nodes/{a}/",
+                  "p2_edges": f"{base}/p2_edges/{a}/",
+                  "tag": f"local_{dataset}_{a}"})
     return p
 
 
@@ -303,7 +307,11 @@ def main():
     ap.add_argument("--model", default="sage",
                     choices=["sage", "gatv2", "gat", "transformer", "arma", "asap"])
     ap.add_argument("--min-size", type=int, default=100)
-    ap.add_argument("--max-nodes", type=int, default=PHASE3_MAX_NODES_PER_COMMUNITY)
+    ap.add_argument("--c-max", "--max-nodes", dest="max_nodes", type=int, default=C_MAX,
+                    help="Maximum Unit Capacity: rows per unit, members + 1-hop halo")
+    ap.add_argument("--unit-split", default=UNIT_SPLIT, choices=["leiden", "idmod"],
+                    help="leiden: Phase 1 recursive Leiden keeps every unit within --c-max; "
+                         "idmod: Stage 3b cuts units above it into id & (n - 1) blocks (ablation)")
     # Small datasets exist to be run whole. The production per-unit edge cap
     # (30k) silently subsamples dense communities, so raise it above anything
     # these graphs contain and assert afterwards that nothing was capped.
@@ -377,6 +385,8 @@ def main():
         DS += "-rand"
     if args.refine_members:
         DS += f"-ref{args.refine_members}"
+    c_split = args.max_nodes if args.unit_split == "leiden" else 0
+    UNIT_TAG["tag"] = f"_c{c_split}" if c_split else ""
     print(f"\n{'='*70}\n  LakeGRL full pipeline — {DS} / {args.alg} / {args.model}\n{'='*70}")
 
     t0 = time.time()
@@ -429,7 +439,7 @@ def main():
                random_seed=42, min_size=args.min_size, dataset_cfg=ds_cfg,
                get_paths_fn=paths, timing=timing, results=r1, force_rerun=not args.reuse_phase1,
                lpa_tol=0.001, merge_minor_communities=args.merge_minor,
-               refine_members=args.refine_members)
+               refine_members=args.refine_members, c_max=c_split)
 
     run_phase2(spark, sc, [DS], [args.alg], use_global_mapping=True,
                min_size=args.min_size, get_paths_fn=paths, timing=timing, results=r2,
@@ -437,7 +447,7 @@ def main():
                partition_table_mode=args.partition_table, p2_layout=args.p2_layout,
                merge_target_rows=args.merge_target_rows,
                rg_mb=args.p2_rg_mb if args.p2_rg_mb == "auto" else float(args.p2_rg_mb) or None,
-               block_cap=None if args.p2_plain else args.max_nodes)
+               block_cap=None if args.p2_plain else args.max_nodes, halo_cap=c_split)
 
     if args.stop_after != "4":
         args.skip_baseline = True
@@ -448,7 +458,8 @@ def main():
                     models=[args.model], task_type=args.task, min_size=args.min_size, force_rerun=True,
                     local_data_dir=STORE, node_loading=args.node_loading, max_nodes_per_community=args.max_nodes,
                     node_patience=args.node_patience, tiny_comm_handling=args.tiny_comm,
-                    s3_emu=parse_emu(args.s3_emu), minor_score=args.minor_score)
+                    s3_emu=parse_emu(args.s3_emu), minor_score=args.minor_score,
+                    block_oversized=args.unit_split == "idmod")
     if args.stop_after != "2" and (args.stage3a or args.stage3a_halo):
         t3 = {}
         run_phase3b(spark, sc, [DS], [args.alg], timing=t3, results=r3,
@@ -503,7 +514,8 @@ def main():
         "dataset": DS, "algorithm": args.alg, "model": args.model, "epochs": args.epochs,
         "seed": args.seed, "train": train, "task": args.task, "stage3a_halo": args.stage3a_halo, "tiny_comm": args.tiny_comm, "merge_minor": args.merge_minor,
         "min_size": args.min_size, "max_nodes": args.max_nodes, "git": git_hash, "node_split": args.node_split,
-        "refine_members": args.refine_members,
+        "refine_members": args.refine_members, "unit_split": args.unit_split,
+        "split_units": r1.get((DS, args.alg), {}).get("split_units"),
         "n_test_all": n_test_all, "stage3a_n_test_scored": scored(r3), "stage3b_n_test_scored": scored(r3b),
         "partition_table": args.partition_table, "node_loading": args.node_loading,
         "p2_layout": args.p2_layout, "p2_rg_mb": r2.get((DS, args.alg), {}).get("rg_mb"),

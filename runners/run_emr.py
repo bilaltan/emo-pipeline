@@ -1244,6 +1244,8 @@ def main():
     GCN_CFG = dict(getattr(config, 'GCN_CFG', {}), hidden_dim=h_dim, num_epochs=n_epochs, lr=learning_rate,
                    dropout=drop_out)
     MAX_NODES = getattr(config, 'PHASE3_MAX_NODES_PER_COMMUNITY', 20000)   # rows per Stage 3b unit
+    # recursive Leiden units within C_max (Phase 1) and hub halos capped (Phase 2); 0 under the idmod ablation
+    C_MAX_SPLIT = MAX_NODES if getattr(config, 'UNIT_SPLIT', 'idmod') == 'leiden' else 0
     LAYOUT = args.layout or getattr(config, 'STORAGE_LAYOUT', 'block')
     REFINE = args.refine_members if args.refine_members is not None else getattr(config, 'REFINE_MEMBERS', 0)
     S3_EMU = args.s3_emu or getattr(config, 'S3_EMU', None)
@@ -1381,7 +1383,8 @@ def main():
             results      = phase1_results,
             metis_k      = getattr(config, 'METIS_K', 100),
             force_rerun  = FORCE_RERUN,
-            refine_members = REFINE
+            refine_members = REFINE,
+            c_max        = C_MAX_SPLIT
         )
 
         # Phase 1 Stats
@@ -1410,7 +1413,8 @@ def main():
             force_rerun         = FORCE_RERUN,
             # block: rows grouped by Stage 3b unit, sqrt-rule row groups (local default); plain: --p2-plain before Track B
             block_cap           = MAX_NODES if LAYOUT == 'block' else None,
-            rg_mb               = "auto" if LAYOUT == 'block' else None
+            rg_mb               = "auto" if LAYOUT == 'block' else None,
+            halo_cap            = C_MAX_SPLIT
         )
 
     # Phase 2.5: Lossless distributed graph-store shards for the direct-parquet

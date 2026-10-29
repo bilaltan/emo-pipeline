@@ -65,7 +65,10 @@ def main():
     ap.add_argument("--dataset", required=True)
     ap.add_argument("--alg", default="leiden")
     ap.add_argument("--min-size", type=int, default=100, help="minor community: fewer members (the paper's K)")
-    ap.add_argument("--cap", type=int, default=10000, help="unit cap in rows (Stage 3b's block split)")
+    ap.add_argument("--cap", type=int, default=10000, help="C_max: rows per unit, members + 1-hop halo")
+    ap.add_argument("--unit-split", default="leiden", choices=["leiden", "idmod"],
+                    help="leiden: the recursive Leiden units of run_local_pipeline --unit-split leiden at --cap "
+                         "(communities/<alg>_c<cap>, hub halos capped); idmod: the unsplit communities, cut by Stage 3b")
     ap.add_argument("--layouts", nargs="+", default=list(LAYOUTS), choices=LAYOUTS)
     ap.add_argument("--repeats", type=int, default=3)
     ap.add_argument("--merge-target-mb", type=float, default=64.0, help="size of a shared directory (merge_plan)")
@@ -95,15 +98,18 @@ def main():
     res = spark_resources(sc)
 
     def emit(rec):
-        rec = {"run_id": run_id, "dataset": args.dataset, "alg": args.alg, "cap": args.cap, "min_size": args.min_size,
+        rec = {"run_id": run_id, "dataset": args.dataset, "alg": args.alg, "cap": args.cap, "unit_split": args.unit_split,
+               "min_size": args.min_size,
                **res, **rec}
         with open(args.out, "a") as fh:
             fh.write(json.dumps(rec) + "\n")
 
+    tag = f"_c{args.cap}" if args.unit_split == "leiden" else ""
+
     def get_paths(dataset, alg=None):
         p = {"nodes": f"{raw}/nodes", "edges": f"{raw}/edges", "masks": f"{raw}/masks", "checkpoints": f"{wd}/_ckpt/"}
         if alg:
-            p.update({"communities": f"{raw}/communities/{args.alg}", "p2_nodes": f"{wd}/{alg}/p2_nodes",
+            p.update({"communities": f"{raw}/communities/{args.alg}{tag}", "p2_nodes": f"{wd}/{alg}/p2_nodes",
                       "p2_edges": f"{wd}/{alg}/p2_edges", "tag": f"tableA_{dataset}_{alg}"})
         return p
 
@@ -113,7 +119,8 @@ def main():
     timing = {}
     run_phase2(spark, sc, [args.dataset], ["phase2"], use_global_mapping=True, min_size=args.min_size,
                get_paths_fn=get_paths, timing=timing, results={}, expand_boundary_nodes=True,
-               tiny_comm_handling="keep", force_rerun=True, p2_layout="range")
+               tiny_comm_handling="keep", force_rerun=True, p2_layout="range",
+               halo_cap=args.cap if args.unit_split == "leiden" else 0)
     nodes = spark.read.format("delta").load(src["p2_nodes"]).persist(StorageLevel.MEMORY_AND_DISK)
     edges = spark.read.format("delta").load(src["p2_edges"]).persist(StorageLevel.MEMORY_AND_DISK)
     n_rows, n_edges = nodes.count(), edges.count()
@@ -121,6 +128,7 @@ def main():
     items = manifest(spark, nodes, stats, args.cap)
     json.dump({"cap": args.cap, "items": items}, open(os.path.join(wd, "manifest.json"), "w"))
     written_units = sum(w for _, _, w in items)
+    assert args.unit_split == "idmod" or written_units == len(items), "a recursive Leiden unit is above --cap"
     bpr = storage_stats(spark, src["p2_nodes"])["bytes"] / max(1, n_rows)
     plan = merge_plan(stats, args.min_size, 0, max(1, int(args.merge_target_mb * (1 << 20) / bpr)))
     bins = min(200, len(stats))

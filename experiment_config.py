@@ -51,6 +51,12 @@ RESOLUTION         = 1.0              # louvain / leiden resolution parameter
 MIN_COMMUNITY_SIZE = 100              # communities smaller than this are minor (local driver --min-size)
 # Split communities above this many members with Louvain on their own subgraph (local driver --refine-members); 0 = off
 REFINE_MEMBERS     = 0
+# Maximum Unit Capacity C_max: rows per training unit, members + 1-hop halo. A hyperparameter (advisor 2026-10-29:
+# 10,000 by default, sensitivity runs 5,000-40,000); Phase 1's split, Phase 2's hub halo cap and Stage 3b's cap.
+C_MAX              = 10_000
+# 'leiden': Phase 1's recursive Leiden (phase1_community.split_units) keeps every unit within C_MAX and Stage 3b never
+# cuts a unit. 'idmod': no Phase 1 split, Stage 3b cuts units above C_MAX into id & (n - 1) blocks (ablation only).
+UNIT_SPLIT         = 'leiden'
 
 # ── Phase 2 / 3: Partitioning & GNN Training ──────────────────────────────────
 # USE_GLOBAL_MAPPING = True  (RECOMMENDED):
@@ -134,8 +140,8 @@ PHASE3_DIAGNOSTICS = True
 
 # Phase 3 graph limits. Spark hash-samples toward the node limit and filters
 # edges before aggregation; the UDF then enforces these final hard limits.
-# 20,000 (2026-10-25): higher validation accuracy than 10,000 on arxiv, Reddit and products (decide_runs.jsonl).
-PHASE3_MAX_NODES_PER_COMMUNITY = 20000
+# 20,000 (2026-10-25) had higher validation accuracy than 10,000 (decide_runs.jsonl); C_MAX since 2026-10-29.
+PHASE3_MAX_NODES_PER_COMMUNITY = C_MAX
 # Phase 2 table layout: 'block' groups rows by Stage 3b unit with sqrt-rule row groups (Track B, local default);
 # 'plain' is the layout before Track B (local --p2-plain, no row-group target). Stage 3b reads either.
 STORAGE_LAYOUT = 'block'
@@ -175,7 +181,8 @@ PHASE3_MLP_PATIENCE = TRAIN['epochs']
 # blocks and streamed via cogroup rather than hash-sampled down and packed into a
 # single Spark row. The old path lost edges as 1/mod^2 on large communities and
 # hit the JVM 2GB array limit, which is why Papers100M could not be processed.
-PHASE3_BLOCK_OVERSIZED = True
+# Only the 'idmod' ablation cuts units: under 'leiden' Phase 1 already keeps every unit within C_MAX.
+PHASE3_BLOCK_OVERSIZED = UNIT_SPLIT == 'idmod'
 
 GCN_HIDDEN_DIM    = TRAIN['hidden_dim']
 GCN_NUM_EPOCHS    = TRAIN['epochs']
