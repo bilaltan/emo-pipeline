@@ -37,7 +37,7 @@ def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("dataset")
     ap.add_argument("--c-max", type=int, nargs="+", default=[10_000])
-    ap.add_argument("--seed", type=int, default=0, help="Phase 1's random_seed (the Table A inputs use 0)")
+    ap.add_argument("--seed", type=int, default=42, help="Phase 1's random_seed (run_local_pipeline passes 42)")
     ap.add_argument("--out", default="results/tableA/unit_probe.jsonl")
     args = ap.parse_args()
     store = os.path.expanduser(f"~/lakegrl/store/{args.dataset}")
