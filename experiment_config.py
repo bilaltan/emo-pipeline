@@ -52,7 +52,8 @@ MIN_COMMUNITY_SIZE = 100              # communities smaller than this are minor 
 # Split communities above this many members with Louvain on their own subgraph (local driver --refine-members); 0 = off
 REFINE_MEMBERS     = 0
 # Maximum Unit Capacity C_max: rows per training unit, members + 1-hop halo. A hyperparameter (advisor 2026-10-29:
-# 10,000 by default, sensitivity runs 5,000-40,000); Phase 1's split, Phase 2's hub halo cap and Stage 3b's cap.
+# 10,000 by default, sensitivity runs 5,000-40,000). Phase 1 splits to <= C_max / 2 core members, Phase 2 caps the
+# halo at the core (1:1, advisor 2026-10-30), so a unit stores <= C_max rows; also Stage 3b's cap.
 C_MAX              = 10_000
 # 'leiden': Phase 1's recursive Leiden (phase1_community.split_units) keeps every unit within C_MAX and Stage 3b never
 # cuts a unit. 'idmod': no Phase 1 split, Stage 3b cuts units above C_MAX into id & (n - 1) blocks (ablation only).

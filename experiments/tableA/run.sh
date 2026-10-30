@@ -11,9 +11,9 @@ rs=${RS:?RS = run set, e.g. rleiden_c10000}
 res=results/tableA/$rs; tab=$HOME/lakegrl/tableA/$rs   # never the idmod_c10000 tables in ~/lakegrl/tableA/<ds>
 mkdir -p "$res"
 bash scripts/wsl_run.sh python experiments/tableA/write_layouts.py --dataset "$ds" --alg leiden --repeats 3 \
-  --layouts mv join hive zorder liquid merged merged_rg merged_blk --out-dir "$tab" --out "$res/write.jsonl" "$@"
+  --layouts mv join hive zorder liquid merged merged_rg merged_blk blk_128 --out-dir "$tab" --out "$res/write.jsonl" "$@"
 bash scripts/wsl_run.sh python experiments/tableA/read_layouts.py --dataset "$ds" --runs 3 --out-dir "$tab" \
-  --out "$res/read.jsonl" --layouts join mv hive merged merged_rg merged_blk
+  --out "$res/read.jsonl" --layouts join mv hive merged merged_rg merged_blk blk_128
 # Z-order / Liquid: OPTIMIZE puts every community in each ~40M-row edge row group, so a reader peaks at 7.2 GB on
 # Reddit (mv 3.3 GB) and 20 readers crashed the 26 GB WSL VM 3 times; 3 readers fit.
 bash scripts/wsl_run.sh python experiments/tableA/read_layouts.py --dataset "$ds" --runs 3 --out-dir "$tab" \

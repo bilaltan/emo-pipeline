@@ -52,7 +52,7 @@ def refine_communities(G, membership, max_members, resolution=1.0):
 
 
 def closed_nbhd(indptr, indices, vs):
-    """N[vs]: vs and every 1-hop neighbour, sorted. Its size is the rows Phase 2 writes for a unit (members + halo)."""
+    """N[vs]: vs and every 1-hop neighbour, sorted: a unit's members + its uncapped 1-hop halo."""
     import numpy as np
     vs = np.asarray(vs, dtype=np.int64)
     st, ln = indptr[vs], indptr[vs + 1] - indptr[vs]
@@ -60,41 +60,34 @@ def closed_nbhd(indptr, indices, vs):
     return np.unique(np.concatenate([vs, indices[off]]))
 
 
-def split_units(G, indptr, indices, membership, c_max, resolution=1.0, seed=0):
-    """Recursive Leiden, Phase 1's unit rule: no unit may hold more than c_max rows, members + 1-hop halo (|N[S]|).
+def split_units(G, membership, max_core, resolution=1.0, seed=0):
+    """Recursive Leiden, Phase 1's unit rule (advisor, 2026-10-30): no unit may hold more than max_core core members.
+    Phase 1 passes max_core = C_max / 2 and Phase 2 caps each unit's halo at its core size (halo_cap), so a unit
+    stores <= C_max rows. A cap on members + uncapped halo instead gave Reddit (mean degree ~490) 4,035 units of
+    ~33 members and ~9,300 halo rows each.
 
-    A community above c_max is split by Leiden on its own subgraph, and every part still above c_max again; when
+    A community above max_core is split by Leiden on its own subgraph, and every part still above it again; when
     Leiden returns one part it is rerun at twice the resolution (a high enough resolution always splits >= 2
-    vertices). The leaves, in the tree's preorder, are packed next-fit: a leaf joins the current unit while the
-    union of their closed neighbourhoods stays <= c_max (exact, so siblings that share halo pack tighter than their
-    row counts add up), so every unit is a contiguous run of the tree. The only leaves still above c_max are single
-    vertices with >= c_max neighbours (hubs); each stays a unit of its own and Phase 2 caps its halo (halo_cap).
-    The first unit keeps the community's id, the others get new ids above the old maximum.
+    vertices, so the recursion ends). The leaves, in the tree's preorder (children largest first), are packed
+    next-fit up to max_core members: every unit is a contiguous run of the tree and pieces of different communities
+    never share a unit. The first unit keeps the community's id, the others get new ids above the old maximum.
     Returns (membership, stats)."""
     import leidenalg
     import numpy as np
     memb = np.asarray(membership, dtype=np.int64).copy()
     n_comm = int(memb.max()) + 1 if len(memb) else 0
     next_id = n_comm
-    deg = np.diff(indptr)
     members = np.bincount(memb, minlength=n_comm)
-    # rows <= members + edge volume: only those above c_max need the exact count
-    cand = np.nonzero(members + np.bincount(memb, weights=deg, minlength=n_comm) > c_max)[0]
     order = np.argsort(memb, kind="stable")
     starts = np.r_[0, np.cumsum(members)]
-    st = dict(split=0, leiden_calls=0, max_resolution=float(resolution), leaves=0, units_before=n_comm,
-              hub_units=0, max_hub_rows=0, max_unit_rows=0)
-    for c in cand:
-        vs = order[starts[c]:starts[c + 1]]
-        if len(closed_nbhd(indptr, indices, vs)) <= c_max:
-            continue
+    st = dict(split=0, leiden_calls=0, max_resolution=float(resolution), leaves=0, units_before=n_comm)
+    for c in np.nonzero(members > max_core)[0]:
         st["split"] += 1
-        leaves, stack = [], [vs]
+        leaves, stack = [], [order[starts[c]:starts[c + 1]]]
         while stack:   # depth-first, children in Leiden's order (largest first): leaves come out in preorder
             p = stack.pop()
-            nb = closed_nbhd(indptr, indices, p)
-            if len(nb) <= c_max or len(p) == 1:
-                leaves.append((p, nb))
+            if len(p) <= max_core:
+                leaves.append(p)
                 continue
             sub, r = G.induced_subgraph(p), float(resolution)
             for _ in range(40):
@@ -109,27 +102,18 @@ def split_units(G, indptr, indices, membership, c_max, resolution=1.0, seed=0):
             st["max_resolution"] = max(st["max_resolution"], r)
             stack += [p[part == k] for k in range(part.max(), -1, -1)]
         st["leaves"] += len(leaves)
-        units, cur, cur_nb = [], [], None
-        for p, nb in leaves:
-            u = nb if cur_nb is None else np.union1d(cur_nb, nb)
-            if len(u) <= c_max:
-                cur.append(p)
-                cur_nb = u
-                continue
-            if cur:
-                units.append((cur, cur_nb))
-            cur, cur_nb = [p], nb
-        units.append((cur, cur_nb))
-        for i, (ps, nb) in enumerate(units):
-            if len(nb) > c_max:
-                st["hub_units"] += 1
-                st["max_hub_rows"] = max(st["max_hub_rows"], len(nb))
-            else:
-                st["max_unit_rows"] = max(st["max_unit_rows"], len(nb))
-            if i:
-                memb[np.concatenate(ps)] = next_id
-                next_id += 1
+        units, cur = [], []
+        for p in leaves:
+            if cur and sum(map(len, cur)) + len(p) > max_core:
+                units.append(cur)
+                cur = []
+            cur.append(p)
+        units.append(cur)
+        for ps in units[1:]:
+            memb[np.concatenate(ps)] = next_id
+            next_id += 1
     st["units"] = int(len(np.unique(memb)))
+    st["max_core"] = int(np.bincount(memb).max()) if len(memb) else 0
     return memb, st
 
 
@@ -299,18 +283,10 @@ def run_phase1(spark, sc, datasets, algorithms, lpa_max_iter, resolution,
                 c_max = int(kwargs.get('c_max') or 0)
                 if c_max:
                     t_ref = time.time()
-                    _s = np.concatenate([u_mapped, v_mapped])
-                    indices = np.concatenate([v_mapped, u_mapped])[np.argsort(_s, kind='stable')]
-                    indptr = np.zeros(len(all_nids) + 1, dtype=np.int64)
-                    np.cumsum(np.bincount(_s, minlength=len(all_nids)), out=indptr[1:])
-                    del _s
-                    membership, split_stats = split_units(G, indptr, indices, membership, c_max, resolution,
-                                                          int(random_seed))
-                    del indices, indptr
-                    print(f"  Recursive Leiden, C_max {c_max:,} rows (members + 1-hop halo): {split_stats['split']:,} "
-                          f"communities split, {split_stats['units_before']:,} -> {split_stats['units']:,} units, "
-                          f"{split_stats['hub_units']:,} hub units over C_max (halo capped in Phase 2)  "
-                          f"[{time.time() - t_ref:.1f}s]")
+                    membership, split_stats = split_units(G, membership, c_max // 2, resolution, int(random_seed))
+                    print(f"  Recursive Leiden, <= {c_max // 2:,} core members per unit (C_max {c_max:,} rows with the "
+                          f"halo capped at the core in Phase 2): {split_stats['split']:,} communities split, "
+                          f"{split_stats['units_before']:,} -> {split_stats['units']:,} units  [{time.time() - t_ref:.1f}s]")
                 # Vertices with no edge are not in the igraph graph; give each its own community so it
                 # is still assigned (Phase 2 packs these tiny ones into shared bins) and scored.
                 import pandas as _pd

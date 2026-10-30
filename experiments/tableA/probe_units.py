@@ -1,17 +1,15 @@
 #!/usr/bin/env python3
 """
-Unit definitions under recursive Leiden at one C_max, measured without Spark: units and rows Phase 2 would store
-(members + 1-hop halo) from a dataset's Leiden communities, for the advisor's choice before the Table A reruns.
+Units and the rows Phase 2 would store (members + 1-hop halo) from a dataset's Leiden communities, without Spark:
 
-    idmod         communities uncut, full halo (what the id mod n set stores; Stage 3b cuts at read time)
-    rows          members + halo <= C_max (split_units, the current default); hubs' halo capped to C_max
-    members-half  members <= C_max / 2, halo cut to C_max - members (most edges into the unit first)
-    members       members <= C_max, halo uncapped
+    idmod  communities uncut, full halo (what the id mod n set stores; Stage 3b cuts at read time)
+    core   Phase 1's rule (advisor, 2026-10-30): recursive Leiden to <= C_max / 2 core members per unit
+           (phase1_community.split_units), Phase 2's halo cap min(members, C_max - members), so <= C_max rows
 
-The member modes run split_units with an empty adjacency, so |N[S]| = members and the same Leiden recursion and
-next-fit packing cap members instead of rows. One record per mode to --out.
+C_max = 20,000 is the advisor's other reading (<= 10,000 core members, halo <= core). One record per (C_max, mode)
+to --out.
 
-    bash scripts/wsl_run.sh python experiments/tableA/probe_units.py reddit --c-max 10000 --out results/tableA/unit_probe.jsonl
+    bash scripts/wsl_run.sh python experiments/tableA/probe_units.py reddit --c-max 10000 20000
 """
 import argparse
 import json
@@ -28,8 +26,6 @@ sys.path.insert(0, ROOT)
 from phases.phase1_community import closed_nbhd, split_units  # noqa: E402
 from pipeline.utils.store_io import snapshot  # noqa: E402
 
-MODES = ["idmod", "rows", "members-half", "members"]
-
 
 def load(url, cols):
     fs, files, _ = snapshot(url)
@@ -40,9 +36,8 @@ def load(url, cols):
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("dataset")
-    ap.add_argument("--c-max", type=int, default=10_000)
-    ap.add_argument("--modes", nargs="+", default=MODES, choices=MODES)
-    ap.add_argument("--seed", type=int, default=42)
+    ap.add_argument("--c-max", type=int, nargs="+", default=[10_000])
+    ap.add_argument("--seed", type=int, default=0, help="Phase 1's random_seed (the Table A inputs use 0)")
     ap.add_argument("--out", default="results/tableA/unit_probe.jsonl")
     args = ap.parse_args()
     store = os.path.expanduser(f"~/lakegrl/store/{args.dataset}")
@@ -65,38 +60,37 @@ def main():
     _, memb0 = np.unique(cm["community_id"][o][np.searchsorted(cm["id"][o], nid)], return_inverse=True)
     print(f"{args.dataset}: {n:,} vertices, {len(indices) // 2:,} edges, {memb0.max() + 1:,} communities "
           f"[{time.time() - t0:.0f} s]", flush=True)
-    no_adj = (np.zeros(n + 1, dtype=np.int64), np.zeros(0, dtype=np.int64))   # |N[S]| = members
-    C, base = args.c_max, None
-    for mode in args.modes:
-        t1 = time.time()
-        st = {}
-        if mode == "idmod":
-            memb = memb0
-        else:
-            cap, adj = (C, (indptr, indices)) if mode == "rows" else (C // 2 if mode == "members-half" else C, no_adj)
-            memb, st = split_units(G, *adj, memb0, cap, 1.0, args.seed)
-        order, cnt = np.argsort(memb, kind="stable"), np.bincount(memb)
-        b = np.r_[0, np.cumsum(cnt)]
-        nz = np.nonzero(cnt)[0]
-        full = np.array([len(closed_nbhd(indptr, indices, order[b[c]:b[c + 1]])) for c in nz])
-        mem = cnt[nz]
-        stored = full if mode in ("idmod", "members") else np.minimum(full, C)
-        if mode == "rows":   # independent check of split_units: only single vertices may exceed C
-            assert np.all(mem[full > C] == 1), "a unit of several vertices is above C_max"
-        base = int(stored.sum()) if mode == "idmod" else base
-        rec = dict(dataset=args.dataset, c_max=C, mode=mode, seed=args.seed, units=len(nz),
-                   units_over_cap=int((full > C).sum()), rows_stored=int(stored.sum()),
-                   rows_vs_idmod=round(stored.sum() / base, 3) if base else None,
-                   halo_kept=round(float((stored - mem).sum() / max(1, (full - mem).sum())), 4),
-                   members_p50=int(np.median(mem)), members_max=int(mem.max()), rows_p50=int(np.median(stored)),
-                   rows_max=int(stored.max()), units_lt100_members=int((mem < 100).sum()),
-                   seconds=round(time.time() - t1, 1),
-                   peak_rss_gb=round(resource.getrusage(resource.RUSAGE_SELF).ru_maxrss / 2**20, 2),
-                   spark="none", **{k: st[k] for k in ("split", "leiden_calls", "max_resolution") if k in st})
-        print(json.dumps(rec), flush=True)
-        os.makedirs(os.path.dirname(args.out) or ".", exist_ok=True)
-        with open(args.out, "a") as fh:
-            fh.write(json.dumps(rec) + "\n")
+    base = None
+    for C in args.c_max:
+        for mode in ("idmod", "core"):
+            if mode == "idmod" and base is not None:
+                continue
+            t1 = time.time()
+            memb, st = (memb0, {}) if mode == "idmod" else split_units(G, memb0, C // 2, 1.0, args.seed)
+            order, cnt = np.argsort(memb, kind="stable"), np.bincount(memb)
+            b = np.r_[0, np.cumsum(cnt)]
+            nz = np.nonzero(cnt)[0]
+            mem = cnt[nz]
+            halo = np.array([len(closed_nbhd(indptr, indices, order[b[c]:b[c + 1]])) for c in nz]) - mem
+            kept = halo if mode == "idmod" else np.minimum(halo, np.minimum(mem, C - mem))
+            rows = mem + kept
+            if mode == "core":
+                assert mem.max() <= C // 2 and rows.max() <= C, (mem.max(), rows.max())
+            else:
+                base = int(rows.sum())
+            rec = dict(dataset=args.dataset, c_max=C if mode == "core" else None, mode=mode, seed=args.seed,
+                       units=len(nz), rows_stored=int(rows.sum()), rows_vs_idmod=round(rows.sum() / base, 3),
+                       halo_kept=round(float(kept.sum() / max(1, halo.sum())), 4),
+                       units_halo_capped=int((kept < halo).sum()),
+                       core_p50=int(np.median(mem)), core_max=int(mem.max()), rows_p50=int(np.median(rows)),
+                       rows_max=int(rows.max()), units_ge_1000_core=int((mem >= 1000).sum()),
+                       units_lt100_core=int((mem < 100).sum()), seconds=round(time.time() - t1, 1),
+                       peak_rss_gb=round(resource.getrusage(resource.RUSAGE_SELF).ru_maxrss / 2**20, 2),
+                       spark="none", **{k: st[k] for k in ("split", "leiden_calls", "max_resolution") if k in st})
+            print(json.dumps(rec), flush=True)
+            os.makedirs(os.path.dirname(args.out) or ".", exist_ok=True)
+            with open(args.out, "a") as fh:
+                fh.write(json.dumps(rec) + "\n")
 
 
 if __name__ == "__main__":

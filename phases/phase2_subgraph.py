@@ -169,26 +169,29 @@ def run_phase2(spark, sc, datasets, algorithms, use_global_mapping, min_size,
                 halo_nodes = e_full.filter(F.col('src_comm') != F.col('dst_comm')).select(F.col('dst').alias('id'), F.col('src_comm').alias('community_id')).distinct()
                 halo_cap = int(kwargs.get('halo_cap') or 0)
                 if halo_cap:
-                    # Phase 1's split_units leaves a unit above C_max only for a vertex with >= C_max neighbours. It
-                    # keeps the C_max - members halo vertices with the most edges into it (ties: lower id), the rule
-                    # of the halo sub-table's capped halo, and loses its edges to the others.
+                    # The 1:1 capped halo (advisor, 2026-10-30): a unit keeps at most min(members, C_max - members)
+                    # halo vertices, those with the most edges into it (ties: lower id; the halo sub-table's capped
+                    # rule, R = 1), and loses its edges to the others. Phase 1 keeps members <= C_max / 2, so a unit
+                    # stores <= C_max rows.
                     from pyspark.sql import Window
                     over = (node_comm.groupBy('community_id').agg(F.count('*').alias('_m'))
                             .join(halo_nodes.groupBy('community_id').agg(F.count('*').alias('_h')), 'community_id')
-                            .filter(F.col('_m') + F.col('_h') > halo_cap).select('community_id', '_m').toPandas())
+                            .withColumn('_m', F.least('_m', F.lit(halo_cap) - F.col('_m')))   # the halo budget
+                            .filter(F.col('_h') > F.col('_m')).select('community_id', '_m').toPandas())
                     if len(over):
                         ob = F.broadcast(spark.createDataFrame(over).withColumnRenamed('community_id', 'src_comm'))
                         drop = (e_full.filter(F.col('src_comm') != F.col('dst_comm')).join(ob, 'src_comm')
                                 .groupBy('src_comm', 'dst', '_m').count()
                                 .withColumn('_r', F.row_number().over(
                                     Window.partitionBy('src_comm').orderBy(F.desc('count'), 'dst')))
-                                .filter(F.col('_r') > halo_cap - F.col('_m'))
+                                .filter(F.col('_r') > F.col('_m'))
                                 .select(F.col('dst').alias('id'), F.col('src_comm').alias('community_id')).cache())
                         n_drop = drop.count()
                         halo_nodes = halo_nodes.join(F.broadcast(drop), ['id', 'community_id'], 'left_anti')
                         edges_part = edges_part.join(F.broadcast(drop.withColumnRenamed('id', 'dst')),
                                                      ['dst', 'community_id'], 'left_anti')
-                        print(f"  Halo cap {halo_cap:,}: {len(over):,} units above it, {n_drop:,} halo rows dropped")
+                        print(f"  Halo capped at min(members, {halo_cap:,} - members): {len(over):,} units above it, "
+                              f"{n_drop:,} halo rows dropped")
                 # is_member separates a community's own vertices from the 1-hop halo
                 # pulled in from neighbours. Without it a halo vertex is
                 # indistinguishable from a member downstream, so it gets scored as a

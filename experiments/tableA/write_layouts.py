@@ -11,10 +11,13 @@ every layout is written from those rows, so Stage 3b's work items read identical
   hive        row 3  .partitionBy("community_id") of the same clustered rows
   zorder      row 4  mv, then OPTIMIZE ZORDER BY (community_id, id) / (community_id, src, dst)
   liquid      row 5  a table created CLUSTER BY the same keys, the rows appended, then OPTIMIZE
-  merged      row 6  .partitionBy(storage_part): communities with < --min-size members share directories (merge_plan)
+  merged      row 6  .partitionBy(storage_part): communities with < --min-size members share directories (merge_plan);
+                     rows in node-id order inside a directory (id / src, dst), so units interleave in shared files
   merged_rg   row 7  merged with the sqrt-rule row group (sqrt_rg_mb over mv's bytes and the written blocks)
-  merged_blk  row 8  merged_rg with _blk (add_blk, bit-reversed block key): every --cap block is a contiguous run
-  blk_128     diagnostic: merged with _blk but Spark's 128 MB row groups (row 8 without row 7)
+  merged_blk  row 8  merged_rg sorted by unit (community_id), then _blk (add_blk, bit-reversed block key; 0 for
+                     every row when no unit is above --cap): every unit, and every --cap block, is a contiguous run
+  blk_128     diagnostic: row 8's order with Spark's 128 MB row groups (unit order without row 7)
+6 -> 7 changes only the row-group size, 7 -> 8 only the order; the diagnostic is 6 -> 8 without 7.
 
 Each layout is written --repeats times (every write timed, table deleted first); the last copy stays in
 <out-dir>/<dataset>/<layout> for read_layouts.py. Also written there: manifest.json (Stage 3b's work items, as
@@ -180,7 +183,8 @@ def main():
             nb = min(200, max(1, plan["storage_part"].nunique()))
             try:
                 for name, df in fr.items():
-                    write_layout(with_storage_part(spark, df, plan), f"{d}/p2_{name}", "hive_merged", nb)
+                    write_layout(with_storage_part(spark, df, plan), f"{d}/p2_{name}", "hive_merged", nb,
+                                 sort=None if meta["written_blocks"] else ["storage_part", *keys[name]])
                     if layout in ("merged_blk", "blk_128"):
                         spark.sql(f"ALTER TABLE delta.`{d}/p2_{name}` SET TBLPROPERTIES ('{BLOCK_CAP_PROP}' = '{args.cap}')")
             finally:

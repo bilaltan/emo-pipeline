@@ -69,8 +69,9 @@ def with_storage_part(spark, df, plan_pdf):
     return df.join(F.broadcast(m), on="community_id", how="inner")
 
 
-def write_layout(df, path, layout, n_bins, user_metadata=None, max_records_per_file=0):
-    """Write a Phase 2 table in the given layout (overwrite, schema and partitioning replaced)."""
+def write_layout(df, path, layout, n_bins, user_metadata=None, max_records_per_file=0, sort=None):
+    """Write a Phase 2 table in the given layout (overwrite, schema and partitioning replaced). sort replaces the
+    row order (default: unit, then _blk), e.g. Table A rows 6-7 keep node-id order."""
     if layout not in LAYOUTS:
         raise ValueError(f"layout must be one of {LAYOUTS}, got {layout!r}")
     key = STORAGE_PART if layout == "hive_merged" else "community_id"
@@ -78,8 +79,9 @@ def write_layout(df, path, layout, n_bins, user_metadata=None, max_records_per_f
         raise ValueError("hive_merged needs a storage_part column (see with_storage_part)")
     order = [key, "community_id"] if key != "community_id" else ["community_id"]
     # _blk (add_blk) groups a community's rows by Phase 3b block, so a block's read skips the rest of the community
-    sort = order + (["_blk"] if "_blk" in df.columns else [])
-    out = df.repartitionByRange(int(n_bins), *order).sortWithinPartitions(*sort)
+    rng = sort or order   # a custom sort also ranges the tasks, so no file is clustered by unit
+    sort = sort or order + (["_blk"] if "_blk" in df.columns else [])
+    out = df.repartitionByRange(int(n_bins), *rng).sortWithinPartitions(*sort)
     w = (out.write.format("delta").mode("overwrite").option("overwriteSchema", "true"))
     if max_records_per_file:
         w = w.option("maxRecordsPerFile", int(max_records_per_file))
