@@ -69,9 +69,11 @@ def with_storage_part(spark, df, plan_pdf):
     return df.join(F.broadcast(m), on="community_id", how="inner")
 
 
-def write_layout(df, path, layout, n_bins, user_metadata=None, max_records_per_file=0, sort=None):
+def write_layout(df, path, layout, n_bins, user_metadata=None, max_records_per_file=0, sort=None,
+                 one_file_per_dir=False):
     """Write a Phase 2 table in the given layout (overwrite, schema and partitioning replaced). sort replaces the
-    row order (default: unit, then _blk), e.g. Table A rows 6-7 keep node-id order."""
+    row order (default: unit, then _blk), e.g. Table A rows 6-7 keep node-id order. one_file_per_dir hashes the tasks
+    on the partition key, so every directory is one file whatever the sort (Table A rows 6-8 share one file split)."""
     if layout not in LAYOUTS:
         raise ValueError(f"layout must be one of {LAYOUTS}, got {layout!r}")
     key = STORAGE_PART if layout == "hive_merged" else "community_id"
@@ -81,7 +83,8 @@ def write_layout(df, path, layout, n_bins, user_metadata=None, max_records_per_f
     # _blk (add_blk) groups a community's rows by Phase 3b block, so a block's read skips the rest of the community
     rng = sort or order   # a custom sort also ranges the tasks, so no file is clustered by unit
     sort = sort or order + (["_blk"] if "_blk" in df.columns else [])
-    out = df.repartitionByRange(int(n_bins), *rng).sortWithinPartitions(*sort)
+    out = (df.repartition(int(n_bins), key) if one_file_per_dir else df.repartitionByRange(int(n_bins), *rng))
+    out = out.sortWithinPartitions(*sort)
     w = (out.write.format("delta").mode("overwrite").option("overwriteSchema", "true"))
     if max_records_per_file:
         w = w.option("maxRecordsPerFile", int(max_records_per_file))
@@ -126,12 +129,13 @@ def blk_range(b, n_r, n_w):
     return lo, lo + (1 << (k - m)) - 1
 
 
-def sqrt_rg_mb(table_bytes, units, beta_mb=0.6):
+def sqrt_rg_mb(table_bytes, units, beta_mb=0.6, floor_mb=0.0):
     """Row-group size (MB, a power of two >= 1/4) from the √ rule s* = √(β T / (2 U)) (Track B P2: regret <= 1.46 on
-    8 stores at every emulated latency). β = per-row-group overhead in bytes, about 0.6 MB locally."""
+    8 stores at every emulated latency). β = per-row-group overhead in bytes, about 0.6 MB locally. floor_mb > 0 is
+    the bounded √ rule max(s*, floor): small row groups cost one GET each at ~20 ms on S3 (advisor 2026-10-31)."""
     import math
     s = math.sqrt(beta_mb * (table_bytes / (1 << 20)) / (2 * max(1, units)))
-    return max(0.25, 2.0 ** round(math.log2(s))) if s > 0 else 0.25
+    return max(floor_mb, max(0.25, 2.0 ** round(math.log2(s))) if s > 0 else 0.25)
 
 
 def block_cap(spark, path):

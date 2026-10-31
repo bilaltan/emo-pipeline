@@ -29,6 +29,7 @@ def check_ranges():
                 via_blk = [x for x in range(256) if lo <= bit_reverse(x & (n_w - 1), k) <= hi]
                 assert set(ids) == set(via_blk) if n_r <= n_w else set(ids) <= set(via_blk), (k, n_r, b)
     assert sqrt_rg_mb(2739 * 2**20, 1827) == 0.5 and sqrt_rg_mb(10, 10**6) == 0.25
+    assert sqrt_rg_mb(2739 * 2**20, 1827, floor_mb=8) == 8 and sqrt_rg_mb(2739 * 2**20, 1827, floor_mb=0.25) == 0.5
 
 
 def read_all(P3, spark, p_alg, read_cap, write_cap):

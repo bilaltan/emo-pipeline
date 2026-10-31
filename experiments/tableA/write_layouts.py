@@ -13,11 +13,14 @@ every layout is written from those rows, so Stage 3b's work items read identical
   liquid      row 5  a table created CLUSTER BY the same keys, the rows appended, then OPTIMIZE
   merged      row 6  .partitionBy(storage_part): communities with < --min-size members share directories (merge_plan);
                      rows in node-id order inside a directory (id / src, dst), so units interleave in shared files
-  merged_rg   row 7  merged with the sqrt-rule row group (sqrt_rg_mb over mv's bytes and the written blocks)
+  merged_rg   row 7  merged with the bounded sqrt-rule row group: max(sqrt_rg_mb over mv's bytes and the written
+                     blocks, --rg-floor-mb)
   merged_blk  row 8  merged_rg sorted by unit (community_id), then _blk (add_blk, bit-reversed block key; 0 for
                      every row when no unit is above --cap): every unit, and every --cap block, is a contiguous run
   blk_128     diagnostic: row 8's order with Spark's 128 MB row groups (unit order without row 7)
-6 -> 7 changes only the row-group size, 7 -> 8 only the order; the diagnostic is 6 -> 8 without 7.
+Rows 6-8 and the diagnostic write one file per storage_part directory (advisor 2026-10-31), so they hold the same rows
+in the same files: 6 -> 7 changes only the row-group size, 7 -> 8 only the order inside a file; the diagnostic is
+6 -> 8 without 7.
 
 Each layout is written --repeats times (every write timed, table deleted first); the last copy stays in
 <out-dir>/<dataset>/<layout> for read_layouts.py. Also written there: manifest.json (Stage 3b's work items, as
@@ -76,6 +79,7 @@ def main():
     ap.add_argument("--repeats", type=int, default=3)
     ap.add_argument("--merge-target-mb", type=float, default=64.0, help="size of a shared directory (merge_plan)")
     ap.add_argument("--rg-beta-mb", type=float, default=0.6)
+    ap.add_argument("--rg-floor-mb", type=float, default=0.0, help="rows 7-8: row groups at least this (MB); 0 = pure √ rule")
     ap.add_argument("--cores", type=int, default=os.cpu_count())
     ap.add_argument("--mem", default="16g")
     ap.add_argument("--spark-tmp", default=None)
@@ -102,7 +106,7 @@ def main():
 
     def emit(rec):
         rec = {"run_id": run_id, "dataset": args.dataset, "alg": args.alg, "cap": args.cap, "unit_split": args.unit_split,
-               "min_size": args.min_size,
+               "min_size": args.min_size, "rg_floor_mb": args.rg_floor_mb,
                **res, **rec}
         with open(args.out, "a") as fh:
             fh.write(json.dumps(rec) + "\n")
@@ -178,13 +182,14 @@ def main():
             if layout in ("merged_rg", "merged_blk"):
                 if rg_mb is None:   # mv written by an earlier run
                     rg_mb = sqrt_rg_mb(sum(storage_stats(spark, f"{wd}/mv/p2_{t}")["bytes"] for t in frames),
-                                       written_units, args.rg_beta_mb)
+                                       written_units, args.rg_beta_mb, args.rg_floor_mb)
                 hconf.set("parquet.block.size", str(int(rg_mb * (1 << 20))))
             nb = min(200, max(1, plan["storage_part"].nunique()))
             try:
                 for name, df in fr.items():
                     write_layout(with_storage_part(spark, df, plan), f"{d}/p2_{name}", "hive_merged", nb,
-                                 sort=None if meta["written_blocks"] else ["storage_part", *keys[name]])
+                                 sort=None if meta["written_blocks"] else ["storage_part", *keys[name]],
+                                 one_file_per_dir=True)
                     if layout in ("merged_blk", "blk_128"):
                         spark.sql(f"ALTER TABLE delta.`{d}/p2_{name}` SET TBLPROPERTIES ('{BLOCK_CAP_PROP}' = '{args.cap}')")
             finally:
@@ -193,6 +198,7 @@ def main():
             meta["comm_to_part"] = {int(c): p for c, p in zip(plan["community_id"], plan["storage_part"])}
         return meta
 
+    split_files = {}   # rows 6-8: files per table, must agree
     for layout in args.layouts:
         d = os.path.join(wd, layout)
         walls = []
@@ -204,7 +210,7 @@ def main():
         tables = sorted(t for t in os.listdir(d) if t.startswith("p2_"))
         st = {t: storage_stats(spark, f"{d}/{t}") for t in tables}
         if layout == "mv":
-            rg_mb = sqrt_rg_mb(sum(s["bytes"] for s in st.values()), written_units, args.rg_beta_mb)
+            rg_mb = sqrt_rg_mb(sum(s["bytes"] for s in st.values()), written_units, args.rg_beta_mb, args.rg_floor_mb)
         meta.update(layout=layout, rg_mb=rg_mb if layout in ("merged_rg", "merged_blk") else None)
         with open(os.path.join(d, "meta.json"), "w") as fh:   # closed: an unflushed meta.json was lost on 10-27
             json.dump(meta, fh)
@@ -214,6 +220,9 @@ def main():
         print(f"  {layout:10s} write {np.mean(walls):7.1f} +/- {np.std(walls, ddof=1) if len(walls) > 1 else 0:5.1f} s"
               f" | {tot['bytes'] / 1e9:6.2f} GB, {tot['files']:,} files ({tot['files_lt_1mb']:,} < 1 MB)"
               + (f" | rg {meta['rg_mb']:g} MB" if meta["rg_mb"] else ""), flush=True)
+        if meta["part_col"] == "storage_part":
+            split_files[layout] = {t: s["files"] for t, s in st.items()}
+            assert len({json.dumps(v) for v in split_files.values()}) == 1, f"rows 6-8 differ in files: {split_files}"
     nodes.unpersist()
     edges.unpersist()
     spark.stop()
