@@ -5,8 +5,8 @@ Table A's halo sub-table (plan: "LakeGRL Table A plan"): 1-hop uncapped vs cappe
 The units and halos are Track A's own (harness.unit_layout: members + every 1-hop neighbour, or at most --budget x
 members of them, those with the most edges into the unit), so the AUC runs (harness M2 with and without
 --halo-budget) train on exactly these rows. Each variant is written as one (id, unit, features) table sorted by
-(unit, id) with the sqrt-rule row group, then every unit is read through the S3 emulator, cold (page cache dropped,
-fresh readers): storage bytes, bytes read, GETs.
+(unit, id) with the sqrt-rule row group (bounded below by --rg-floor-mb), then every unit is read through the S3
+emulator, cold (page cache dropped, fresh readers): storage bytes, bytes read, GETs.
 
 First, the link-leakage rule: no held-out val/test pair (either direction) may be in the cache's training edges, the
 store's edge table or its Phase 2 edge table, since Phases 1 and 2 must never see them. The run stops otherwise.
@@ -50,6 +50,7 @@ def main():
     ap.add_argument("--budget", type=float, default=1.0, help="capped halo: at most budget x members per unit")
     ap.add_argument("--procs", type=int, default=os.cpu_count())
     ap.add_argument("--emu", default="20,80")
+    ap.add_argument("--rg-floor-mb", type=float, default=0.0, help="bounded sqrt rule: row group >= this many MB")
     ap.add_argument("--store", default=os.path.expanduser("~/lakegrl/store"))
     ap.add_argument("--work-dir", default=os.path.expanduser("~/lakegrl/tableA_halo"))
     ap.add_argument("--out", default="results/tableA/halo.jsonl")
@@ -75,7 +76,7 @@ def main():
         o = np.lexsort((ids, units))
         ids, units = ids[o], units[o]
         row_b = 16 + 4 * x.shape[1]
-        rg_rows = max(1, int(sqrt_rg_mb(len(ids) * row_b, len(lay)) * (1 << 20) / row_b))
+        rg_rows = max(1, int(sqrt_rg_mb(len(ids) * row_b, len(lay), floor_mb=args.rg_floor_mb) * (1 << 20) / row_b))
         path = os.path.join(wd, f"{name}.parquet")
         t0 = time.perf_counter()
         stored = write_rows(path, x, ids, units, rg_rows)
@@ -86,8 +87,9 @@ def main():
         rec = {"time": time.strftime("%Y-%m-%d %H:%M:%S"), "dataset": args.dataset, "alg": args.alg, "halo": name,
                "budget": budget, "units": len(lay), "members": int(sum(len(u["members"]) for u in lay.values())),
                "halo_rows": int(sum(len(u["halo"]) for u in lay.values())), "rows_stored": int(len(ids)),
-               "bytes_stored": stored, "rg_rows": rg_rows, "write_s": write_s, "read_wall_s": walls[0], "gets": gets,
-               "bytes_read": nbytes, "emu": args.emu, "procs": args.procs, "leakage": leak}
+               "bytes_stored": stored, "rg_floor_mb": args.rg_floor_mb, "rg_rows": rg_rows, "write_s": write_s,
+               "read_wall_s": walls[0], "gets": gets, "bytes_read": nbytes, "emu": args.emu, "procs": args.procs,
+               "leakage": leak}
         with open(args.out, "a") as fh:
             fh.write(json.dumps(rec) + "\n")
         print(f"  {name:8s} {rec['rows_stored']:,} rows ({rec['halo_rows']:,} halo) | stored {stored / 1e9:.2f} GB | "
