@@ -7,6 +7,8 @@ counted). Reads only: no model, no training.
 The work items are read in run_phase3b's bins (one task each) by Stage 3b's own loader
 (phase3b_caan._load_communities_data_batch: the same columns, community / block predicates, statistics pruning and
 _blk ranges): a bin without a split community is one batched read, any other bin one read per (community, block).
+With --coalesce-minor the minor units of each shared directory are first packed into work items of up to the cap's
+rows (bins(); advisor 2026-11-01) instead of being dealt round-robin, which made every bin re-read the shared file.
 Row 1 (join) reads its p2_map rows the same way, then fetches those ids' features and split from the raw node and mask
 tables (row groups pruned by id statistics).
 
@@ -75,12 +77,43 @@ def _by_ids(sp, ids, cols):
     return d.to_table(columns=cols, filter=ds.field("id").isin(ids))
 
 
-def bins(items):
+def bins(items, comm_to_part=None, minor_rows=None, cap=0):
     """run_phase3b's bins (one Spark task each): the work rows (community, block, n_blocks, n_wblocks), communities
-    by rows desc, dealt round-robin into one bin per row up to 2,000 rows, else max(4 x 20 slots, 1000) bins."""
-    rows = [(c, b, n, w) for c, n, w in items for b in range(n)]
-    nb = len(rows) if len(rows) <= 2000 else min(max(4 * 20, 1000), len(rows))
-    return [rows[i::nb] for i in range(nb)]
+    by rows desc, dealt round-robin into one bin per row up to 2,000 rows, else max(4 x 20 slots, 1000) bins.
+
+    Coalesced unit reading (comm_to_part, minor_rows {community: rows}, cap): the unsplit communities of each shared
+    directory (storage_part m<k>) are packed in community_id order into work items of up to cap rows, each dealt as
+    one row, so a bin reads one contiguous run of the shared file instead of every bin re-reading all of it."""
+    groups = [[(c, b, n, w)] for c, n, w in items for b in range(n)]
+    if comm_to_part and cap:
+        packs = {}
+        for g in groups:
+            c, _, n, _ = g[0]
+            if n == 1 and comm_to_part.get(c, "").startswith("m"):
+                packs.setdefault(comm_to_part[c], []).append(g[0])
+        groups = [g for g in groups if not (g[0][2] == 1 and comm_to_part.get(g[0][0], "").startswith("m"))]
+        # shortcut: the packs are dealt after the own-directory units, not by rows; balance only matters above 2,000
+        for p in sorted(packs):
+            cur, filled = [], 0
+            for r in sorted(packs[p]):
+                if cur and filled + minor_rows[r[0]] > cap:
+                    groups.append(cur)
+                    cur, filled = [], 0
+                cur.append(r)
+                filled += minor_rows[r[0]]
+            groups.append(cur)
+    nb = len(groups) if len(groups) <= 2000 else min(max(4 * 20, 1000), len(groups))
+    return [[r for g in groups[i::nb] for r in g] for i in range(nb)]
+
+
+def shared_rows(d):
+    """{community: node rows} of the shared directories (storage_part=m<k>) of a merged layout's p2_nodes."""
+    import glob
+    import pyarrow.parquet as pq
+    ids = [pq.read_table(f, columns=["community_id"]).column(0).to_numpy()
+           for f in glob.glob(f"{d}/p2_nodes/storage_part=m*/*.parquet")]
+    c, n = np.unique(np.concatenate(ids), return_counts=True) if ids else ([], [])
+    return {int(k): int(v) for k, v in zip(c, n)}
 
 
 def _use(nodes):
@@ -140,6 +173,9 @@ def main():
     ap.add_argument("--emu", default="20,80", help="utils.store_io.parse_emu: 'LAT_MS,MBPS' per GET, or 'count'")
     ap.add_argument("--bin-sample", type=int, default=1,
                     help="read every k-th bin only: an estimate, which summary.py scales up by k (products Z-order)")
+    ap.add_argument("--coalesce-minor", action="store_true",
+                    help="coalesced unit reading: minor units of a shared directory read in work items of up to the "
+                         "manifest's cap rows (bins()); the plan comes from the layout's meta, else merged/")
     ap.add_argument("--no-drop-caches", action="store_true", help="warm runs (tests only)")
     ap.add_argument("--out-dir", default=os.path.expanduser("~/lakegrl/tableA"))
     ap.add_argument("--out", default="results/tableA/read.jsonl")
@@ -160,14 +196,19 @@ def main():
                "comm_to_part": {int(k): v for k, v in meta["comm_to_part"].items()} if meta.get("comm_to_part") else None}
         lay["layout"] = {None: "range", "community_id": "hive", "storage_part": "hive_merged"}[lay["nodes"]["part_col"]]
         join_src = {k: spec(u, emu) for k, u in meta["features"].items()} if layout == "join" else None
-        its = bins([(c, n, w if meta["written_blocks"] else 0) for c, n, w in items])[::args.bin_sample]
+        plan = {}
+        if args.coalesce_minor:   # planning, outside the timed reads: run_phase3b has the rows from Phase 2's stats
+            src = d if meta.get("comm_to_part") else os.path.join(wd, "merged")
+            plan = {"comm_to_part": {int(k): v for k, v in json.load(open(f"{src}/meta.json"))["comm_to_part"].items()},
+                    "minor_rows": shared_rows(src), "cap": man["cap"]}
+        its = bins([(c, n, w if meta["written_blocks"] else 0) for c, n, w in items], **plan)[::args.bin_sample]
         for seed in range(args.runs):
             if not args.no_drop_caches:
                 drop_caches()
             wall, gets, nbytes, check = run(lay, join_src, its, args.procs)
             rec = {"time": time.strftime("%Y-%m-%d %H:%M:%S"), "dataset": args.dataset, "layout": layout, "seed": seed,
                    "cold": not args.no_drop_caches, "emu": args.emu, "procs": args.procs, "wall_s": wall,
-                   "bin_sample": args.bin_sample, "bins": len(its),
+                   "bin_sample": args.bin_sample, "bins": len(its), "coalesce_cap": plan.get("cap", 0),
                    "gets": gets, "bytes": nbytes, "items": len(check),
                    "node_rows": sum(v[0] for _, v in check), "edge_rows": sum(v[2] for _, v in check),
                    "check_md5": hashlib.md5(json.dumps(check).encode()).hexdigest()}

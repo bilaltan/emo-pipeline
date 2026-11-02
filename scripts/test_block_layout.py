@@ -32,6 +32,22 @@ def check_ranges():
     assert sqrt_rg_mb(2739 * 2**20, 1827, floor_mb=8) == 8 and sqrt_rg_mb(2739 * 2**20, 1827, floor_mb=0.25) == 0.5
 
 
+def check_bins():
+    """Table A's Stage 3b bins: unchanged without a plan; coalesced, every work row once, the shared directory's
+    unsplit units in contiguous community_id runs of at most cap rows, the rest one bin each."""
+    from experiments.tableA.read_layouts import bins
+    items = [(c, 2 if c == 0 else 1, 1) for c in range(3000)]           # 0: split, 1-9 own dirs, 10+: shared m0/m1
+    rows = [(c, b, n, w) for c, n, w in items for b in range(n)]
+    assert bins(items) == [rows[i::1000] for i in range(1000)]
+    c2p = {c: f"c{c}" if c < 10 else f"m{c // 1500}" for c in range(3000)}
+    got = bins(items, c2p, {c: 1 + c % 3 for c in range(10, 3000)}, cap=100)
+    assert sorted(r for b in got for r in b) == sorted(rows)
+    packs = [b for b in got if c2p[b[0][0]].startswith("m")]
+    assert all(len({c2p[c] for c, *_ in b}) == 1 and sum(1 + c % 3 for c, *_ in b) <= 100 and
+               [c for c, *_ in b] == list(range(b[0][0], b[-1][0] + 1)) for b in packs)
+    assert len(got) == len(packs) + 11   # 2 blocks of community 0 + 9 own-directory units, one bin each
+
+
 def read_all(P3, spark, p_alg, read_cap, write_cap):
     """Every Stage 3b block of every community: sorted node ids and edges."""
     from pipeline.utils.common import unit_blocks
@@ -52,6 +68,7 @@ def read_all(P3, spark, p_alg, read_cap, write_cap):
 
 def main():
     check_ranges()
+    check_bins()
     from delta import configure_spark_with_delta_pip
     from pyspark.sql import SparkSession
     from phases.phase2_subgraph import run_phase2
