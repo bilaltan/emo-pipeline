@@ -201,7 +201,8 @@ def _load_unit_edges(edges_url, comm_ids, block=None, n_blocks=1, layout=None, n
     return edges_pdf
 
 
-def _train_minor_global_caan(dataset, gcn_cfg, dataset_cfg, caan_components, model_type, task_type='node_classification'):
+def _train_minor_global_caan(dataset, gcn_cfg, dataset_cfg, caan_components, model_type, task_type='node_classification',
+                              device='cpu'):
     import os, time
     import numpy as np
     import pandas as pd
@@ -553,6 +554,13 @@ def _train_minor_global_caan(dataset, gcn_cfg, dataset_cfg, caan_components, mod
         opt   = torch.optim.Adam(model.parameters(), lr=lr, weight_decay=weight_decay)
         crit  = nn.CrossEntropyLoss()
 
+    dev = torch.device(device)
+    if dev.type != 'cpu':   # train on the GPU (Table B), score on the CPU as before
+        if not is_pyg or model_type == 'clusterscl':
+            raise ValueError(f"GPU training is wired for the PyG models (not clusterscl), got {model_type}")
+        model.to(dev)
+        feat_t, lbl_t, pyg_edge_index, train_m, val_m = (t.to(dev) for t in (feat_t, lbl_t, pyg_edge_index, train_m, val_m))
+
     import copy
     def _val_acc():
         model.eval()
@@ -609,6 +617,9 @@ def _train_minor_global_caan(dataset, gcn_cfg, dataset_cfg, caan_components, mod
             best_val, best_state = v, copy.deepcopy(model.state_dict())
     if best_state is not None:
         model.load_state_dict(best_state)
+    if dev.type != 'cpu':
+        model.cpu()
+        feat_t, lbl_t, pyg_edge_index, train_m, val_m = (t.cpu() for t in (feat_t, lbl_t, pyg_edge_index, train_m, val_m))
 
     train_time = time.time() - t_train_start
 
@@ -664,7 +675,7 @@ def make_caan_udf(super_nodes_dict_bc, minor_node_to_idx_bc, minor_feats_arr_bc,
                   minor_labels_arr_bc, minor_splits_arr_bc, minor_ids_arr_bc,
                   caan_adj_bc, node_to_comm_bc, major_comms_bc,
                   base_weights_bc=None, base_embeddings_bc=None, base_node_map_bc=None,
-                  p2_nodes_url=None, p2_edges_url=None, p2_layout=None):
+                  p2_nodes_url=None, p2_edges_url=None, p2_layout=None, device='cpu'):
     def _train_gnn_community_caan_single(pdf, comm_edges_pdf):
         import os, time, subprocess, sys, resource
         import numpy as np
@@ -971,7 +982,10 @@ def make_caan_udf(super_nodes_dict_bc, minor_node_to_idx_bc, minor_feats_arr_bc,
         from pipeline.utils.common import undirected
         mp_src, mp_dst = undirected(src_l_g, dst_l_g, n_nodes)
 
-        is_pyg = (model_type in ('gat', 'gatv2', 'transformer', 'clusterscl', 'arma', 'asap')) or dgl is None
+        # GPU units run PyG, the baselines' SAGE: the worker shim above puts /tmp/.local first on sys.path, where
+        # Phase 3's runtime pip install leaves DGL 1.1.3
+        is_pyg = (model_type in ('gat', 'gatv2', 'transformer', 'clusterscl', 'arma', 'asap') or dgl is None
+                  or device != 'cpu')
         if is_pyg:
             import torch_geometric
             pyg_edge_index = torch.stack([
@@ -1220,7 +1234,7 @@ def make_caan_udf(super_nodes_dict_bc, minor_node_to_idx_bc, minor_feats_arr_bc,
                 opt = torch.optim.Adam(list(model.parameters()) + list(elbo_loss_fn.parameters()), lr=lr, weight_decay=weight_decay)
                 crit = nn.CrossEntropyLoss()
                 
-            elif dgl is None:
+            elif is_pyg:
                 # PyG realization of the default GraphSAGE backbone, used wherever
                 # DGL has no wheel for the platform.
                 from torch_geometric.nn import SAGEConv
@@ -1270,6 +1284,14 @@ def make_caan_udf(super_nodes_dict_bc, minor_node_to_idx_bc, minor_feats_arr_bc,
                     model.load_state_dict(base_weights_bc.value)
                 except Exception:
                     pass
+
+            dev = torch.device(device)
+            if dev.type != 'cpu':   # train on the GPU (Table B), score on the CPU as before
+                if model_type == 'clusterscl' or base_embeddings_bc is not None:
+                    raise ValueError(f"GPU training is wired for the PyG models (not clusterscl, no warm-start "
+                                     f"embeddings), got {model_type}")
+                model.to(dev)
+                feat_t, lbl_t, pyg_edge_index, train_m, val_m = (t.to(dev) for t in (feat_t, lbl_t, pyg_edge_index, train_m, val_m))
 
             # Embedding Regularization setup
             valid_emb_mask = None
@@ -1386,6 +1408,9 @@ def make_caan_udf(super_nodes_dict_bc, minor_node_to_idx_bc, minor_feats_arr_bc,
                     best_val_acc, best_state = v, _copy.deepcopy(model.state_dict())
             if best_state is not None:
                 model.load_state_dict(best_state)
+            if dev.type != 'cpu':
+                model.cpu()
+                feat_t, lbl_t, pyg_edge_index, train_m, val_m = (t.cpu() for t in (feat_t, lbl_t, pyg_edge_index, train_m, val_m))
             node_train_time = time.time() - t_node_start
             
             model.eval()
@@ -2358,7 +2383,8 @@ def run_phase3b(spark, sc, datasets, algorithms, use_global_mapping,
                     dataset_cfg=dataset_cfg,
                     caan_components=caan_components,
                     model_type=model_type,
-                    task_type=task_type
+                    task_type=task_type,
+                    device=kwargs.get('device', 'cpu')
                 )
                 
                 # 2. Driver-side Community Binning
@@ -2462,7 +2488,8 @@ def run_phase3b(spark, sc, datasets, algorithms, use_global_mapping,
                     base_node_map_bc=base_node_map_bc,
                     p2_nodes_url=p_alg['p2_nodes'],
                     p2_edges_url=p_alg['p2_edges'],
-                    p2_layout=p2_layout
+                    p2_layout=p2_layout,
+                    device=kwargs.get('device', 'cpu')
                 )
                 
                 sc.setJobDescription(f'phase3b_{dataset}_{alg}_{model_type}')

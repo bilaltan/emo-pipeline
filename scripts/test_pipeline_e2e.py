@@ -121,7 +121,7 @@ def main():
                 gcn_cfg={"hidden_dim": 32, "num_epochs": 5, "lr": 0.01, "dropout": 0.3},
                 get_paths_fn=paths, timing=timing, results=p3b_results, models=["sage"], task_type="both",
                 min_size=10, force_rerun=True, max_nodes_per_community=int(os.environ.get("E2E_MAX_NODES", 10000)),
-                local_data_dir=ROOT, context="macro")
+                local_data_dir=ROOT, context="macro", device=os.environ.get("E2E_DEVICE", "cpu"))
 
     print(f"\n{'-'*66}\n  END-TO-END CHECKS\n{'-'*66}")
     checks = []

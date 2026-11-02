@@ -324,6 +324,7 @@ def main():
     # Local mode has no executors: local[N] is N worker threads in the driver
     # JVM. Units train one-per-core, so N sets how many run concurrently.
     ap.add_argument("--cores", type=int, default=4)
+    ap.add_argument("--device", default="cpu", help="Stage 3a/3b unit and global training (cuda: Table B, advisor 11-02)")
     ap.add_argument("--driver-mem", default="8g")
     ap.add_argument("--skip-baseline", action="store_true")
     ap.add_argument("--force-ingest", action="store_true",
@@ -459,7 +460,7 @@ def main():
                     local_data_dir=STORE, node_loading=args.node_loading, max_nodes_per_community=args.max_nodes,
                     node_patience=args.node_patience, tiny_comm_handling=args.tiny_comm,
                     s3_emu=parse_emu(args.s3_emu), minor_score=args.minor_score,
-                    block_oversized=args.unit_split == "idmod")
+                    block_oversized=args.unit_split == "idmod", device=args.device)
     if args.stop_after != "2" and (args.stage3a or args.stage3a_halo):
         t3 = {}
         run_phase3b(spark, sc, [DS], [args.alg], timing=t3, results=r3,
@@ -514,7 +515,7 @@ def main():
         "dataset": DS, "algorithm": args.alg, "model": args.model, "epochs": args.epochs,
         "seed": args.seed, "train": train, "task": args.task, "stage3a_halo": args.stage3a_halo, "tiny_comm": args.tiny_comm, "merge_minor": args.merge_minor,
         "min_size": args.min_size, "max_nodes": args.max_nodes, "git": git_hash, "node_split": args.node_split,
-        "refine_members": args.refine_members, "unit_split": args.unit_split,
+        "refine_members": args.refine_members, "unit_split": args.unit_split, "device": args.device,
         "split_units": r1.get((DS, args.alg), {}).get("split_units"),
         "n_test_all": n_test_all, "stage3a_n_test_scored": scored(r3), "stage3b_n_test_scored": scored(r3b),
         "partition_table": args.partition_table, "node_loading": args.node_loading,
