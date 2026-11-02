@@ -8,7 +8,8 @@ The work items are read in run_phase3b's bins (one task each) by Stage 3b's own 
 (phase3b_caan._load_communities_data_batch: the same columns, community / block predicates, statistics pruning and
 _blk ranges): a bin without a split community is one batched read, any other bin one read per (community, block).
 With --coalesce-minor the minor units of each shared directory are first packed into work items of up to the cap's
-rows (bins(); advisor 2026-11-01) instead of being dealt round-robin, which made every bin re-read the shared file.
+rows (utils.partition_layout.stage3b_bins, as run_phase3b; advisor 2026-11-01) instead of being dealt round-robin,
+which made every bin re-read the shared file.
 Row 1 (join) reads its p2_map rows the same way, then fetches those ids' features and split from the raw node and mask
 tables (row groups pruned by id statistics).
 
@@ -31,6 +32,8 @@ import numpy as np
 
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 sys.path.insert(0, ROOT)
+
+from pipeline.utils.partition_layout import stage3b_bins as bins  # noqa: E402  (run_phase3b's own bins, 20 slots)
 
 LAYOUTS = ("join", "mv", "hive", "zorder", "liquid", "merged", "merged_rg", "merged_blk", "blk_128")
 
@@ -75,35 +78,6 @@ def _by_ids(sp, ids, cols):
     from pipeline.utils.partition_layout import unit_dataset
     d = unit_dataset(_layout_dataset(sp), ids, ds.scalar(True), col="id")
     return d.to_table(columns=cols, filter=ds.field("id").isin(ids))
-
-
-def bins(items, comm_to_part=None, minor_rows=None, cap=0):
-    """run_phase3b's bins (one Spark task each): the work rows (community, block, n_blocks, n_wblocks), communities
-    by rows desc, dealt round-robin into one bin per row up to 2,000 rows, else max(4 x 20 slots, 1000) bins.
-
-    Coalesced unit reading (comm_to_part, minor_rows {community: rows}, cap): the unsplit communities of each shared
-    directory (storage_part m<k>) are packed in community_id order into work items of up to cap rows, each dealt as
-    one row, so a bin reads one contiguous run of the shared file instead of every bin re-reading all of it."""
-    groups = [[(c, b, n, w)] for c, n, w in items for b in range(n)]
-    if comm_to_part and cap:
-        packs = {}
-        for g in groups:
-            c, _, n, _ = g[0]
-            if n == 1 and comm_to_part.get(c, "").startswith("m"):
-                packs.setdefault(comm_to_part[c], []).append(g[0])
-        groups = [g for g in groups if not (g[0][2] == 1 and comm_to_part.get(g[0][0], "").startswith("m"))]
-        # shortcut: the packs are dealt after the own-directory units, not by rows; balance only matters above 2,000
-        for p in sorted(packs):
-            cur, filled = [], 0
-            for r in sorted(packs[p]):
-                if cur and filled + minor_rows[r[0]] > cap:
-                    groups.append(cur)
-                    cur, filled = [], 0
-                cur.append(r)
-                filled += minor_rows[r[0]]
-            groups.append(cur)
-    nb = len(groups) if len(groups) <= 2000 else min(max(4 * 20, 1000), len(groups))
-    return [[r for g in groups[i::nb] for r in g] for i in range(nb)]
 
 
 def shared_rows(d):

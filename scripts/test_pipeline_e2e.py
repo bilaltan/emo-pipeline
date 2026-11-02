@@ -97,9 +97,12 @@ def main():
 
     timing, p2_results, p3_results = {}, {}, {}
 
+    # E2E_P2_LAYOUT=hive_merged: all N_COMM communities (PER_COMM < 100 members) share one directory, m0
+    layout = os.environ.get("E2E_P2_LAYOUT", "range")
     run_phase2(spark, spark.sparkContext, ["synth"], ["louvain"], use_global_mapping=True,
                min_size=10, get_paths_fn=paths, timing=timing, results=p2_results,
-               expand_boundary_nodes=True, tiny_comm_handling="drop", force_rerun=True)
+               expand_boundary_nodes=True, tiny_comm_handling="drop", force_rerun=True,
+               p2_layout=layout, merge_minor_members=100)
 
     run_phase3(spark, spark.sparkContext, ["synth"], ["louvain"], use_global_mapping=True,
                dataset_cfg={"synth": {"in_feats": FEAT_DIM, "num_classes": N_CLASSES}},
@@ -128,6 +131,9 @@ def main():
                         else "one unit per community when under the cap"),
                        (units > N_COMM) if splitting else (units == N_COMM),
                        f"{units} units from {N_COMM} communities (cap {cap})"))
+        if layout == "hive_merged" and not splitting:
+            checks.append(("shared directory's units read as one work item", int(a.get("n_bins", 0)) == 1,
+                           f"{a.get('n_bins')} bin(s) for {units} units in m0 (cap {cap})"))
         checks.append(("every vertex retained across units",
                        int(a.get("total_nodes", 0) or df['n_nodes'].iloc[0]) >= n,
                        f"{int(df['n_nodes'].iloc[0])} of {n} vertices"))

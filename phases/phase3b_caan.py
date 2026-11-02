@@ -2410,14 +2410,21 @@ def run_phase3b(spark, sc, datasets, algorithms, use_global_mapping,
                           f"(cap {max_nodes_per_community:,} rows/unit); {_n_split} oversized split "
                           f"(largest community {_big:,} rows incl. halo).")
 
-                num_comms = len(work)
-                if num_comms <= 2000:
-                    num_bins = num_comms
-                else:
-                    default_para = sc.defaultParallelism
-                    num_bins = min(max(default_para * 4, 1000), num_comms)
-                work['bin_id'] = [i % num_bins for i in range(len(work))]
-                
+                # snapshot file lists + partitioning of the Phase 2 tables, so the workers read the current snapshot
+                # only, in any p2_layout; on hive_merged the bins read each shared directory's minor units in packs
+                # of up to the cap's rows (stage3b_bins) instead of every bin re-reading the shared file
+                p2_layout = _p2_table_layout(spark, p_alg, emu=s3_emu)
+                from pipeline.utils.partition_layout import stage3b_bins
+                _bins = stage3b_bins(
+                    [(int(c), int(n), 0) for c, n in zip(comms_node_counts_df['community_id'],
+                                                          comms_node_counts_df['_n_blocks'])],
+                    p2_layout['comm_to_part'],
+                    {int(c): int(n) for c, n in zip(comms_node_counts_df['community_id'], comms_node_counts_df['count'])},
+                    cap=max_nodes_per_community, slots=sc.defaultParallelism)
+                num_bins = len(_bins)
+                _bin_of = {(c, b): i for i, rows in enumerate(_bins) for c, b, _, _ in rows}
+                work['bin_id'] = [_bin_of[(int(c), int(b))] for c, b in zip(work['community_id'], work['_block'])]
+
                 # blocks each community's _blk was written with (Phase 2 block_cap), for the loaders' range
                 from pipeline.utils.partition_layout import block_cap as _p2_block_cap
                 from pipeline.utils.common import unit_blocks as _unit_blocks
@@ -2455,9 +2462,7 @@ def run_phase3b(spark, sc, datasets, algorithms, use_global_mapping,
                     base_node_map_bc=base_node_map_bc,
                     p2_nodes_url=p_alg['p2_nodes'],
                     p2_edges_url=p_alg['p2_edges'],
-                    # snapshot file lists + partitioning of the Phase 2 tables, so the
-                    # workers read the current snapshot only, in any p2_layout
-                    p2_layout=_p2_table_layout(spark, p_alg, emu=s3_emu)
+                    p2_layout=p2_layout
                 )
                 
                 sc.setJobDescription(f'phase3b_{dataset}_{alg}_{model_type}')
@@ -2506,6 +2511,7 @@ def run_phase3b(spark, sc, datasets, algorithms, use_global_mapping,
                 results[key].attrs['weighted_comm_link_auc'] = weighted_comm_link_auc
                 results[key].attrs['wall_time_s'] = elapsed
                 results[key].attrs['s3_emu'] = s3_emu
+                results[key].attrs['n_bins'] = num_bins
                 results[key].attrs.update(minor_acc, minor_score=minor_score,
                                           weighted_comm_val_acc=minor_acc[f'val_acc_minor_{minor_score}'])
                 for _c in READ_COLS:

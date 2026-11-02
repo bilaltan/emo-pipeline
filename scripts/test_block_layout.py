@@ -33,12 +33,13 @@ def check_ranges():
 
 
 def check_bins():
-    """Table A's Stage 3b bins: unchanged without a plan; coalesced, every work row once, the shared directory's
-    unsplit units in contiguous community_id runs of at most cap rows, the rest one bin each."""
-    from experiments.tableA.read_layouts import bins
+    """Phase 3b's bins (stage3b_bins, also Table A's): unchanged without a plan; coalesced, every work row once, the
+    shared directory's unsplit units in contiguous community_id runs of at most cap rows, the rest one bin each."""
+    from utils.partition_layout import stage3b_bins as bins
     items = [(c, 2 if c == 0 else 1, 1) for c in range(3000)]           # 0: split, 1-9 own dirs, 10+: shared m0/m1
     rows = [(c, b, n, w) for c, n, w in items for b in range(n)]
     assert bins(items) == [rows[i::1000] for i in range(1000)]
+    assert len(bins(items, slots=500)) == 2000 and len(bins(items[1:2001])) == 2000   # 4 x slots bins; one per row
     c2p = {c: f"c{c}" if c < 10 else f"m{c // 1500}" for c in range(3000)}
     got = bins(items, c2p, {c: 1 + c % 3 for c in range(10, 3000)}, cap=100)
     assert sorted(r for b in got for r in b) == sorted(rows)

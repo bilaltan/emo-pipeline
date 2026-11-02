@@ -53,6 +53,36 @@ def merge_plan(stats_pdf, merge_minor_members=100, merge_min_rows=0, merge_targe
                          "storage_part": parts, "small": small.to_numpy()})
 
 
+def stage3b_bins(items, comm_to_part=None, minor_rows=None, cap=0, slots=20):
+    """Phase 3b's bins (one Spark task each): the work rows (community, block, n_blocks, n_wblocks), communities by
+    rows desc, dealt round-robin into one bin per row up to 2,000 rows, else max(4 x slots, 1000) bins.
+
+    Coalesced unit reading (comm_to_part, minor_rows {community: rows}, cap; advisor 2026-11-01): the unsplit
+    communities of each shared directory (storage_part m<k>) are packed in community_id order into work items of up
+    to cap rows, each dealt as one row, so a bin reads one contiguous run of the shared file instead of every bin
+    re-reading all of it. Without a plan (or cap 0) the bins are the plain round-robin ones."""
+    groups = [[(c, b, n, w)] for c, n, w in items for b in range(n)]
+    if comm_to_part and cap:
+        packs = {}
+        for g in groups:
+            c, _, n, _ = g[0]
+            if n == 1 and comm_to_part.get(c, "").startswith("m"):
+                packs.setdefault(comm_to_part[c], []).append(g[0])
+        groups = [g for g in groups if not (g[0][2] == 1 and comm_to_part.get(g[0][0], "").startswith("m"))]
+        # shortcut: the packs are dealt after the own-directory units, not by rows; balance only matters above 2,000
+        for p in sorted(packs):
+            cur, filled = [], 0
+            for r in sorted(packs[p]):
+                if cur and filled + minor_rows[r[0]] > cap:
+                    groups.append(cur)
+                    cur, filled = [], 0
+                cur.append(r)
+                filled += minor_rows[r[0]]
+            groups.append(cur)
+    nb = len(groups) if len(groups) <= 2000 else min(max(4 * slots, 1000), len(groups))
+    return [[r for g in groups[i::nb] for r in g] for i in range(nb)]
+
+
 def community_stats(nodes_df):
     """Per community: rows (members + halo) and members, as pandas."""
     from pyspark.sql import functions as F
