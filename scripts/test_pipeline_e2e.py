@@ -26,6 +26,7 @@ from pyspark.sql import SparkSession
 
 from phases.phase2_subgraph import run_phase2
 from phases.phase3_training import run_phase3
+from phases.phase3b_caan import run_phase3b
 
 ROOT = tempfile.mkdtemp(prefix="lakegrl_e2e_")
 N_COMM, PER_COMM, FEAT_DIM, N_CLASSES = 4, 60, 16, 3
@@ -113,6 +114,15 @@ def main():
                max_edges_per_community=30000,
                edge_sample_modulus=1, mlp_epochs=3, local_data_dir=ROOT)
 
+    # Stage 3b (CaaN, macro context) on the same Phase 2 tables: its bins (stage3b_bins) are what Table A measures
+    p3b_results = {}
+    run_phase3b(spark, spark.sparkContext, ["synth"], ["louvain"], use_global_mapping=True,
+                dataset_cfg={"synth": {"in_feats": FEAT_DIM, "num_classes": N_CLASSES}},
+                gcn_cfg={"hidden_dim": 32, "num_epochs": 5, "lr": 0.01, "dropout": 0.3},
+                get_paths_fn=paths, timing=timing, results=p3b_results, models=["sage"], task_type="both",
+                force_rerun=True, max_nodes_per_community=int(os.environ.get("E2E_MAX_NODES", 10000)),
+                local_data_dir=ROOT, context="macro")
+
     print(f"\n{'-'*66}\n  END-TO-END CHECKS\n{'-'*66}")
     checks = []
     key = ("synth", "louvain", "sage")
@@ -131,9 +141,6 @@ def main():
                         else "one unit per community when under the cap"),
                        (units > N_COMM) if splitting else (units == N_COMM),
                        f"{units} units from {N_COMM} communities (cap {cap})"))
-        if layout == "hive_merged" and not splitting:
-            checks.append(("shared directory's units read as one work item", int(a.get("n_bins", 0)) == 1,
-                           f"{a.get('n_bins')} bin(s) for {units} units in m0 (cap {cap})"))
         checks.append(("every vertex retained across units",
                        int(a.get("total_nodes", 0) or df['n_nodes'].iloc[0]) >= n,
                        f"{int(df['n_nodes'].iloc[0])} of {n} vertices"))
@@ -143,6 +150,15 @@ def main():
         checks.append(("link AUC is not the 0.5 stub",
                        abs(float(a.get("weighted_comm_link_auc", 0.5)) - 0.5) > 1e-9,
                        f"{a.get('weighted_comm_link_auc', 0.5):.4f}"))
+
+    df3b = p3b_results.get(key)
+    checks.append(("Phase 3b produced a result frame", df3b is not None and len(df3b) > 0,
+                   f"{0 if df3b is None else len(df3b)} row(s)"))
+    if df3b is not None and not splitting:
+        # hive_merged: the N_COMM units share m0 and are read as one work item; range: one bin per unit as before
+        want = 1 if layout == "hive_merged" else N_COMM
+        checks.append((f"Phase 3b bins on {layout}", int(df3b.attrs.get("n_bins", -1)) == want,
+                       f"{df3b.attrs.get('n_bins')} bin(s), want {want} (cap {cap})"))
 
     p2 = spark.read.format("delta").load(paths("synth", "louvain")["p2_nodes"])
     cols = set(p2.columns)
