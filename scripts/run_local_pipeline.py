@@ -345,6 +345,13 @@ def main():
     # Track B storage layout of the Phase 2 tables (physical only: every unit reads the same rows).
     # Row group in MB, or auto = the sqrt rule from table size and unit count (0: Spark's 128 MB default).
     ap.add_argument("--p2-rg-mb", default="auto")
+    # Table A row 8b (Table B rows 3-5, advisor 2026-11-02): --p2-layout hive_merged --p2-rg-floor-mb 2 --p2-one-file
+    ap.add_argument("--p2-rg-floor-mb", type=float, default=0.0, help="auto row group: at least this (bounded sqrt rule)")
+    ap.add_argument("--p2-one-file", action="store_true", help="one file per Phase 2 directory (Table A rows 6-8)")
+    ap.add_argument("--pack-train", action="store_true",
+                    help="Stage 3a trains one model per coalesced work item of shared-directory units (Table B row 3)")
+    ap.add_argument("--work-out", default=None, metavar="JSON",
+                    help="Stage 3a/3b save their bins here (Table B: read cold by experiments/tableB/read_units.py)")
     ap.add_argument("--p2-plain", action="store_true",
                     help="Phase 2's order without _blk (block-ordered for --max-nodes by default)")
     ap.add_argument("--s3-emu", default=None, metavar="LAT_MS,MBPS|count",
@@ -448,7 +455,8 @@ def main():
                partition_table_mode=args.partition_table, p2_layout=args.p2_layout,
                merge_target_rows=args.merge_target_rows,
                rg_mb=args.p2_rg_mb if args.p2_rg_mb == "auto" else float(args.p2_rg_mb) or None,
-               block_cap=None if args.p2_plain else args.max_nodes, halo_cap=c_split)
+               block_cap=None if args.p2_plain else args.max_nodes, halo_cap=c_split,
+               rg_floor_mb=args.p2_rg_floor_mb, one_file_per_dir=args.p2_one_file)
 
     if args.stop_after != "4":
         args.skip_baseline = True
@@ -460,11 +468,11 @@ def main():
                     local_data_dir=STORE, node_loading=args.node_loading, max_nodes_per_community=args.max_nodes,
                     node_patience=args.node_patience, tiny_comm_handling=args.tiny_comm,
                     s3_emu=parse_emu(args.s3_emu), minor_score=args.minor_score,
-                    block_oversized=args.unit_split == "idmod", device=args.device)
+                    block_oversized=args.unit_split == "idmod", device=args.device, work_out=args.work_out)
     if args.stop_after != "2" and (args.stage3a or args.stage3a_halo):
         t3 = {}
         run_phase3b(spark, sc, [DS], [args.alg], timing=t3, results=r3,
-                    context="halo" if args.stage3a_halo else "none", **stage_kw)
+                    context="halo" if args.stage3a_halo else "none", pack_train=args.pack_train, **stage_kw)
         timing.update({("phase3",) + kk[1:]: vv for kk, vv in t3.items()})
 
     if args.stop_after in ("3b", "4"):
@@ -520,6 +528,7 @@ def main():
         "n_test_all": n_test_all, "stage3a_n_test_scored": scored(r3), "stage3b_n_test_scored": scored(r3b),
         "partition_table": args.partition_table, "node_loading": args.node_loading,
         "p2_layout": args.p2_layout, "p2_rg_mb": r2.get((DS, args.alg), {}).get("rg_mb"),
+        "p2_rg_floor_mb": args.p2_rg_floor_mb, "p2_one_file": args.p2_one_file, "pack_train": args.pack_train,
         "p2_block_cap": r2.get((DS, args.alg), {}).get("block_cap"),
         "n_nodes": n_nodes, "n_edges": n_edges, "n_classes": n_classes,
         "n_communities_phase1": r1.get((DS, args.alg), {}).get("n_comms"),
@@ -534,6 +543,9 @@ def main():
         "stage3b_link_auc": a3b.get("weighted_comm_link_auc"),
         "cores": args.cores, "s3_emu": args.s3_emu, "stage3b_read_s": a3b.get("read_s"), "stage3b_read_gets": a3b.get("read_gets"),
         "stage3b_read_bytes": a3b.get("read_bytes"),
+        # training compute summed over units (+ CaaN's global model): Table B's GPU training time
+        **{f"{s}_train_s": float(st[k]["node_train_time_s"].sum()) if k in st else None
+           for s, st in (("stage3a", r3), ("stage3b", r3b))},
         "baseline_node_acc": base.get("test_acc"),
         "baseline_link_auc": base.get("link_auc"),
         "phase_seconds": {str(kk): round(vv, 2) for kk, vv in timing.items()},

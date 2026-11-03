@@ -123,6 +123,17 @@ def main():
                 min_size=10, force_rerun=True, max_nodes_per_community=int(os.environ.get("E2E_MAX_NODES", 10000)),
                 local_data_dir=ROOT, context="macro", device=os.environ.get("E2E_DEVICE", "cpu"))
 
+    # Table B row 3: Stage 3a with pack_train trains one model per coalesced work item (hive_merged: m0's 4 units)
+    p3a_results = {}
+    if layout == "hive_merged":
+        run_phase3b(spark, spark.sparkContext, ["synth"], ["louvain"], use_global_mapping=True,
+                    dataset_cfg={"synth": {"in_feats": FEAT_DIM, "num_classes": N_CLASSES}},
+                    gcn_cfg={"hidden_dim": 32, "num_epochs": 5, "lr": 0.01, "dropout": 0.3},
+                    get_paths_fn=paths, timing=timing, results=p3a_results, models=["sage"],
+                    task_type="node_classification", min_size=10, force_rerun=True,
+                    max_nodes_per_community=int(os.environ.get("E2E_MAX_NODES", 10000)), local_data_dir=ROOT,
+                    context="none", pack_train=True, device=os.environ.get("E2E_DEVICE", "cpu"))
+
     print(f"\n{'-'*66}\n  END-TO-END CHECKS\n{'-'*66}")
     checks = []
     key = ("synth", "louvain", "sage")
@@ -159,6 +170,14 @@ def main():
         want = 1 if layout == "hive_merged" else N_COMM
         checks.append((f"Phase 3b bins on {layout}", int(df3b.attrs.get("n_bins", -1)) == want,
                        f"{df3b.attrs.get('n_bins')} bin(s), want {want} (cap {cap})"))
+
+    if layout == "hive_merged" and not splitting:
+        df3a = p3a_results.get(key)
+        n_test = sum(1 for i in range(n) if i % 5 == 4)
+        checks.append(("Stage 3a pack_train: one model, every test member once",
+                       df3a is not None and len(df3a) == 1 and int(df3a["n_test"].sum()) == n_test,
+                       f"{0 if df3a is None else len(df3a)} model(s), "
+                       f"{0 if df3a is None else int(df3a['n_test'].sum())} of {n_test} test nodes"))
 
     p2 = spark.read.format("delta").load(paths("synth", "louvain")["p2_nodes"])
     cols = set(p2.columns)

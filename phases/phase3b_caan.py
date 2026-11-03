@@ -1854,9 +1854,18 @@ def make_caan_udf(super_nodes_dict_bc, minor_node_to_idx_bc, minor_feats_arr_bc,
             comm_ids = manifest_pdf['community_id'].unique().tolist()
             (nodes_pdf_all, edges_pdf_all), io = _read(load_batch, comm_ids)   # the bin's read, on its first row
 
+        # pack_train (Table B row 3, advisor 2026-11-02): the bin's coalesced work item of shared-directory units
+        # trains one model on their union, on the row of its first unit
+        _pk = set()
+        if '_pack' in manifest_pdf.columns and not _has_blocks and manifest_pdf['_pack'].astype(bool).any():
+            _packed = manifest_pdf['_pack'].astype(bool)
+            _pk = set(manifest_pdf.loc[_packed, 'community_id'].astype(int))
+            manifest_pdf = pd.concat([manifest_pdf[~_packed], manifest_pdf[_packed].iloc[:1]], ignore_index=True)
+
         results = []
         for _, row in manifest_pdf.iterrows():
             comm_id = int(row['community_id'])
+            _sel = sorted(_pk) if comm_id in _pk else [comm_id]
 
             if _has_blocks:
                 _nb = int(row['_n_blocks']) if '_n_blocks' in row else 1
@@ -1872,16 +1881,21 @@ def make_caan_udf(super_nodes_dict_bc, minor_node_to_idx_bc, minor_feats_arr_bc,
                     except Exception:
                         pass
             elif len(nodes_pdf_all) > 0:
-                pdf = nodes_pdf_all[nodes_pdf_all['community_id'] == comm_id].copy()
+                pdf = nodes_pdf_all[nodes_pdf_all['community_id'].isin(_sel)].copy()
             else:
                 pdf = pd.DataFrame()
 
             if not _has_blocks:
                 if len(edges_pdf_all) > 0:
-                    comm_edges_pdf = edges_pdf_all[edges_pdf_all['community_id'] == comm_id].copy()
+                    comm_edges_pdf = edges_pdf_all[edges_pdf_all['community_id'].isin(_sel)].copy()
                 else:
                     comm_edges_pdf = pd.DataFrame()
-            
+            if len(_sel) > 1 and len(pdf) > 0:
+                # members first: the unit's dedup by id keeps a vertex that is one unit's member and another's halo
+                pdf = pdf.sort_values('is_member', ascending=False, kind='mergesort').assign(community_id=comm_id)
+                if len(comm_edges_pdf) > 0:
+                    comm_edges_pdf = comm_edges_pdf.drop_duplicates(subset=['src', 'dst'])
+
             if pdf is None or len(pdf) == 0:
                 results.append(pd.DataFrame([{
                     'community_id':   comm_id,
@@ -2450,14 +2464,35 @@ def run_phase3b(spark, sc, datasets, algorithms, use_global_mapping,
                 num_bins = len(_bins)
                 _bin_of = {(c, b): i for i, rows in enumerate(_bins) for c, b, _, _ in rows}
                 work['bin_id'] = [_bin_of[(int(c), int(b))] for c, b in zip(work['community_id'], work['_block'])]
+                # pack_train (Table B row 3): one model per coalesced work item; rows 4-5 score minor units with
+                # CaaN's global model instead (tiny 'drop')
+                _c2p = p2_layout['comm_to_part'] or {}
+                work['_pack'] = [bool(kwargs.get('pack_train')) and str(_c2p.get(int(c), '')).startswith('m')
+                                 for c in work['community_id']]
+                if work['_pack'].any():
+                    if context != 'none' or (work['_n_blocks'] > 1).any():
+                        raise ValueError("pack_train is for Stage 3a (context none) on unsplit units")
+                    _rows = dict(zip(work['community_id'].astype(int), work['count'].astype(int)))
+                    _packed = set(work.loc[work['_pack'], 'community_id'].astype(int))
+                    _over = max(sum(_rows[c] for c, _, _, _ in rows if c in _packed) for rows in _bins)
+                    # stage3b_bins deals > 2,000 groups several to a bin; then one bin would hold more than one pack
+                    if _over > max(max_nodes_per_community, max(_rows[c] for c in _packed)):
+                        raise ValueError(f"pack_train: a bin holds {_over:,} packed rows, above the cap: several packs")
 
                 # blocks each community's _blk was written with (Phase 2 block_cap), for the loaders' range
                 from pipeline.utils.partition_layout import block_cap as _p2_block_cap
                 from pipeline.utils.common import unit_blocks as _unit_blocks
                 _wcap = _p2_block_cap(spark, p_alg['p2_nodes'])
                 work['_n_wblocks'] = work['count'].map(lambda c: _unit_blocks(c, _wcap)) if _wcap else 0
+                if kwargs.get('work_out'):   # Table B: these bins, read cold later by experiments/tableB/read_units.py
+                    import json as _json
+                    with open(kwargs['work_out'], 'w') as _fh:
+                        _json.dump({'p2_nodes': p_alg['p2_nodes'], 'p2_edges': p_alg['p2_edges'], 'context': context,
+                                   'comm_to_part': {str(k): v for k, v in (p2_layout['comm_to_part'] or {}).items()},
+                                   'bins': [g[['community_id', '_block', '_n_blocks', '_n_wblocks']].astype(int)
+                                            .values.tolist() for _, g in work.groupby('bin_id')]}, _fh)
                 bin_mapping_df = spark.createDataFrame(
-                    work[['community_id', 'bin_id', '_block', '_n_blocks', '_n_wblocks']])
+                    work[['community_id', 'bin_id', '_block', '_n_blocks', '_n_wblocks', '_pack']])
                 
                 manifest_df = (bin_mapping_df
                     .withColumn('_num_classes', F.lit(int(cfg['num_classes'])))

@@ -286,7 +286,8 @@ def run_phase2(spark, sc, datasets, algorithms, use_global_mapping, min_size,
                 size = lambda u: int(DeltaTable.forPath(spark, u).detail().first()['sizeInBytes'])
                 t_est = (size(p['nodes']) * n_total_nodes / max(1, nodes_df.count())
                          + size(p['edges']) * n_intra / max(1, n_edges))
-                rg_mb = sqrt_rg_mb(t_est, n_units, float(kwargs.get('rg_beta_mb', 0.6)))
+                rg_mb = sqrt_rg_mb(t_est, n_units, float(kwargs.get('rg_beta_mb', 0.6)),
+                                   float(kwargs.get('rg_floor_mb') or 0.0))
                 print(f"  Row group (√ rule): {rg_mb:g} MB from ~{t_est / 2**20:,.0f} MB over {n_units:,} units")
             hconf = sc._jsc.hadoopConfiguration()
             rg_prev = hconf.get('parquet.block.size')
@@ -301,8 +302,11 @@ def run_phase2(spark, sc, datasets, algorithms, use_global_mapping, min_size,
                 nodes_out = with_storage_part(spark, nodes_out, plan)
                 edges_out = with_storage_part(spark, edges_out, plan)
                 p2_bins = min(200, max(1, plan['storage_part'].nunique()))
-            write_layout(nodes_out, p_alg['p2_nodes'], p2_layout, p2_bins, user_metadata=meta)
-            write_layout(edges_out, p_alg['p2_edges'], p2_layout, p2_bins)
+            # one_file_per_dir: one file per directory, as Table A rows 6-8 (row 8b = this + rg floor 2 MB)
+            one_file = bool(kwargs.get('one_file_per_dir', False))
+            write_layout(nodes_out, p_alg['p2_nodes'], p2_layout, p2_bins, user_metadata=meta,
+                         one_file_per_dir=one_file)
+            write_layout(edges_out, p_alg['p2_edges'], p2_layout, p2_bins, one_file_per_dir=one_file)
             if rg_mb:   # the row group applies to Phase 2's tables only
                 hconf.set('parquet.block.size', rg_prev) if rg_prev is not None else hconf.unset('parquet.block.size')
             if blk_cap:
@@ -319,7 +323,7 @@ def run_phase2(spark, sc, datasets, algorithms, use_global_mapping, min_size,
                 'shuffle_s':    shuffle_s,
                 'partition_table_mode': partition_table_mode,
                 'p2_layout': p2_layout,
-                'block_cap': blk_cap, 'rg_mb': rg_mb, 'n_units': n_units,
+                'block_cap': blk_cap, 'rg_mb': rg_mb, 'n_units': n_units, 'one_file_per_dir': one_file,
             }
             print(f"  ✓ [{alg}] Phase 2 done in {elapsed:.1f}s ({partition_table_mode} partition table, {p2_layout} layout)")
             
