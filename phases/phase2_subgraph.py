@@ -233,6 +233,7 @@ def run_phase2(spark, sc, datasets, algorithms, use_global_mapping, min_size,
                            .withColumn('is_boundary', F.coalesce('is_boundary', F.lit(False)))
                            .select(*node_cols, 'community_id', 'is_boundary', 'is_member'))
 
+            p2_times = {'build_s': time.time() - t0}   # advisor 11-03: Phase 2 runtime breakdown
             n_total_nodes = nodes_final.count()
             n_boundary = nodes_final.filter(F.col('is_boundary')).count()
             n_internal = n_total_nodes - n_boundary
@@ -248,6 +249,7 @@ def run_phase2(spark, sc, datasets, algorithms, use_global_mapping, min_size,
             sh_df.unpersist()
             sc.setJobDescription('')
             print(f"  Shuffle overhead (groupBy community_id): {shuffle_s:.1f}s")
+            p2_times['diag_s'] = time.time() - t0 - sum(p2_times.values())
 
             # Write — isolated per tag
             # Range, not hash. Phase 3b reads these tables with a predicate on
@@ -302,6 +304,14 @@ def run_phase2(spark, sc, datasets, algorithms, use_global_mapping, min_size,
                 nodes_out = with_storage_part(spark, nodes_out, plan)
                 edges_out = with_storage_part(spark, edges_out, plan)
                 p2_bins = min(200, max(1, plan['storage_part'].nunique()))
+            p2_times['plan_s'] = time.time() - t0 - sum(p2_times.values())
+            if kwargs.get('time_split'):
+                # Table B breakdown run only: the rows computed and cached first, so the write below is the
+                # Parquet write alone (as Table A's write column); a normal run computes them inside the write
+                from pyspark import StorageLevel
+                nodes_out, edges_out = (d.persist(StorageLevel.MEMORY_AND_DISK) for d in (nodes_out, edges_out))
+                nodes_out.count(), edges_out.count()
+                p2_times['materialize_s'] = time.time() - t0 - sum(p2_times.values())
             # one_file_per_dir: one file per directory, as Table A rows 6-8 (row 8b = this + rg floor 2 MB)
             one_file = bool(kwargs.get('one_file_per_dir', False))
             write_layout(nodes_out, p_alg['p2_nodes'], p2_layout, p2_bins, user_metadata=meta,
@@ -313,6 +323,9 @@ def run_phase2(spark, sc, datasets, algorithms, use_global_mapping, min_size,
                 for k in ('p2_nodes', 'p2_edges'):
                     spark.sql(f"ALTER TABLE delta.`{p_alg[k]}` SET TBLPROPERTIES ('{BLOCK_CAP_PROP}' = '{blk_cap}')")
 
+            p2_times['write_s'] = time.time() - t0 - sum(p2_times.values())
+            if kwargs.get('time_split'):
+                nodes_out.unpersist(), edges_out.unpersist()
             elapsed = time.time() - t0
             timing[('phase2', dataset, alg)] = elapsed
             results[key] = {
@@ -324,8 +337,10 @@ def run_phase2(spark, sc, datasets, algorithms, use_global_mapping, min_size,
                 'partition_table_mode': partition_table_mode,
                 'p2_layout': p2_layout,
                 'block_cap': blk_cap, 'rg_mb': rg_mb, 'n_units': n_units, 'one_file_per_dir': one_file,
+                'times': p2_times,
             }
             print(f"  ✓ [{alg}] Phase 2 done in {elapsed:.1f}s ({partition_table_mode} partition table, {p2_layout} layout)")
+            print("    steps: " + ", ".join(f"{k} {v:.1f}" for k, v in p2_times.items()))
             
             node_comm.unpersist()
             valid_comms.unpersist()

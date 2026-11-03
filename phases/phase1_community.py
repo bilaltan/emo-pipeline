@@ -164,6 +164,7 @@ def run_phase1(spark, sc, datasets, algorithms, lpa_max_iter, resolution,
 
             print(f"\n  ── [{alg.upper()}] ──────────────────────────────")
             t_alg = time.time()
+            p1_times = {}   # step times, advisor 11-03: the runtime breakdown of Phase 1
 
             # ── LPA ─────────────────────────────────────────────────────────
             if alg == 'lpa':
@@ -246,6 +247,7 @@ def run_phase1(spark, sc, datasets, algorithms, lpa_max_iter, resolution,
                 import igraph as ig, numpy as np
                 from pyspark.sql.types import StructType, StructField, LongType as _LT
                 print(f"  Collecting edges to driver ...")
+                t_s = time.time()
                 edges_pd = (edges_df
                             .filter(F.col('src') < F.col('dst'))
                             .select(F.col('src').alias('u'), F.col('dst').alias('v'))
@@ -254,9 +256,13 @@ def run_phase1(spark, sc, datasets, algorithms, lpa_max_iter, resolution,
                 print(f"  Mapping node IDs using vectorized binary search ...")
                 u_mapped = np.searchsorted(all_nids, edges_pd['u'].values)
                 v_mapped = np.searchsorted(all_nids, edges_pd['v'].values)
+                p1_times['collect_s'] = time.time() - t_s
                 el = zip(u_mapped, v_mapped)
                 print(f"  Building igraph ({len(all_nids):,} nodes) ...")
+                t_s = time.time()
                 G = ig.Graph(n=len(all_nids), edges=el, directed=False)
+                p1_times['igraph_s'] = time.time() - t_s
+                t_s = time.time()
                 print(f"  Running {alg} (resolution={resolution}) ...")
                 # community_multilevel and community_label_propagation are randomized.
                 # Unseeded, the same graph yields a different partition on every run,
@@ -274,6 +280,7 @@ def run_phase1(spark, sc, datasets, algorithms, lpa_max_iter, resolution,
                 elif alg == 'igraph_lpa':
                     partition = G.community_label_propagation()
                 membership = np.asarray(partition.membership, dtype=np.int64)
+                p1_times['leiden_s'] = time.time() - t_s
                 refine = int(kwargs.get('refine_members') or 0)
                 if refine:
                     t_ref, n_before = time.time(), int(membership.max()) + 1
@@ -284,6 +291,7 @@ def run_phase1(spark, sc, datasets, algorithms, lpa_max_iter, resolution,
                 if c_max:
                     t_ref = time.time()
                     membership, split_stats = split_units(G, membership, c_max // 2, resolution, int(random_seed))
+                    p1_times['split_s'] = time.time() - t_ref
                     print(f"  Recursive Leiden, <= {c_max // 2:,} core members per unit (C_max {c_max:,} rows with the "
                           f"halo capped at the core in Phase 2): {split_stats['split']:,} communities split, "
                           f"{split_stats['units_before']:,} -> {split_stats['units']:,} units  [{time.time() - t_ref:.1f}s]")
@@ -441,9 +449,11 @@ def run_phase1(spark, sc, datasets, algorithms, lpa_max_iter, resolution,
                     print(f"    ✓ No minor communities to absorb ({n_major:,} of {n_before:,} are major)")
                 major.unpersist()
 
+            t_s = time.time()
             communities_df.write.format('delta').mode('overwrite')\
                           .save(p_alg['communities'])
 
+            p1_times['write_s'] = time.time() - t_s
             runtime  = time.time() - t_alg
             n_comms  = communities_df.select('community_id').distinct().count()
 
@@ -453,10 +463,11 @@ def run_phase1(spark, sc, datasets, algorithms, lpa_max_iter, resolution,
                            joined['label'].values, joined['community_id'].values)
 
             timing[('phase1', dataset, alg)] = runtime
-            results[key] = {'n_comms': n_comms, 'runtime_s': runtime, 'nmi': nmi}
+            results[key] = {'n_comms': n_comms, 'runtime_s': runtime, 'nmi': nmi, 'times': p1_times}
             if alg in ('louvain', 'leiden', 'igraph_lpa') and int(kwargs.get('c_max') or 0):
                 results[key]['split_units'] = split_stats
             print(f"  ✓ [{alg}] {n_comms:,} communities | NMI={nmi:.4f} | {runtime:.1f}s")
+            print("    steps: " + ", ".join(f"{k} {v:.1f}" for k, v in p1_times.items()))
             
             communities_df.unpersist()
             spark._jvm.System.gc()

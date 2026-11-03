@@ -2088,6 +2088,7 @@ def run_phase3b(spark, sc, datasets, algorithms, use_global_mapping,
                 
             # Stage 3a (context none) and the halo ablation build no macro-graph: skip its Spark jobs.
             context = kwargs.get("context", "macro")
+            t_macro = time.time()
             # Compute super-node features for major communities
             major_nodes_df = nodes_w_comm.filter(F.col('community_id').isin(list(major_comms)))
             if 'is_member' in major_nodes_df.columns:
@@ -2196,6 +2197,10 @@ def run_phase3b(spark, sc, datasets, algorithms, use_global_mapping,
             node_to_comm_bc = sc.broadcast(node_to_comm)
             major_comms_bc = sc.broadcast(set(int(x) for x in major_comms))
             
+            if context == "macro":
+                timing[('caan_macro', dataset, alg)] = time.time() - t_macro
+                print(f"    - CaaN macro-graph built in {time.time() - t_macro:.1f}s "
+                      f"({len(super_nodes_dict):,} super-nodes, {len(minor_ids):,} minor nodes, {len(caan_edges):,} edges)")
             caan_components = {
                 'super_nodes_dict': super_nodes_dict,
                 'minor_nodes_dict': minor_nodes_dict,

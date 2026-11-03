@@ -348,6 +348,8 @@ def main():
     # Table A row 8b (Table B rows 3-5, advisor 2026-11-02): --p2-layout hive_merged --p2-rg-floor-mb 2 --p2-one-file
     ap.add_argument("--p2-rg-floor-mb", type=float, default=0.0, help="auto row group: at least this (bounded sqrt rule)")
     ap.add_argument("--p2-one-file", action="store_true", help="one file per Phase 2 directory (Table A rows 6-8)")
+    ap.add_argument("--p2-time-split", action="store_true",
+                    help="Table B runtime breakdown: cache Phase 2's rows before the write, to time the write alone")
     ap.add_argument("--pack-train", action="store_true",
                     help="Stage 3a trains one model per coalesced work item of shared-directory units (Table B row 3)")
     ap.add_argument("--work-out", default=None, metavar="JSON",
@@ -456,7 +458,7 @@ def main():
                merge_target_rows=args.merge_target_rows,
                rg_mb=args.p2_rg_mb if args.p2_rg_mb == "auto" else float(args.p2_rg_mb) or None,
                block_cap=None if args.p2_plain else args.max_nodes, halo_cap=c_split,
-               rg_floor_mb=args.p2_rg_floor_mb, one_file_per_dir=args.p2_one_file)
+               rg_floor_mb=args.p2_rg_floor_mb, one_file_per_dir=args.p2_one_file, time_split=args.p2_time_split)
 
     if args.stop_after != "4":
         args.skip_baseline = True
@@ -552,6 +554,8 @@ def main():
         "baseline_node_acc": base.get("test_acc"),
         "baseline_link_auc": base.get("link_auc"),
         "phase_seconds": {str(kk): round(vv, 2) for kk, vv in timing.items()},
+        "phase1_steps": r1.get((DS, args.alg), {}).get("times"), "phase2_steps": r2.get((DS, args.alg), {}).get("times"),
+        "p2_time_split": args.p2_time_split,
         "total_seconds": round(time.time() - t_all, 1),
         "peak_rss_tree_mb": peak_mb(),
         **spark_resources(sc),
