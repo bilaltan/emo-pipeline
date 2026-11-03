@@ -20,13 +20,18 @@ O=results/tableB; mkdir -p $O/work
 PY="bash scripts/wsl_run.sh python"
 PEAK="bash experiments/tableB/peak.sh $O/peak.jsonl"
 store=${LAKEGRL_STORE:-$HOME/lakegrl/store}; cache=$store/$ds/tableB_full
+# TB_CORES: Spark task slots = unit models trained at once on the GPU. Reddit's dense units overflow the 24 GB card
+# at 8 and the driver spills into Windows memory (11-03). TB_PIPELINE_ONLY=1: rows 3-5 only (rows 1-2 already in).
+cores=${TB_CORES:-8}
 
-$PY experiments/tableB/read_full.py --dataset "$ds" --store "$store" --out $O/read_full.jsonl
-[ -f "$cache/meta.json" ] || $PY experiments/trackA/export_cache.py --dataset "$ds" --root "$store/$ds" --out "$cache"
-for m in full cluster; do
-  $PEAK "$ds $m" $PY experiments/baselines/node_baselines.py --dataset "$ds" --method $m --cache "$cache" \
-    --device cuda --out $O/baselines.jsonl
-done
+if [ -z "$TB_PIPELINE_ONLY" ]; then
+  $PY experiments/tableB/read_full.py --dataset "$ds" --store "$store" --out $O/read_full.jsonl
+  [ -f "$cache/meta.json" ] || $PY experiments/trackA/export_cache.py --dataset "$ds" --root "$store/$ds" --out "$cache"
+  for m in full cluster; do
+    $PEAK "$ds $m" $PY experiments/baselines/node_baselines.py --dataset "$ds" --method $m --cache "$cache" \
+      --device cuda --out $O/baselines.jsonl
+  done
+fi
 
 declare -A ROW=([5]="--unit-split leiden --tiny-comm drop" [4]="--unit-split idmod --tiny-comm drop"
                 [3]="--unit-split leiden --tiny-comm keep --stage3a --pack-train --stop-after 3")
@@ -34,7 +39,7 @@ for r in 5 4 3; do
   for s in 0 1 2; do
     reuse=""; [ $s -gt 0 ] && reuse=--reuse-phase1   # Phase 1 is seeded (42): the same units for every seed
     $PEAK "$ds row$r seed$s" $PY scripts/run_local_pipeline.py --dataset "$ds" --alg leiden ${ROW[$r]} --c-max 10000 \
-      --p2-layout hive_merged --p2-rg-floor-mb 2 --p2-one-file --s3-emu count --device cuda --cores 8 \
+      --p2-layout hive_merged --p2-rg-floor-mb 2 --p2-one-file --s3-emu count --device cuda --cores $cores \
       --driver-mem 16g --seed $s $reuse --work-out $O/work/${ds}_row$r.json --json-out $O/pipeline.jsonl
     if [ $s = 0 ]; then
       $PY experiments/tableB/read_units.py --work $O/work/${ds}_row$r.json --row $r --dataset "$ds" \

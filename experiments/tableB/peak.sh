@@ -5,11 +5,14 @@
 #   bash experiments/tableB/peak.sh OUT LABEL cmd...
 out=$1; label=$2; shift 2
 smi() { nvidia-smi --query-gpu=memory.used --format=csv,noheader,nounits | head -1; }
+gmax=$(nvidia-smi --query-gpu=memory.total --format=csv,noheader,nounits | head -1)
 g0=$(smi); pg=$g0; ph=0; t0=$(date +%s)
 setsid "$@" &   # no job control here, so setsid needs no fork: the session id is $!
 pid=$!
 while kill -0 $pid 2>/dev/null; do
   g=$(smi); [ "${g:-0}" -gt "$pg" ] && pg=$g
+  # a full card spills into Windows memory (sysmem fallback): slow training, and it ran the commit charge out on 11-03
+  if [ "${g:-0}" -ge $(( gmax - 1024 )) ]; then echo "peak.sh: GPU full (${g} of ${gmax} MB), stopping $label"; pkill -9 -s $pid; fi
   h=$(ps -o rss= --sid $pid | awk '{s += $1} END {print int(s / 1024)}'); [ "${h:-0}" -gt "$ph" ] && ph=$h
   sleep 1
 done
