@@ -992,6 +992,10 @@ def make_caan_udf(super_nodes_dict_bc, minor_node_to_idx_bc, minor_feats_arr_bc,
                 torch.tensor(mp_src, dtype=torch.long),
                 torch.tensor(mp_dst, dtype=torch.long)
             ], dim=0)
+            if device != 'cpu' and model_type == 'sage':
+                # the same mean SAGE by sparse matmul, as the baselines: the edge list makes PyG build an
+                # edges x features message tensor, ~20 GB on Reddit's densest units (11-03). mp is symmetric, deduplicated
+                pyg_edge_index = torch_geometric.utils.to_torch_csr_tensor(pyg_edge_index, size=(n_nodes, n_nodes))
             feat_t = torch.tensor(feat_arr, dtype=torch.float32)
             lbl_t = torch.tensor(label_arr, dtype=torch.long)
         else:
