@@ -16,12 +16,14 @@
 set -eo pipefail
 ds=$1
 cd "$(dirname "$0")/../.."
-O=results/tableB; mkdir -p $O/work
+O=${TB_OUT:-results/tableB}; mkdir -p $O/work
 PY="bash scripts/wsl_run.sh python"
 PEAK="bash experiments/tableB/peak.sh $O/peak.jsonl"
 store=${LAKEGRL_STORE:-$HOME/lakegrl/store}; cache=$store/$ds/tableB_full
 # TB_CORES: Spark task slots = unit models trained at once on the GPU. Reddit's dense units overflow the 24 GB card
 # at 8 and the driver spills into Windows memory (11-03). TB_PIPELINE_ONLY=1: rows 3-5 only (rows 1-2 already in).
+# The 11-03 memory reruns (advisor: 1- vs 8-worker GPU peak, host without the JVM) run seed 0 only into their own
+# TB_OUT: TB_SEEDS (default 0 1 2), TB_REUSE_P1=1 keeps Phase 1 for seed 0 too, TB_READS=0 skips the cold reads.
 cores=${TB_CORES:-8}
 
 if [ -z "$TB_PIPELINE_ONLY" ]; then
@@ -36,12 +38,12 @@ fi
 declare -A ROW=([5]="--unit-split leiden --tiny-comm drop" [4]="--unit-split idmod --tiny-comm drop"
                 [3]="--unit-split leiden --tiny-comm keep --stage3a --pack-train --stop-after 3")
 for r in 5 4 3; do
-  for s in 0 1 2; do
-    reuse=""; [ $s -gt 0 ] && reuse=--reuse-phase1   # Phase 1 is seeded (42): the same units for every seed
+  for s in ${TB_SEEDS:-0 1 2}; do
+    reuse=""; [ $s -gt 0 ] || [ -n "$TB_REUSE_P1" ] && reuse=--reuse-phase1   # Phase 1 is seeded (42): the same units for every seed
     $PEAK "$ds row$r seed$s" $PY scripts/run_local_pipeline.py --dataset "$ds" --alg leiden ${ROW[$r]} --c-max 10000 \
       --p2-layout hive_merged --p2-rg-floor-mb 2 --p2-one-file --s3-emu count --device cuda --cores $cores \
       --driver-mem 16g --seed $s $reuse --work-out $O/work/${ds}_row$r.json --json-out $O/pipeline.jsonl
-    if [ $s = 0 ]; then
+    if [ $s = 0 ] && [ "${TB_READS:-1}" = 1 ]; then
       $PY experiments/tableB/read_units.py --work $O/work/${ds}_row$r.json --row $r --dataset "$ds" \
         --out $O/read_units.jsonl
       tag=leiden_c10000; [ $r = 4 ] && tag=leiden   # idmod units: Phase 1 without the recursive split

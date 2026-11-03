@@ -122,7 +122,10 @@ def _read(rows):
         cs = [c for c, _, _, _ in rows]
         nodes, edges = _load_communities_data_batch(None, None, cs, layout=_W["lay"])
         _use(nodes)
-        out = [((c, 0), check(nodes[nodes["community_id"] == c], edges[edges["community_id"] == c])) for c in cs]
+        # one groupby, not a filter per community: a coalesced bin holds thousands of them (products Table B row 3:
+        # ~7,500 a bin), and filtering each one cost seconds of reader CPU outside the storage read (11-03)
+        nn, ne = nodes.groupby("community_id")["id"].agg(["size", "sum"]), edges.groupby("community_id").size()
+        out = [((c, 0), (int(nn["size"].get(c, 0)), int(nn["sum"].get(c, 0)), int(ne.get(c, 0)))) for c in cs]
     return out, store_io.STATS["gets"] - g0, store_io.STATS["bytes"] - b0
 
 

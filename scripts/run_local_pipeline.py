@@ -546,6 +546,9 @@ def main():
         # training compute summed over units (+ CaaN's global model): Table B's GPU training time
         **{f"{s}_train_s": float(st[k]["node_train_time_s"].sum()) if k in st else None
            for s, st in (("stage3a", r3), ("stage3b", r3b))},
+        # of that, CaaN's global model alone (its row is community -1)
+        **{f"{s}_global_train_s": float(st[k].loc[st[k]["community_id"] == -1, "node_train_time_s"].sum())
+           if k in st else None for s, st in (("stage3a", r3), ("stage3b", r3b))},
         "baseline_node_acc": base.get("test_acc"),
         "baseline_link_auc": base.get("link_auc"),
         "phase_seconds": {str(kk): round(vv, 2) for kk, vv in timing.items()},
