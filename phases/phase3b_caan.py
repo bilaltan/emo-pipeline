@@ -2425,9 +2425,12 @@ def run_phase3b(spark, sc, datasets, algorithms, use_global_mapping,
                 )
                 
                 # 2. Driver-side Community Binning
-                comms_node_counts_df = p2_table.select('community_id').groupBy('community_id').count().toPandas()
-                comms_node_counts_df = comms_node_counts_df.sort_values(by='count', ascending=False).reset_index(drop=True)
-                
+                comms_node_counts_df = (_macro.load_plan(spark, p_alg) if macro_stored else
+                                        p2_table.select('community_id').groupBy('community_id').count().toPandas())
+                # ties in community order: the stored plan and the groupBy come in different row orders
+                comms_node_counts_df = comms_node_counts_df.sort_values(
+                    ['count', 'community_id'], ascending=[False, True], kind='mergesort').reset_index(drop=True)
+
                 import numpy as _np
                 _n_comms_raw = len(comms_node_counts_df)
                 if block_oversized and max_nodes_per_community > 0:

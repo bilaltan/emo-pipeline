@@ -59,6 +59,7 @@ def paths(dataset, alg=None):
                   "p2_nodes": f"{base}/p2_nodes/{a}/",
                   "p2_edges": f"{base}/p2_edges/{a}/",
                   "p2_macro_nodes": f"{base}/p2_macro_nodes/{a}/", "p2_macro_edges": f"{base}/p2_macro_edges/{a}/",
+                  "p2_unit_plan": f"{base}/p2_unit_plan/{a}/",
                   "tag": f"local_{dataset}_{a}"})
     return p
 

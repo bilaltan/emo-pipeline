@@ -8,11 +8,13 @@ the whole raw edge table; with these tables it reads the macro-graph instead.
 
   p2_macro_nodes  macro_id (super-node -1000 - c, minor node its id), community_id, features, label, split
   p2_macro_edges  src, dst (macro ids)
+  p2_unit_plan    community_id, count (p2_nodes rows: members + halo): Stage 3b plans its units from it instead of
+                  reading p2_nodes' community_id column (one GET per row group)
 
-Both carry MACRO_PROP = the p2_nodes version Phase 2 wrote with them; Phase 3b uses them only when it matches.
+All carry MACRO_PROP = the p2_nodes version Phase 2 wrote with them; Phase 3b uses them only when it matches.
 """
 MACRO_PROP = "lakegrl.p2_nodes_version"
-TABLES = ("p2_macro_nodes", "p2_macro_edges")
+TABLES = ("p2_macro_nodes", "p2_macro_edges", "p2_unit_plan")
 
 
 def mean_features(pdf):
@@ -55,12 +57,15 @@ def macro_tables(comms_df, major_df, nodes_df, masks_df, edges_df, with_minor):
     return nodes, edges
 
 
-def write_macro(spark, p_alg, nodes, edges):
-    """One file per table (super-nodes first), stamped with the p2_nodes version they belong to."""
+def write_macro(spark, p_alg, nodes, edges, stats):
+    """One file per table (super-nodes first), stamped with the p2_nodes version they belong to. stats: Phase 2's
+    community_stats of the p2_nodes rows (community_id, rows)."""
     from pyspark.sql import functions as F
     from pipeline.utils.partition_join import delta_version
     v = delta_version(spark, p_alg['p2_nodes'])
+    plan = spark.createDataFrame(stats[['community_id', 'rows']].rename(columns={'rows': 'count'}).astype('int64'))
     for df, k, order in ((edges, 'p2_macro_edges', ['src', 'dst']),
+                         (plan, 'p2_unit_plan', ['community_id']),
                          (nodes, 'p2_macro_nodes', [F.col('macro_id') >= 0, 'community_id', 'macro_id'])):
         (df.repartition(1).sortWithinPartitions(*order)
          .write.format('delta').mode('overwrite').option('overwriteSchema', 'true').save(p_alg[k]))
@@ -92,3 +97,8 @@ def load_macro(spark, p_alg):
                         for i, f, l, s in zip(minor['macro_id'], minor['features'], minor['label'], minor['split'])}
     me = spark.read.format('delta').load(p_alg['p2_macro_edges']).toPandas()
     return super_nodes_dict, minor_nodes_dict, list(zip(me['src'].tolist(), me['dst'].tolist()))
+
+
+def load_plan(spark, p_alg):
+    """p2_nodes rows per community (community_id, count), as p2_nodes.groupBy('community_id').count()."""
+    return spark.read.format('delta').load(p_alg['p2_unit_plan']).toPandas()

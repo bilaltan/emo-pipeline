@@ -304,7 +304,8 @@ def run_phase2(spark, sc, datasets, algorithms, use_global_mapping, min_size,
                 # CaaN's macro-graph, stored with the view (advisor 2026-11-04); Phase 3b reads it (utils.macro_graph)
                 from pipeline.utils.macro_graph import macro_tables, write_macro
                 write_macro(spark, p_alg, *macro_tables(comms_df, valid_comms, nodes_df, masks_df, edges_df,
-                                                        with_minor=tiny_comm_handling == 'drop'))
+                                                        with_minor=tiny_comm_handling == 'drop'),
+                            stats if stats is not None else community_stats(nodes_final))
                 p2_times['macro_s'] = time.time() - t0 - sum(p2_times.values())
             elapsed = time.time() - t0
             timing[('phase2', dataset, alg)] = elapsed

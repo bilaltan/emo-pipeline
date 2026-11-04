@@ -11,7 +11,8 @@
 #   rows 3-5 store Phase 2 as Table A row 8b (hive_merged, bounded sqrt row group with a 2 MB floor, one file per
 #   directory); read = read_units.py on the run's own bins, right after its seed 0; rows 4-5 add read_full.py on
 #   what Stage 3b reads besides the bins: the macro-graph Phase 2 stores (advisor 2026-11-04; until then the raw
-#   nodes, masks and edges and the whole p2_nodes, to rebuild it), the communities table, p2_nodes' community_id
+#   nodes, masks and edges and the whole p2_nodes, to rebuild it), the communities table, the unit plan (rows per
+#   community; Phase 2 stores it with the macro-graph since 11-04 evening, before that p2_nodes' community_id column)
 # Peak GPU / host memory: peak.sh around every training run (also the records' peak_rss_tree_mb / peak_gpu_mb).
 #   bash experiments/tableB/run.sh ogbn-arxiv
 set -eo pipefail
@@ -51,7 +52,7 @@ for r in ${TB_ROWS:-5 4 3}; do
         --out $O/read_units.jsonl
       tag=leiden_c10000; [ $r = 4 ] && tag=leiden   # idmod units: Phase 1 without the recursive split
       [ $r = 3 ] || $PY experiments/tableB/read_full.py --dataset "$ds" --store "$store" --row "$r global" \
-        --tables p2_macro_nodes/$tag p2_macro_edges/$tag communities/$tag p2_nodes/$tag:community_id \
+        --tables p2_macro_nodes/$tag p2_macro_edges/$tag communities/$tag p2_unit_plan/$tag \
         --out $O/read_full.jsonl
     fi
   done
