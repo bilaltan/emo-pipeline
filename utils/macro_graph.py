@@ -20,7 +20,8 @@ def mean_features(pdf):
     import numpy as np
     import pandas as pd
     cid = pdf['community_id'].iloc[0]
-    feats = np.stack(pdf['features'].values)
+    # rows in id order: Spark's group order varies, and the float32 sum differs with it (Reddit: up to 7.9e-6)
+    feats = np.stack(pdf.sort_values('id', kind='mergesort')['features'].values)
     mean_feat = feats.mean(axis=0).tolist()
     return pd.DataFrame([{'community_id': cid, 'mean_features': mean_feat}])
 
