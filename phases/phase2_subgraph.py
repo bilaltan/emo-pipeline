@@ -97,22 +97,14 @@ def run_phase2(spark, sc, datasets, algorithms, use_global_mapping, min_size,
             t0    = time.time()
             print(f"\n  ── [{alg.upper()}]  tag={p_alg['tag']} ──")
 
+            # advisor 2026-11-04: no diagnostic counts in Phase 2's time; only the counts the layout needs run
             comms_df = spark.read.format('delta').load(p_alg['communities']).cache()
-            n_raw    = comms_df.select('community_id').distinct().count()
 
             # Filter by minimum size
             comm_sizes   = comms_df.groupBy('community_id')\
                                    .agg(F.count('*').alias('comm_size'))
             valid_comms  = comm_sizes.filter(F.col('comm_size') >= min_size).cache()
             n_valid      = valid_comms.count()
-            
-            if n_valid > 0:
-                size_stats   = valid_comms.agg(
-                    F.min('comm_size').alias('mn'), F.max('comm_size').alias('mx'),
-                    F.avg('comm_size').alias('avg')).collect()[0]
-                mn, mx, avg = size_stats['mn'], size_stats['mx'], size_stats['avg']
-            else:
-                mn, mx, avg = 0, 0, 0.0
 
             if tiny_comm_handling in ('misc', 'micro_chunk'):
                 invalid_comms = comm_sizes.filter(F.col('comm_size') < min_size)
@@ -136,9 +128,7 @@ def run_phase2(spark, sc, datasets, algorithms, use_global_mapping, min_size,
 
             comms_filt = comms_filt.select('id', 'community_id')
 
-            print(f"  Raw={n_raw:,}  Valid(≥{min_size})={n_valid:,}  "
-                  f"min={mn:,}  max={mx:,}  "
-                  f"avg={avg:.1f}")
+            print(f"  Valid(≥{min_size})={n_valid:,}")
 
             # Build partitioned nodes. The materialized view copies each node's
             # label, features and split into its partition rows; the normalized
@@ -154,7 +144,6 @@ def run_phase2(spark, sc, datasets, algorithms, use_global_mapping, min_size,
             nodes_part = (nodes_w_split
                           .join(node_comm, on='id', how='inner')
                           .select(*node_cols, 'community_id'))
-            n_kept = nodes_part.count()
 
             # Intra-community edges
             e_src = (edges_df.join(node_comm.withColumnRenamed('id','src').withColumnRenamed('community_id','src_comm'), on='src', how='inner'))
@@ -186,12 +175,10 @@ def run_phase2(spark, sc, datasets, algorithms, use_global_mapping, min_size,
                                     Window.partitionBy('src_comm').orderBy(F.desc('count'), 'dst')))
                                 .filter(F.col('_r') > F.col('_m'))
                                 .select(F.col('dst').alias('id'), F.col('src_comm').alias('community_id')).cache())
-                        n_drop = drop.count()
                         halo_nodes = halo_nodes.join(F.broadcast(drop), ['id', 'community_id'], 'left_anti')
                         edges_part = edges_part.join(F.broadcast(drop.withColumnRenamed('id', 'dst')),
                                                      ['dst', 'community_id'], 'left_anti')
-                        print(f"  Halo capped at min(members, {halo_cap:,} - members): {len(over):,} units above it, "
-                              f"{n_drop:,} halo rows dropped")
+                        print(f"  Halo capped at min(members, {halo_cap:,} - members): {len(over):,} units above it")
                 # is_member separates a community's own vertices from the 1-hop halo
                 # pulled in from neighbours. Without it a halo vertex is
                 # indistinguishable from a member downstream, so it gets scored as a
@@ -234,22 +221,7 @@ def run_phase2(spark, sc, datasets, algorithms, use_global_mapping, min_size,
                            .select(*node_cols, 'community_id', 'is_boundary', 'is_member'))
 
             p2_times = {'build_s': time.time() - t0}   # advisor 11-03: Phase 2 runtime breakdown
-            n_total_nodes = nodes_final.count()
-            n_boundary = nodes_final.filter(F.col('is_boundary')).count()
-            n_internal = n_total_nodes - n_boundary
-            print(f"  Edges kept: {n_intra:,} ({pct_kept:.1f}%)  "
-                  f"Boundary nodes: {n_boundary:,}  Internal: {n_internal:,}")
-
-            # Shuffle overhead metric
-            sc.setJobDescription(f'shuffle_p2_{dataset}_{alg}')
-            t_sh = time.time()
-            sh_df = nodes_final.groupBy('community_id').count().cache()
-            sh_df.count()
-            shuffle_s = time.time() - t_sh
-            sh_df.unpersist()
-            sc.setJobDescription('')
-            print(f"  Shuffle overhead (groupBy community_id): {shuffle_s:.1f}s")
-            p2_times['diag_s'] = time.time() - t0 - sum(p2_times.values())
+            print(f"  Edges kept: {n_intra:,} ({pct_kept:.1f}%)")
 
             # Write — isolated per tag
             # Range, not hash. Phase 3b reads these tables with a predicate on
@@ -283,6 +255,9 @@ def run_phase2(spark, sc, datasets, algorithms, use_global_mapping, min_size,
             if blk_cap:
                 nodes_out, edges_out, n_units = add_blk(spark, nodes_out, edges_out, blk_cap)
             rg_mb = kwargs.get('rg_mb')
+            # rows per community (members + halo): the merge plan, and their sum is the √ rule's table size
+            stats = community_stats(nodes_final) if (p2_layout == 'hive_merged' or rg_mb == 'auto') else None
+            n_total_nodes = int(stats['rows'].sum()) if stats is not None else None
             if rg_mb == 'auto':
                 from delta.tables import DeltaTable
                 size = lambda u: int(DeltaTable.forPath(spark, u).detail().first()['sizeInBytes'])
@@ -296,8 +271,7 @@ def run_phase2(spark, sc, datasets, algorithms, use_global_mapping, min_size,
             if rg_mb:
                 hconf.set('parquet.block.size', str(int(float(rg_mb) * (1 << 20))))
             if p2_layout == 'hive_merged':
-                plan = merge_plan(community_stats(nodes_final), merge_minor_members,
-                                  merge_min_rows, merge_target_rows)
+                plan = merge_plan(stats, merge_minor_members, merge_min_rows, merge_target_rows)
                 n_shared = int(plan.loc[plan['small'], 'storage_part'].nunique())
                 print(f"  p2_layout=hive_merged: {int(plan['small'].sum()):,} small communities -> "
                       f"{n_shared} shared partitions; {int((~plan['small']).sum()):,} own partitions")
@@ -326,14 +300,20 @@ def run_phase2(spark, sc, datasets, algorithms, use_global_mapping, min_size,
             p2_times['write_s'] = time.time() - t0 - sum(p2_times.values())
             if kwargs.get('time_split'):
                 nodes_out.unpersist(), edges_out.unpersist()
+            if kwargs.get('macro_graph'):
+                # CaaN's macro-graph, stored with the view (advisor 2026-11-04); Phase 3b reads it (utils.macro_graph)
+                from pipeline.utils.macro_graph import macro_tables, write_macro
+                write_macro(spark, p_alg, *macro_tables(comms_df, valid_comms, nodes_df, masks_df, edges_df,
+                                                        with_minor=tiny_comm_handling == 'drop'))
+                p2_times['macro_s'] = time.time() - t0 - sum(p2_times.values())
             elapsed = time.time() - t0
             timing[('phase2', dataset, alg)] = elapsed
             results[key] = {
-                'n_comms_raw':   n_raw,  'n_valid_comms': n_valid,
-                'n_nodes_kept':  n_kept, 'n_boundary':    n_boundary,
-                'n_internal':    n_kept - n_boundary,
+                'n_comms_raw':   None,  'n_valid_comms': n_valid,   # the None fields: diagnostic counts, not run
+                'n_nodes_kept':  None, 'n_boundary':    None,
+                'n_internal':    None,
                 'n_intra_edges': n_intra,'pct_edges_kept': pct_kept,
-                'shuffle_s':    shuffle_s,
+                'shuffle_s':    None,
                 'partition_table_mode': partition_table_mode,
                 'p2_layout': p2_layout,
                 'block_cap': blk_cap, 'rg_mb': rg_mb, 'n_units': n_units, 'one_file_per_dir': one_file,

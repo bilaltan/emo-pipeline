@@ -4,8 +4,9 @@ Table B, rows 1-2 (full-graph GraphSAGE, Cluster-GCN): their storage read, one c
 and mask tables through the S3 emulator (advisor 2026-11-02). They have no units, so every data file of the current
 snapshots is one task, read whole by pyarrow (utils.store_io: one GET of --emu latency + bytes / bandwidth per read
 call) with the features decoded, by --procs reader processes as Table A reads Stage 3b's bins. Reads only.
-Rows 4-5 (--row, --tables): the tables CaaN's global model scans outside the unit bins (raw nodes, masks and edges,
-the communities table, p2_nodes for the super-node means), read the same way.
+Rows 4-5 (--row, --tables): what Stage 3b reads outside the unit bins, read the same way. Since 2026-11-04 (advisor)
+that is the macro-graph Phase 2 stores, the communities table (the units map cut edges to super-nodes by it) and
+p2_nodes' community_id column (the unit plan); a table given as TABLE:COL,COL is read with those columns only.
 
     bash scripts/wsl_run.sh python experiments/tableB/read_full.py --dataset ogbn-products
 """
@@ -32,11 +33,12 @@ def _init(emu, ready):
     ready.wait()
 
 
-def _read(path):
+def _read(item):
     import pyarrow.parquet as pq
     from pipeline.utils import store_io
+    path, columns = item
     g0, b0 = store_io.STATS["gets"], store_io.STATS["bytes"]
-    t = pq.read_table(path, filesystem=store_io.filesystem(path, _W["emu"]))
+    t = pq.read_table(path, columns=columns, filesystem=store_io.filesystem(path, _W["emu"]))
     if "features" in t.column_names:
         t.column("features").combine_chunks().flatten().to_numpy(zero_copy_only=False)
     return t.num_rows, store_io.STATS["gets"] - g0, store_io.STATS["bytes"] - b0
@@ -46,7 +48,7 @@ def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--dataset", required=True)
     ap.add_argument("--store", default=os.path.expanduser("~/lakegrl/store"))
-    ap.add_argument("--tables", nargs="+", default=list(TABLES), help="Delta tables under STORE/DATASET")
+    ap.add_argument("--tables", nargs="+", default=list(TABLES), help="Delta tables under STORE/DATASET[:COL,COL]")
     ap.add_argument("--row", default="1-2", help="Table B row label")
     ap.add_argument("--runs", type=int, default=3)
     ap.add_argument("--procs", type=int, default=20, help="reader processes (Table A: Stage 3b's 20 task slots)")
@@ -57,8 +59,9 @@ def main():
     emu = parse_emu(args.emu)
     files, versions = [], {}
     for t in args.tables:
+        t, _, cols = t.partition(":")
         _, paths, versions[t] = snapshot(os.path.join(args.store, args.dataset, t))
-        files += paths
+        files += [(f, cols.split(",") if cols else None) for f in paths]
     os.makedirs(os.path.dirname(os.path.abspath(args.out)), exist_ok=True)
     print(f"== {args.dataset}: {len(files)} files, {args.procs} readers, GET = {args.emu}", flush=True)
     ctx = mp.get_context("spawn")

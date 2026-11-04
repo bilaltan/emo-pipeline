@@ -58,6 +58,7 @@ def paths(dataset, alg=None):
         p.update({"communities": f"{base}/communities/{a}/",
                   "p2_nodes": f"{base}/p2_nodes/{a}/",
                   "p2_edges": f"{base}/p2_edges/{a}/",
+                  "p2_macro_nodes": f"{base}/p2_macro_nodes/{a}/", "p2_macro_edges": f"{base}/p2_macro_edges/{a}/",
                   "tag": f"local_{dataset}_{a}"})
     return p
 
@@ -458,7 +459,8 @@ def main():
                merge_target_rows=args.merge_target_rows,
                rg_mb=args.p2_rg_mb if args.p2_rg_mb == "auto" else float(args.p2_rg_mb) or None,
                block_cap=None if args.p2_plain else args.max_nodes, halo_cap=c_split,
-               rg_floor_mb=args.p2_rg_floor_mb, one_file_per_dir=args.p2_one_file, time_split=args.p2_time_split)
+               rg_floor_mb=args.p2_rg_floor_mb, one_file_per_dir=args.p2_one_file, time_split=args.p2_time_split,
+               macro_graph=args.stop_after in ("3b", "4"))   # CaaN's macro-graph, for Stage 3b (advisor 2026-11-04)
 
     if args.stop_after != "4":
         args.skip_baseline = True

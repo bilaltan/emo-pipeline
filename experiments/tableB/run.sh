@@ -10,7 +10,8 @@
 #   row 5 LakeGRL: recursive Leiden C_max 10k + CaaN macro-GNN; minor and isolated nodes scored by its global model
 #   rows 3-5 store Phase 2 as Table A row 8b (hive_merged, bounded sqrt row group with a 2 MB floor, one file per
 #   directory); read = read_units.py on the run's own bins, right after its seed 0; rows 4-5 add read_full.py on
-#   the tables CaaN's global model scans besides the bins (raw nodes, masks, edges, communities, p2_nodes)
+#   what Stage 3b reads besides the bins: the macro-graph Phase 2 stores (advisor 2026-11-04; until then the raw
+#   nodes, masks and edges and the whole p2_nodes, to rebuild it), the communities table, p2_nodes' community_id
 # Peak GPU / host memory: peak.sh around every training run (also the records' peak_rss_tree_mb / peak_gpu_mb).
 #   bash experiments/tableB/run.sh ogbn-arxiv
 set -eo pipefail
@@ -50,7 +51,8 @@ for r in ${TB_ROWS:-5 4 3}; do
         --out $O/read_units.jsonl
       tag=leiden_c10000; [ $r = 4 ] && tag=leiden   # idmod units: Phase 1 without the recursive split
       [ $r = 3 ] || $PY experiments/tableB/read_full.py --dataset "$ds" --store "$store" --row "$r global" \
-        --tables nodes masks edges communities/$tag p2_nodes/$tag --out $O/read_full.jsonl
+        --tables p2_macro_nodes/$tag p2_macro_edges/$tag communities/$tag p2_nodes/$tag:community_id \
+        --out $O/read_full.jsonl
     fi
   done
 done

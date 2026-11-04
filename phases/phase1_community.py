@@ -60,7 +60,35 @@ def closed_nbhd(indptr, indices, vs):
     return np.unique(np.concatenate([vs, indices[off]]))
 
 
-def split_units(G, membership, max_core, resolution=1.0, seed=0):
+_SPLIT_G = None   # the graph split_units' forked workers read (copy-on-write, never pickled)
+
+
+def _split_leaves(c, p, max_core, resolution, seed):
+    """One oversized community's recursive Leiden (split_units): its leaves in preorder, Leiden calls, last resolution."""
+    import leidenalg
+    import numpy as np
+    leaves, stack, calls, r_max = [], [p], 0, float(resolution)
+    while stack:   # depth-first, children in Leiden's order (largest first): leaves come out in preorder
+        p = stack.pop()
+        if len(p) <= max_core:
+            leaves.append(p)
+            continue
+        sub, r = _SPLIT_G.induced_subgraph(p), float(resolution)
+        for _ in range(40):
+            part = np.asarray(leidenalg.find_partition(sub, leidenalg.RBConfigurationVertexPartition,
+                                                       resolution_parameter=r, seed=seed).membership)
+            calls += 1
+            if part.max() > 0:
+                break
+            r *= 2
+        else:
+            raise RuntimeError(f"Leiden kept {len(p)} vertices of community {c} together up to resolution {r}")
+        r_max = max(r_max, r)
+        stack += [p[part == k] for k in range(part.max(), -1, -1)]
+    return leaves, calls, r_max
+
+
+def split_units(G, membership, max_core, resolution=1.0, seed=0, processes=1):
     """Recursive Leiden, Phase 1's unit rule (advisor, 2026-10-30): no unit may hold more than max_core core members.
     Phase 1 passes max_core = C_max / 2 and Phase 2 caps each unit's halo at its core size (halo_cap), so a unit
     stores <= C_max rows. A cap on members + uncapped halo instead gave Reddit (mean degree ~490) 4,035 units of
@@ -71,36 +99,38 @@ def split_units(G, membership, max_core, resolution=1.0, seed=0):
     vertices, so the recursion ends). The leaves, in the tree's preorder (children largest first), are packed
     next-fit up to max_core members: every unit is a contiguous run of the tree and pieces of different communities
     never share a unit. The first unit keeps the community's id, the others get new ids above the old maximum.
+
+    The oversized communities are disjoint subgraphs, so their recursions run in `processes` forked workers (advisor
+    2026-11-04); ids are still given in community order, so the result is the sequential one.
     Returns (membership, stats)."""
-    import leidenalg
     import numpy as np
+    global _SPLIT_G
     memb = np.asarray(membership, dtype=np.int64).copy()
     n_comm = int(memb.max()) + 1 if len(memb) else 0
     next_id = n_comm
     members = np.bincount(memb, minlength=n_comm)
     order = np.argsort(memb, kind="stable")
     starts = np.r_[0, np.cumsum(members)]
-    st = dict(split=0, leiden_calls=0, max_resolution=float(resolution), leaves=0, units_before=n_comm)
-    for c in np.nonzero(members > max_core)[0]:
+    st = dict(split=0, leiden_calls=0, max_resolution=float(resolution), leaves=0, units_before=n_comm,
+              processes=int(processes))
+    big =np.nonzero(members > max_core)[0]
+    tasks = sorted(((int(c), order[starts[c]:starts[c + 1]], max_core, resolution, seed) for c in big),
+                   key=lambda t: -len(t[1]))   # largest first, so the longest recursion does not start last
+    _SPLIT_G = G
+    try:
+        if min(int(processes), len(tasks)) > 1:
+            import multiprocessing as mp
+            with mp.get_context("fork").Pool(min(int(processes), len(tasks))) as pool:
+                out = dict(zip((t[0] for t in tasks), pool.starmap(_split_leaves, tasks, chunksize=1)))
+        else:
+            out = {t[0]: _split_leaves(*t) for t in tasks}
+    finally:
+        _SPLIT_G = None
+    for c in big:
+        leaves, calls, r = out[int(c)]
         st["split"] += 1
-        leaves, stack = [], [order[starts[c]:starts[c + 1]]]
-        while stack:   # depth-first, children in Leiden's order (largest first): leaves come out in preorder
-            p = stack.pop()
-            if len(p) <= max_core:
-                leaves.append(p)
-                continue
-            sub, r = G.induced_subgraph(p), float(resolution)
-            for _ in range(40):
-                part = np.asarray(leidenalg.find_partition(sub, leidenalg.RBConfigurationVertexPartition,
-                                                           resolution_parameter=r, seed=seed).membership)
-                st["leiden_calls"] += 1
-                if part.max() > 0:
-                    break
-                r *= 2
-            else:
-                raise RuntimeError(f"Leiden kept {len(p)} vertices of community {c} together up to resolution {r}")
-            st["max_resolution"] = max(st["max_resolution"], r)
-            stack += [p[part == k] for k in range(part.max(), -1, -1)]
+        st["leiden_calls"] += calls
+        st["max_resolution"] = max(st["max_resolution"], r)
         st["leaves"] += len(leaves)
         units, cur = [], []
         for p in leaves:
@@ -290,7 +320,8 @@ def run_phase1(spark, sc, datasets, algorithms, lpa_max_iter, resolution,
                 c_max = int(kwargs.get('c_max') or 0)
                 if c_max:
                     t_ref = time.time()
-                    membership, split_stats = split_units(G, membership, c_max // 2, resolution, int(random_seed))
+                    membership, split_stats = split_units(G, membership, c_max // 2, resolution, int(random_seed),
+                                                         processes=sc.defaultParallelism)
                     p1_times['split_s'] = time.time() - t_ref
                     print(f"  Recursive Leiden, <= {c_max // 2:,} core members per unit (C_max {c_max:,} rows with the "
                           f"halo capped at the core in Phase 2): {split_stats['split']:,} communities split, "

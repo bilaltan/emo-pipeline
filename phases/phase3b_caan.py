@@ -1987,6 +1987,75 @@ def make_caan_udf(super_nodes_dict_bc, minor_node_to_idx_bc, minor_feats_arr_bc,
     _train_gnn_bin_caan.joined_fn = _train_gnn_bin_caan_joined
     return _train_gnn_bin_caan
 
+
+def _build_macro(spark, nodes_w_comm, comms_df, raw_edges_df, p_alg, major_comms, node_to_comm_bc, major_comms_bc,
+                 tiny_comm_handling):
+    """CaaN's macro-graph built from p2_nodes and the raw tables, as every run did before Phase 2 stored it
+    (utils.macro_graph). Kept for stores without it and for experiments/tableB/check_macro.py."""
+    from pyspark.sql import functions as F
+    from pipeline.utils.partition_join import join_features
+    from pipeline.utils.macro_graph import mean_features
+    # Compute super-node features for major communities
+    major_nodes_df = nodes_w_comm.filter(F.col('community_id').isin(list(major_comms)))
+    if 'is_member' in major_nodes_df.columns:
+        # the centroid is the community's own vertices, not the halo it borrows
+        major_nodes_df = major_nodes_df.filter(F.col('is_member'))
+    mean_df = major_nodes_df.groupBy('community_id').applyInPandas(
+        mean_features,
+        schema='community_id long, mean_features array<float>'
+    )
+    super_nodes_dict = {
+        int(row['community_id']): [float(x) for x in row['mean_features']]
+        for row in mean_df.collect()
+    }
+
+    # CaaN Eq. 1: nodes of minor communities (Phase 1 ids, < min_size) are learned by the global model on
+    # the CaaN graph and are its only output. Only when Phase 2 dropped them from the units (tiny 'drop');
+    # 'misc'/'keep' already score them in units. Phase 2 does not carry them, so read the raw tables.
+    if tiny_comm_handling == 'drop':
+        minor_part = (comms_df.filter(~F.col('community_id').isin(list(major_comms)))
+                      .withColumn('is_boundary', F.lit(False)).withColumn('is_member', F.lit(True)))
+        minor_nodes_pd = join_features(spark, p_alg, partition_df=minor_part).toPandas()
+    else:
+        minor_nodes_pd = pd.DataFrame()
+    minor_nodes_dict = {}
+    for _, row in minor_nodes_pd.iterrows():
+        minor_nodes_dict[int(row['id'])] = {
+            'features': [float(x) for x in row['features']],
+            'label': int(row['label']) if not pd.isna(row['label']) else -1,
+            'split': str(row['split'])
+        }
+
+    def map_edges(iterator):
+        import sys
+        try:
+            import numpy.core as _np_core
+            if 'numpy._core' not in sys.modules:
+                sys.modules['numpy._core'] = _np_core
+                sys.modules['numpy._core.numeric'] = _np_core.numeric
+                sys.modules['numpy._core.multiarray'] = _np_core.multiarray
+                sys.modules['numpy._core._multiarray_umath'] = getattr(_np_core, '_multiarray_umath', _np_core)
+                sys.modules['numpy._core._exceptions'] = getattr(_np_core, '_exceptions', _np_core)
+        except Exception:
+            pass
+        n2c = node_to_comm_bc.value
+        maj = major_comms_bc.value
+        for row in iterator:
+            u, v = int(row.src), int(row.dst)
+            u_comm = n2c.get(u, -1)
+            v_comm = n2c.get(v, -1)
+            u_mapped = -1000 - u_comm if u_comm in maj else u
+            v_mapped = -1000 - v_comm if v_comm in maj else v
+            if u_mapped != v_mapped:
+                yield (u_mapped, v_mapped)
+
+    print("    - Computing global CAAN edges map-side (shuffless RDD partitioning)...")
+    caan_edges = (raw_edges_df.rdd
+                  .mapPartitions(map_edges)
+                  .distinct()
+                  .collect())
+    return super_nodes_dict, minor_nodes_dict, caan_edges
+
 def run_phase3b(spark, sc, datasets, algorithms, use_global_mapping,
                 dataset_cfg, gcn_cfg, get_paths_fn, timing, results, **kwargs):
     """
@@ -2089,83 +2158,27 @@ def run_phase3b(spark, sc, datasets, algorithms, use_global_mapping,
             # Stage 3a (context none) and the halo ablation build no macro-graph: skip its Spark jobs.
             context = kwargs.get("context", "macro")
             t_macro = time.time()
-            # Compute super-node features for major communities
-            major_nodes_df = nodes_w_comm.filter(F.col('community_id').isin(list(major_comms)))
-            if 'is_member' in major_nodes_df.columns:
-                # the centroid is the community's own vertices, not the halo it borrows
-                major_nodes_df = major_nodes_df.filter(F.col('is_member'))
-            
-            def compute_means_udf(pdf):
-                import numpy as np
-                import pandas as pd
-                cid = pdf['community_id'].iloc[0]
-                feats = np.stack(pdf['features'].values)
-                mean_feat = feats.mean(axis=0).tolist()
-                return pd.DataFrame([{'community_id': cid, 'mean_features': mean_feat}])
-                
-            mean_df = major_nodes_df.groupBy('community_id').applyInPandas(
-                compute_means_udf,
-                schema='community_id long, mean_features array<float>'
-            )
-            
-            super_nodes_dict = {
-                int(row['community_id']): [float(x) for x in row['mean_features']]
-                for row in mean_df.collect()
-            } if context == "macro" else {}
-            
-            # CaaN Eq. 1: nodes of minor communities (Phase 1 ids, < min_size) are learned by the global model on
-            # the CaaN graph and are its only output. Only when Phase 2 dropped them from the units (tiny 'drop');
-            # 'misc'/'keep' already score them in units. Phase 2 does not carry them, so read the raw tables.
-            if context == "macro" and kwargs.get('tiny_comm_handling', 'misc') == 'drop':
-                minor_part = (comms_df.filter(~F.col('community_id').isin(list(major_comms)))
-                              .withColumn('is_boundary', F.lit(False)).withColumn('is_member', F.lit(True)))
-                minor_nodes_pd = join_features(spark, p_alg, partition_df=minor_part).toPandas()
-            else:
-                minor_nodes_pd = pd.DataFrame()
-            minor_nodes_dict = {}
-            for _, row in minor_nodes_pd.iterrows():
-                minor_nodes_dict[int(row['id'])] = {
-                    'features': [float(x) for x in row['features']],
-                    'label': int(row['label']) if not pd.isna(row['label']) else -1,
-                    'split': str(row['split'])
-                }
-                
-            # Map-side broadcast edge mapping (completely shuffless!)
+            # The units map a cut edge's far end to its super-node by its community (and the old build maps the raw
+            # edges with it): Phase 1's node -> community map, broadcast.
             node_to_comm_pd = comms_df.toPandas() if context == "macro" else pd.DataFrame({'id': [], 'community_id': []})
             node_to_comm = {int(k): int(v) for k, v in zip(node_to_comm_pd['id'], node_to_comm_pd['community_id'])}
 
             node_to_comm_bc = sc.broadcast(node_to_comm)
             major_comms_bc = sc.broadcast(set(int(x) for x in major_comms))
 
-            def map_edges(iterator):
-                import sys
-                try:
-                    import numpy.core as _np_core
-                    if 'numpy._core' not in sys.modules:
-                        sys.modules['numpy._core'] = _np_core
-                        sys.modules['numpy._core.numeric'] = _np_core.numeric
-                        sys.modules['numpy._core.multiarray'] = _np_core.multiarray
-                        sys.modules['numpy._core._multiarray_umath'] = getattr(_np_core, '_multiarray_umath', _np_core)
-                        sys.modules['numpy._core._exceptions'] = getattr(_np_core, '_exceptions', _np_core)
-                except Exception:
-                    pass
-                n2c = node_to_comm_bc.value
-                maj = major_comms_bc.value
-                for row in iterator:
-                    u, v = int(row.src), int(row.dst)
-                    u_comm = n2c.get(u, -1)
-                    v_comm = n2c.get(v, -1)
-                    u_mapped = -1000 - u_comm if u_comm in maj else u
-                    v_mapped = -1000 - v_comm if v_comm in maj else v
-                    if u_mapped != v_mapped:
-                        yield (u_mapped, v_mapped)
+            # advisor 2026-11-04: the macro-graph is part of Phase 2's materialized view (utils.macro_graph); read it
+            # when Phase 2 stored it with this p2_nodes, instead of rebuilding it from the raw edge table every run
+            from pipeline.utils import macro_graph as _macro
+            macro_stored = context == "macro" and _macro.stored(spark, p_alg)
+            if macro_stored:
+                super_nodes_dict, minor_nodes_dict, caan_edges = _macro.load_macro(spark, p_alg)
+            elif context == "macro":
+                super_nodes_dict, minor_nodes_dict, caan_edges = _build_macro(
+                    spark, nodes_w_comm, comms_df, raw_edges_df, p_alg, major_comms, node_to_comm_bc, major_comms_bc,
+                    kwargs.get('tiny_comm_handling', 'misc'))
+            else:
+                super_nodes_dict, minor_nodes_dict, caan_edges = {}, {}, []
 
-            print("    - Computing global CAAN edges map-side (shuffless RDD partitioning)...")
-            caan_edges = (raw_edges_df.rdd
-                          .mapPartitions(map_edges)
-                          .distinct()
-                          .collect()) if context == "macro" else []
-            
             # Broadcast caan components - Driver-side pre-stacking for optimization
             minor_ids = list(minor_nodes_dict.keys())
             minor_node_to_idx = {int(nid): idx for idx, nid in enumerate(minor_ids)}
@@ -2198,8 +2211,9 @@ def run_phase3b(spark, sc, datasets, algorithms, use_global_mapping,
             major_comms_bc = sc.broadcast(set(int(x) for x in major_comms))
             
             if context == "macro":
-                timing[('caan_macro', dataset, alg)] = time.time() - t_macro
-                print(f"    - CaaN macro-graph built in {time.time() - t_macro:.1f}s "
+                timing[('caan_macro_load' if macro_stored else 'caan_macro', dataset, alg)] = time.time() - t_macro
+                print(f"    - CaaN macro-graph {'read from Phase 2' if macro_stored else 'built'} in "
+                      f"{time.time() - t_macro:.1f}s "
                       f"({len(super_nodes_dict):,} super-nodes, {len(minor_ids):,} minor nodes, {len(caan_edges):,} edges)")
             caan_components = {
                 'super_nodes_dict': super_nodes_dict,
