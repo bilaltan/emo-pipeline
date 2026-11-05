@@ -93,6 +93,9 @@ def main():
             try:
                 _, live0, v0 = snapshot(t)
                 rec.update(version=v0, before=du(t))
+                if v0 < 0:   # _delta_log without a commit (a write that failed first): not a table, leave it
+                    rec.update(skipped="no commit in _delta_log", after=rec["before"], ok=True)
+                    raise StopIteration
                 q = f"VACUUM delta.`file://{t}` RETAIN 0 HOURS"
                 cand = [unquote(urlparse(r[0]).path) for r in spark.sql(q + " DRY RUN").collect()]
                 assert all(c.startswith(t + "/") for c in cand), f"path outside the table: {cand[:1]}"
@@ -110,6 +113,8 @@ def main():
                     gone = [p for p in live1 if not os.path.exists(p)]
                     assert not gone, f"{len(gone)} current files missing, e.g. {gone[0]}"
                 rec.update(after=du(t), ok=True)
+            except StopIteration:
+                pass
             except Exception as e:
                 rec.update(ok=False, error=f"{type(e).__name__}: {e}"[:500])
             rec["s"] = round(time.time() - t0, 2)
