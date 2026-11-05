@@ -57,3 +57,6 @@ for r in ${TB_ROWS:-5 4 3}; do
     fi
   done
 done
+# Bilal 2026-11-05: every run's Phase 2 overwrite keeps the old files until VACUUM (the store had grown to 566 GB for
+# 200 GB of current data); after all timed work, keep only the current version of this dataset's tables
+$PY scripts/vacuum_store.py "$store/$ds" --out $O/vacuum.jsonl || echo "vacuum_store failed: $store/$ds keeps its old versions"
