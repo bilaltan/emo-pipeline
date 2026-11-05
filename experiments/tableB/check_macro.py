@@ -19,6 +19,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspa
 
 from delta import configure_spark_with_delta_pip  # noqa: E402
 from pyspark.sql import SparkSession, functions as F  # noqa: E402
+from pyspark.sql.types import BinaryType  # noqa: E402
 
 from phases.phase3b_caan import _build_macro  # noqa: E402
 from pipeline.utils import macro_graph  # noqa: E402
@@ -65,6 +66,12 @@ def main():
         sc.broadcast(major), args.tiny_comm)
     t_build = time.time() - t0
 
+    # features stored as float16 (LAKEGRL_MACRO_F16 trial): compare with the rebuild rounded to float16
+    f16 = isinstance(spark.read.format("delta").load(p_alg["p2_macro_nodes"]).schema["features"].dataType, BinaryType)
+    if f16:
+        r16 = lambda f: np.asarray(f, np.float32).astype(np.float16).astype(np.float32).tolist()  # noqa: E731
+        sup0 = {c: r16(f) for c, f in sup0.items()}
+        minor0 = {i: {**m, "features": r16(m["features"])} for i, m in minor0.items()}
     assert set(sup) == set(sup0) == major, (len(sup), len(sup0), len(major))
     a = np.array([sup[c] for c in sorted(sup)], np.float32)
     a0 = np.array([sup0[c] for c in sorted(sup0)], np.float32)
@@ -79,7 +86,7 @@ def main():
     assert dict(zip(plan["community_id"], plan["count"])) == dict(zip(plan0["community_id"], plan0["count"])), \
         (len(plan), len(plan0))
     rec = {"time": time.strftime("%Y-%m-%d %H:%M:%S"), "dataset": args.dataset, "tag": args.tag, "ok": True,
-           "super_nodes": len(sup), "minor_nodes": len(minor), "edges": len(edges), "super_feat_max_abs_diff": d, "super_feat_exact": exact,
+           "super_nodes": len(sup), "minor_nodes": len(minor), "edges": len(edges), "super_feat_max_abs_diff": d, "super_feat_exact": exact, "f16": f16,
            "plan_communities": len(plan), "load_s": t_load, "build_s": t_build}
     os.makedirs(os.path.dirname(os.path.abspath(args.out)), exist_ok=True)
     with open(args.out, "a") as fh:

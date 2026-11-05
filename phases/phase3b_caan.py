@@ -2165,6 +2165,8 @@ def run_phase3b(spark, sc, datasets, algorithms, use_global_mapping,
 
             node_to_comm_bc = sc.broadcast(node_to_comm)
             major_comms_bc = sc.broadcast(set(int(x) for x in major_comms))
+            if context == "macro":   # part of caan_macro_load: the units' map, needed with a stored macro-graph too
+                timing[('caan_comm_map', dataset, alg)] = time.time() - t_macro
 
             # advisor 2026-11-04: the macro-graph is part of Phase 2's materialized view (utils.macro_graph); read it
             # when Phase 2 stored it with this p2_nodes, instead of rebuilding it from the raw edge table every run

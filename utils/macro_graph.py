@@ -60,8 +60,12 @@ def macro_tables(comms_df, major_df, nodes_df, masks_df, edges_df, with_minor):
 def write_macro(spark, p_alg, nodes, edges, stats):
     """One file per table (super-nodes first), stamped with the p2_nodes version they belong to. stats: Phase 2's
     community_stats of the p2_nodes rows (community_id, rows)."""
+    import os
     from pyspark.sql import functions as F
     from pipeline.utils.partition_join import delta_version
+    if os.environ.get('LAKEGRL_MACRO_F16'):   # trial (11-05): features as float16 bytes (Spark has no float16 type)
+        import numpy as np
+        nodes = nodes.withColumn('features', F.udf(lambda f: np.asarray(f, np.float16).tobytes(), 'binary')('features'))
     v = delta_version(spark, p_alg['p2_nodes'])
     plan = spark.createDataFrame(stats[['community_id', 'rows']].rename(columns={'rows': 'count'}).astype('int64'))
     for df, k, order in ((edges, 'p2_macro_edges', ['src', 'dst']),
@@ -86,8 +90,11 @@ def stored(spark, p_alg):
 
 def load_macro(spark, p_alg):
     """(super_nodes_dict, minor_nodes_dict, caan_edges) in the form phase3b_caan._build_macro returns them."""
+    import numpy as np
     import pandas as pd
     mn = spark.read.format('delta').load(p_alg['p2_macro_nodes']).toPandas()
+    if len(mn) and isinstance(mn['features'].iloc[0], (bytes, bytearray)):   # stored as float16 (LAKEGRL_MACRO_F16)
+        mn['features'] = [np.frombuffer(f, np.float16).astype(np.float32) for f in mn['features']]
     sup, minor = mn[mn['macro_id'] < 0], mn[mn['macro_id'] >= 0]
     super_nodes_dict = {int(c): [float(x) for x in f] for c, f in zip(sup['community_id'], sup['features'])}
     minor_nodes_dict = {int(i): {'features': [float(x) for x in f], 'label': int(l) if not pd.isna(l) else -1,

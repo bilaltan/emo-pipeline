@@ -535,6 +535,7 @@ def main():
         "p2_layout": args.p2_layout, "p2_rg_mb": r2.get((DS, args.alg), {}).get("rg_mb"),
         "p2_rg_floor_mb": args.p2_rg_floor_mb, "p2_one_file": args.p2_one_file, "pack_train": args.pack_train,
         "p2_block_cap": r2.get((DS, args.alg), {}).get("block_cap"),
+        "macro_f16": bool(os.environ.get("LAKEGRL_MACRO_F16")),
         "n_nodes": n_nodes, "n_edges": n_edges, "n_classes": n_classes,
         "n_communities_phase1": r1.get((DS, args.alg), {}).get("n_comms"),
         "n_units_phase3": len(r3[k]) if k in r3 else None,
