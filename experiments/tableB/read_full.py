@@ -29,7 +29,9 @@ _W = {}
 
 def _init(emu, ready):
     _W["emu"] = emu
-    import pyarrow.parquet  # noqa: F401  (start-up stays out of the timed reads)
+    import pyarrow.dataset  # noqa: F401  (start-up stays out of the timed reads; pq.read_table imports it lazily)
+    import pyarrow.parquet  # noqa: F401
+    from pipeline.utils import store_io  # noqa: F401
     ready.wait()
 
 
