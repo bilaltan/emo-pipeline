@@ -54,8 +54,9 @@ def unit_rows(cache):
     return ids[o], units[o], member[o], reuse
 
 
-def write_rows(path, x, ids, units, rg_rows, chunk_rgs=64):
-    """Parquet (id, unit, features) in uniform row groups of rg_rows; units=None writes (id, features)."""
+def write_rows(path, x, ids, units, rg_rows, chunk_rgs=64, dictionary=True):
+    """Parquet (id, unit, features) in uniform row groups of rg_rows; units=None writes (id, features).
+    dictionary: pyarrow's use_dictionary (its default, on, stores float features 1.27-1.29x larger than off)."""
     f = x.shape[1]
     w = None
     for s in range(0, max(len(ids), 1), rg_rows * chunk_rgs):
@@ -65,7 +66,7 @@ def write_rows(path, x, ids, units, rg_rows, chunk_rgs=64):
             cols["unit"] = pa.array(units[s:s + rg_rows * chunk_rgs], pa.int64())
         cols["features"] = pa.FixedSizeListArray.from_arrays(pa.array(np.asarray(x[i], np.float32).ravel()), f)
         t = pa.table(cols)
-        w = w or pq.ParquetWriter(path, t.schema)
+        w = w or pq.ParquetWriter(path, t.schema, use_dictionary=dictionary)
         w.write_table(t, row_group_size=rg_rows)
     w.close()
     return os.path.getsize(path)

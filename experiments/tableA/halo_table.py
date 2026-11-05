@@ -79,7 +79,8 @@ def main():
         rg_rows = max(1, int(sqrt_rg_mb(len(ids) * row_b, len(lay), floor_mb=args.rg_floor_mb) * (1 << 20) / row_b))
         path = os.path.join(wd, f"{name}.parquet")
         t0 = time.perf_counter()
-        stored = write_rows(path, x, ids, units, rg_rows)
+        # advisor 2026-11-05: no dictionary encoding, so stored GB compare with Table A (Spark's p2_nodes, ~1.0x raw)
+        stored = write_rows(path, x, ids, units, rg_rows, dictionary=False)
         write_s = time.perf_counter() - t0
         order = [c for c, _ in sorted(lay.items(), key=lambda kv: -(len(kv[1]["members"]) + len(kv[1]["halo"])))]
         drop_caches()
@@ -87,7 +88,7 @@ def main():
         rec = {"time": time.strftime("%Y-%m-%d %H:%M:%S"), "dataset": args.dataset, "alg": args.alg, "halo": name,
                "budget": budget, "units": len(lay), "members": int(sum(len(u["members"]) for u in lay.values())),
                "halo_rows": int(sum(len(u["halo"]) for u in lay.values())), "rows_stored": int(len(ids)),
-               "bytes_stored": stored, "rg_floor_mb": args.rg_floor_mb, "rg_rows": rg_rows, "write_s": write_s,
+               "bytes_stored": stored, "dictionary": False, "rg_floor_mb": args.rg_floor_mb, "rg_rows": rg_rows, "write_s": write_s,
                "read_wall_s": walls[0], "gets": gets, "bytes_read": nbytes, "emu": args.emu, "procs": args.procs,
                "leakage": leak}
         with open(args.out, "a") as fh:
