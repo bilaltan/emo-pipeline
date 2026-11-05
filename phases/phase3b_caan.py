@@ -2160,7 +2160,9 @@ def run_phase3b(spark, sc, datasets, algorithms, use_global_mapping,
             t_macro = time.time()
             # The units map a cut edge's far end to its super-node by its community (and the old build maps the raw
             # edges with it): Phase 1's node -> community map, broadcast.
-            node_to_comm_pd = comms_df.toPandas() if context == "macro" else pd.DataFrame({'id': [], 'community_id': []})
+            from pipeline.utils import macro_graph as _macro
+            node_to_comm_pd = (_macro.read_small(p_alg['communities'])[['id', 'community_id']] if context == "macro"
+                               else pd.DataFrame({'id': [], 'community_id': []}))
             node_to_comm = {int(k): int(v) for k, v in zip(node_to_comm_pd['id'], node_to_comm_pd['community_id'])}
 
             node_to_comm_bc = sc.broadcast(node_to_comm)

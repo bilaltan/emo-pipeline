@@ -88,11 +88,20 @@ def stored(spark, p_alg):
         return False
 
 
+def read_small(uri):
+    """A small Delta table as pandas, read with pyarrow from its current files (store_io.snapshot), no Spark job:
+    a Spark read + toPandas cost 0.5-1.3 s per table of each products run's macro-graph load (11-05)."""
+    import pyarrow.parquet as pq
+    from pipeline.utils.store_io import snapshot
+    fs, files, _ = snapshot(uri)
+    return pq.read_table(files, filesystem=fs).to_pandas()
+
+
 def load_macro(spark, p_alg):
     """(super_nodes_dict, minor_nodes_dict, caan_edges) in the form phase3b_caan._build_macro returns them."""
     import numpy as np
     import pandas as pd
-    mn = spark.read.format('delta').load(p_alg['p2_macro_nodes']).toPandas()
+    mn = read_small(p_alg['p2_macro_nodes'])
     if len(mn) and isinstance(mn['features'].iloc[0], (bytes, bytearray)):   # stored as float16 (LAKEGRL_MACRO_F16)
         mn['features'] = [np.frombuffer(f, np.float16).astype(np.float32) for f in mn['features']]
     sup, minor = mn[mn['macro_id'] < 0], mn[mn['macro_id'] >= 0]
@@ -100,10 +109,10 @@ def load_macro(spark, p_alg):
     minor_nodes_dict = {int(i): {'features': [float(x) for x in f], 'label': int(l) if not pd.isna(l) else -1,
                                  'split': str(s)}
                         for i, f, l, s in zip(minor['macro_id'], minor['features'], minor['label'], minor['split'])}
-    me = spark.read.format('delta').load(p_alg['p2_macro_edges']).toPandas()
+    me = read_small(p_alg['p2_macro_edges'])
     return super_nodes_dict, minor_nodes_dict, list(zip(me['src'].tolist(), me['dst'].tolist()))
 
 
 def load_plan(spark, p_alg):
     """p2_nodes rows per community (community_id, count), as p2_nodes.groupBy('community_id').count()."""
-    return spark.read.format('delta').load(p_alg['p2_unit_plan']).toPandas()
+    return read_small(p_alg['p2_unit_plan'])
