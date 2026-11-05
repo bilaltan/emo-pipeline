@@ -74,14 +74,12 @@ def write_macro(spark, p_alg, nodes, edges, stats):
 
 def stored(spark, p_alg):
     """True if Phase 2 stored the macro-graph with the current p2_nodes."""
-    from delta.tables import DeltaTable
-    from pipeline.utils.partition_join import delta_version
+    from pipeline.utils.store_io import properties, snapshot
     if not all(k in p_alg for k in TABLES):
         return False
-    try:
-        v = str(delta_version(spark, p_alg['p2_nodes']))
-        return all((DeltaTable.forPath(spark, p_alg[k]).detail().first()['properties'] or {}).get(MACRO_PROP) == v
-                   for k in TABLES)
+    try:   # read from the Delta logs: DeltaTable.detail() took ~3 s of each run's macro-graph load (11-04)
+        v = str(snapshot(p_alg['p2_nodes'])[2])
+        return all(properties(p_alg[k]).get(MACRO_PROP) == v for k in TABLES)
     except Exception:   # no such table: Phase 2 ran without macro_graph
         return False
 

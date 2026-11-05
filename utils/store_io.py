@@ -93,6 +93,34 @@ def snapshot(uri):
     return fs, sorted(f"{root}/{p}" for p in live), version
 
 
+def properties(uri):
+    """A Delta table's current table properties (its latest metaData configuration), from _delta_log without Spark:
+    the newest commit after the last checkpoint that has a metaData action, else the checkpoint's."""
+    import json
+    import pyarrow.fs as pafs
+    import pyarrow.parquet as pq
+    fs, root = filesystem(uri), to_path(uri)
+    log = f"{root}/_delta_log"
+    names = sorted(i.base_name for i in fs.get_file_info(pafs.FileSelector(log)))
+    start = -1
+    if "_last_checkpoint" in names:
+        with fs.open_input_stream(f"{log}/_last_checkpoint") as f:
+            start = int(json.loads(f.read())["version"])
+    for n in reversed([n for n in names if n.endswith(".json") and n[:20].isdigit() and int(n[:20]) > start]):
+        with fs.open_input_stream(f"{log}/{n}") as f:
+            for line in f.read().decode().splitlines():
+                a = json.loads(line)
+                if "metaData" in a:
+                    return dict(a["metaData"].get("configuration") or {})
+    for n in names:
+        if n.startswith(f"{start:020d}.checkpoint") and n.endswith(".parquet"):
+            md = [m for m in pq.read_table(f"{log}/{n}", filesystem=fs, columns=["metaData"]).column("metaData")
+                  .to_pylist() if m]
+            if md:
+                return dict(md[0].get("configuration") or {})
+    return {}
+
+
 class _MeteredFile:
     """A store file whose every read call is one GET: counted, and delayed by latency + bytes / bandwidth."""
 

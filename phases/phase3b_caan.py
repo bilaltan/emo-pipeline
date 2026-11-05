@@ -2207,8 +2207,6 @@ def run_phase3b(spark, sc, datasets, algorithms, use_global_mapping,
             minor_splits_arr_bc = sc.broadcast(minor_splits_list)
             minor_ids_arr_bc = sc.broadcast(minor_ids_list)
             caan_adj_bc = sc.broadcast(dict(caan_adj))
-            node_to_comm_bc = sc.broadcast(node_to_comm)
-            major_comms_bc = sc.broadcast(set(int(x) for x in major_comms))
             
             if context == "macro":
                 timing[('caan_macro_load' if macro_stored else 'caan_macro', dataset, alg)] = time.time() - t_macro
