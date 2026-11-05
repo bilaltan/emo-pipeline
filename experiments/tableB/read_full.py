@@ -42,7 +42,13 @@ def _read(item):
     g0, b0 = store_io.STATS["gets"], store_io.STATS["bytes"]
     t = pq.read_table(path, columns=columns, filesystem=store_io.filesystem(path, _W["emu"]))
     if "features" in t.column_names:
-        t.column("features").combine_chunks().flatten().to_numpy(zero_copy_only=False)
+        import numpy as np
+        import pyarrow as pa
+        f = t.column("features").combine_chunks()
+        if pa.types.is_binary(f.type):   # float16 bytes (LAKEGRL_MACRO_F16 trial)
+            np.frombuffer(f.buffers()[2], np.float16)
+        else:
+            f.flatten().to_numpy(zero_copy_only=False)
     return t.num_rows, store_io.STATS["gets"] - g0, store_io.STATS["bytes"] - b0
 
 
