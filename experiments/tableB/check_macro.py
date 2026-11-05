@@ -53,6 +53,7 @@ def main():
     t0 = time.time()
     sup, minor, edges = macro_graph.load_macro(spark, p_alg)
     t_load = time.time() - t0
+    minor = {i: {**m, "features": np.asarray(m["features"], np.float32).tolist()} for i, m in minor.items()}
 
     t0 = time.time()
     comms_df = spark.read.format("delta").load(p_alg["communities"])

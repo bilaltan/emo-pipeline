@@ -105,8 +105,9 @@ def load_macro(spark, p_alg):
     if len(mn) and isinstance(mn['features'].iloc[0], (bytes, bytearray)):   # stored as float16 (LAKEGRL_MACRO_F16)
         mn['features'] = [np.frombuffer(f, np.float16).astype(np.float32) for f in mn['features']]
     sup, minor = mn[mn['macro_id'] < 0], mn[mn['macro_id'] >= 0]
-    super_nodes_dict = {int(c): [float(x) for x in f] for c, f in zip(sup['community_id'], sup['features'])}
-    minor_nodes_dict = {int(i): {'features': [float(x) for x in f], 'label': int(l) if not pd.isna(l) else -1,
+    # features as float32 arrays, not lists of floats (0.7 s on products, and 0.17 s per unit to turn back)
+    super_nodes_dict = {int(c): np.asarray(f, np.float32) for c, f in zip(sup['community_id'], sup['features'])}
+    minor_nodes_dict = {int(i): {'features': np.asarray(f, np.float32), 'label': int(l) if not pd.isna(l) else -1,
                                  'split': str(s)}
                         for i, f, l, s in zip(minor['macro_id'], minor['features'], minor['label'], minor['split'])}
     me = read_small(p_alg['p2_macro_edges'])

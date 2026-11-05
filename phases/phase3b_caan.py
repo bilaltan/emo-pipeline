@@ -2189,7 +2189,8 @@ def run_phase3b(spark, sc, datasets, algorithms, use_global_mapping,
             
             feat_dim = cfg['in_feats']
             if len(minor_ids) > 0:
-                minor_feats_list = [minor_nodes_dict[nid]['features'] for nid in minor_ids]
+                # one float32 array: each unit's np.array() of it is a copy, not a parse of nested lists
+                minor_feats_list = np.asarray([minor_nodes_dict[nid]['features'] for nid in minor_ids], dtype=np.float32)
                 minor_labels_list = [int(minor_nodes_dict[nid]['label']) for nid in minor_ids]
                 minor_splits_list = [str(minor_nodes_dict[nid]['split']) for nid in minor_ids]
                 minor_ids_list = [int(nid) for nid in minor_ids]
