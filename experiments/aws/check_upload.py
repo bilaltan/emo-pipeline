@@ -65,7 +65,7 @@ def counts(root, master, expect):
         from delta import configure_spark_with_delta_pip
         b = configure_spark_with_delta_pip(b)
     spark = b.getOrCreate()
-    ref = {r["table"]: r["rows"] for r in map(json.loads, open(expect))} if expect else {}
+    ref = {r["table"]: r["rows"] for r in map(json.loads, (ln for ln in open(expect) if ln.startswith("{")))}         if expect else {}   # Spark's ivy banner can land on stdout
     bad = 0
     for t in TABLES:
         url = f"{root}/{t}" if "://" in root else f"file://{os.path.abspath(os.path.expanduser(root))}/{t}"
