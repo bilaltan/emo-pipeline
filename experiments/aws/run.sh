@@ -12,7 +12,7 @@ set -eo pipefail
 cd "$(dirname "$0")/../.."
 P=s3://${BUCKET:-us-east-1-s3-gnn}/${PREFIX:-LakeGRL}
 export SPARK_HOME=/usr/lib/spark PYSPARK_PYTHON=/usr/bin/python3.11 PYSPARK_DRIVER_PYTHON=/usr/bin/python3.11
-export PYTHONPATH=$PWD:$SPARK_HOME/python:$(ls $SPARK_HOME/python/lib/py4j-*.zip)
+export PYTHONPATH=$PWD:$SPARK_HOME/python:$(ls $SPARK_HOME/python/lib/py4j-*-src.zip | head -1)   # EMR also has py4j-src.zip
 export LAKEGRL_GIT=$(cat GIT 2>/dev/null) PYTHONUNBUFFERED=1 OUTDATED_IGNORE=1
 O=results/aws; mkdir -p $O/logs
 exec > >(tee -a "$O/logs/${1:-none}.log") 2>&1
