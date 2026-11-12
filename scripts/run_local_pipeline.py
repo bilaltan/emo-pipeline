@@ -32,8 +32,8 @@ from phases.phase2_subgraph import run_phase2
 from phases.phase3b_caan import run_phase3b
 from phases.phase4_baselines import run_phase4
 from experiment_config import TRAIN, C_MAX, UNIT_SPLIT
-from pipeline.utils.store_io import parse_emu
-from pipeline.utils.common import spark_resources
+from pipeline.utils.store_io import is_s3, parse_emu
+from pipeline.utils.common import spark_resources, yarn_workers
 
 # LAKEGRL_STORE puts the Delta tables on a fast local file system (scripts/wsl_run.sh sets it).
 STORE = os.path.abspath(os.environ.get("LAKEGRL_STORE", "data/.local_pipeline"))
@@ -49,7 +49,7 @@ UNIT_TAG = {"tag": ""}
 
 
 def paths(dataset, alg=None):
-    base = f"file://{STORE}/{dataset}"
+    base = f"{STORE}/{dataset}" if is_s3(STORE) else f"file://{STORE}/{dataset}"
     p = {"nodes": f"{base}/nodes/", "edges": f"{base}/edges/", "masks": f"{base}/masks/",
          "link_split": f"{base}/link_split/",
          "checkpoints": f"{STORE}/ckpt/{dataset}/"}
@@ -361,22 +361,34 @@ def main():
     ap.add_argument("--s3-emu", default=None, metavar="LAT_MS,MBPS|count",
                     help="Stage 3b reads the Phase 2 tables through an emulated S3 (e.g. 20,80: 20 ms + 80 MB/s "
                          "per GET), or 'count' to count GETs and bytes only (utils/store_io.py)")
+    # AWS validation (advisor 2026-11-11): no Phase 1-2 on EMR; Stage 3b reads the uploaded tables with W workers
+    ap.add_argument("--store", default=None, help="table root instead of LAKEGRL_STORE, e.g. s3://bucket/lakegrl/store")
+    ap.add_argument("--stage3-only", action="store_true",
+                    help="Stage 3b on the stored Phase 0-2 tables: no ingest, no Phase 1-2 (they must exist)")
+    ap.add_argument("--executors", type=int, default=0, metavar="W",
+                    help="run on YARN with W executors x 1 core x 4 GB (utils.common.yarn_workers), not local[cores]")
     args = ap.parse_args()
+    global STORE
+    if args.store:
+        STORE = args.store.rstrip("/") if is_s3(args.store) else os.path.abspath(args.store)
+    work_dir = os.path.abspath("data/.emr_work") if is_s3(STORE) else STORE   # Stage 3b's local checkpoints
     peak_mb = peak_tree_rss()
 
-    builder = (SparkSession.builder.appName("lakegrl-local-pipeline").master(f"local[{args.cores}]")
+    builder = (SparkSession.builder.appName("lakegrl-local-pipeline")
                .config("spark.sql.extensions", "io.delta.sql.DeltaSparkSessionExtension")
                .config("spark.sql.catalog.spark_catalog",
                        "org.apache.spark.sql.delta.catalog.DeltaCatalog")
                .config("spark.driver.memory", args.driver_mem)
-               .config("spark.sql.shuffle.partitions", str(args.cores * 2))
+               .config("spark.sql.shuffle.partitions", str(max(args.cores, args.executors) * 2))
                .config("spark.sql.execution.arrow.pyspark.enabled", "true")
                # Wide feature vectors (Coauthor-CS is 6,805-dim) overflow the Parquet
                # vectorized reader, which reserves a contiguous batch of 4,096 rows by
                # default: 4096 x 6805 x 4B is ~111MB per column batch and OOMs the heap.
                .config("spark.sql.parquet.columnarReaderBatchSize", "512")
                .config("spark.sql.execution.arrow.maxRecordsPerBatch", "500"))
-    spark = configure_spark_with_delta_pip(builder).getOrCreate()
+    # EMR has its own Delta jars (delta-defaults); locally delta-spark's pip package supplies them
+    spark = (yarn_workers(builder, args.executors) if args.executors
+             else configure_spark_with_delta_pip(builder.master(f"local[{args.cores}]"))).getOrCreate()
     spark.sparkContext.setLogLevel("ERROR")
     sc = spark.sparkContext
 
@@ -385,7 +397,7 @@ def main():
     _git = lambda *a: subprocess.run(["git", *a], capture_output=True, text=True,
                                      cwd=os.path.dirname(os.path.dirname(os.path.abspath(__file__)))).stdout.strip()
     # core.autocrlf=true as on the Windows side that owns the checkout; WSL's git would call every CRLF file modified
-    git_hash = _git("rev-parse", "--short", "HEAD") + (
+    git_hash = os.environ.get("LAKEGRL_GIT") or _git("rev-parse", "--short", "HEAD") + (   # EMR: a git archive, no .git
         "-dirty" if _git("-c", "core.autocrlf=true", "status", "--porcelain", "--untracked-files=no") else "")
     t_all = time.time()
     DS = args.dataset
@@ -419,6 +431,8 @@ def main():
             return None
 
     cached = None if args.force_ingest else _existing_tables()
+    if args.stage3_only and not cached:
+        raise SystemExit(f"--stage3-only: no Phase 0 tables for {DS} under {STORE}")
     if cached:
         n_nodes, n_edges, n_classes, feat_dim = cached
         print(f"  Phase 0: reusing existing Delta tables ({n_nodes:,} nodes, "
@@ -447,21 +461,22 @@ def main():
                "probe_head": train["probe_head"]}
     timing, r1, r2, r3, r3b, r4 = {}, {}, {}, {}, {}, {}
 
-    run_phase1(spark, sc, [DS], [args.alg], lpa_max_iter=20, resolution=1.0,
-               random_seed=42, min_size=args.min_size, dataset_cfg=ds_cfg,
-               get_paths_fn=paths, timing=timing, results=r1, force_rerun=not args.reuse_phase1,
-               lpa_tol=0.001, merge_minor_communities=args.merge_minor,
-               refine_members=args.refine_members, c_max=c_split)
+    if not args.stage3_only:
+        run_phase1(spark, sc, [DS], [args.alg], lpa_max_iter=20, resolution=1.0,
+                   random_seed=42, min_size=args.min_size, dataset_cfg=ds_cfg,
+                   get_paths_fn=paths, timing=timing, results=r1, force_rerun=not args.reuse_phase1,
+                   lpa_tol=0.001, merge_minor_communities=args.merge_minor,
+                   refine_members=args.refine_members, c_max=c_split)
 
-    run_phase2(spark, sc, [DS], [args.alg], use_global_mapping=True,
-               min_size=args.min_size, get_paths_fn=paths, timing=timing, results=r2,
-               expand_boundary_nodes=True, tiny_comm_handling=args.tiny_comm, force_rerun=True,
-               partition_table_mode=args.partition_table, p2_layout=args.p2_layout,
-               merge_target_rows=args.merge_target_rows,
-               rg_mb=args.p2_rg_mb if args.p2_rg_mb == "auto" else float(args.p2_rg_mb) or None,
-               block_cap=None if args.p2_plain else args.max_nodes, halo_cap=c_split,
-               rg_floor_mb=args.p2_rg_floor_mb, one_file_per_dir=args.p2_one_file, time_split=args.p2_time_split,
-               macro_graph=args.stop_after in ("3b", "4"))   # CaaN's macro-graph, for Stage 3b (advisor 2026-11-04)
+        run_phase2(spark, sc, [DS], [args.alg], use_global_mapping=True,
+                   min_size=args.min_size, get_paths_fn=paths, timing=timing, results=r2,
+                   expand_boundary_nodes=True, tiny_comm_handling=args.tiny_comm, force_rerun=True,
+                   partition_table_mode=args.partition_table, p2_layout=args.p2_layout,
+                   merge_target_rows=args.merge_target_rows,
+                   rg_mb=args.p2_rg_mb if args.p2_rg_mb == "auto" else float(args.p2_rg_mb) or None,
+                   block_cap=None if args.p2_plain else args.max_nodes, halo_cap=c_split,
+                   rg_floor_mb=args.p2_rg_floor_mb, one_file_per_dir=args.p2_one_file, time_split=args.p2_time_split,
+                   macro_graph=args.stop_after in ("3b", "4"))   # CaaN's macro-graph, for Stage 3b (advisor 2026-11-04)
 
     if args.stop_after != "4":
         args.skip_baseline = True
@@ -470,7 +485,7 @@ def main():
     # sees member-member edges (or the halo), Stage 3b the macro-graph. No try/except: a failed stage fails the run.
     stage_kw = dict(use_global_mapping=True, dataset_cfg=ds_cfg, gcn_cfg=gcn_cfg, get_paths_fn=paths,
                     models=[args.model], task_type=args.task, min_size=args.min_size, force_rerun=True,
-                    local_data_dir=STORE, node_loading=args.node_loading, max_nodes_per_community=args.max_nodes,
+                    local_data_dir=work_dir, node_loading=args.node_loading, max_nodes_per_community=args.max_nodes,
                     node_patience=args.node_patience, tiny_comm_handling=args.tiny_comm,
                     s3_emu=parse_emu(args.s3_emu), minor_score=args.minor_score,
                     block_oversized=args.unit_split == "idmod", device=args.device, work_out=args.work_out)
@@ -485,7 +500,7 @@ def main():
 
     # The full-graph baseline is independent of Phase 1's algorithm — running it once
     # per (dataset, partitioner) computes the identical result twice.
-    base_cache = os.path.join(STORE, "baseline_cache.json")
+    base_cache = os.path.join(work_dir, "baseline_cache.json")
     base_key = f"{DS}|seed={args.seed}"
     cached_base = {}
     if os.path.exists(base_cache):
@@ -559,7 +574,7 @@ def main():
         "baseline_link_auc": base.get("link_auc"),
         "phase_seconds": {str(kk): round(vv, 2) for kk, vv in timing.items()},
         "phase1_steps": r1.get((DS, args.alg), {}).get("times"), "phase2_steps": r2.get((DS, args.alg), {}).get("times"),
-        "p2_time_split": args.p2_time_split,
+        "p2_time_split": args.p2_time_split, "stage3_only": args.stage3_only, "store": STORE,
         "total_seconds": round(time.time() - t_all, 1),
         "peak_rss_tree_mb": peak_mb(),
         **spark_resources(sc),

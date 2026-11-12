@@ -100,6 +100,23 @@ def spark_resources(sc):
             "spark_dynamic_allocation": not local and conf.get("spark.dynamicAllocation.enabled", "false") == "true"}
 
 
+def yarn_workers(builder, n, memory="4g", overhead="1536m"):
+    """A SparkSession builder for n workers on YARN (AWS validation, advisor 2026-11-11): n executors x 1 core x 4 GB,
+    one torch / BLAS thread each. EMR turns dynamic allocation on by default, so the count is pinned, and the first
+    job waits until all n executors are up. The 1.5 GB overhead makes a container 5.5 GB, so YARN fits at most 4 on
+    an m5.2xlarge (24 GB of YARN memory, 4 physical cores). Executors import the repo from the driver's PYTHONPATH."""
+    b = (builder.master("yarn")
+         .config("spark.executor.instances", str(n)).config("spark.executor.cores", "1")
+         .config("spark.executor.memory", memory).config("spark.executor.memoryOverhead", overhead)
+         .config("spark.dynamicAllocation.enabled", "false").config("spark.ui.showConsoleProgress", "false")
+         .config("spark.scheduler.minRegisteredResourcesRatio", "1.0")
+         .config("spark.scheduler.maxRegisteredResourcesWaitingTime", "600s")
+         .config("spark.executorEnv.PYTHONPATH", os.environ.get("PYTHONPATH", "")))
+    for v in ("OMP_NUM_THREADS", "MKL_NUM_THREADS", "OPENBLAS_NUM_THREADS"):
+        b = b.config(f"spark.executorEnv.{v}", "1")
+    return b
+
+
 def undirected(src, dst, n):
     """Both directions of every edge over local indices < n, deduplicated, for message passing.
 
