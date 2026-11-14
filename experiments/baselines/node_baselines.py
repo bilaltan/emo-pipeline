@@ -30,6 +30,7 @@ import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from torch.utils.checkpoint import checkpoint
 
 REPO = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 sys.path.insert(0, REPO)
@@ -49,16 +50,21 @@ class Net(nn.Module):
     def forward(self, x, A):
         if self.emb is None:
             return self.fc(self.enc(x, A))
-        # = enc([x || E[c]], A), with layer 1's weights applied to the x and embedding columns apart, A @ E[c] as
-        # M @ E, and the four products summed in one [N, h] buffer: backward builds no [N, f + d] gradient for the
-        # constant features, never goes through A's transpose, and no extra [N, h] tensors are held (on
-        # ogbn-products each of these filled the 24 GB card)
-        s, f, e = self.enc, x.shape[1], self.emb(self.comm)
-        h = F.linear(torch.sparse.mm(A, x), s.l1.weight[:, :f], s.l1.bias)
-        h = h.addmm_(torch.sparse.mm(self.M, self.emb.weight), s.l1.weight[:, f:].t())
-        h = h.addmm_(x, s.r1.weight[:, :f].t()).addmm_(e, s.r1.weight[:, f:].t())
-        h = s.dr(F.relu(h))
-        return self.fc(s.l2(torch.sparse.mm(A, h)) + s.r2(h))
+        # = enc([x || E[c]], A), computed to fit ogbn-products on the 24 GB card next to the embedding: layer 1's
+        # weights apply to the x and embedding columns apart (no [N, f + d] gradient for the constant features),
+        # A @ E[c] is M @ E (no gradient through A's transpose), and each layer sums its products in one [N, h]
+        # buffer with an in-place ReLU (row 1's SAGE holds three [N, h] tensors per sum); layer 1 is recomputed in
+        # backward (checkpoint, same dropout mask), so its activations are not held while layer 2's gradients are
+        s = self.enc
+
+        def layer1(x, w):
+            f, e = x.shape[1], F.embedding(self.comm, w)
+            h = F.linear(torch.sparse.mm(A, x), s.l1.weight[:, :f], s.l1.bias)
+            h = h.addmm_(torch.sparse.mm(self.M, w), s.l1.weight[:, f:].t())
+            h = h.addmm_(x, s.r1.weight[:, :f].t()).addmm_(e, s.r1.weight[:, f:].t())
+            return s.dr(F.relu(h, inplace=True))
+        h = checkpoint(layer1, x, self.emb.weight, use_reentrant=False) if self.training else layer1(x, self.emb.weight)
+        return self.fc(s.l2(torch.sparse.mm(A, h)).addmm_(h, s.r2.weight.t()))
 
 
 def read_comms(url):
