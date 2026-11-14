@@ -54,6 +54,14 @@ def main():
         cids[1:4] = 5
         rows, k = B.comm_index(np.arange(1, n), cids[1:], n, 10)
         assert k == 2 and rows[0] == rows[1] == rows[3] == 2 and rows[4] == 0 and rows[-1] == 1
+        # the split layer 1 is exactly the encoder on the concatenated input
+        import torch
+        net = B.Net(16, 8, 2, 0.5, (torch.from_numpy(rows), k + 1)).eval()
+        xt = torch.from_numpy(x)
+        A = B.mean_adj(n, edges[0], edges[1], torch.device("cpu"))
+        with torch.no_grad():
+            ref = net.fc(net.enc(torch.cat([xt, net.emb(net.comm)], 1), A))
+            assert torch.allclose(net(xt, A), ref, atol=1e-5)
         B.read_comms = lambda url: (np.arange(1, n), cids[1:], 3)
         out2 = os.path.join(root, "out2.jsonl")
         B.main(["--dataset", "toy", "--method", "full", "--cache", root, "--seeds", "0", "--epochs", "40",

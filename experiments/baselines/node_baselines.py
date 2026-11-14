@@ -47,9 +47,16 @@ class Net(nn.Module):
         self.enc, self.fc = SAGE(f + (comm_dim if comm else 0), h, dropout), nn.Linear(h, c)
 
     def forward(self, x, A):
-        if self.emb is not None:
-            x = torch.cat([x, self.emb(self.comm)], 1)
-        return self.fc(self.enc(x, A))
+        if self.emb is None:
+            return self.fc(self.enc(x, A))
+        # = enc([x || E[c]], A) with layer 1's weights applied to the x and embedding columns apart: backward then
+        # builds no [N, f + d] gradient for the constant features (the concatenation filled the 24 GB card on products)
+        s, f, e = self.enc, x.shape[1], self.emb(self.comm)
+        h = (F.linear(torch.sparse.mm(A, x), s.l1.weight[:, :f], s.l1.bias)
+             + F.linear(torch.sparse.mm(A, e), s.l1.weight[:, f:])
+             + F.linear(x, s.r1.weight[:, :f]) + F.linear(e, s.r1.weight[:, f:]))
+        h = s.dr(F.relu(h))
+        return self.fc(s.l2(torch.sparse.mm(A, h)) + s.r2(h))
 
 
 def read_comms(url):
