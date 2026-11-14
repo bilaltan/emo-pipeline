@@ -238,6 +238,9 @@ def main(argv=None):
                "peak_rss_mb": round(resource.getrusage(resource.RUSAGE_SELF).ru_maxrss / 1024),
                "device": torch.cuda.get_device_name() if device.type == "cuda" else "cpu",
                "threads": torch.get_num_threads(), "flush_denormal": True,
+               # allocator only, results unchanged (products + community ID fits the 24 GB card only with less
+               # fragmentation; expandable_segments fails under WSL)
+               "cuda_alloc_conf": os.environ.get("PYTORCH_CUDA_ALLOC_CONF"),
                # Spark only exports the Delta tables (None: cache written before export_cache saved it);
                # training is this one process, no executors
                "export_seconds": meta.get("export_seconds"), "export_spark": meta.get("spark"),
