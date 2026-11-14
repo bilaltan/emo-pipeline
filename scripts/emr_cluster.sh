@@ -4,6 +4,7 @@
 #  only with Bilal's OK on the estimate (plan doc, "AWS batch").
 #
 #    KEY=<ec2 key pair> SUBNET=<subnet id> scripts/emr_cluster.sh create [workers]   -> prints the cluster id
+#    scripts/emr_cluster.sh step <cluster id> <smoke|expA|expB-read|expB-train|nodes> [N]
 #    scripts/emr_cluster.sh resize <cluster id> <workers>
 #    scripts/emr_cluster.sh terminate <cluster id>
 #
@@ -43,10 +44,10 @@ create)
         --auto-termination-policy IdleTimeout=$IDLE --query ClusterId --output text
     ;;
 step)
-    # runs experiments/aws/run.sh <what> on the primary as an EMR step (no SSH); prints the step id
-    C=${2:?cluster id}; WHAT=${3:?smoke|expA|expB-read|expB-train}
+    # runs experiments/aws/run.sh <what> [arg] on the primary as an EMR step (no SSH); prints the step id
+    C=${2:?cluster id}; WHAT=${3:?smoke|expA|expB-read|expB-train|nodes}; ARG=${4:+,$4}
     aws emr add-steps --region "$REGION" --cluster-id "$C" --query 'StepIds[0]' --output text --steps \
-        "Type=CUSTOM_JAR,Name=lakegrl-$WHAT,ActionOnFailure=CONTINUE,Jar=command-runner.jar,Args=[bash,/opt/lakegrl/emo-pipeline/experiments/aws/run.sh,$WHAT]"
+        "Type=CUSTOM_JAR,Name=lakegrl-$WHAT${4:-},ActionOnFailure=CONTINUE,Jar=command-runner.jar,Args=[bash,/opt/lakegrl/emo-pipeline/experiments/aws/run.sh,$WHAT$ARG]"
     ;;
 status)
     C=${2:?cluster id}
