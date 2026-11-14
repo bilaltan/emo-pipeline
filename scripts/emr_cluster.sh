@@ -56,8 +56,8 @@ status)
     ;;
 resize)
     C=${2:?cluster id}; W=${3:?workers}
-    G=$(aws emr list-instance-groups --region "$REGION" --cluster-id "$C" \
-        --query "InstanceGroups[?InstanceGroupType=='CORE'].Id" --output text)
+    G=$(aws emr describe-cluster --region "$REGION" --cluster-id "$C" \
+        --query "Cluster.InstanceGroups[?InstanceGroupType=='CORE'].Id" --output text)   # CLI v2 has no list-instance-groups
     aws emr modify-instance-groups --region "$REGION" --cluster-id "$C" \
         --instance-groups "InstanceGroupId=$G,InstanceCount=$W"
     echo "core group $G -> $W workers; wait until 'yarn node -list' on the primary shows $W RUNNING"
