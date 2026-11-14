@@ -48,6 +48,19 @@ def main():
         assert all(r["export_spark"] == spark and r["export_seconds"] == 1.5 for r in recs)
         # features alone give about 0.6; Cluster-GCN drops edges between parts, so it lands a little below full
         assert all(r["test_acc"] > 0.9 for r in recs), [r["test_acc"] for r in recs]
+
+        # community-ID embedding: communities 7 and 9 are the halves, 5 is minor (< --min-size), vertex 0 has none
+        cids = np.where(y == 1, 9, 7)
+        cids[1:4] = 5
+        rows, k = B.comm_index(np.arange(1, n), cids[1:], n, 10)
+        assert k == 2 and rows[0] == rows[1] == rows[3] == 2 and rows[4] == 0 and rows[-1] == 1
+        B.read_comms = lambda url: (np.arange(1, n), cids[1:], 3)
+        out2 = os.path.join(root, "out2.jsonl")
+        B.main(["--dataset", "toy", "--method", "full", "--cache", root, "--seeds", "0", "--epochs", "40",
+                "--communities", "toy_comms", "--min-size", "10", "--device", "cpu", "--out", out2])
+        r = json.loads(open(out2).readline())
+        assert (r["baseline"], r["n_major"], r["n_other"], r["communities_version"]) == ("full_graph_sage_commid", 2, 4, 3)
+        assert r["test_acc"] > 0.9, r["test_acc"]
     finally:
         shutil.rmtree(root)
     print("ok")

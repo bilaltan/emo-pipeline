@@ -7,6 +7,10 @@ Single-GPU baselines for node classification, both on the same model and setting
            vertices; each step trains on the subgraph induced by --parts-per-batch random parts, and an epoch
            visits every part once (defaults 150 / 20: the paper's Reddit setting, 1,500 parts of 233K vertices)
 
+--communities (full only; advisor 2026-11-13, the community-ID ablation for reviewer 3): a learned --comm-dim
+embedding of each vertex's Phase 1 community is concatenated to its features, x~ = [x || E[c(v)]]: major
+communities (>= --min-size members) get rows 0..K-1, every other vertex (minor, isolated) row K.
+
 Model, training and selection match Phase 3b: 2-layer mean SAGE (PyG SAGEConv parametrisation) + linear head,
 L2-normalised features, Adam, the settings in experiment_config.TRAIN, and the best-validation checkpoint
 (checked on the full graph every max(1, epochs // 40) epochs, no early stop). Reads the Track A cache
@@ -35,12 +39,39 @@ from harness import SAGE, git_hash, mean_adj  # noqa: E402
 
 
 class Net(nn.Module):
-    def __init__(self, f, h, c, dropout):
+    def __init__(self, f, h, c, dropout, comm=None, comm_dim=16):
+        """comm: None, or (embedding row of every vertex as a tensor on the model's device, number of rows)."""
         super().__init__()
-        self.enc, self.fc = SAGE(f, h, dropout), nn.Linear(h, c)
+        self.comm = comm[0] if comm else None
+        self.emb = nn.Embedding(comm[1], comm_dim) if comm else None
+        self.enc, self.fc = SAGE(f + (comm_dim if comm else 0), h, dropout), nn.Linear(h, c)
 
     def forward(self, x, A):
+        if self.emb is not None:
+            x = torch.cat([x, self.emb(self.comm)], 1)
         return self.fc(self.enc(x, A))
+
+
+def read_comms(url):
+    """(vertex ids, community ids, Delta version) of a Phase 1 communities table, its current version."""
+    import pyarrow as pa
+    import pyarrow.parquet as pq
+    from utils.store_io import snapshot
+    fs, files, ver = snapshot(url)
+    t = pa.concat_tables([pq.read_table(f, columns=["id", "community_id"], filesystem=fs) for f in files])
+    return t.column("id").to_numpy().astype(np.int64), t.column("community_id").to_numpy().astype(np.int64), ver
+
+
+def comm_index(ids, cids, n, min_size):
+    """Embedding row of every vertex: communities with >= min_size members get 0..K-1 (in community id order),
+    every other vertex (minor community, isolated, in no community) gets K. Returns (rows [n], K)."""
+    comms, size = np.unique(cids, return_counts=True)
+    major = comms[size >= min_size]
+    pos = np.searchsorted(major, cids)
+    hit = major[np.minimum(pos, max(len(major) - 1, 0))] == cids if len(major) else np.zeros(len(cids), bool)
+    rows = np.full(n, len(major), dtype=np.int64)
+    rows[ids[hit]] = pos[hit]
+    return rows, len(major)
 
 
 def load(cache):
@@ -74,12 +105,12 @@ def cluster_batches(edges, n, n_parts, per_batch, device):
     return epoch, part_s
 
 
-def train_eval(x, y, split, A, seed, cfg, device, batches=None):
+def train_eval(x, y, split, A, seed, cfg, device, batches=None, comm=None, comm_dim=16):
     """Returns (best val acc, test acc at that checkpoint, train seconds). batches: None = full-batch,
-    else cluster_batches' epoch function."""
+    else cluster_batches' epoch function. comm: Net's community embedding rows (full-batch only)."""
     torch.manual_seed(seed)
     rng = np.random.default_rng(seed)
-    model = Net(x.shape[1], cfg["hidden_dim"], int(y.max()) + 1, cfg["dropout"]).to(device)
+    model = Net(x.shape[1], cfg["hidden_dim"], int(y.max()) + 1, cfg["dropout"], comm, comm_dim).to(device)
     opt = torch.optim.Adam(model.parameters(), lr=cfg["lr"], weight_decay=cfg["weight_decay"])
     tr, va, te = (torch.from_numpy(split == k).to(device) for k in (0, 1, 2))
 
@@ -131,9 +162,15 @@ def main(argv=None):
     ap.add_argument("--lr", type=float, default=TRAIN["lr"])
     ap.add_argument("--part-nodes", type=int, default=150, help="cluster: vertices per METIS part")
     ap.add_argument("--parts-per-batch", type=int, default=20, help="cluster: parts per training step")
+    ap.add_argument("--communities", default=None, metavar="URL",
+                    help="full only: Phase 1 communities Delta table whose ids feed a learned embedding")
+    ap.add_argument("--min-size", type=int, default=100, help="--communities: members of a major community")
+    ap.add_argument("--comm-dim", type=int, default=16, help="--communities: embedding size")
     ap.add_argument("--device", default="cpu")   # ICDE rule (Bilal, 2026-10-22): every model runs on CPU
     ap.add_argument("--out", default=os.path.join(REPO, "results", "icde", "baselines.jsonl"))
     args = ap.parse_args(argv)
+    if args.communities and args.method != "full":
+        ap.error("--communities needs --method full")
 
     cache = args.cache or os.path.join(os.environ.get("LAKEGRL_STORE", "data/.local_pipeline"),
                                        args.dataset, f"trackA_{args.alg}")
@@ -157,13 +194,21 @@ def main(argv=None):
         n_parts = max(1, n // args.part_nodes)
         batches, part_s = cluster_batches(edges, n, n_parts, args.parts_per_batch, device)
         extra = {"n_parts": n_parts, "parts_per_batch": args.parts_per_batch, "partition_seconds": round(part_s, 1)}
+    comm = None
+    if args.communities:
+        ids, cids, ver = read_comms(args.communities)
+        rows, k = comm_index(ids, cids, n, args.min_size)
+        comm = (torch.from_numpy(rows).to(device), k + 1)
+        extra = {"communities": args.communities, "communities_version": ver, "min_size": args.min_size,
+                 "comm_dim": args.comm_dim, "n_major": k, "n_other": int((rows == k).sum())}
 
     os.makedirs(os.path.dirname(args.out), exist_ok=True)
     for seed in [int(s) for s in args.seeds.split(",")]:
         if device.type == "cuda":
             torch.cuda.reset_peak_memory_stats()
-        val, test, train_s = train_eval(x, y, split, A, seed, cfg, device, batches)
-        rec = {"dataset": args.dataset, "baseline": {"full": "full_graph_sage", "cluster": "cluster_gcn"}[args.method],
+        val, test, train_s = train_eval(x, y, split, A, seed, cfg, device, batches, comm, args.comm_dim)
+        name = {"full": "full_graph_sage", "cluster": "cluster_gcn"}[args.method] + ("_commid" if comm else "")
+        rec = {"dataset": args.dataset, "baseline": name,
                "task": "node_classification", "seed": seed, "train": dict(cfg, seed=seed), **extra,
                "git": code, "cache": cache, "n_nodes": n, "n_edges_undirected": int(edges.shape[1]),
                "n_test": int((split == 2).sum()), "val_acc": val, "test_acc": test,
