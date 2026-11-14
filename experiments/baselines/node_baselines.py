@@ -40,20 +40,21 @@ from harness import SAGE, git_hash, mean_adj  # noqa: E402
 
 class Net(nn.Module):
     def __init__(self, f, h, c, dropout, comm=None, comm_dim=16):
-        """comm: None, or (embedding row of every vertex as a tensor on the model's device, number of rows)."""
+        """comm: None, or (embedding row of every vertex, number of rows, comm_adj's M), tensors on the model's device."""
         super().__init__()
-        self.comm = comm[0] if comm else None
+        self.comm, self.M = (comm[0], comm[2]) if comm else (None, None)
         self.emb = nn.Embedding(comm[1], comm_dim) if comm else None
         self.enc, self.fc = SAGE(f + (comm_dim if comm else 0), h, dropout), nn.Linear(h, c)
 
     def forward(self, x, A):
         if self.emb is None:
             return self.fc(self.enc(x, A))
-        # = enc([x || E[c]], A) with layer 1's weights applied to the x and embedding columns apart: backward then
-        # builds no [N, f + d] gradient for the constant features (the concatenation filled the 24 GB card on products)
+        # = enc([x || E[c]], A), with layer 1's weights applied to the x and embedding columns apart and A @ E[c] as
+        # M @ E: backward builds no [N, f + d] gradient for the constant features and never goes through A's
+        # transpose (on ogbn-products each of these filled the 24 GB card)
         s, f, e = self.enc, x.shape[1], self.emb(self.comm)
         h = (F.linear(torch.sparse.mm(A, x), s.l1.weight[:, :f], s.l1.bias)
-             + F.linear(torch.sparse.mm(A, e), s.l1.weight[:, f:])
+             + F.linear(torch.sparse.mm(self.M, self.emb.weight), s.l1.weight[:, f:])
              + F.linear(x, s.r1.weight[:, :f]) + F.linear(e, s.r1.weight[:, f:]))
         h = s.dr(F.relu(h))
         return self.fc(s.l2(torch.sparse.mm(A, h)) + s.r2(h))
@@ -79,6 +80,17 @@ def comm_index(ids, cids, n, min_size):
     rows = np.full(n, len(major), dtype=np.int64)
     rows[ids[hit]] = pos[hit]
     return rows, len(major)
+
+
+def comm_adj(n, src, dst, rows, n_rows, device):
+    """M = A @ onehot(rows) for mean_adj's A ([n, n_rows] CSR): row v holds the share of v's neighbours in each
+    embedding row, so A @ E[rows] = M @ E."""
+    import scipy.sparse as sp
+    s, d = np.concatenate([src, dst]), np.concatenate([dst, src])
+    deg = np.bincount(s, minlength=n).astype(np.float32)
+    M = sp.csr_matrix(((1.0 / deg[s]).astype(np.float32), (s, rows[d])), shape=(n, n_rows))   # duplicates summed
+    return torch.sparse_csr_tensor(torch.from_numpy(M.indptr.astype(np.int64)), torch.from_numpy(M.indices.astype(np.int64)),
+                                   torch.from_numpy(M.data), (n, n_rows)).to(device)
 
 
 def load(cache):
@@ -205,7 +217,7 @@ def main(argv=None):
     if args.communities:
         ids, cids, ver = read_comms(args.communities)
         rows, k = comm_index(ids, cids, n, args.min_size)
-        comm = (torch.from_numpy(rows).to(device), k + 1)
+        comm = (torch.from_numpy(rows).to(device), k + 1, comm_adj(n, edges[0], edges[1], rows, k + 1, device))
         extra = {"communities": args.communities, "communities_version": ver, "min_size": args.min_size,
                  "comm_dim": args.comm_dim, "n_major": k, "n_other": int((rows == k).sum())}
 

@@ -56,7 +56,8 @@ def main():
         assert k == 2 and rows[0] == rows[1] == rows[3] == 2 and rows[4] == 0 and rows[-1] == 1
         # the split layer 1 is exactly the encoder on the concatenated input
         import torch
-        net = B.Net(16, 8, 2, 0.5, (torch.from_numpy(rows), k + 1)).eval()
+        M = B.comm_adj(n, edges[0], edges[1], rows, k + 1, torch.device("cpu"))
+        net = B.Net(16, 8, 2, 0.5, (torch.from_numpy(rows), k + 1, M)).eval()
         xt = torch.from_numpy(x)
         A = B.mean_adj(n, edges[0], edges[1], torch.device("cpu"))
         with torch.no_grad():
