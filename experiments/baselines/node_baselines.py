@@ -49,13 +49,14 @@ class Net(nn.Module):
     def forward(self, x, A):
         if self.emb is None:
             return self.fc(self.enc(x, A))
-        # = enc([x || E[c]], A), with layer 1's weights applied to the x and embedding columns apart and A @ E[c] as
-        # M @ E: backward builds no [N, f + d] gradient for the constant features and never goes through A's
-        # transpose (on ogbn-products each of these filled the 24 GB card)
+        # = enc([x || E[c]], A), with layer 1's weights applied to the x and embedding columns apart, A @ E[c] as
+        # M @ E, and the four products summed in one [N, h] buffer: backward builds no [N, f + d] gradient for the
+        # constant features, never goes through A's transpose, and no extra [N, h] tensors are held (on
+        # ogbn-products each of these filled the 24 GB card)
         s, f, e = self.enc, x.shape[1], self.emb(self.comm)
-        h = (F.linear(torch.sparse.mm(A, x), s.l1.weight[:, :f], s.l1.bias)
-             + F.linear(torch.sparse.mm(self.M, self.emb.weight), s.l1.weight[:, f:])
-             + F.linear(x, s.r1.weight[:, :f]) + F.linear(e, s.r1.weight[:, f:]))
+        h = F.linear(torch.sparse.mm(A, x), s.l1.weight[:, :f], s.l1.bias)
+        h = h.addmm_(torch.sparse.mm(self.M, self.emb.weight), s.l1.weight[:, f:].t())
+        h = h.addmm_(x, s.r1.weight[:, :f].t()).addmm_(e, s.r1.weight[:, f:].t())
         h = s.dr(F.relu(h))
         return self.fc(s.l2(torch.sparse.mm(A, h)) + s.r2(h))
 
