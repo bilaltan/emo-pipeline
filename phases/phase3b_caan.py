@@ -19,6 +19,40 @@ except Exception:
 
 _DS_CACHE = {}
 _LOOKUP_CACHE = {}
+READ_COLS = ('read_s', 'read_gets', 'read_bytes')   # per unit, on top of Phase 3's result schema (utils.store_io)
+
+
+def _encode_minor(ids, splits, correct, deg):
+    """Outcomes on minor-community nodes as 'id,split,correct,deg;...' (split 1 = valid, 2 = test; deg -1 = CaaN's
+    global model, else the node's edges into the scoring unit's members). Read back by _score_minor."""
+    code = {'valid': 1, 'test': 2}
+    return ";".join(f"{int(i)},{code[s]},{int(c)},{int(d)}"
+                    for i, s, c, d in zip(ids, splits, correct, deg) if s in code)
+
+
+def _score_minor(comm_pd):
+    """Test and validation accuracy with minor-community nodes scored two ways: by CaaN's global model (Eq. 1),
+    and by the trained unit they have the most edges into (they are its halo rows, Eq. 2), keeping the global
+    model's prediction for nodes no trained unit holds. Major units count the same in both."""
+    recs = [(cid, *map(int, t.split(","))) for cid, s in zip(comm_pd['community_id'], comm_pd['minor_scores'])
+            if s for t in s.split(";")]
+    m = pd.DataFrame(recs, columns=['community_id', 'id', 'split', 'correct', 'deg'])
+    glob = m[m['deg'] < 0].set_index('id')
+    unit = (m[m['deg'] >= 0].sort_values(['deg', 'community_id'], ascending=[False, True], kind='mergesort')
+            .drop_duplicates('id').set_index('id'))
+    reached = glob.index.isin(unit.index)
+    by_unit = glob['correct'].to_numpy().copy()
+    by_unit[reached] = unit.loc[glob.index[reached], 'correct'].to_numpy()
+    major = comm_pd[comm_pd['community_id'] >= 0]
+    out = {}
+    for name, acc_col, n_col, code in (('acc', 'comm_test_acc', 'n_test', 2), ('val_acc', 'comm_val_acc', 'n_val', 1)):
+        sel = (glob['split'] == code).to_numpy()
+        hits, n = (major[acc_col] * major[n_col]).sum(), major[n_col].sum() + sel.sum()
+        out[f'{name}_minor_global'] = float((hits + glob['correct'].to_numpy()[sel].sum()) / n) if n else 0.0
+        out[f'{name}_minor_unit'] = float((hits + by_unit[sel].sum()) / n) if n else 0.0
+    test = (glob['split'] == 2).to_numpy()
+    out['minor_test_reached'] = float(reached[test].mean()) if test.any() else 0.0
+    return out
 
 
 def _comm_lookup(node_to_comm):
@@ -60,18 +94,37 @@ def _sorted_keys(mapping):
 
 def _get_dataset(url):
     if url not in _DS_CACHE:
-        import pyarrow.dataset as ds
-        if url.startswith("s3://"):
-            import pyarrow.fs as fs
-            clean_url = url.replace("s3://", "").rstrip('/')
-            s3 = fs.S3FileSystem(region="us-east-1")
-            _DS_CACHE[url] = ds.dataset(clean_url, filesystem=s3, format="parquet", ignore_prefixes=['_delta_log', '.'])
-        else:
-            local_path = url.replace("file://", "")
-            _DS_CACHE[url] = ds.dataset(local_path, format="parquet", ignore_prefixes=['_delta_log', '.'])
+        from pipeline.utils.partition_layout import open_dataset
+        _DS_CACHE[url] = open_dataset({"url": url})
     return _DS_CACHE[url]
 
-def _load_communities_data_batch(nodes_url, edges_url, comm_ids, block=None, n_blocks=1):
+def _layout_dataset(spec):
+    """pyarrow dataset for a Phase 2 table described by utils.partition_layout.table_layout()."""
+    key = ("layout", spec["url"], len(spec.get("files") or ()), spec.get("part_col"), spec.get("emu"))
+    if key not in _DS_CACHE:
+        from pipeline.utils.partition_layout import open_dataset
+        _DS_CACHE[key] = open_dataset(spec)
+    return _DS_CACHE[key]
+
+
+def _blk_filter(f, dataset, block, n_blocks, n_wblocks):
+    """Adds the block's contiguous _blk range (utils.partition_layout.add_blk / blk_range) to a block read, so
+    parquet row-group statistics skip the community's other blocks. Same rows: the id / src filter stays."""
+    if not n_wblocks or block is None or "_blk" not in dataset.schema.names:
+        return f
+    import pyarrow.dataset as ds
+    from pipeline.utils.partition_layout import blk_range
+    lo, hi = blk_range(int(block), int(n_blocks or 1), int(n_wblocks))
+    return f & (ds.field("_blk") >= lo) & (ds.field("_blk") <= hi)
+
+
+def _load_communities_data_batch(nodes_url, edges_url, comm_ids, block=None, n_blocks=1, layout=None, n_wblocks=0):
+    """Node rows and intra-unit edges of the given communities (and block).
+
+    layout: utils.partition_layout.table_layout() of the run. With it, the scan reads
+    the snapshot's files only and prunes partition directories (hive / hive_merged);
+    without it, the table directory is scanned as before (range layout only).
+    """
     import pyarrow.dataset as ds
     import pyarrow.compute as pc
     import pandas as pd
@@ -83,43 +136,78 @@ def _load_communities_data_batch(nodes_url, edges_url, comm_ids, block=None, n_b
     # worker. n_blocks is always a power of two, so id & (n-1) == id % n.
     _mask = int(n_blocks) - 1 if (block is not None and n_blocks and int(n_blocks) > 1) else None
     _base = ds.field("community_id").isin(comm_ids)
+    from pipeline.utils.partition_layout import unit_dataset
 
     try:
-        nodes_ds = _get_dataset(nodes_url)
+        if layout is not None:
+            from pipeline.utils.partition_layout import unit_filter
+            nodes_ds = _layout_dataset(layout["nodes"])
+            _base = unit_filter(layout["nodes"], comm_ids, layout.get("comm_to_part"))
+        else:
+            nodes_ds = _get_dataset(nodes_url)
+        # range layout: only the files whose community_id stats can hold the units (Track B, 13-20x on arxiv/LPA)
+        nodes_ds = unit_dataset(nodes_ds, comm_ids, _base)
         _f = _base if _mask is None else (
             _base & (pc.bit_wise_and(ds.field("id"), _mask) == int(block)))
+        _f = _blk_filter(_f, nodes_ds, block, n_blocks, n_wblocks)
         nodes_pdf = nodes_ds.to_table(filter=_f, use_threads=True).to_pandas()
+        nodes_pdf = nodes_pdf.drop(columns=[c for c in ('storage_part', '_blk') if c in nodes_pdf.columns])
         if len(nodes_pdf) > 0 and 'id' in nodes_pdf.columns:
             nodes_pdf = nodes_pdf.drop_duplicates(subset=['id', 'community_id']).reset_index(drop=True)
     except Exception as e:
         print(f"  ⚠ CAAN _load_communities_data_batch NODES ERROR: {e}")
-        nodes_pdf = pd.DataFrame()
+        raise  # an empty unit would be scored as a result
+
+    edges_pdf = _load_unit_edges(edges_url, comm_ids, block=block, n_blocks=n_blocks, layout=layout,
+                                 n_wblocks=n_wblocks)
+    return nodes_pdf, edges_pdf
+
+
+def _load_unit_edges(edges_url, comm_ids, block=None, n_blocks=1, layout=None, n_wblocks=0):
+    """Intra-unit edges for the given communities (and block), read from p2_edges."""
+    import pyarrow.dataset as ds
+    import pyarrow.compute as pc
+    import pandas as pd
+
+    _mask = int(n_blocks) - 1 if (block is not None and n_blocks and int(n_blocks) > 1) else None
+    _base = ds.field("community_id").isin(comm_ids)
+    from pipeline.utils.partition_layout import unit_dataset
 
     try:
-        edges_ds = _get_dataset(edges_url)
-        # Keep an edge only when BOTH endpoints fall in this block -- the same
-        # rule Phase 3 enforces via _src_unit == _dst_unit, applied at the scan.
+        if layout is not None:
+            from pipeline.utils.partition_layout import unit_filter
+            edges_ds = _layout_dataset(layout["edges"])
+            _base = unit_filter(layout["edges"], comm_ids, layout.get("comm_to_part"))
+        else:
+            edges_ds = _get_dataset(edges_url)
+        edges_ds = unit_dataset(edges_ds, comm_ids, _base)
+        # Filter on the source only. A cut edge's other end lives in another community and maps to its
+        # super-node (or a minor node) whatever its id; requiring dst in this block kept only ~1/n of
+        # them. Same-community neighbours in another block are not in this unit's node map, so the
+        # worker drops them, as Phase 3 does.
         _f = _base if _mask is None else (
-            _base
-            & (pc.bit_wise_and(ds.field("src"), _mask) == int(block))
-            & (pc.bit_wise_and(ds.field("dst"), _mask) == int(block)))
+            _base & (pc.bit_wise_and(ds.field("src"), _mask) == int(block)))
+        _f = _blk_filter(_f, edges_ds, block, n_blocks, n_wblocks)
         edges_pdf = edges_ds.to_table(filter=_f, use_threads=True).to_pandas()
+        edges_pdf = edges_pdf.drop(columns=[c for c in ('storage_part', '_blk') if c in edges_pdf.columns])
         if len(edges_pdf) > 0 and 'src' in edges_pdf.columns and 'dst' in edges_pdf.columns:
             edges_pdf = (edges_pdf.drop_duplicates()
                          .sort_values(['community_id', 'src', 'dst'], kind='mergesort')
                          .reset_index(drop=True))
     except Exception as e:
         print(f"  ⚠ CAAN _load_communities_data_batch EDGES ERROR: {e}")
-        edges_pdf = pd.DataFrame()
+        raise
 
-    return nodes_pdf, edges_pdf
+    return edges_pdf
 
 
-def _train_minor_global_caan(dataset, gcn_cfg, dataset_cfg, caan_components, model_type, task_type='node_classification'):
+def _train_minor_global_caan(dataset, gcn_cfg, dataset_cfg, caan_components, model_type, task_type='node_classification',
+                              device='cpu'):
     import os, time
     import numpy as np
     import pandas as pd
     import torch
+    torch.set_flush_denormal(True)   # as every CPU trainer (make_caan_udf)
     import torch.nn as nn
     import torch.nn.functional as F
     
@@ -148,7 +236,9 @@ def _train_minor_global_caan(dataset, gcn_cfg, dataset_cfg, caan_components, mod
     num_epochs = gcn_cfg['num_epochs']
     lr = gcn_cfg['lr']
     dropout = gcn_cfg['dropout']
-    
+    torch.manual_seed(int(gcn_cfg.get('seed', 42)))
+    weight_decay = float(gcn_cfg.get('weight_decay', 5e-4))
+
     super_feats = [super_nodes_dict[cid] for cid in super_nodes_dict.keys()]
     minor_feats = [minor_nodes_dict[nid]['features'] for nid in minor_ids]
     
@@ -222,7 +312,11 @@ def _train_minor_global_caan(dataset, gcn_cfg, dataset_cfg, caan_components, mod
     val_m   = torch.tensor([s == 'valid' and i >= len(super_ids) for i, s in enumerate(split_arr)], dtype=torch.bool) & has_lbl
     test_m  = torch.tensor([s == 'test'  and i >= len(super_ids) for i, s in enumerate(split_arr)], dtype=torch.bool) & has_lbl
     
-    is_pyg = (model_type in ('gat', 'gatv2', 'transformer', 'clusterscl', 'arma', 'asap'))
+    try:
+        import dgl  # noqa: F401
+    except ImportError:
+        dgl = None  # no DGL wheel here: SAGE runs on PyG, as in the units
+    is_pyg = (model_type in ('gat', 'gatv2', 'transformer', 'clusterscl', 'arma', 'asap')) or dgl is None
     if is_pyg:
         import torch_geometric
         pyg_edge_index = torch.stack([
@@ -256,7 +350,7 @@ def _train_minor_global_caan(dataset, gcn_cfg, dataset_cfg, caan_components, mod
                 x = self.c2(x, edge_index)
                 return x
         model = GATNet(feat_arr.shape[1], hidden_dim, num_classes)
-        opt = torch.optim.Adam(model.parameters(), lr=lr, weight_decay=5e-4)
+        opt = torch.optim.Adam(model.parameters(), lr=lr, weight_decay=weight_decay)
         crit = nn.CrossEntropyLoss()
 
     elif model_type == 'gatv2':
@@ -273,7 +367,7 @@ def _train_minor_global_caan(dataset, gcn_cfg, dataset_cfg, caan_components, mod
                 x = self.c2(x, edge_index)
                 return x
         model = GATv2Net(feat_arr.shape[1], hidden_dim, num_classes)
-        opt = torch.optim.Adam(model.parameters(), lr=lr, weight_decay=5e-4)
+        opt = torch.optim.Adam(model.parameters(), lr=lr, weight_decay=weight_decay)
         crit = nn.CrossEntropyLoss()
 
     elif model_type == 'arma':
@@ -290,7 +384,7 @@ def _train_minor_global_caan(dataset, gcn_cfg, dataset_cfg, caan_components, mod
                 x = self.c2(x, edge_index)
                 return x
         model = ARMANet(feat_arr.shape[1], hidden_dim, num_classes)
-        opt = torch.optim.Adam(model.parameters(), lr=lr, weight_decay=5e-4)
+        opt = torch.optim.Adam(model.parameters(), lr=lr, weight_decay=weight_decay)
         crit = nn.CrossEntropyLoss()
 
     elif model_type == 'asap':
@@ -307,7 +401,7 @@ def _train_minor_global_caan(dataset, gcn_cfg, dataset_cfg, caan_components, mod
                 x = self.c2(x, edge_index)
                 return x
         model = ASAPNet(feat_arr.shape[1], hidden_dim, num_classes)
-        opt = torch.optim.Adam(model.parameters(), lr=lr, weight_decay=5e-4)
+        opt = torch.optim.Adam(model.parameters(), lr=lr, weight_decay=weight_decay)
         crit = nn.CrossEntropyLoss()
         
     elif model_type == 'transformer':
@@ -324,7 +418,7 @@ def _train_minor_global_caan(dataset, gcn_cfg, dataset_cfg, caan_components, mod
                 x = self.c2(x, edge_index)
                 return x
         model = GraphTransformerNet(feat_arr.shape[1], hidden_dim, num_classes)
-        opt = torch.optim.Adam(model.parameters(), lr=lr, weight_decay=5e-4)
+        opt = torch.optim.Adam(model.parameters(), lr=lr, weight_decay=weight_decay)
         crit = nn.CrossEntropyLoss()
         
     elif model_type == 'clusterscl':
@@ -422,9 +516,24 @@ def _train_minor_global_caan(dataset, gcn_cfg, dataset_cfg, caan_components, mod
             eta=0.1,
             device=torch.device('cpu')
         )
-        opt = torch.optim.Adam(list(model.parameters()) + list(elbo_loss_fn.parameters()), lr=lr, weight_decay=5e-4)
+        opt = torch.optim.Adam(list(model.parameters()) + list(elbo_loss_fn.parameters()), lr=lr, weight_decay=weight_decay)
         crit = nn.CrossEntropyLoss()
         
+    elif dgl is None:
+        # the units' PyG GraphSAGE (2 mean-SAGE layers + linear head)
+        from torch_geometric.nn import SAGEConv
+        class PyGSAGECommunity(nn.Module):
+            def __init__(self, in_f, h, nc):
+                super().__init__()
+                self.c1, self.c2, self.fc = SAGEConv(in_f, h), SAGEConv(h, h), nn.Linear(h, nc)
+                self.dr = nn.Dropout(dropout)
+            def forward(self, x, edge_index):
+                x = self.dr(torch.relu(self.c1(x, edge_index)))
+                return self.fc(self.c2(x, edge_index))
+        model = PyGSAGECommunity(feat_arr.shape[1], hidden_dim, num_classes)
+        opt   = torch.optim.Adam(model.parameters(), lr=lr, weight_decay=weight_decay)
+        crit  = nn.CrossEntropyLoss()
+
     else:
         import dgl.nn as dglnn
         class GraphSAGECommunity(nn.Module):
@@ -442,11 +551,33 @@ def _train_minor_global_caan(dataset, gcn_cfg, dataset_cfg, caan_components, mod
                 x = torch.relu(self.c1(g, x)); x = self.dr(x)
                 return self.c2(g, x)
         model = GraphSAGECommunity(feat_arr.shape[1], hidden_dim, num_classes)
-        opt   = torch.optim.Adam(model.parameters(), lr=lr, weight_decay=5e-4)
+        opt   = torch.optim.Adam(model.parameters(), lr=lr, weight_decay=weight_decay)
         crit  = nn.CrossEntropyLoss()
 
+    dev = torch.device(device)
+    if dev.type != 'cpu':   # train on the GPU (Table B), score on the CPU as before
+        if not is_pyg or model_type == 'clusterscl':
+            raise ValueError(f"GPU training is wired for the PyG models (not clusterscl), got {model_type}")
+        model.to(dev)
+        feat_t, lbl_t, pyg_edge_index, train_m, val_m = (t.to(dev) for t in (feat_t, lbl_t, pyg_edge_index, train_m, val_m))
+
+    import copy
+    def _val_acc():
+        model.eval()
+        with torch.no_grad():
+            pred = (model(feat_t, pyg_edge_index) if is_pyg else model(g, feat_t)).argmax(dim=1)
+        model.train()
+        return float((pred[val_m] == lbl_t[val_m]).float().mean())
+
+    # Same selection as the units: best validation accuracy, checked every max(1, epochs // 40) epochs
+    val_every = max(1, num_epochs // 40) if bool(val_m.any()) else 0
+    best_val, best_state = -1.0, None
     model.train()
-    for _ in range(num_epochs):
+    for _ep in range(num_epochs):
+        if val_every and _ep > 0 and _ep % val_every == 0:
+            v = _val_acc()
+            if v > best_val:
+                best_val, best_state = v, copy.deepcopy(model.state_dict())
         if model_type == 'clusterscl':
             opt.zero_grad()
             z1, proj1, logits1 = model.get_embeddings_and_logits(feat_t, pyg_edge_index)
@@ -480,9 +611,18 @@ def _train_minor_global_caan(dataset, gcn_cfg, dataset_cfg, caan_components, mod
             logits = model(g, feat_t)
             loss   = crit(logits[train_m], lbl_t[train_m])
             opt.zero_grad(); loss.backward(); opt.step()
-            
+    if val_every:
+        v = _val_acc()
+        if v > best_val:
+            best_val, best_state = v, copy.deepcopy(model.state_dict())
+    if best_state is not None:
+        model.load_state_dict(best_state)
+    if dev.type != 'cpu':
+        model.cpu()
+        feat_t, lbl_t, pyg_edge_index, train_m, val_m = (t.cpu() for t in (feat_t, lbl_t, pyg_edge_index, train_m, val_m))
+
     train_time = time.time() - t_train_start
-    
+
     model.eval()
     with torch.no_grad():
         if is_pyg:
@@ -500,7 +640,12 @@ def _train_minor_global_caan(dataset, gcn_cfg, dataset_cfg, caan_components, mod
     comm_acc, n_test_node = safe_acc(test_m)
     bnd_acc, _ = safe_acc(test_m)
     int_acc, _ = safe_acc(test_m)
-    
+    val_acc, _ = safe_acc(val_m)
+    _r = np.where((val_m | test_m).numpy())[0]
+    _ok = (preds == lbl_t).numpy()
+    minor_scores = _encode_minor([minor_ids[i - len(super_ids)] for i in _r], [split_arr[i] for i in _r],
+                                 _ok[_r], [-1] * len(_r))
+
     return pd.DataFrame([{
         'community_id': -1,
         'n_nodes': len(minor_ids),
@@ -511,6 +656,8 @@ def _train_minor_global_caan(dataset, gcn_cfg, dataset_cfg, caan_components, mod
         'n_boundary': 0,
         'n_internal': len(minor_ids),
         'comm_test_acc': comm_acc,
+        'comm_val_acc': val_acc,
+        'minor_scores': minor_scores,
         'acc_gnn_head':  float(locals().get('acc_gnn_head', comm_acc)),
         'acc_mlp_head':  float(locals().get('acc_mlp_head', comm_acc)),
         'head_used':     str(locals().get('head_used', 'mlp')),
@@ -528,7 +675,7 @@ def make_caan_udf(super_nodes_dict_bc, minor_node_to_idx_bc, minor_feats_arr_bc,
                   minor_labels_arr_bc, minor_splits_arr_bc, minor_ids_arr_bc,
                   caan_adj_bc, node_to_comm_bc, major_comms_bc,
                   base_weights_bc=None, base_embeddings_bc=None, base_node_map_bc=None,
-                  p2_nodes_url=None, p2_edges_url=None):
+                  p2_nodes_url=None, p2_edges_url=None, p2_layout=None, device='cpu'):
     def _train_gnn_community_caan_single(pdf, comm_edges_pdf):
         import os, time, subprocess, sys, resource
         import numpy as np
@@ -578,23 +725,17 @@ def make_caan_udf(super_nodes_dict_bc, minor_node_to_idx_bc, minor_feats_arr_bc,
             import dgl
             import dgl.nn as dglnn
         except Exception:
-            try:
-                subprocess.run([sys.executable, '-m', 'pip', 'install', '--user', '--quiet', '--no-cache-dir',
-                                'dgl==1.1.3', '-f', 'https://data.dgl.ai/wheels/repo.html'],
-                                stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=True)
-                import dgl
-                import dgl.nn as dglnn
-            except Exception:
-                # DGL is unavailable (no wheel for this platform). PyG covers every
-                # backbone, so route SAGE through PyG rather than failing the run.
-                dgl = None
-                dglnn = None
+            # No DGL here (EMR bootstrap installs it, local envs do not): SAGE runs on PyG. No pip install at run
+            # time: it cost ~2.5 s per unit and let units in later worker processes switch to DGL mid-run.
+            dgl = None
+            dglnn = None
 
         try:
             omp_threads = int(os.environ.get('OMP_NUM_THREADS', '1'))
             torch.set_num_threads(omp_threads)
         except Exception:
             pass
+        torch.set_flush_denormal(True)   # every CPU trainer does (Cluster-GCN, DistDGL): denormals cost ~10x
         
         t_start = time.time()
         comm_id = int(pdf['community_id'].iloc[0])
@@ -640,8 +781,11 @@ def make_caan_udf(super_nodes_dict_bc, minor_node_to_idx_bc, minor_feats_arr_bc,
                       .reset_index(drop=True))
 
         # Deterministic weight init per unit, matching Phase 3.
-        torch.manual_seed(42 + int(comm_id))
-        np.random.seed((42 + int(comm_id)) % (2**32))
+        seed = int(pdf['_seed'].iloc[0]) if '_seed' in pdf.columns else 42
+        weight_decay = float(pdf['_wd'].iloc[0]) if '_wd' in pdf.columns else 5e-4
+        probe_head = bool(pdf['_probe'].iloc[0]) if '_probe' in pdf.columns else True
+        torch.manual_seed(seed + int(comm_id))
+        np.random.seed((seed + int(comm_id)) % (2**32))
 
         local_feats = np.stack(pdf['features'].values).astype(np.float32)
         feat_dim = local_feats.shape[1]
@@ -663,7 +807,16 @@ def make_caan_udf(super_nodes_dict_bc, minor_node_to_idx_bc, minor_feats_arr_bc,
         local_labels = np.array([int(v) if not pd.isna(v) else -1 for v in pdf['label'].values], dtype=np.int64)
         local_splits = list(pdf['split'].values)
         local_bnd = np.array([bool(v) if not (pd.isna(v) or v is None) else False for v in pdf['is_boundary'].values], dtype=bool)
-        
+
+        # Context the unit's model sees: 'macro' = super-nodes and minor nodes (Stage 3b), 'halo' = the 1-hop
+        # halo only, 'none' = member-member edges only (Stage 3a). One code path, so stages differ in context only.
+        context = str(pdf['_context'].iloc[0]) if '_context' in pdf.columns else 'macro'
+        if context != 'macro':
+            super_nodes_dict, minor_node_to_idx, caan_adj, major_comms = {}, {}, {}, set()
+        if context == 'none' and comm_edges_pdf is not None and len(comm_edges_pdf) > 0 and 'is_member' in pdf.columns:
+            _members = pdf.loc[pdf['is_member'].astype(bool), 'id'].values.astype(np.int64)
+            comm_edges_pdf = comm_edges_pdf[np.isin(comm_edges_pdf['dst'].values.astype(np.int64), _members)]
+
         super_feats = []
         super_ids = []
         for cid, feat in super_nodes_dict.items():
@@ -823,18 +976,31 @@ def make_caan_udf(super_nodes_dict_bc, minor_node_to_idx_bc, minor_feats_arr_bc,
         val_m   = torch.tensor([s == 'valid' and member_arr[i] for i, s in enumerate(split_arr)], dtype=torch.bool)
         test_m  = torch.tensor([s == 'test'  and member_arr[i] for i, s in enumerate(split_arr)], dtype=torch.bool)
         bnd_t   = torch.tensor(bnd_arr, dtype=torch.bool)
-        
-        is_pyg = (model_type in ('gat', 'gatv2', 'transformer', 'clusterscl', 'arma', 'asap')) or dgl is None
+
+        # Undirected for message passing: the cut edges arrive as member -> super-node / minor node,
+        # and members must receive that context.
+        from pipeline.utils.common import undirected
+        mp_src, mp_dst = undirected(src_l_g, dst_l_g, n_nodes)
+
+        # GPU units run PyG, the baselines' SAGE: the worker shim above puts /tmp/.local first on sys.path, where
+        # Phase 3's runtime pip install leaves DGL 1.1.3
+        is_pyg = (model_type in ('gat', 'gatv2', 'transformer', 'clusterscl', 'arma', 'asap') or dgl is None
+                  or device != 'cpu')
         if is_pyg:
             import torch_geometric
             pyg_edge_index = torch.stack([
-                torch.tensor(src_l_g, dtype=torch.long),
-                torch.tensor(dst_l_g, dtype=torch.long)
+                torch.tensor(mp_src, dtype=torch.long),
+                torch.tensor(mp_dst, dtype=torch.long)
             ], dim=0)
+            if model_type == 'sage':
+                # the same mean SAGE by sparse matmul, as the baselines: the edge list makes PyG build an
+                # edges x features message tensor, ~20 GB on Reddit's densest units (11-03). mp is symmetric, deduplicated.
+                # CPU units too since 11-11 (AWS validation): 5.9x faster on one thread, same loss to 4 decimals
+                pyg_edge_index = torch_geometric.utils.to_torch_csr_tensor(pyg_edge_index, size=(n_nodes, n_nodes))
             feat_t = torch.tensor(feat_arr, dtype=torch.float32)
             lbl_t = torch.tensor(label_arr, dtype=torch.long)
         else:
-            g = dgl.graph((src_l_g, dst_l_g), num_nodes=n_nodes)
+            g = dgl.graph((mp_src, mp_dst), num_nodes=n_nodes)
             g = dgl.to_simple(g)
             g = dgl.add_self_loop(g)
             g.ndata['feat']  = torch.tensor(feat_arr,  dtype=torch.float32)
@@ -846,6 +1012,8 @@ def make_caan_udf(super_nodes_dict_bc, minor_node_to_idx_bc, minor_feats_arr_bc,
         comm_acc = 0.0
         bnd_acc = 0.0
         int_acc = 0.0
+        val_acc = 0.0
+        minor_scores = ''
         n_test_node = int(test_m.sum())
         
         run_node = (task_type in ('node_classification', 'both'))
@@ -874,7 +1042,7 @@ def make_caan_udf(super_nodes_dict_bc, minor_node_to_idx_bc, minor_feats_arr_bc,
                         z = self.enc(x, edge_index)
                         return self.fc(z)
                 model = GATNet(feat_arr.shape[1], hidden_dim, num_classes)
-                opt = torch.optim.Adam(model.parameters(), lr=lr, weight_decay=5e-4)
+                opt = torch.optim.Adam(model.parameters(), lr=lr, weight_decay=weight_decay)
                 crit = nn.CrossEntropyLoss()
                 
             elif model_type == 'gatv2':
@@ -898,7 +1066,7 @@ def make_caan_udf(super_nodes_dict_bc, minor_node_to_idx_bc, minor_feats_arr_bc,
                         z = self.enc(x, edge_index)
                         return self.fc(z)
                 model = GATv2Net(feat_arr.shape[1], hidden_dim, num_classes)
-                opt = torch.optim.Adam(model.parameters(), lr=lr, weight_decay=5e-4)
+                opt = torch.optim.Adam(model.parameters(), lr=lr, weight_decay=weight_decay)
                 crit = nn.CrossEntropyLoss()
 
             elif model_type == 'arma':
@@ -922,7 +1090,7 @@ def make_caan_udf(super_nodes_dict_bc, minor_node_to_idx_bc, minor_feats_arr_bc,
                         z = self.enc(x, edge_index)
                         return self.fc(z)
                 model = ARMANet(feat_arr.shape[1], hidden_dim, num_classes)
-                opt = torch.optim.Adam(model.parameters(), lr=lr, weight_decay=5e-4)
+                opt = torch.optim.Adam(model.parameters(), lr=lr, weight_decay=weight_decay)
                 crit = nn.CrossEntropyLoss()
 
             elif model_type == 'asap':
@@ -946,7 +1114,7 @@ def make_caan_udf(super_nodes_dict_bc, minor_node_to_idx_bc, minor_feats_arr_bc,
                         z = self.enc(x, edge_index)
                         return self.fc(z)
                 model = ASAPNet(feat_arr.shape[1], hidden_dim, num_classes)
-                opt = torch.optim.Adam(model.parameters(), lr=lr, weight_decay=5e-4)
+                opt = torch.optim.Adam(model.parameters(), lr=lr, weight_decay=weight_decay)
                 crit = nn.CrossEntropyLoss()
                 
             elif model_type == 'transformer':
@@ -970,7 +1138,7 @@ def make_caan_udf(super_nodes_dict_bc, minor_node_to_idx_bc, minor_feats_arr_bc,
                         z = self.enc(x, edge_index)
                         return self.fc(z)
                 model = GraphTransformerNet(feat_arr.shape[1], hidden_dim, num_classes)
-                opt = torch.optim.Adam(model.parameters(), lr=lr, weight_decay=5e-4)
+                opt = torch.optim.Adam(model.parameters(), lr=lr, weight_decay=weight_decay)
                 crit = nn.CrossEntropyLoss()
                 
             elif model_type == 'clusterscl':
@@ -1068,10 +1236,10 @@ def make_caan_udf(super_nodes_dict_bc, minor_node_to_idx_bc, minor_feats_arr_bc,
                     eta=0.1,
                     device=torch.device('cpu')
                 )
-                opt = torch.optim.Adam(list(model.parameters()) + list(elbo_loss_fn.parameters()), lr=lr, weight_decay=5e-4)
+                opt = torch.optim.Adam(list(model.parameters()) + list(elbo_loss_fn.parameters()), lr=lr, weight_decay=weight_decay)
                 crit = nn.CrossEntropyLoss()
                 
-            elif dgl is None:
+            elif is_pyg:
                 # PyG realization of the default GraphSAGE backbone, used wherever
                 # DGL has no wheel for the platform.
                 from torch_geometric.nn import SAGEConv
@@ -1093,7 +1261,7 @@ def make_caan_udf(super_nodes_dict_bc, minor_node_to_idx_bc, minor_feats_arr_bc,
                     def forward(self, x, edge_index):
                         return self.fc(self.enc(x, edge_index))
                 model = PyGSAGECommunity(feat_arr.shape[1], hidden_dim, num_classes)
-                opt   = torch.optim.Adam(model.parameters(), lr=lr, weight_decay=5e-4)
+                opt   = torch.optim.Adam(model.parameters(), lr=lr, weight_decay=weight_decay)
                 crit  = nn.CrossEntropyLoss()
 
             else:
@@ -1112,7 +1280,7 @@ def make_caan_udf(super_nodes_dict_bc, minor_node_to_idx_bc, minor_feats_arr_bc,
                         x = torch.relu(self.c1(g, x)); x = self.dr(x)
                         return self.c2(g, x)
                 model = GraphSAGECommunity(feat_arr.shape[1], hidden_dim, num_classes)
-                opt   = torch.optim.Adam(model.parameters(), lr=lr, weight_decay=5e-4)
+                opt   = torch.optim.Adam(model.parameters(), lr=lr, weight_decay=weight_decay)
                 crit  = nn.CrossEntropyLoss()
 
             # Warm-start weights load
@@ -1121,6 +1289,14 @@ def make_caan_udf(super_nodes_dict_bc, minor_node_to_idx_bc, minor_feats_arr_bc,
                     model.load_state_dict(base_weights_bc.value)
                 except Exception:
                     pass
+
+            dev = torch.device(device)
+            if dev.type != 'cpu':   # train on the GPU (Table B), score on the CPU as before
+                if model_type == 'clusterscl' or base_embeddings_bc is not None:
+                    raise ValueError(f"GPU training is wired for the PyG models (not clusterscl, no warm-start "
+                                     f"embeddings), got {model_type}")
+                model.to(dev)
+                feat_t, lbl_t, pyg_edge_index, train_m, val_m = (t.to(dev) for t in (feat_t, lbl_t, pyg_edge_index, train_m, val_m))
 
             # Embedding Regularization setup
             valid_emb_mask = None
@@ -1136,8 +1312,35 @@ def make_caan_udf(super_nodes_dict_bc, minor_node_to_idx_bc, minor_feats_arr_bc,
                 except Exception:
                     pass
 
+            # Train to the best validation accuracy with patience, as Phase 3 and the baselines do; a fixed
+            # epoch budget made the two stages differ in training procedure, not only in context.
+            import copy as _copy
+            node_patience = int(pdf['_node_patience'].iloc[0]) if '_node_patience' in pdf.columns else 20
+            val_every = max(1, num_epochs // 40)
+            best_val_acc, best_state, waited = -1.0, None, 0
+
+            def _val_acc():
+                model.eval()
+                with torch.no_grad():
+                    if model_type == 'clusterscl':
+                        lg = model.get_embeddings_and_logits(feat_t, pyg_edge_index)[2]
+                    elif is_pyg:
+                        lg = model(feat_t, pyg_edge_index)
+                    else:
+                        lg = model(g, feat_t)
+                model.train()
+                return float((lg[val_m].argmax(dim=1) == lbl_t[val_m]).float().mean())
+
             model.train()
-            for _ in range(num_epochs):
+            for _ep in range(num_epochs):
+                if int(val_m.sum()) > 0 and _ep > 0 and _ep % val_every == 0:
+                    v = _val_acc()
+                    if v > best_val_acc:
+                        best_val_acc, best_state, waited = v, _copy.deepcopy(model.state_dict()), 0
+                    else:
+                        waited += val_every
+                        if waited >= node_patience:
+                            break
                 if model_type == 'clusterscl':
                     opt.zero_grad()
                     z1, proj1, logits1 = model.get_embeddings_and_logits(feat_t, pyg_edge_index)
@@ -1204,6 +1407,15 @@ def make_caan_udf(super_nodes_dict_bc, minor_node_to_idx_bc, minor_feats_arr_bc,
                             pass
 
                     opt.zero_grad(); loss.backward(); opt.step()
+            if int(val_m.sum()) > 0:
+                v = _val_acc()
+                if v > best_val_acc:
+                    best_val_acc, best_state = v, _copy.deepcopy(model.state_dict())
+            if best_state is not None:
+                model.load_state_dict(best_state)
+            if dev.type != 'cpu':
+                model.cpu()
+                feat_t, lbl_t, pyg_edge_index, train_m, val_m = (t.cpu() for t in (feat_t, lbl_t, pyg_edge_index, train_m, val_m))
             node_train_time = time.time() - t_node_start
             
             model.eval()
@@ -1243,13 +1455,13 @@ def make_caan_udf(super_nodes_dict_bc, minor_node_to_idx_bc, minor_feats_arr_bc,
             val_idx = np.where(val_m.numpy())[0]
             test_idx = np.where(test_m.numpy())[0]
 
-            if len(train_idx) > 0:
+            if probe_head and len(train_idx) > 0:
                 train_embed = embed[train_idx]
                 train_labels = lbl_t[train_idx]
                 mlp_dataset = TensorDataset(train_embed, train_labels)
                 mlp_loader = DataLoader(mlp_dataset, batch_size=128, shuffle=True)
                 mlp_loss_fn = nn.CrossEntropyLoss()
-                mlp_opt = torch.optim.Adam(mlp_model.parameters(), lr=0.001, weight_decay=5e-4)
+                mlp_opt = torch.optim.Adam(mlp_model.parameters(), lr=0.001, weight_decay=weight_decay)
 
                 best_acc = -1.0
                 best_weights = copy.deepcopy(mlp_model.state_dict())
@@ -1285,16 +1497,11 @@ def make_caan_udf(super_nodes_dict_bc, minor_node_to_idx_bc, minor_feats_arr_bc,
                     return float((pred_vec[mask] == lbl_t[mask]).float().mean()) if n else 0.0
 
                 preds_mlp = mlp_model(embed).argmax(dim=1)
-                try:
-                    if is_pyg:
-                        gnn_logits = model(feat_t, pyg_edge_index)
-                    else:
-                        gnn_logits = model(g, feat_t)
-                    preds_gnn = gnn_logits.argmax(dim=1)
-                except Exception:
-                    preds_gnn = preds_mlp
-                use_gnn = (_acc_of(preds_gnn, val_m) > _acc_of(preds_mlp, val_m)
-                           if int(val_m.sum()) > 0 else False)
+                gnn_logits = model(feat_t, pyg_edge_index) if is_pyg else model(g, feat_t)
+                preds_gnn = gnn_logits.argmax(dim=1)
+                # Without the probe head the GNN's own classifier predicts, as in every baseline.
+                use_gnn = (not probe_head) or (_acc_of(preds_gnn, val_m) > _acc_of(preds_mlp, val_m)
+                                               if int(val_m.sum()) > 0 else False)
                 preds = preds_gnn if use_gnn else preds_mlp
                 head_used = 'gnn' if use_gnn else 'mlp'
                 acc_gnn_head = _acc_of(preds_gnn, test_m)
@@ -1309,6 +1516,19 @@ def make_caan_udf(super_nodes_dict_bc, minor_node_to_idx_bc, minor_feats_arr_bc,
             comm_acc, n_test_node = safe_acc(test_m)
             bnd_acc,  _     = safe_acc(test_m & bnd_t)
             int_acc,  _     = safe_acc(test_m & ~bnd_t)
+            val_acc,  _     = safe_acc(val_m)
+
+            # This unit's predictions for the labelled minor-community nodes it holds (halo or context rows) and
+            # their edges into its members, so the driver can score minor nodes by unit as well (_score_minor)
+            _all = np.concatenate([np.asarray(local_ids, np.int64), np.asarray(super_ids, np.int64),
+                                   np.asarray(minor_ids, np.int64)])
+            _r = (np.where(np.isin(_all, _sorted_keys(minor_node_to_idx)) & ~member_arr & (label_arr >= 0))[0]
+                  if minor_node_to_idx else [])   # Stage 3a context: no minor nodes (and no stale key cache)
+            if len(_r):
+                _deg = (np.bincount(dst_l_g[member_arr[src_l_g]], minlength=n_nodes)
+                        + np.bincount(src_l_g[member_arr[dst_l_g]], minlength=n_nodes))
+                minor_scores = _encode_minor(_all[_r], [split_arr[i] for i in _r],
+                                             (preds == lbl_t).numpy()[_r], _deg[_r])
 
         link_train_time = 0.0
         comm_link_auc = 0.5
@@ -1331,7 +1551,7 @@ def make_caan_udf(super_nodes_dict_bc, minor_node_to_idx_bc, minor_feats_arr_bc,
 
         if run_link and n_real_edges >= 5:
             t_link_start = time.time()
-            torch.manual_seed(42)
+            torch.manual_seed(seed)
             _real_pos_t = torch.tensor(_real_edge_pos, dtype=torch.int64)
             shuffled_edge_ids = _real_pos_t[torch.randperm(n_real_edges)]
             n_tr_edges = int(0.8 * n_real_edges)
@@ -1478,7 +1698,7 @@ def make_caan_udf(super_nodes_dict_bc, minor_node_to_idx_bc, minor_feats_arr_bc,
                 predictor = CaaNLinkPredictor(hidden_dim, dropout=dropout)
                 optimizer = torch.optim.Adam(
                     list(encoder.parameters()) + list(predictor.parameters()),
-                    lr=lr, weight_decay=5e-4
+                    lr=lr, weight_decay=weight_decay
                 )
                 pyg_train_edge_index = torch.stack([src_l_t[train_edges_idx], dst_l_t[train_edges_idx]], dim=0)
 
@@ -1537,7 +1757,7 @@ def make_caan_udf(super_nodes_dict_bc, minor_node_to_idx_bc, minor_feats_arr_bc,
                 predictor = CaaNLinkPredictor(hidden_dim, dropout=dropout)
                 optimizer = torch.optim.Adam(
                     list(encoder.parameters()) + list(predictor.parameters()),
-                    lr=lr, weight_decay=5e-4
+                    lr=lr, weight_decay=weight_decay
                 )
 
                 encoder.train()
@@ -1590,6 +1810,8 @@ def make_caan_udf(super_nodes_dict_bc, minor_node_to_idx_bc, minor_feats_arr_bc,
             'n_boundary':    int(bnd_t[:n_local].sum()),
             'n_internal':    n_local - int(bnd_t[:n_local].sum()),
             'comm_test_acc': comm_acc,
+            'comm_val_acc':  val_acc,
+            'minor_scores':  minor_scores,
         'acc_gnn_head':  float(locals().get('acc_gnn_head', comm_acc)),
         'acc_mlp_head':  float(locals().get('acc_mlp_head', comm_acc)),
         'head_used':     str(locals().get('head_used', 'mlp')),
@@ -1606,7 +1828,9 @@ def make_caan_udf(super_nodes_dict_bc, minor_node_to_idx_bc, minor_feats_arr_bc,
             'peak_mem_mb':   peak_mem / 1e6,
         }])
         
-    def _train_gnn_bin_caan(key, manifest_pdf):
+    def _train_bin(manifest_pdf, load_batch, load_item):
+        # load_batch(comm_ids) -> (nodes_pdf, edges_pdf) for a whole bin;
+        # load_item(comm_id, block, n_blocks, n_wblocks) -> the same for one bounded block.
         # Set inter-op and intra-op thread counts strictly on the worker
         try:
             import torch
@@ -1616,6 +1840,15 @@ def make_caan_udf(super_nodes_dict_bc, minor_node_to_idx_bc, minor_feats_arr_bc,
             pass
 
         import pandas as pd
+        from pipeline.utils.store_io import STATS
+
+        def _read(load, *a):
+            # wall time of a unit's read, and its GETs / bytes when the store is metered (0 otherwise)
+            g0, b0, t0 = STATS['gets'], STATS['bytes'], time.time()
+            out = load(*a)
+            return out, {'read_s': time.time() - t0, 'read_gets': float(STATS['gets'] - g0),
+                         'read_bytes': float(STATS['bytes'] - b0)}
+
         # With blocking active each work item is one (community, block), so the
         # batch preload would defeat the bound; load per item instead.
         _has_blocks = ('_n_blocks' in manifest_pdf.columns
@@ -1624,17 +1857,26 @@ def make_caan_udf(super_nodes_dict_bc, minor_node_to_idx_bc, minor_feats_arr_bc,
             nodes_pdf_all = edges_pdf_all = pd.DataFrame()
         else:
             comm_ids = manifest_pdf['community_id'].unique().tolist()
-            nodes_pdf_all, edges_pdf_all = _load_communities_data_batch(p2_nodes_url, p2_edges_url, comm_ids)
+            (nodes_pdf_all, edges_pdf_all), io = _read(load_batch, comm_ids)   # the bin's read, on its first row
+
+        # pack_train (Table B row 3, advisor 2026-11-02): the bin's coalesced work item of shared-directory units
+        # trains one model on their union, on the row of its first unit
+        _pk = set()
+        if '_pack' in manifest_pdf.columns and not _has_blocks and manifest_pdf['_pack'].astype(bool).any():
+            _packed = manifest_pdf['_pack'].astype(bool)
+            _pk = set(manifest_pdf.loc[_packed, 'community_id'].astype(int))
+            manifest_pdf = pd.concat([manifest_pdf[~_packed], manifest_pdf[_packed].iloc[:1]], ignore_index=True)
 
         results = []
         for _, row in manifest_pdf.iterrows():
             comm_id = int(row['community_id'])
+            _sel = sorted(_pk) if comm_id in _pk else [comm_id]
 
             if _has_blocks:
                 _nb = int(row['_n_blocks']) if '_n_blocks' in row else 1
                 _bk = int(row['_block']) if '_block' in row else 0
-                pdf, comm_edges_pdf = _load_communities_data_batch(
-                    p2_nodes_url, p2_edges_url, [comm_id], block=_bk, n_blocks=_nb)
+                _nw = int(row['_n_wblocks']) if '_n_wblocks' in row else 0
+                (pdf, comm_edges_pdf), io = _read(load_item, comm_id, _bk, _nb, _nw)
                 # A block holding only halo rows has nothing to train on; fall
                 # through to the empty-result path rather than train on no members.
                 if len(pdf) > 0 and 'is_member' in pdf.columns:
@@ -1644,26 +1886,33 @@ def make_caan_udf(super_nodes_dict_bc, minor_node_to_idx_bc, minor_feats_arr_bc,
                     except Exception:
                         pass
             elif len(nodes_pdf_all) > 0:
-                pdf = nodes_pdf_all[nodes_pdf_all['community_id'] == comm_id].copy()
+                pdf = nodes_pdf_all[nodes_pdf_all['community_id'].isin(_sel)].copy()
             else:
                 pdf = pd.DataFrame()
 
             if not _has_blocks:
                 if len(edges_pdf_all) > 0:
-                    comm_edges_pdf = edges_pdf_all[edges_pdf_all['community_id'] == comm_id].copy()
+                    comm_edges_pdf = edges_pdf_all[edges_pdf_all['community_id'].isin(_sel)].copy()
                 else:
                     comm_edges_pdf = pd.DataFrame()
-            
+            if len(_sel) > 1 and len(pdf) > 0:
+                # members first: the unit's dedup by id keeps a vertex that is one unit's member and another's halo
+                pdf = pdf.sort_values('is_member', ascending=False, kind='mergesort').assign(community_id=comm_id)
+                if len(comm_edges_pdf) > 0:
+                    comm_edges_pdf = comm_edges_pdf.drop_duplicates(subset=['src', 'dst'])
+
             if pdf is None or len(pdf) == 0:
                 results.append(pd.DataFrame([{
                     'community_id':   comm_id,
                     'n_nodes':        0, 'n_edges': 0, 'n_train': 0, 'n_val': 0, 'n_test': 0,
                     'n_boundary':     0, 'n_internal': 0, 'comm_test_acc': 0.0,
+                    'comm_val_acc': 0.0, 'minor_scores': '',
                     'acc_gnn_head': 0.0, 'acc_mlp_head': 0.0, 'head_used': 'none',
                     'boundary_acc': 0.0,
                     'internal_acc':   0.0, 'comm_link_auc': 0.5, 'size_bucket': 'empty',
-                    'load_time_s':    0.0, 'node_train_time_s': 0.0, 'link_train_time_s': 0.0, 'peak_mem_mb': 0.0
-                }]))
+                    'load_time_s':    0.0, 'node_train_time_s': 0.0, 'link_train_time_s': 0.0, 'peak_mem_mb': 0.0,
+                    **io}]))
+                io = dict.fromkeys(io, 0.0)
                 continue
 
             pdf['_num_classes'] = int(row['_num_classes'])
@@ -1673,41 +1922,185 @@ def make_caan_udf(super_nodes_dict_bc, minor_node_to_idx_bc, minor_feats_arr_bc,
             pdf['_dropout']     = float(row['_dropout'])
             pdf['_task_type']   = str(row['_task_type'])
             pdf['_model_type']  = str(row['_model_type'])
+            for _c in ('_seed', '_node_patience'):
+                if _c in row:
+                    pdf[_c] = int(row[_c])
+            if '_wd' in row:
+                pdf['_wd'] = float(row['_wd'])
+            if '_probe' in row:
+                pdf['_probe'] = bool(row['_probe'])
+            if '_context' in row:
+                pdf['_context'] = str(row['_context'])
 
             res_row = _train_gnn_community_caan_single(pdf, comm_edges_pdf)
-            results.append(res_row)
+            results.append(res_row.assign(**io))
+            io = dict.fromkeys(io, 0.0)
 
         if len(results) == 0:
             return pd.DataFrame(columns=[
                 'community_id', 'n_nodes', 'n_edges', 'n_train', 'n_val', 'n_test',
                 'n_boundary', 'n_internal', 'comm_test_acc', 'boundary_acc',
                 'internal_acc', 'comm_link_auc', 'size_bucket', 'load_time_s',
-                'node_train_time_s', 'link_train_time_s', 'peak_mem_mb'
+                'node_train_time_s', 'link_train_time_s', 'peak_mem_mb', *READ_COLS, 'comm_val_acc', 'minor_scores'
             ])
         return pd.concat(results, ignore_index=True)
+
+    def _train_gnn_bin_caan(key, manifest_pdf):
+        # Default (materialized partition table): every bin reads its own units
+        # straight from p2_nodes/p2_edges with a community_id predicate. No data
+        # moves between workers.
+        return _train_bin(
+            manifest_pdf,
+            lambda ids: _load_communities_data_batch(p2_nodes_url, p2_edges_url, ids,
+                                                     layout=p2_layout),
+            lambda c, b, n, w: _load_communities_data_batch(
+                p2_nodes_url, p2_edges_url, [c], block=b, n_blocks=n, layout=p2_layout, n_wblocks=w))
+
+    def _train_gnn_bin_caan_joined(key, nodes_pdf, manifest_pdf):
+        # Global-join path (normalized partition table): the bin's node rows,
+        # already joined with their features, arrive through Spark's shuffle
+        # (cogroup with the manifest). Edges are read from p2_edges as above.
+        import pandas as pd
+        if len(nodes_pdf) > 0:
+            nodes_pdf = (nodes_pdf.drop_duplicates(subset=['id', 'community_id'])
+                                  .reset_index(drop=True))
+        unit_cols = [c for c in nodes_pdf.columns if c not in ('_block', 'bin_id')]
+
+        def _batch(ids):
+            nodes = nodes_pdf[unit_cols] if len(nodes_pdf) > 0 else pd.DataFrame()
+            return nodes, _load_unit_edges(p2_edges_url, ids, layout=p2_layout)
+
+        def _item(c, b, n, w=0):
+            if len(nodes_pdf) == 0:
+                return pd.DataFrame(), _load_unit_edges(p2_edges_url, [c], block=b, n_blocks=n,
+                                                        layout=p2_layout, n_wblocks=w)
+            sel = nodes_pdf[(nodes_pdf['community_id'] == c) & (nodes_pdf['_block'] == b)]
+            nodes = sel[unit_cols].reset_index(drop=True) if len(sel) > 0 else pd.DataFrame()
+            return nodes, _load_unit_edges(p2_edges_url, [c], block=b, n_blocks=n, layout=p2_layout,
+                                           n_wblocks=w)
+
+        return _train_bin(manifest_pdf, _batch, _item)
 
     # Exposed so the per-community path can be driven directly (local validation,
     # unit tests) without going through the Delta-backed batch loader.
     _train_gnn_bin_caan.community_fn = _train_gnn_community_caan_single
+    # cogroup UDF for node_loading='global_join'
+    _train_gnn_bin_caan.joined_fn = _train_gnn_bin_caan_joined
     return _train_gnn_bin_caan
+
+
+def _build_macro(spark, nodes_w_comm, comms_df, raw_edges_df, p_alg, major_comms, node_to_comm_bc, major_comms_bc,
+                 tiny_comm_handling):
+    """CaaN's macro-graph built from p2_nodes and the raw tables, as every run did before Phase 2 stored it
+    (utils.macro_graph). Kept for stores without it and for experiments/tableB/check_macro.py."""
+    from pyspark.sql import functions as F
+    from pipeline.utils.partition_join import join_features
+    from pipeline.utils.macro_graph import mean_features
+    # Compute super-node features for major communities
+    major_nodes_df = nodes_w_comm.filter(F.col('community_id').isin(list(major_comms)))
+    if 'is_member' in major_nodes_df.columns:
+        # the centroid is the community's own vertices, not the halo it borrows
+        major_nodes_df = major_nodes_df.filter(F.col('is_member'))
+    mean_df = major_nodes_df.groupBy('community_id').applyInPandas(
+        mean_features,
+        schema='community_id long, mean_features array<float>'
+    )
+    super_nodes_dict = {
+        int(row['community_id']): [float(x) for x in row['mean_features']]
+        for row in mean_df.collect()
+    }
+
+    # CaaN Eq. 1: nodes of minor communities (Phase 1 ids, < min_size) are learned by the global model on
+    # the CaaN graph and are its only output. Only when Phase 2 dropped them from the units (tiny 'drop');
+    # 'misc'/'keep' already score them in units. Phase 2 does not carry them, so read the raw tables.
+    if tiny_comm_handling == 'drop':
+        minor_part = (comms_df.filter(~F.col('community_id').isin(list(major_comms)))
+                      .withColumn('is_boundary', F.lit(False)).withColumn('is_member', F.lit(True)))
+        minor_nodes_pd = join_features(spark, p_alg, partition_df=minor_part).toPandas()
+    else:
+        minor_nodes_pd = pd.DataFrame()
+    minor_nodes_dict = {}
+    for _, row in minor_nodes_pd.iterrows():
+        minor_nodes_dict[int(row['id'])] = {
+            'features': [float(x) for x in row['features']],
+            'label': int(row['label']) if not pd.isna(row['label']) else -1,
+            'split': str(row['split'])
+        }
+
+    def map_edges(iterator):
+        import sys
+        try:
+            import numpy.core as _np_core
+            if 'numpy._core' not in sys.modules:
+                sys.modules['numpy._core'] = _np_core
+                sys.modules['numpy._core.numeric'] = _np_core.numeric
+                sys.modules['numpy._core.multiarray'] = _np_core.multiarray
+                sys.modules['numpy._core._multiarray_umath'] = getattr(_np_core, '_multiarray_umath', _np_core)
+                sys.modules['numpy._core._exceptions'] = getattr(_np_core, '_exceptions', _np_core)
+        except Exception:
+            pass
+        n2c = node_to_comm_bc.value
+        maj = major_comms_bc.value
+        for row in iterator:
+            u, v = int(row.src), int(row.dst)
+            u_comm = n2c.get(u, -1)
+            v_comm = n2c.get(v, -1)
+            u_mapped = -1000 - u_comm if u_comm in maj else u
+            v_mapped = -1000 - v_comm if v_comm in maj else v
+            if u_mapped != v_mapped:
+                yield (u_mapped, v_mapped)
+
+    print("    - Computing global CAAN edges map-side (shuffless RDD partitioning)...")
+    caan_edges = (raw_edges_df.rdd
+                  .mapPartitions(map_edges)
+                  .distinct()
+                  .collect())
+    return super_nodes_dict, minor_nodes_dict, caan_edges
 
 def run_phase3b(spark, sc, datasets, algorithms, use_global_mapping,
                 dataset_cfg, gcn_cfg, get_paths_fn, timing, results, **kwargs):
     """
     Train GNN models per community using Spark groupBy().applyInPandas() with CaaN Global Graph.
     Optimized for massive EMR clusters and shuffless execution.
+
+    node_loading (kwarg) chooses how a bin gets its units' node rows:
+      'direct'      -- read from the materialized partition table (p2_nodes with
+                       features) inside the worker, one community_id-filtered
+                       scan per bin; no exchange between workers. LakeGRL default.
+      'global_join' -- one Spark join of the whole partition table with the whole
+                       raw nodes/masks tables, then a shuffle of the joined rows
+                       to their bins (cogroup with the manifest). Needed when
+                       p2_nodes is normalized (no features).
+      'auto'        -- 'direct' for a materialized p2_nodes, else 'global_join'.
     """
     task_type = kwargs.get('task_type', 'node_classification')
     gnn_models = kwargs.get('models', ['sage'])
     min_size = kwargs.get('min_size', 100)
     # Phase 3 bounds every training unit; Phase 3b did not, and trained whole
     # communities in a single worker. Same caps, read from the same config keys.
-    max_nodes_per_community = int(kwargs.get('max_nodes_per_community', 10000) or 0)
+    max_nodes_per_community = int(kwargs.get('max_nodes_per_community', 20000) or 0)
     block_oversized = bool(kwargs.get('block_oversized', True))
+    node_loading = kwargs.get('node_loading', 'auto')
+    if node_loading not in ('auto', 'direct', 'global_join'):
+        raise ValueError(f"node_loading must be 'auto', 'direct' or 'global_join', got {node_loading!r}")
 
     from pyspark.sql import functions as F
     from pipeline.phases.phase3_training import _make_result_schema
+    from pipeline.utils.partition_join import is_materialized, load_unit_nodes, attach_units, join_features
+    from pipeline.utils.partition_layout import table_layout as _p2_table_layout
+    from pyspark.sql.types import DoubleType, StringType
     result_schema = _make_result_schema()
+    for _c in READ_COLS:
+        result_schema = result_schema.add(_c, DoubleType())
+    result_schema = result_schema.add('comm_val_acc', DoubleType()).add('minor_scores', StringType())
+    # who scores minor-community nodes in the reported accuracy: CaaN's global model (Eq. 1) or the unit they have
+    # most edges into; both are computed and recorded either way (_score_minor)
+    minor_score = kwargs.get('minor_score', 'global')
+    if minor_score not in ('global', 'unit'):
+        raise ValueError(f"minor_score must be 'global' or 'unit', got {minor_score!r}")
+    # utils.store_io.parse_emu(): None reads the store as it is (local disk or S3, by URL); (0, 0) counts GETs and
+    # bytes; (latency_ms, MB/s) emulates S3 on a local store
+    s3_emu = kwargs.get('s3_emu')
     
     for dataset in datasets:
         cfg = dataset_cfg.get(dataset)
@@ -1727,9 +2120,20 @@ def run_phase3b(spark, sc, datasets, algorithms, use_global_mapping,
         for alg in algorithms:
             p_alg = get_paths_fn(dataset, alg)
             
-            # Load community assignments and p2_nodes (already contains split, community_id, and is_boundary)
+            # Load community assignments and p2_nodes. A materialized p2_nodes
+            # already contains split, features, community_id and is_boundary; a
+            # normalized one is joined with the raw nodes/masks tables.
             comms_df = spark.read.format('delta').load(p_alg['communities'])
-            nodes_w_comm = spark.read.format('delta').load(p_alg['p2_nodes'])
+            p2_table = spark.read.format('delta').load(p_alg['p2_nodes']).drop('storage_part')
+            materialized = is_materialized(p2_table)
+            loading = node_loading if node_loading != 'auto' else (
+                'direct' if materialized else 'global_join')
+            if loading == 'direct' and not materialized:
+                raise ValueError("node_loading='direct' needs a materialized p2_nodes "
+                                 "(run Phase 2 with partition_table_mode='materialized')")
+            nodes_w_comm = p2_table if materialized else load_unit_nodes(spark, p_alg, p2_table)
+            print(f"  [Phase 3b] p2_nodes is {'materialized' if materialized else 'normalized'}; "
+                  f"node loading: {loading}")
             
             # Compute community sizes
             comm_sizes = comms_df.groupBy('community_id').count().collect()
@@ -1752,80 +2156,42 @@ def run_phase3b(spark, sc, datasets, algorithms, use_global_mapping,
                 print("    - No major communities found, skipping Phase 3b.")
                 continue
                 
-            # Compute super-node features for major communities
-            major_nodes_df = nodes_w_comm.filter(F.col('community_id').isin(list(major_comms)))
-            
-            def compute_means_udf(pdf):
-                import numpy as np
-                import pandas as pd
-                cid = pdf['community_id'].iloc[0]
-                feats = np.stack(pdf['features'].values)
-                mean_feat = feats.mean(axis=0).tolist()
-                return pd.DataFrame([{'community_id': cid, 'mean_features': mean_feat}])
-                
-            mean_df = major_nodes_df.groupBy('community_id').applyInPandas(
-                compute_means_udf,
-                schema='community_id long, mean_features array<float>'
-            )
-            
-            super_nodes_dict = {
-                int(row['community_id']): [float(x) for x in row['mean_features']]
-                for row in mean_df.collect()
-            }
-            
-            # Gather minor nodes features, labels, and splits
-            minor_nodes_pd = nodes_w_comm.filter(F.col('community_id').isin(list(minor_comms))).toPandas()
-            minor_nodes_dict = {}
-            for _, row in minor_nodes_pd.iterrows():
-                minor_nodes_dict[int(row['id'])] = {
-                    'features': [float(x) for x in row['features']],
-                    'label': int(row['label']) if not pd.isna(row['label']) else -1,
-                    'split': str(row['split'])
-                }
-                
-            # Map-side broadcast edge mapping (completely shuffless!)
-            node_to_comm_pd = comms_df.toPandas()
+            # Stage 3a (context none) and the halo ablation build no macro-graph: skip its Spark jobs.
+            context = kwargs.get("context", "macro")
+            t_macro = time.time()
+            # The units map a cut edge's far end to its super-node by its community (and the old build maps the raw
+            # edges with it): Phase 1's node -> community map, broadcast.
+            from pipeline.utils import macro_graph as _macro
+            node_to_comm_pd = (_macro.read_small(p_alg['communities'])[['id', 'community_id']] if context == "macro"
+                               else pd.DataFrame({'id': [], 'community_id': []}))
             node_to_comm = {int(k): int(v) for k, v in zip(node_to_comm_pd['id'], node_to_comm_pd['community_id'])}
 
             node_to_comm_bc = sc.broadcast(node_to_comm)
             major_comms_bc = sc.broadcast(set(int(x) for x in major_comms))
+            if context == "macro":   # part of caan_macro_load: the units' map, needed with a stored macro-graph too
+                timing[('caan_comm_map', dataset, alg)] = time.time() - t_macro
 
-            def map_edges(iterator):
-                import sys
-                try:
-                    import numpy.core as _np_core
-                    if 'numpy._core' not in sys.modules:
-                        sys.modules['numpy._core'] = _np_core
-                        sys.modules['numpy._core.numeric'] = _np_core.numeric
-                        sys.modules['numpy._core.multiarray'] = _np_core.multiarray
-                        sys.modules['numpy._core._multiarray_umath'] = getattr(_np_core, '_multiarray_umath', _np_core)
-                        sys.modules['numpy._core._exceptions'] = getattr(_np_core, '_exceptions', _np_core)
-                except Exception:
-                    pass
-                n2c = node_to_comm_bc.value
-                maj = major_comms_bc.value
-                for row in iterator:
-                    u, v = int(row.src), int(row.dst)
-                    u_comm = n2c.get(u, -1)
-                    v_comm = n2c.get(v, -1)
-                    u_mapped = -1000 - u_comm if u_comm in maj else u
-                    v_mapped = -1000 - v_comm if v_comm in maj else v
-                    if u_mapped != v_mapped:
-                        yield (u_mapped, v_mapped)
+            # advisor 2026-11-04: the macro-graph is part of Phase 2's materialized view (utils.macro_graph); read it
+            # when Phase 2 stored it with this p2_nodes, instead of rebuilding it from the raw edge table every run
+            from pipeline.utils import macro_graph as _macro
+            macro_stored = context == "macro" and _macro.stored(spark, p_alg)
+            if macro_stored:
+                super_nodes_dict, minor_nodes_dict, caan_edges = _macro.load_macro(spark, p_alg)
+            elif context == "macro":
+                super_nodes_dict, minor_nodes_dict, caan_edges = _build_macro(
+                    spark, nodes_w_comm, comms_df, raw_edges_df, p_alg, major_comms, node_to_comm_bc, major_comms_bc,
+                    kwargs.get('tiny_comm_handling', 'misc'))
+            else:
+                super_nodes_dict, minor_nodes_dict, caan_edges = {}, {}, []
 
-            print("    - Computing global CAAN edges map-side (shuffless RDD partitioning)...")
-            caan_edges = (raw_edges_df.rdd
-                          .mapPartitions(map_edges)
-                          .distinct()
-                          .collect())
-            
             # Broadcast caan components - Driver-side pre-stacking for optimization
             minor_ids = list(minor_nodes_dict.keys())
             minor_node_to_idx = {int(nid): idx for idx, nid in enumerate(minor_ids)}
             
             feat_dim = cfg['in_feats']
             if len(minor_ids) > 0:
-                minor_feats_list = [minor_nodes_dict[nid]['features'] for nid in minor_ids]
+                # one float32 array: each unit's np.array() of it is a copy, not a parse of nested lists
+                minor_feats_list = np.asarray([minor_nodes_dict[nid]['features'] for nid in minor_ids], dtype=np.float32)
                 minor_labels_list = [int(minor_nodes_dict[nid]['label']) for nid in minor_ids]
                 minor_splits_list = [str(minor_nodes_dict[nid]['split']) for nid in minor_ids]
                 minor_ids_list = [int(nid) for nid in minor_ids]
@@ -1847,9 +2213,12 @@ def run_phase3b(spark, sc, datasets, algorithms, use_global_mapping,
             minor_splits_arr_bc = sc.broadcast(minor_splits_list)
             minor_ids_arr_bc = sc.broadcast(minor_ids_list)
             caan_adj_bc = sc.broadcast(dict(caan_adj))
-            node_to_comm_bc = sc.broadcast(node_to_comm)
-            major_comms_bc = sc.broadcast(set(int(x) for x in major_comms))
             
+            if context == "macro":
+                timing[('caan_macro_load' if macro_stored else 'caan_macro', dataset, alg)] = time.time() - t_macro
+                print(f"    - CaaN macro-graph {'read from Phase 2' if macro_stored else 'built'} in "
+                      f"{time.time() - t_macro:.1f}s "
+                      f"({len(super_nodes_dict):,} super-nodes, {len(minor_ids):,} minor nodes, {len(caan_edges):,} edges)")
             caan_components = {
                 'super_nodes_dict': super_nodes_dict,
                 'minor_nodes_dict': minor_nodes_dict,
@@ -1867,9 +2236,9 @@ def run_phase3b(spark, sc, datasets, algorithms, use_global_mapping,
                 if local_data_dir:
                     ckpt_dir = os.path.join(local_data_dir, "gnn-bench-checkpoint", "phase3b", experiment_name)
                     os.makedirs(ckpt_dir, exist_ok=True)
-                    ckpt_path = os.path.join(ckpt_dir, f"{dataset}_{alg}_{model_type}.parquet")
+                    ckpt_path = os.path.join(ckpt_dir, f"{dataset}_{alg}_{model_type}_{context}.parquet")
                 else:
-                    ckpt_path = f"s3://{s3_bucket}/gnn-bench-checkpoint/phase3b/{experiment_name}/{dataset}_{alg}_{model_type}.parquet"
+                    ckpt_path = f"s3://{s3_bucket}/gnn-bench-checkpoint/phase3b/{experiment_name}/{dataset}_{alg}_{model_type}_{context}.parquet"
 
                 # Checkpoint loading
                 force_rerun = kwargs.get('force_rerun', False)
@@ -1888,7 +2257,7 @@ def run_phase3b(spark, sc, datasets, algorithms, use_global_mapping,
                             import tempfile
                             s3_client = boto3.client('s3')
                             tmp_file = tempfile.mktemp(suffix=".parquet")
-                            s3_key = f"gnn-bench-checkpoint/phase3b/{experiment_name}/{dataset}_{alg}_{model_type}.parquet"
+                            s3_key = f"gnn-bench-checkpoint/phase3b/{experiment_name}/{dataset}_{alg}_{model_type}_{context}.parquet"
                             try:
                                 s3_client.download_file(s3_bucket, s3_key, tmp_file)
                                 comm_pd = pd.read_parquet(tmp_file)
@@ -1942,12 +2311,16 @@ def run_phase3b(spark, sc, datasets, algorithms, use_global_mapping,
                 base_node_map_bc = None
                 
                 try:
+                    # Off by default: it needs DGL, so it ran on EMR and not locally, and it is not part
+                    # of the method we describe.
+                    if not kwargs.get('warm_start', False):
+                        raise RuntimeError("warm start disabled")
                     import torch
                     import torch.nn as nn
                     import dgl
-                    
+
                     print("  [Driver Warmstart] Extracting representative community for driver-side pre-training...")
-                    comms_node_counts_df = nodes_w_comm.select('community_id').groupBy('community_id').count().toPandas()
+                    comms_node_counts_df = p2_table.select('community_id').groupBy('community_id').count().toPandas()
                     comms_sorted = comms_node_counts_df.sort_values(by='count', ascending=False)
                     
                     valid_comms = comms_sorted[comms_sorted['count'] <= 100_000]
@@ -2051,23 +2424,47 @@ def run_phase3b(spark, sc, datasets, algorithms, use_global_mapping,
                     dataset_cfg=dataset_cfg,
                     caan_components=caan_components,
                     model_type=model_type,
-                    task_type=task_type
+                    task_type=task_type,
+                    device=kwargs.get('device', 'cpu')
                 )
                 
                 # 2. Driver-side Community Binning
-                comms_node_counts_df = nodes_w_comm.select('community_id').groupBy('community_id').count().toPandas()
-                comms_node_counts_df = comms_node_counts_df.sort_values(by='count', ascending=False).reset_index(drop=True)
-                
+                comms_node_counts_df = (_macro.load_plan(spark, p_alg) if macro_stored else
+                                        p2_table.select('community_id').groupBy('community_id').count().toPandas())
+                # ties in community order: the stored plan and the groupBy come in different row orders
+                comms_node_counts_df = comms_node_counts_df.sort_values(
+                    ['count', 'community_id'], ascending=[False, True], kind='mergesort').reset_index(drop=True)
+
                 import numpy as _np
                 _n_comms_raw = len(comms_node_counts_df)
                 if block_oversized and max_nodes_per_community > 0:
-                    def _nblocks(cnt):
-                        need = int(_np.ceil(float(cnt) / float(max_nodes_per_community)))
-                        nb = 1
-                        while nb < need:
-                            nb *= 2          # power of two -> worker filter is id & (n-1)
-                        return nb
-                    comms_node_counts_df['_n_blocks'] = comms_node_counts_df['count'].map(_nblocks)
+                    from pipeline.utils.common import unit_blocks
+                    comms_node_counts_df['_n_blocks'] = comms_node_counts_df['count'].map(
+                        lambda c: unit_blocks(c, max_nodes_per_community))
+                    # A block without training labels trains nothing and scores its test nodes 0. Halve such a
+                    # community's block count until every block has one: blocks are id & (n - 1), so halving
+                    # merges sibling pairs (and the _blk layout reads coarser blocks as a contiguous range).
+                    _split = comms_node_counts_df['_n_blocks'] > 1
+                    if _split.any() and {'split', 'is_member'} <= set(nodes_w_comm.columns):
+                        _tr = (nodes_w_comm.filter(F.col('is_member') & (F.col('split') == 'train'))
+                               .filter(F.col('community_id').isin(
+                                   [int(c) for c in comms_node_counts_df.loc[_split, 'community_id']]))
+                               .select('community_id', 'id').toPandas())
+                        _tr_ids = {c: g.to_numpy(np.int64) for c, g in _tr.groupby('community_id')['id']}
+
+                        def _labelled_blocks(c, n):
+                            ids = _tr_ids.get(c)
+                            while ids is not None and n > 1 and len(np.unique(ids & (n - 1))) < n:
+                                n //= 2
+                            return n
+                        _before = comms_node_counts_df['_n_blocks'].copy()
+                        comms_node_counts_df['_n_blocks'] = [
+                            _labelled_blocks(int(c), int(n)) for c, n in
+                            zip(comms_node_counts_df['community_id'], comms_node_counts_df['_n_blocks'])]
+                        _merged = int((comms_node_counts_df['_n_blocks'] < _before).sum())
+                        if _merged:
+                            print(f"    - Blocks without training labels: {_merged} communities coarsened "
+                                  f"({int(_before.sum() - comms_node_counts_df['_n_blocks'].sum())} fewer units)")
                 else:
                     comms_node_counts_df['_n_blocks'] = 1
 
@@ -2083,16 +2480,49 @@ def run_phase3b(spark, sc, datasets, algorithms, use_global_mapping,
                           f"(cap {max_nodes_per_community:,} rows/unit); {_n_split} oversized split "
                           f"(largest community {_big:,} rows incl. halo).")
 
-                num_comms = len(work)
-                if num_comms <= 2000:
-                    num_bins = num_comms
-                else:
-                    default_para = sc.defaultParallelism
-                    num_bins = min(max(default_para * 4, 1000), num_comms)
-                work['bin_id'] = [i % num_bins for i in range(len(work))]
-                
+                # snapshot file lists + partitioning of the Phase 2 tables, so the workers read the current snapshot
+                # only, in any p2_layout; on hive_merged the bins read each shared directory's minor units in packs
+                # of up to the cap's rows (stage3b_bins) instead of every bin re-reading the shared file
+                p2_layout = _p2_table_layout(spark, p_alg, emu=s3_emu)
+                from pipeline.utils.partition_layout import stage3b_bins
+                _bins = stage3b_bins(
+                    [(int(c), int(n), 0) for c, n in zip(comms_node_counts_df['community_id'],
+                                                          comms_node_counts_df['_n_blocks'])],
+                    p2_layout['comm_to_part'],
+                    {int(c): int(n) for c, n in zip(comms_node_counts_df['community_id'], comms_node_counts_df['count'])},
+                    cap=max_nodes_per_community, slots=sc.defaultParallelism)
+                num_bins = len(_bins)
+                _bin_of = {(c, b): i for i, rows in enumerate(_bins) for c, b, _, _ in rows}
+                work['bin_id'] = [_bin_of[(int(c), int(b))] for c, b in zip(work['community_id'], work['_block'])]
+                # pack_train (Table B row 3): one model per coalesced work item; rows 4-5 score minor units with
+                # CaaN's global model instead (tiny 'drop')
+                _c2p = p2_layout['comm_to_part'] or {}
+                work['_pack'] = [bool(kwargs.get('pack_train')) and str(_c2p.get(int(c), '')).startswith('m')
+                                 for c in work['community_id']]
+                if work['_pack'].any():
+                    if context != 'none' or (work['_n_blocks'] > 1).any():
+                        raise ValueError("pack_train is for Stage 3a (context none) on unsplit units")
+                    _rows = dict(zip(work['community_id'].astype(int), work['count'].astype(int)))
+                    _packed = set(work.loc[work['_pack'], 'community_id'].astype(int))
+                    _over = max(sum(_rows[c] for c, _, _, _ in rows if c in _packed) for rows in _bins)
+                    # stage3b_bins deals > 2,000 groups several to a bin; then one bin would hold more than one pack
+                    if _over > max(max_nodes_per_community, max(_rows[c] for c in _packed)):
+                        raise ValueError(f"pack_train: a bin holds {_over:,} packed rows, above the cap: several packs")
+
+                # blocks each community's _blk was written with (Phase 2 block_cap), for the loaders' range
+                from pipeline.utils.partition_layout import block_cap as _p2_block_cap
+                from pipeline.utils.common import unit_blocks as _unit_blocks
+                _wcap = _p2_block_cap(spark, p_alg['p2_nodes'])
+                work['_n_wblocks'] = work['count'].map(lambda c: _unit_blocks(c, _wcap)) if _wcap else 0
+                if kwargs.get('work_out'):   # Table B: these bins, read cold later by experiments/tableB/read_units.py
+                    import json as _json
+                    with open(kwargs['work_out'], 'w') as _fh:
+                        _json.dump({'p2_nodes': p_alg['p2_nodes'], 'p2_edges': p_alg['p2_edges'], 'context': context,
+                                   'comm_to_part': {str(k): v for k, v in (p2_layout['comm_to_part'] or {}).items()},
+                                   'bins': [g[['community_id', '_block', '_n_blocks', '_n_wblocks']].astype(int)
+                                            .values.tolist() for _, g in work.groupby('bin_id')]}, _fh)
                 bin_mapping_df = spark.createDataFrame(
-                    work[['community_id', 'bin_id', '_block', '_n_blocks']])
+                    work[['community_id', 'bin_id', '_block', '_n_blocks', '_n_wblocks', '_pack']])
                 
                 manifest_df = (bin_mapping_df
                     .withColumn('_num_classes', F.lit(int(cfg['num_classes'])))
@@ -2101,8 +2531,13 @@ def run_phase3b(spark, sc, datasets, algorithms, use_global_mapping,
                     .withColumn('_lr',          F.lit(float(gcn_cfg['lr'])))
                     .withColumn('_dropout',     F.lit(float(gcn_cfg['dropout'])))
                     .withColumn('_task_type',   F.lit(str(task_type)))
-                    .withColumn('_model_type',  F.lit(str(model_type))))
-                
+                    .withColumn('_model_type',  F.lit(str(model_type)))
+                    .withColumn('_seed',        F.lit(int(gcn_cfg.get('seed', 42))))
+                    .withColumn('_context',     F.lit(str(context)))
+                    .withColumn('_node_patience', F.lit(int(kwargs.get('node_patience') or gcn_cfg['num_epochs'])))
+                    .withColumn('_wd',          F.lit(float(gcn_cfg.get('weight_decay', 5e-4))))
+                    .withColumn('_probe',       F.lit(bool(gcn_cfg.get('probe_head', True)))))
+
                 caan_udf = make_caan_udf(
                     super_nodes_dict_bc=super_nodes_dict_bc,
                     minor_node_to_idx_bc=minor_node_to_idx_bc,
@@ -2117,14 +2552,28 @@ def run_phase3b(spark, sc, datasets, algorithms, use_global_mapping,
                     base_embeddings_bc=base_embeddings_bc,
                     base_node_map_bc=base_node_map_bc,
                     p2_nodes_url=p_alg['p2_nodes'],
-                    p2_edges_url=p_alg['p2_edges']
+                    p2_edges_url=p_alg['p2_edges'],
+                    p2_layout=p2_layout,
+                    device=kwargs.get('device', 'cpu')
                 )
                 
                 sc.setJobDescription(f'phase3b_{dataset}_{alg}_{model_type}')
-                major_results = (manifest_df
-                                 .repartition(num_bins, 'bin_id')
-                                 .groupBy('bin_id')
-                                 .applyInPandas(caan_udf, schema=result_schema))
+                if loading == 'global_join':
+                    # Global join, then shuffle each joined row to its bin. Unlike
+                    # the direct path, this moves every unit row (features
+                    # included) between executors.
+                    unit_rows = attach_units(spark, nodes_w_comm, work)
+                    major_results = (unit_rows
+                                     .repartition(num_bins, 'bin_id')
+                                     .groupBy('bin_id')
+                                     .cogroup(manifest_df.repartition(num_bins, 'bin_id')
+                                                         .groupBy('bin_id'))
+                                     .applyInPandas(caan_udf.joined_fn, schema=result_schema))
+                else:
+                    major_results = (manifest_df
+                                     .repartition(num_bins, 'bin_id')
+                                     .groupBy('bin_id')
+                                     .applyInPandas(caan_udf, schema=result_schema))
                 major_pd = major_results.toPandas()
                 sc.setJobDescription('')
                 
@@ -2137,7 +2586,15 @@ def run_phase3b(spark, sc, datasets, algorithms, use_global_mapping,
                 weighted_comm_acc = (comm_pd['comm_test_acc'] * comm_pd['n_test']).sum() / total_test_nodes if total_test_nodes > 0 else 0.0
                 total_edges = comm_pd['n_edges'].sum()
                 weighted_comm_link_auc = (comm_pd['comm_link_auc'] * comm_pd['n_edges']).sum() / total_edges if total_edges > 0 else 0.5
-                
+                minor_acc = _score_minor(comm_pd)
+                assert abs(minor_acc['acc_minor_global'] - weighted_comm_acc) < 1e-6, (minor_acc, weighted_comm_acc)
+                weighted_comm_acc = minor_acc[f'acc_minor_{minor_score}']
+                print(f"  ✓ Minor-community nodes scored by the global model / by units: test "
+                      f"{minor_acc['acc_minor_global']:.4f} / {minor_acc['acc_minor_unit']:.4f}, val "
+                      f"{minor_acc['val_acc_minor_global']:.4f} / {minor_acc['val_acc_minor_unit']:.4f} "
+                      f"({minor_acc['minor_test_reached']:.1%} of minor test nodes held by a trained unit; "
+                      f"reported: {minor_score})")
+
                 elapsed = time.time() - t0
                 timing[('phase3b', dataset, alg, model_type)] = elapsed
                 
@@ -2145,6 +2602,15 @@ def run_phase3b(spark, sc, datasets, algorithms, use_global_mapping,
                 results[key].attrs['weighted_comm_acc']  = weighted_comm_acc
                 results[key].attrs['weighted_comm_link_auc'] = weighted_comm_link_auc
                 results[key].attrs['wall_time_s'] = elapsed
+                results[key].attrs['s3_emu'] = s3_emu
+                results[key].attrs['n_bins'] = num_bins
+                results[key].attrs.update(minor_acc, minor_score=minor_score,
+                                          weighted_comm_val_acc=minor_acc[f'val_acc_minor_{minor_score}'])
+                for _c in READ_COLS:
+                    results[key].attrs[_c] = float(comm_pd[_c].sum())
+                print(f"  ✓ Unit reads: {comm_pd['read_s'].sum():.1f} s over all tasks"
+                      + (f", {comm_pd['read_gets'].sum():,.0f} GETs, {comm_pd['read_bytes'].sum() / 2**30:.2f} GiB"
+                         f" (s3_emu={s3_emu})" if s3_emu else ""))
                 # Blocking makes Phase 3b emit one row per (community, block),
                 # so len(df) is a unit count now, not a community count.
                 # Reporting reads attrs first; without this Reddit would be
@@ -2172,7 +2638,7 @@ def run_phase3b(spark, sc, datasets, algorithms, use_global_mapping,
                         tmp_file = tempfile.mktemp(suffix=".parquet")
                         comm_pd.to_parquet(tmp_file, index=False)
                         s3_client = boto3.client('s3')
-                        s3_key = f"gnn-bench-checkpoint/phase3b/{experiment_name}/{dataset}_{alg}_{model_type}.parquet"
+                        s3_key = f"gnn-bench-checkpoint/phase3b/{experiment_name}/{dataset}_{alg}_{model_type}_{context}.parquet"
                         s3_client.upload_file(tmp_file, s3_bucket, s3_key)
                         if os.path.exists(tmp_file):
                             os.remove(tmp_file)

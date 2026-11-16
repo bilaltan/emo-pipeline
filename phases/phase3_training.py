@@ -214,8 +214,10 @@ def _train_gnn_community_single(pdf, comm_edges_pdf=None, base_weights_bc=None, 
     # several accuracy points between runs purely from random initialisation, which
     # makes any reported mean±std measure noise rather than data variance. Seeding
     # by community keeps units independent while staying reproducible.
-    torch.manual_seed(42 + int(comm_id))
-    np.random.seed((42 + int(comm_id)) % (2**32))
+    seed = int(pdf['_seed'].iloc[0]) if '_seed' in pdf.columns else 42
+    use_halo = bool(pdf['_use_halo'].iloc[0]) if '_use_halo' in pdf.columns else True
+    torch.manual_seed(seed + int(comm_id))
+    np.random.seed((seed + int(comm_id)) % (2**32))
 
     # Support both bundled single-row community representations and multi-row frames
     if '_id_list' in pdf.columns and len(pdf) == 1:
@@ -311,8 +313,11 @@ def _train_gnn_community_single(pdf, comm_edges_pdf=None, base_weights_bc=None, 
             'peak_mem_mb':    0.0,
         }])
 
-    # Final RAM safety floor for the small amount of variation left by Spark-side sampling.
-    if n_nodes > max_nodes_per_community:
+    # Final RAM safety floor. Blocks already bound a unit to about the cap; the 2x margin covers hash
+    # variance, so this never drops rows (members included) from a normal unit.
+    if n_nodes > 2 * max_nodes_per_community:
+        print(f"[PHASE3-WORKER] unit {comm_id}: {n_nodes:,} rows > 2x cap, truncating", flush=True)
+        max_nodes_per_community *= 2
         all_nodes = all_nodes[:max_nodes_per_community]
         label_arr = label_arr[:max_nodes_per_community]
         split_arr = split_arr[:max_nodes_per_community]
@@ -390,7 +395,7 @@ def _train_gnn_community_single(pdf, comm_edges_pdf=None, base_weights_bc=None, 
     feat_arr  = feat_arr / np.where(feat_norms > 0, feat_norms, 1.0)
 
     if n_edges > max_edges_per_community:
-        np.random.seed(42)
+        np.random.seed(seed)
         keep_idx = np.random.choice(n_edges, max_edges_per_community, replace=False)
         src_l_g = src_l[keep_idx]
         dst_l_g = dst_l[keep_idx]
@@ -413,17 +418,23 @@ def _train_gnn_community_single(pdf, comm_edges_pdf=None, base_weights_bc=None, 
     test_m  = torch.tensor([s == 'test'  for s in split_arr], dtype=torch.bool) & has_label
     bnd_t = torch.tensor(bnd_arr, dtype=torch.bool)
 
+    # Message passing runs on the undirected unit graph, so members receive their halo neighbours.
+    # Without the halo (Stage 3a's default), only member-member edges remain.
+    from pipeline.utils.common import undirected
+    _mp_keep = np.ones(len(src_l_g), dtype=bool) if use_halo else (member_arr[src_l_g] & member_arr[dst_l_g])
+    mp_src, mp_dst = undirected(src_l_g[_mp_keep], dst_l_g[_mp_keep], n_nodes)
+
     is_pyg = (model_type in ('gat', 'gatv2', 'transformer', 'clusterscl', 'arma', 'asap')) or dgl is None
     if is_pyg:
         import torch_geometric
         pyg_edge_index = torch.stack([
-            torch.tensor(src_l_g, dtype=torch.long),
-            torch.tensor(dst_l_g, dtype=torch.long)
+            torch.tensor(mp_src, dtype=torch.long),
+            torch.tensor(mp_dst, dtype=torch.long)
         ], dim=0)
         feat_t = torch.tensor(feat_arr, dtype=torch.float32)
         lbl_t = torch.tensor(label_arr, dtype=torch.long)
     else:
-        g = dgl.graph((src_l_g, dst_l_g), num_nodes=n_nodes)
+        g = dgl.graph((mp_src, mp_dst), num_nodes=n_nodes)
         g = dgl.add_self_loop(g)
         g.ndata['feat']  = torch.tensor(feat_arr,  dtype=torch.float32)
         g.ndata['label'] = torch.tensor(label_arr, dtype=torch.int64)
@@ -983,7 +994,7 @@ def _train_gnn_community_single(pdf, comm_edges_pdf=None, base_weights_bc=None, 
 
     if run_link and n_real_edges >= 5:
         t_link_start = time.time()
-        torch.manual_seed(42)
+        torch.manual_seed(seed)
         _real_pos_t = torch.tensor(_real_edge_pos, dtype=torch.int64)
         shuffled_edge_ids = _real_pos_t[torch.randperm(n_real_edges)]
         n_tr_edges = int(0.8 * n_real_edges)
@@ -1294,7 +1305,9 @@ def run_phase3(spark, sc, datasets, algorithms, use_global_mapping,
     gnn_models = kwargs.get('models', ['sage'])
     diagnostics = kwargs.get('diagnostics', False)
     max_nodes_per_community = int(kwargs.get('max_nodes_per_community', 10000))
-    max_train_per_unit = int(kwargs.get('max_train_per_unit', 1500) or 0)
+    seed = int(gcn_cfg.get('seed', 42))
+    # Stage 3a without the 1-hop halo is local training on member-member edges only.
+    use_halo = bool(kwargs.get('use_halo', False))
     max_edges_per_community = int(kwargs.get('max_edges_per_community', 50000))
     edge_sample_modulus = max(1, int(kwargs.get('edge_sample_modulus', 1)))
     mlp_epochs = max(1, int(kwargs.get('mlp_epochs', 5)))
@@ -1324,9 +1337,12 @@ def run_phase3(spark, sc, datasets, algorithms, use_global_mapping,
 
             print(f"  [Phase 3 setup] Loading Phase 2 Delta tables for {dataset}/{alg}...")
             cache_start = time.time()
-            nodes_df = (spark.read.format('delta').load(p_alg['p2_nodes'])
+            # Materialized p2_nodes is read as is; a normalized one is joined
+            # with the raw nodes/masks tables (utils/partition_join.py).
+            from pipeline.utils.partition_join import load_unit_nodes
+            nodes_df = (load_unit_nodes(spark, p_alg)
                         .persist(StorageLevel.MEMORY_AND_DISK))
-            edges_df = (spark.read.format('delta').load(p_alg['p2_edges'])
+            edges_df = (spark.read.format('delta').load(p_alg['p2_edges']).drop('storage_part')
                         .persist(StorageLevel.MEMORY_AND_DISK))
             n_phase2_nodes = nodes_df.count()
             n_phase2_edges = edges_df.count()
@@ -1380,48 +1396,12 @@ def run_phase3(spark, sc, datasets, algorithms, use_global_mapping,
                 1,
                 np.ceil(comms_node_counts_pd['count'] / node_sampling_target).astype(np.int64)
             )
-            # Number of bounded training units a community is split into. 1 leaves the
-            # community intact; larger values split it rather than sampling it away.
-            _blocks_by_rows = np.ceil(
-                comms_node_counts_pd['count'] / max_nodes_per_community)
-            if max_train_per_unit > 0 and 'n_train' in comms_node_counts_pd.columns:
-                # Split on whichever binds harder: the memory cap (rows) or the
-                # cost cap (train members). Without the train term the wall clock
-                # is set by a few heavy units -- measured max/median 3.17x.
-                _blocks_by_train = np.ceil(
-                    comms_node_counts_pd['n_train'] / float(max_train_per_unit))
-            else:
-                _blocks_by_train = _blocks_by_rows
-            comms_node_counts_pd['_phase3_n_blocks'] = np.maximum(
-                1,
-                np.maximum(_blocks_by_rows, _blocks_by_train).astype(np.int64)
-            )
-
-            # Fit the unit count to the cluster. Wall clock is roughly
-            #   ceil(units / slots) * slowest unit,
-            # so a unit count just above the slot count buys a whole extra wave
-            # for a handful of units while most cores idle. Splitting harder
-            # improves balance but only pays off while the units still fit one
-            # wave. Relax the train cap until they do, never below the row cap,
-            # which is a memory bound and not negotiable.
-            _slots = max(1, int(getattr(sc, 'defaultParallelism', 0) or 0))
-            _floor = int(np.maximum(1, _blocks_by_rows).sum())
-            if _slots > 1 and max_train_per_unit > 0:
-                _eff_cap = float(max_train_per_unit)
-                _units = int(comms_node_counts_pd['_phase3_n_blocks'].sum())
-                _relaxed = False
-                while _units > _slots and _units > _floor:
-                    _eff_cap *= 1.25
-                    _bt = np.ceil(comms_node_counts_pd['n_train'] / _eff_cap)
-                    comms_node_counts_pd['_phase3_n_blocks'] = np.maximum(
-                        1, np.maximum(_blocks_by_rows, _bt).astype(np.int64))
-                    _units = int(comms_node_counts_pd['_phase3_n_blocks'].sum())
-                    _relaxed = True
-                if _relaxed:
-                    print(f"  [Phase 3 blocks] train cap relaxed "
-                          f"{max_train_per_unit:,} -> {int(_eff_cap):,} so "
-                          f"{_units:,} units fit {_slots:,} slots in one wave "
-                          f"(floor {_floor:,} set by the row cap).")
+            # Number of bounded training units a community is split into, by the same rule as
+            # Phase 3b (power of two, block = id & (n-1)). The units must not depend on the cluster's
+            # slot count, or Stage 3a's model, and its accuracy, changes with the cluster size.
+            from pipeline.utils.common import unit_blocks
+            comms_node_counts_pd['_phase3_n_blocks'] = comms_node_counts_pd['count'].map(
+                lambda c: unit_blocks(c, max_nodes_per_community)).astype(np.int64)
             # Unit id is community_id * BLOCK_STRIDE + block, so the stride must
             # exceed the largest block count or unit ids from different
             # communities collide. The train term can raise that count.
@@ -1680,7 +1660,7 @@ def run_phase3(spark, sc, datasets, algorithms, use_global_mapping,
                     nodes_blocked = (nodes_df
                         .join(block_plan, on='community_id', how='inner')
                         .withColumn('_block',
-                                    F.pmod(F.xxhash64('id'), F.col('_phase3_n_blocks')))
+                                    F.col('id').bitwiseAND(F.col('_phase3_n_blocks') - 1))
                         .withColumn('_unit',
                                     F.col('community_id') * F.lit(BLOCK_STRIDE) + F.col('_block')))
 
@@ -1831,6 +1811,8 @@ def run_phase3(spark, sc, datasets, algorithms, use_global_mapping,
                     .withColumn('_mlp_epochs',  F.lit(int(mlp_epochs)))
                     .withColumn('_mlp_patience', F.lit(int(mlp_patience)))
                     .withColumn('_node_patience', F.lit(int(node_patience)))
+                    .withColumn('_seed',        F.lit(int(seed)))
+                    .withColumn('_use_halo',    F.lit(bool(use_halo)))
                     .withColumn('_phase3_diagnostics', F.lit(bool(diagnostics))))
 
                 sc.setJobDescription(f'phase3_{dataset}_{alg}_{model_type}')
@@ -1865,9 +1847,9 @@ def run_phase3(spark, sc, datasets, algorithms, use_global_mapping,
                         .withColumn('_max_edges',   F.lit(int(max_edges_per_community)))
                         .withColumn('_mlp_epochs',  F.lit(int(mlp_epochs)))
                         .withColumn('_mlp_patience', F.lit(int(mlp_patience)))
-                    .withColumn('_mlp_patience', F.lit(int(mlp_patience)))
                         .withColumn('_node_patience', F.lit(int(node_patience)))
-                    .withColumn('_node_patience', F.lit(int(node_patience)))
+                        .withColumn('_seed',        F.lit(int(seed)))
+                        .withColumn('_use_halo',    F.lit(bool(use_halo)))
                         .withColumn('_phase3_diagnostics', F.lit(bool(diagnostics)))
                         .repartition(num_bins, 'community_id'))
 

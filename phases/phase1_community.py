@@ -13,6 +13,140 @@ def _dgl_metis_worker(src, dst, num_nodes, k, conn):
     except Exception as e:
         conn.send(e)
 
+def refine_communities(G, membership, max_members, resolution=1.0):
+    """Splits every community above max_members with Louvain on its own subgraph, recursively, and packs the
+    pieces first-fit-decreasing into communities of at most max_members (experiments/block_split_study.py's
+    rule). Without it Stage 3b cuts such a community by id & (n - 1), which keeps ~11% of products' intra-unit
+    edges at 20,000 rows; as communities of their own, sibling pieces also reach each other as super-nodes.
+    Returns the new membership (pieces keep the old id or get new ones above the old maximum)."""
+    import numpy as np
+    memb = np.asarray(membership, dtype=np.int64).copy()
+    next_id = int(memb.max()) + 1 if len(memb) else 0
+    counts = np.bincount(memb)
+    for c in np.nonzero(counts > max_members)[0]:
+        pieces, stack = [], [np.nonzero(memb == c)[0]]
+        while stack:
+            grp = stack.pop()
+            if len(grp) <= max_members:
+                pieces.append(grp)
+                continue
+            sub = np.asarray(G.induced_subgraph(grp).community_multilevel(resolution=resolution).membership)
+            if sub.max() == 0:   # no structure left: plain chunks
+                pieces += [grp[i:i + max_members] for i in range(0, len(grp), max_members)]
+                continue
+            stack += [grp[sub == k] for k in range(sub.max() + 1)]
+        pieces.sort(key=len, reverse=True)
+        bins, room = [], []
+        for p in pieces:
+            i = next((j for j, r in enumerate(room) if r >= len(p)), None)
+            if i is None:
+                bins.append([p])
+                room.append(max_members - len(p))
+            else:
+                bins[i].append(p)
+                room[i] -= len(p)
+        for i, b in enumerate(bins[1:]):   # the largest bin keeps the community's id
+            memb[np.concatenate(b)] = next_id + i
+        next_id += len(bins) - 1
+    return memb
+
+
+def closed_nbhd(indptr, indices, vs):
+    """N[vs]: vs and every 1-hop neighbour, sorted: a unit's members + its uncapped 1-hop halo."""
+    import numpy as np
+    vs = np.asarray(vs, dtype=np.int64)
+    st, ln = indptr[vs], indptr[vs + 1] - indptr[vs]
+    off = np.repeat(st - np.cumsum(ln) + ln, ln) + np.arange(int(ln.sum()), dtype=np.int64)
+    return np.unique(np.concatenate([vs, indices[off]]))
+
+
+_SPLIT_G = None   # the graph split_units' forked workers read (copy-on-write, never pickled)
+
+
+def _split_leaves(c, p, max_core, resolution, seed):
+    """One oversized community's recursive Leiden (split_units): its leaves in preorder, Leiden calls, last resolution."""
+    import leidenalg
+    import numpy as np
+    leaves, stack, calls, r_max = [], [p], 0, float(resolution)
+    while stack:   # depth-first, children in Leiden's order (largest first): leaves come out in preorder
+        p = stack.pop()
+        if len(p) <= max_core:
+            leaves.append(p)
+            continue
+        sub, r = _SPLIT_G.induced_subgraph(p), float(resolution)
+        for _ in range(40):
+            part = np.asarray(leidenalg.find_partition(sub, leidenalg.RBConfigurationVertexPartition,
+                                                       resolution_parameter=r, seed=seed).membership)
+            calls += 1
+            if part.max() > 0:
+                break
+            r *= 2
+        else:
+            raise RuntimeError(f"Leiden kept {len(p)} vertices of community {c} together up to resolution {r}")
+        r_max = max(r_max, r)
+        stack += [p[part == k] for k in range(part.max(), -1, -1)]
+    return leaves, calls, r_max
+
+
+def split_units(G, membership, max_core, resolution=1.0, seed=0, processes=1):
+    """Recursive Leiden, Phase 1's unit rule (advisor, 2026-10-30): no unit may hold more than max_core core members.
+    Phase 1 passes max_core = C_max / 2 and Phase 2 caps each unit's halo at its core size (halo_cap), so a unit
+    stores <= C_max rows. A cap on members + uncapped halo instead gave Reddit (mean degree ~490) 4,035 units of
+    ~33 members and ~9,300 halo rows each.
+
+    A community above max_core is split by Leiden on its own subgraph, and every part still above it again; when
+    Leiden returns one part it is rerun at twice the resolution (a high enough resolution always splits >= 2
+    vertices, so the recursion ends). The leaves, in the tree's preorder (children largest first), are packed
+    next-fit up to max_core members: every unit is a contiguous run of the tree and pieces of different communities
+    never share a unit. The first unit keeps the community's id, the others get new ids above the old maximum.
+
+    The oversized communities are disjoint subgraphs, so their recursions run in `processes` forked workers (advisor
+    2026-11-04); ids are still given in community order, so the result is the sequential one.
+    Returns (membership, stats)."""
+    import numpy as np
+    global _SPLIT_G
+    memb = np.asarray(membership, dtype=np.int64).copy()
+    n_comm = int(memb.max()) + 1 if len(memb) else 0
+    next_id = n_comm
+    members = np.bincount(memb, minlength=n_comm)
+    order = np.argsort(memb, kind="stable")
+    starts = np.r_[0, np.cumsum(members)]
+    st = dict(split=0, leiden_calls=0, max_resolution=float(resolution), leaves=0, units_before=n_comm,
+              processes=int(processes))
+    big =np.nonzero(members > max_core)[0]
+    tasks = sorted(((int(c), order[starts[c]:starts[c + 1]], max_core, resolution, seed) for c in big),
+                   key=lambda t: -len(t[1]))   # largest first, so the longest recursion does not start last
+    _SPLIT_G = G
+    try:
+        if min(int(processes), len(tasks)) > 1:
+            import multiprocessing as mp
+            with mp.get_context("fork").Pool(min(int(processes), len(tasks))) as pool:
+                out = dict(zip((t[0] for t in tasks), pool.starmap(_split_leaves, tasks, chunksize=1)))
+        else:
+            out = {t[0]: _split_leaves(*t) for t in tasks}
+    finally:
+        _SPLIT_G = None
+    for c in big:
+        leaves, calls, r = out[int(c)]
+        st["split"] += 1
+        st["leiden_calls"] += calls
+        st["max_resolution"] = max(st["max_resolution"], r)
+        st["leaves"] += len(leaves)
+        units, cur = [], []
+        for p in leaves:
+            if cur and sum(map(len, cur)) + len(p) > max_core:
+                units.append(cur)
+                cur = []
+            cur.append(p)
+        units.append(cur)
+        for ps in units[1:]:
+            memb[np.concatenate(ps)] = next_id
+            next_id += 1
+    st["units"] = int(len(np.unique(memb)))
+    st["max_core"] = int(np.bincount(memb).max()) if len(memb) else 0
+    return memb, st
+
+
 def run_phase1(spark, sc, datasets, algorithms, lpa_max_iter, resolution,
                random_seed, min_size, dataset_cfg, get_paths_fn, timing, results, **kwargs):
     """
@@ -60,6 +194,7 @@ def run_phase1(spark, sc, datasets, algorithms, lpa_max_iter, resolution,
 
             print(f"\n  ── [{alg.upper()}] ──────────────────────────────")
             t_alg = time.time()
+            p1_times = {}   # step times, advisor 11-03: the runtime breakdown of Phase 1
 
             # ── LPA ─────────────────────────────────────────────────────────
             if alg == 'lpa':
@@ -142,6 +277,7 @@ def run_phase1(spark, sc, datasets, algorithms, lpa_max_iter, resolution,
                 import igraph as ig, numpy as np
                 from pyspark.sql.types import StructType, StructField, LongType as _LT
                 print(f"  Collecting edges to driver ...")
+                t_s = time.time()
                 edges_pd = (edges_df
                             .filter(F.col('src') < F.col('dst'))
                             .select(F.col('src').alias('u'), F.col('dst').alias('v'))
@@ -150,9 +286,13 @@ def run_phase1(spark, sc, datasets, algorithms, lpa_max_iter, resolution,
                 print(f"  Mapping node IDs using vectorized binary search ...")
                 u_mapped = np.searchsorted(all_nids, edges_pd['u'].values)
                 v_mapped = np.searchsorted(all_nids, edges_pd['v'].values)
+                p1_times['collect_s'] = time.time() - t_s
                 el = zip(u_mapped, v_mapped)
                 print(f"  Building igraph ({len(all_nids):,} nodes) ...")
+                t_s = time.time()
                 G = ig.Graph(n=len(all_nids), edges=el, directed=False)
+                p1_times['igraph_s'] = time.time() - t_s
+                t_s = time.time()
                 print(f"  Running {alg} (resolution={resolution}) ...")
                 # community_multilevel and community_label_propagation are randomized.
                 # Unseeded, the same graph yields a different partition on every run,
@@ -169,14 +309,34 @@ def run_phase1(spark, sc, datasets, algorithms, lpa_max_iter, resolution,
                         resolution_parameter=resolution, seed=random_seed)
                 elif alg == 'igraph_lpa':
                     partition = G.community_label_propagation()
-                id_to_comm = {}
-                for ci, members in enumerate(partition):
-                    for li in members:
-                        id_to_comm[int(all_nids[li])] = ci
-                comm_rows = list(id_to_comm.items())
-                cschema   = StructType([StructField('id', _LT(), False),
-                                        StructField('community_id', _LT(), False)])
-                communities_df = spark.sparkContext.parallelize(comm_rows).toDF(cschema).cache()
+                membership = np.asarray(partition.membership, dtype=np.int64)
+                p1_times['leiden_s'] = time.time() - t_s
+                refine = int(kwargs.get('refine_members') or 0)
+                if refine:
+                    t_ref, n_before = time.time(), int(membership.max()) + 1
+                    membership = refine_communities(G, membership, refine, resolution)
+                    print(f"  Refined communities above {refine:,} members with Louvain: "
+                          f"{n_before:,} -> {int(membership.max()) + 1:,} communities  [{time.time() - t_ref:.1f}s]")
+                c_max = int(kwargs.get('c_max') or 0)
+                if c_max:
+                    t_ref = time.time()
+                    membership, split_stats = split_units(G, membership, c_max // 2, resolution, int(random_seed),
+                                                         processes=sc.defaultParallelism)
+                    p1_times['split_s'] = time.time() - t_ref
+                    print(f"  Recursive Leiden, <= {c_max // 2:,} core members per unit (C_max {c_max:,} rows with the "
+                          f"halo capped at the core in Phase 2): {split_stats['split']:,} communities split, "
+                          f"{split_stats['units_before']:,} -> {split_stats['units']:,} units  [{time.time() - t_ref:.1f}s]")
+                # Vertices with no edge are not in the igraph graph; give each its own community so it
+                # is still assigned (Phase 2 packs these tiny ones into shared bins) and scored.
+                import pandas as _pd
+                iso = np.setdiff1d(nodes_df.select('id').toPandas()['id'].values.astype(np.int64), all_nids)
+                comm_pd = _pd.DataFrame({
+                    'id': np.concatenate([all_nids.astype(np.int64), iso]),
+                    'community_id': np.concatenate([membership,
+                                                    int(membership.max()) + 1 + np.arange(len(iso), dtype=np.int64)])})
+                if len(iso):
+                    print(f"  {len(iso):,} isolated vertices -> singleton communities")
+                communities_df = spark.createDataFrame(comm_pd).cache()
 
             # ── METIS Baseline ─────────────────────────────────────────────
             elif alg == 'metis':
@@ -320,9 +480,11 @@ def run_phase1(spark, sc, datasets, algorithms, lpa_max_iter, resolution,
                     print(f"    ✓ No minor communities to absorb ({n_major:,} of {n_before:,} are major)")
                 major.unpersist()
 
+            t_s = time.time()
             communities_df.write.format('delta').mode('overwrite')\
                           .save(p_alg['communities'])
 
+            p1_times['write_s'] = time.time() - t_s
             runtime  = time.time() - t_alg
             n_comms  = communities_df.select('community_id').distinct().count()
 
@@ -332,8 +494,11 @@ def run_phase1(spark, sc, datasets, algorithms, lpa_max_iter, resolution,
                            joined['label'].values, joined['community_id'].values)
 
             timing[('phase1', dataset, alg)] = runtime
-            results[key] = {'n_comms': n_comms, 'runtime_s': runtime, 'nmi': nmi}
+            results[key] = {'n_comms': n_comms, 'runtime_s': runtime, 'nmi': nmi, 'times': p1_times}
+            if alg in ('louvain', 'leiden', 'igraph_lpa') and int(kwargs.get('c_max') or 0):
+                results[key]['split_units'] = split_stats
             print(f"  ✓ [{alg}] {n_comms:,} communities | NMI={nmi:.4f} | {runtime:.1f}s")
+            print("    steps: " + ", ".join(f"{k} {v:.1f}" for k, v in p1_times.items()))
             
             communities_df.unpersist()
             spark._jvm.System.gc()

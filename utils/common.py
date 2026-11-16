@@ -83,6 +83,64 @@ def _delta_exists(spark, path):
             return False
 
 
+def spark_resources(sc):
+    """Spark executors and cores this run had, read from the live SparkContext; saved with every result.
+
+    local[N] is one executor (the driver JVM) with N task slots. On a cluster the count is live at the
+    time of the call: dynamic allocation can add or release executors during a run.
+    """
+    local = sc.master.startswith("local")
+    n = sc._jsc.sc().getExecutorMemoryStatus().size()   # one block manager per executor, plus the driver's
+    conf = sc.getConf()
+    slots = sc.master[6:-1] if local and sc.master.startswith("local[") else ""   # local[N]; local[*] = all cores
+    return {"spark_master": sc.master,
+            "spark_executors": 1 if local else n - 1,
+            "spark_executor_cores": (int(slots) if slots.isdigit() else os.cpu_count() if slots else 1) if local
+                                    else int(conf.get("spark.executor.cores", "1")),
+            "spark_dynamic_allocation": not local and conf.get("spark.dynamicAllocation.enabled", "false") == "true"}
+
+
+def yarn_workers(builder, n, memory="4g", overhead="1536m"):
+    """A SparkSession builder for n workers on YARN (AWS validation, advisor 2026-11-11): n executors x 1 core x 4 GB,
+    one torch / BLAS thread each. EMR turns dynamic allocation on by default, so the count is pinned, and the first
+    job waits until all n executors are up. The 1.5 GB overhead makes a container 5.5 GB, so YARN fits at most 4 on
+    an m5.2xlarge (24 GB of YARN memory, 4 physical cores). Executors import the repo from the driver's PYTHONPATH."""
+    b = (builder.master("yarn")
+         .config("spark.executor.instances", str(n)).config("spark.executor.cores", "1")
+         .config("spark.executor.memory", memory).config("spark.executor.memoryOverhead", overhead)
+         .config("spark.dynamicAllocation.enabled", "false").config("spark.ui.showConsoleProgress", "false")
+         .config("spark.scheduler.minRegisteredResourcesRatio", "1.0")
+         .config("spark.scheduler.maxRegisteredResourcesWaitingTime", "600s")
+         .config("spark.executorEnv.PYTHONPATH", os.environ.get("PYTHONPATH", "")))
+    for v in ("OMP_NUM_THREADS", "MKL_NUM_THREADS", "OPENBLAS_NUM_THREADS"):
+        b = b.config(f"spark.executorEnv.{v}", "1")
+    return b
+
+
+def undirected(src, dst, n):
+    """Both directions of every edge over local indices < n, deduplicated, for message passing.
+
+    Phase 2 stores a cut edge once, under the member's community (member -> halo), and Phase 3b
+    maps it to member -> super-node. GNN layers aggregate in-edges, so without the reverse the
+    members we score never receive halo or macro-graph context.
+    """
+    import numpy as np
+    s = np.asarray(src, dtype=np.int64)
+    d = np.asarray(dst, dtype=np.int64)
+    key = np.unique(np.concatenate([s * n + d, d * n + s]))
+    return key // n, key % n
+
+
+def unit_blocks(count, cap):
+    """Blocks a community of `count` rows is split into: the power of two that brings each under ~`cap`.
+
+    Phases 3 and 3b share this rule, so Stage 3a and Stage 3b train on the same units and differ only
+    in context. A node's block is id & (n - 1).
+    """
+    need = -(-int(count) // int(cap)) if int(cap) > 0 else 1
+    return 1 << max(0, need - 1).bit_length()
+
+
 def resolve_member_mask(pdf, n_rows, n_local=None):
     """Boolean mask marking which rows are a community's own vertices.
 

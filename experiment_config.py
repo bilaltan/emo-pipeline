@@ -12,11 +12,13 @@ EXPERIMENT_NAME   = 'gatv2_full_sweep'          # labels ALL S3 outputs; change 
 # Standard: 'WikiCS', 'Coauthor-Physics', 'Coauthor-CS', 'DeezerEurope', 'Foursquare'
 # 100M-scale: 'reddit', 'ogbn-products'
 # 1B-scale:   'ogbn-papers100M'
-DATASETS_TO_RUN = ['WikiCS', 'ogbn-products', 'reddit', 'ogbn-mag', 'LiveJournal', 'Orkut',]
+DATASETS_TO_RUN = ['WikiCS', 'ogbn-products', 'reddit', 'ogbn-mag']  # LiveJournal / Orkut excluded 2026-10-12 (synthetic features); code kept
 
 # ── GNN Models to Run ─────────────────────────────────────────────────────────
 # Supported choices: 'sage', 'gat', 'gatv2', 'transformer', 'clusterscl', 'arma', 'asap'
-GNN_MODELS = ['gatv2']
+# 2026-10-26: EMR runs the local driver's configuration (scripts/run_local_pipeline.py), so AWS and local numbers
+# come from the same method: GraphSAGE, minor communities dropped (CaaN), Stage 3b only, node classification.
+GNN_MODELS = ['sage']
 
 # ── Phase 0: Delta Lake Ingestion ─────────────────────────────────────────────
 # True  = re-download OGB dataset and overwrite Delta tables.
@@ -27,7 +29,7 @@ FORCE_REINGEST    = False   # Set to False to use existing S3 Delta tables
 FORCE_RERUN       = True    # Force clean, fresh training and evaluation for all phases
 USE_OGB_SPLITS    = True    # True = OGB official splits | False = stratified 60/20/20
 RANDOM_SEED       = 42
-N_BASELINE_RUNS   = 1          # number of runs per baseline for mean ± std
+N_BASELINE_RUNS   = 3          # = len(TRAIN['seeds']); TRAIN is defined below
 
 
 # ── Phase 1: Community Detection ──────────────────────────────────────────────
@@ -44,9 +46,18 @@ LPA_TOL            = 0.001   # stop when <0.1% of labels move in an iteration
 # Fold communities smaller than MIN_COMMUNITY_SIZE into the major community they
 # have the most edges into, instead of leaving a long tail for Phase 2 to drop
 # and Phase 3b to carry as explicit minor nodes.
-MERGE_MINOR_COMMUNITIES = True
+MERGE_MINOR_COMMUNITIES = False   # CaaN drops them and scores their nodes with the global model (e638064)
 RESOLUTION         = 1.0              # louvain / leiden resolution parameter
-MIN_COMMUNITY_SIZE = 1000             # communities smaller than this are excluded
+MIN_COMMUNITY_SIZE = 100              # communities smaller than this are minor (local driver --min-size)
+# Split communities above this many members with Louvain on their own subgraph (local driver --refine-members); 0 = off
+REFINE_MEMBERS     = 0
+# Maximum Unit Capacity C_max: rows per training unit, members + 1-hop halo. A hyperparameter (advisor 2026-10-29:
+# 10,000 by default, sensitivity runs 5,000-40,000). Phase 1 splits to <= C_max / 2 core members, Phase 2 caps the
+# halo at the core (1:1, advisor 2026-10-30), so a unit stores <= C_max rows; also Stage 3b's cap.
+C_MAX              = 10_000
+# 'leiden': Phase 1's recursive Leiden (phase1_community.split_units) keeps every unit within C_MAX and Stage 3b never
+# cuts a unit. 'idmod': no Phase 1 split, Stage 3b cuts units above C_MAX into id & (n - 1) blocks (ablation only).
+UNIT_SPLIT         = 'leiden'
 
 # ── Phase 2 / 3: Partitioning & GNN Training ──────────────────────────────────
 # USE_GLOBAL_MAPPING = True  (RECOMMENDED):
@@ -65,14 +76,14 @@ RUN_PHASE2         = True            # Reuse the completed bounded Phase 2 subgr
 # (retention falls as 1/mod^2), so the run either fails or returns a model
 # trained on a fragment. These phases materialize the graph as shard-addressable
 # Delta blocks so workers read bounded units directly instead.
-RUN_PHASE25        = True             # Shard-addressable graph store (required for 100M+)
+RUN_PHASE25        = False            # not part of LakeGRL's method (Stage 3b reads Phase 2 directly); off since 2026-10-26
 PHASE25_NUM_SHARDS = 512
-RUN_PHASE26        = True             # Bounded source-seed training blocks
+RUN_PHASE26        = False            # Bounded source-seed training blocks
 PHASE26_SEED_BLOCKS = 16
 PHASE26_NEIGHBOR_BLOCKS = 4
 # Reunites the four edge partitions logically per source seed unit and records
 # exact halo/workload statistics. It does not train or materialize adjacency.
-RUN_PHASE27        = True             # Audits block halo/workload before training
+RUN_PHASE27        = False            # Audits block halo/workload before training
 PHASE27_WORKING_SET_HEADROOM = 4.0
 # Initial direct-Delta validation: trains bounded, complete source-seed units
 # without collect_list. This is intentionally a local-block validation, not a
@@ -121,7 +132,7 @@ RUN_PHASE38        = False
 PHASE38_MAX_ITER   = 30
 PHASE38_REG_PARAM  = 0.0001
 PHASE38_ELASTIC_NET_PARAM = 0.0
-RUN_PHASE3         = True
+RUN_PHASE3         = False            # Stage 3a is an ablation only (Bilal, 2026-10-21)
 USE_GLOBAL_MAPPING = True
 
 # Emits Phase 3 driver/executor timing markers to diagnose slow or stalled runs.
@@ -130,7 +141,11 @@ PHASE3_DIAGNOSTICS = True
 
 # Phase 3 graph limits. Spark hash-samples toward the node limit and filters
 # edges before aggregation; the UDF then enforces these final hard limits.
-PHASE3_MAX_NODES_PER_COMMUNITY = 10000
+# 20,000 (2026-10-25) had higher validation accuracy than 10,000 (decide_runs.jsonl); C_MAX since 2026-10-29.
+PHASE3_MAX_NODES_PER_COMMUNITY = C_MAX
+# Phase 2 table layout: 'block' groups rows by Stage 3b unit with sqrt-rule row groups (Track B, local default);
+# 'plain' is the layout before Track B (local --p2-plain, no row-group target). Stage 3b reads either.
+STORAGE_LAYOUT = 'block'
 # Units are also split so no unit carries more than this many TRAIN nodes.
 # Cost tracks n_train (corr +0.52), which varied 9.1x across units and made
 # Phase 3 straggler-bound; row count alone does not balance it.
@@ -143,24 +158,38 @@ PHASE3_MAX_EDGES_PER_COMMUNITY = 30000
 # 1/8 run while remaining below the unstable full-edge (1/1) configuration.
 # Set modulus to 1 to retain 100% of eligible edges for link prediction accuracy
 PHASE3_EDGE_SAMPLE_MODULUS = 1
-# Probe-head budget. It early-stops on validation, so this is a ceiling. A flat 10
-# was the accuracy ceiling on datasets with many classes.
-PHASE3_MLP_EPOCHS = 50
-PHASE3_MLP_PATIENCE = 15
+# ── Training: ONE setting for every model we train ────────────────────────────
+# LakeGRL's stages, the full-graph baseline, Cluster-GCN, LLCG, DistDGL and the Track A link methods all read
+# this block (local driver, run_emr, experiments/), and every result record stores a copy. An epoch is one pass
+# over the training nodes; for full-batch training that is one gradient step. No early stopping: each model
+# trains for `epochs` and keeps its best-validation checkpoint.
+TRAIN = {
+    'epochs':       100,
+    'lr':           0.01,
+    'weight_decay': 5e-4,
+    'hidden_dim':   256,
+    'num_layers':   2,          # every encoder in the code is 2-layer
+    'dropout':      0.5,
+    'seeds':        [0, 1, 2],
+    'probe_head':   False,      # True: also fit an MLP on frozen embeddings and keep the better head on validation
+    'link_batch':   65536,      # positive edges per step in link training
+}
+
+# Probe-head budget (only when TRAIN['probe_head']).
+PHASE3_MLP_EPOCHS = TRAIN['epochs']
+PHASE3_MLP_PATIENCE = TRAIN['epochs']
 # Communities larger than PHASE3_MAX_NODES_PER_COMMUNITY are split into bounded
 # blocks and streamed via cogroup rather than hash-sampled down and packed into a
 # single Spark row. The old path lost edges as 1/mod^2 on large communities and
 # hit the JVM 2GB array limit, which is why Papers100M could not be processed.
-PHASE3_BLOCK_OVERSIZED = True
+# Only the 'idmod' ablation cuts units: under 'leiden' Phase 1 already keeps every unit within C_MAX.
+PHASE3_BLOCK_OVERSIZED = UNIT_SPLIT == 'idmod'
 
-GCN_HIDDEN_DIM    = 256
-# Phase 3 takes one full-batch step per epoch, so this is a gradient-update budget,
-# not a pass count. Training now early-stops on each unit's own validation split, so
-# this is a ceiling rather than a target.
-GCN_NUM_EPOCHS = 50
-PHASE3_NODE_PATIENCE = 20
-GCN_LR            = 0.001
-GCN_DROPOUT       = 0.5
+GCN_HIDDEN_DIM    = TRAIN['hidden_dim']
+GCN_NUM_EPOCHS    = TRAIN['epochs']
+PHASE3_NODE_PATIENCE = TRAIN['epochs']   # patience >= epochs: no early stopping
+GCN_LR            = TRAIN['lr']
+GCN_DROPOUT       = TRAIN['dropout']
 RUN_PHASE3B       = True              # Phase 3b: CaaN Global Graph GNN Training
 
 # ── New Advanced Features ──────────────────────────────────────────────────────
@@ -172,17 +201,16 @@ TINY_COMM_HANDLING  = 'drop'
 EXPAND_BOUNDARY_NODES = True
 
 # Task Type: 'node_classification' or 'link_prediction'
-TASK_TYPE = 'both'
+TASK_TYPE = 'node_classification'   # links are scored by experiments/trackA, not per unit
 
 # ── Phase 4: Full-Graph Baseline ──────────────────────────────────────────────
 # Runs ONCE per dataset (not per algorithm). Uses SAME masks as Phase 3.
 RUN_PHASE4        = False       # runs on a dedicated EC2 box: scripts/run_phase4_ec2.py
-# The baseline defines the upper bound every retention claim is measured against,
-# so it trains to convergence with early stopping rather than to a fixed budget.
-BASELINE_EPOCHS   = 100         # max node-classification epochs (early-stopped on val)
-BASELINE_NODE_PATIENCE = 10     # epochs without val improvement before stopping
-BASELINE_LINK_EPOCHS   = 300    # max link-prediction epochs (full-batch, early-stopped)
-BASELINE_LINK_PATIENCE = 30
+# Same budget as every other model (TRAIN); patience >= epochs means no early stopping.
+BASELINE_EPOCHS   = TRAIN['epochs']
+BASELINE_NODE_PATIENCE = TRAIN['epochs']
+BASELINE_LINK_EPOCHS   = TRAIN['epochs']
+BASELINE_LINK_PATIENCE = TRAIN['epochs']
 
 # Link-split ratios must match Phase 3's per-community 80/10/10 split so both
 # sides measure the same task.
@@ -204,7 +232,7 @@ BASELINE_EDGE_BUDGET = 0
 BASELINE_SINGLE_MACHINE = True
 BASELINE_BATCH    = 1024
 BASELINE_FANOUT   = [15, 10]
-BASELINE_LR       = GCN_LR
+BASELINE_LR       = TRAIN['lr']
 RUN_PHASE4B       = False      # DistDGL Baseline Simulation
 RUN_PHASE4C       = False       # ARMA Baseline
 RUN_PHASE4D       = False       # ASAP Baseline
@@ -270,6 +298,9 @@ GCN_CFG = {
     'num_epochs': GCN_NUM_EPOCHS,
     'lr':         GCN_LR,
     'dropout':    GCN_DROPOUT,
+    'weight_decay': TRAIN['weight_decay'],
+    'seed':       TRAIN['seeds'][0],   # Stage 3b's default is 42; local runs use 0
+    'probe_head': TRAIN['probe_head'],
 }
 
 # Bundled baseline config dict

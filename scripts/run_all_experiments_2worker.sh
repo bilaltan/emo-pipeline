@@ -116,7 +116,7 @@ sync_artifacts() {
 
 # ── 2. Determine Datasets to Run ──────────────────────────────────────────────
 if [[ "$TARGET" == "all" || "$TARGET" == "sweep" || "$TARGET" == "full_sweep" || "$TARGET" == "2worker" ]]; then
-    DATASET_LIST=("WikiCS" "Coauthor-Physics" "Coauthor-CS" "DeezerEurope" "reddit" "ogbn-products" "ogbn-mag" "LiveJournal" "Orkut")
+    DATASET_LIST=("WikiCS" "Coauthor-Physics" "Coauthor-CS" "DeezerEurope" "reddit" "ogbn-products" "ogbn-mag")
 else
     IFS=',' read -ra DATASET_LIST <<< "$TARGET"
 fi

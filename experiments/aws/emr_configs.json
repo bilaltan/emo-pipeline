@@ -1,0 +1,10 @@
+[
+  {"Classification": "delta-defaults", "Properties": {"delta.enabled": "true"}},
+  {"Classification": "spark", "Properties": {"maximizeResourceAllocation": "false"}},
+  {"Classification": "spark-env", "Configurations": [
+    {"Classification": "export", "Properties": {"PYSPARK_PYTHON": "/usr/bin/python3.11",
+                                                "PYSPARK_DRIVER_PYTHON": "/usr/bin/python3.11"}}]},
+  {"Classification": "yarn-site", "Properties": {"yarn.nodemanager.resource.memory-mb": "24576",
+                                                 "yarn.nodemanager.pmem-check-enabled": "false",
+                                                 "yarn.nodemanager.vmem-check-enabled": "false"}}
+]

@@ -138,14 +138,14 @@ sync_all_artifacts
 echo ""
 echo "=========================================================================="
 echo " [STAGE 2/6] Running ~100M-Scale Dense Graph Suite"
-echo " Datasets: LiveJournal (34.7M edges), Orkut (117.2M edges), Reddit (11.6M edges), MAG (5.4M edges)"
+echo " Datasets: Reddit (11.6M edges), MAG (5.4M edges)"
 echo " Partitioner: Louvain (Default) | Tasks: Node + Link"
 echo "=========================================================================="
 STAGE2_LOG="$LOG_DIR/stage2_100m_scale.log"
 
 $RUNNER \
   --experiment-name "scale_100m_suite" \
-  --datasets "LiveJournal,Orkut,reddit,ogbn-mag" \
+  --datasets "reddit,ogbn-mag" \
   --algorithms "louvain" \
   --run-phase0 \
   --run-phase1 \
@@ -195,7 +195,7 @@ echo "==========================================================================
 STAGE4_LOG="$LOG_DIR/stage4_scalability_sweep.log"
 
 SWEEP_TIERS=(8 16 32)
-BENCH_DATASETS=("WikiCS" "Coauthor-Physics" "Coauthor-CS" "DeezerEurope" "reddit" "ogbn-products" "ogbn-mag" "LiveJournal" "Orkut")
+BENCH_DATASETS=("WikiCS" "Coauthor-Physics" "Coauthor-CS" "DeezerEurope" "reddit" "ogbn-products" "ogbn-mag")
 
 for E in "${SWEEP_TIERS[@]}"; do
     echo "► [Scaling Pass] Executing with $E Executors..."

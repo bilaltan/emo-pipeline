@@ -124,4 +124,5 @@ data/.partition_cache/
 .DS_Store
 
 *.md
-!README.mdlocal_data/
+!README.md
+local_data/
