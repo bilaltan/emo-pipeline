@@ -1,239 +1,46 @@
-# EMO: Executor-level Multi-community Orchestrator
-### Scalable Graph Representation Learning over Transactional Cloud Data Lakes
+# LakeGRL: Topology-Aware Lakehouse Storage and Disaggregated Execution for Scalable GNN Training
 
-[![Python](https://img.shields.io/badge/Python-3.9%20%7C%203.11%20%7C%203.14-blue.svg)](https://www.python.org/)
-[![Apache Spark](https://img.shields.io/badge/Apache%20Spark-3.5%2B-orange.svg)](https://spark.apache.org/)
-[![Delta Lake](https://img.shields.io/badge/Delta%20Lake-3.0%2B-00ADD8.svg)](https://delta.io/)
-[![PyTorch](https://img.shields.io/badge/PyTorch-2.0%2B-EE4C2C.svg)](https://pytorch.org/)
-[![PyG](https://img.shields.io/badge/PyG-PyG--Distributed-3C2179.svg)](https://pyg.org/)
-[![License](https://img.shields.io/badge/License-Apache%202.0-green.svg)](LICENSE)
+LakeGRL trains graph neural networks on graphs stored as Delta Lake tables on a cloud object store. Storage and
+compute are separate: the graph and everything derived from it are transactional tables, and training runs on
+stateless workers that read these tables and do not exchange data with each other.
 
-**EMO** is an end-to-end distributed system for partition-centric Graph Representation Learning (GRL) executed natively over transactional cloud data lakes. By modeling graph ingestion, community detection, boundary extraction, and auxiliary network contraction as declarative queries in **Apache Spark SQL** over **Delta Lake** on Amazon S3, EMO enables high-throughput GNN training on commodity cloud clusters without expensive cross-worker parameter synchronization.
+## Pipeline
 
----
+| Stage | What it does | Code |
+|---|---|---|
+| Phase 0 | Writes the raw tables: vertices with features and labels (T_V), edges (T_E) and the split (T_S). For link prediction, the validation and test edges are held out here, before Phase 1. | `phases/phase0_ingestion.py`, `scripts/run_local_pipeline.py` |
+| Phase 1 | Bounded recursive Leiden. Leiden runs once on the whole graph; every community with more than C_max/2 core vertices (5,000 for C_max = 10,000) is split again by Leiden on its own subgraph, and the resolution is doubled when a piece does not split. | `phases/phase1_community.py` |
+| Phase 2 | Writes the unit view MV_unit (each unit's core vertices, its degree-capped 1-hop halo and its edges) in the topology-aware layout: one partition per major unit, minor units packed into shared buckets, rows sorted by unit, square-root row groups with a 2 MB floor. The same pass writes the macro-graph view MV_macro (super-nodes, super-edges, minor vertices) and the unit plan. | `phases/phase2_subgraph.py`, `utils/partition_layout.py`, `utils/macro_graph.py` |
+| Stage 3 | Packs consecutive minor units into coalesced work items, reads each one with contiguous range reads, and trains the two-level CaaN model: Global GRL on the stored macro-graph and Local GRL on every major unit, with the other communities as super-nodes. | `phases/phase3b_caan.py` |
 
-## 🌟 Key Features
+Every model uses the training setting `TRAIN` in `experiment_config.py` (100 epochs, lr 0.01, weight decay 5e-4,
+2 layers, hidden size 256, dropout 0.5).
 
-- **Decoupled Partition-Centric GRL**: Eliminates the high network communication bottleneck of distributed GNN frameworks (e.g., DistDGL) by training locally on modular subgraphs.
-- **Community-Aware Auxiliary Network (CAAN)**: Compresses major communities into centroid-feature super-nodes and broadcasts them to workers, restoring global topological context with **0.0 GB** inter-worker network overhead during training.
-- **Transactional Data Lake Architecture**: Uses Delta Lake ACID transaction logs on Amazon S3 for seamless phase-level checkpointing, automated recovery, and zero-RAM disk-safe ingestion.
-- **Scalability from Small Graphs to Billion-Edge Scale**: Supports single-machine debugging and large-scale AWS EMR multi-worker clusters across datasets ranging from WikiCS to `ogbn-papers100M`.
-- **Distributed Multi-Hop Feature Propagation (SIGN-Style)**: Computes high-hop diffused features natively via Spark SQL relational joins for ultra-fast, memory-bounded graph learning.
-- **Automated Reporting & Artifacts**: Generates multi-tab Excel performance reports and publication-ready LaTeX tables.
+## Setup
 
----
+The local runs use Python 3.11, OpenJDK 17, Spark 3.5 and Delta Lake 3.2, as on Amazon EMR 7.5.0. The exact
+package versions are in `requirements-local.txt`; GPU training uses the CUDA 12.8 build of PyTorch.
 
-## 🏗️ System Architecture & Pipeline Phases
+The code imports the repository as the package `pipeline`, a symlink to the repository root. `scripts/wsl_run.sh`
+runs a command in the micromamba environment `lakegrl` (`~/mamba/envs/lakegrl`) with this symlink, Java and Spark set
+up, and writes the Delta tables under `$LAKEGRL_STORE` (default `~/lakegrl/store`). On Windows, run it in WSL.
 
-```text
-┌────────────────────────────────────────────────────────────────────────────────────────────────────────┐
-│                                         EMO Pipeline Lifecycle                                         │
-└────────────────────────────────────────────────────────────────────────────────────────────────────────┘
-
-  Phase 0: Delta Ingestion  ──►  Phase 1: Community Detection  ──►  Phase 2: Subgraph Extraction
-  [Transactional S3 Tables]      [Louvain / LPA / METIS]            [Boundary & Adjacency]
-                                                                               │
-                                                                               ▼
-  Phase 4: Baselines        ◄──  Phase 3b: CAAN Context        ◄──  Phase 3: Decoupled GNNs
-  [DistDGL / Full-Graph PyG]     [Super-Node Compression]           [Local PyG per Executor]
-         │
-         ▼
-  Phase 5: Reporting        ──►  [Multi-Sheet Excel Reports & Publication LaTeX Tables]
-  [Automated Artifacts]
-
-  * Scaling Extension for Billion-Scale Graphs:
-    Phase 3.7: SIGN Feature Propagation ──► Phase 3.8: Edge-Free Classifier Probe
-```
-
-| Phase | Module | Description |
-| :--- | :--- | :--- |
-| **Phase 0** | `phases.phase0_ingestion` | Ingests graphs and feature matrices into transactional Delta Lake tables on S3. |
-| **Phase 1** | `phases.phase1_community` | Partitions vertices using Louvain modularity or distributed Label Propagation (LPA). |
-| **Phase 2** | `phases.phase2_subgraph` | Extracts local partition subgraphs and identifies cross-community boundary vertices. |
-| **Phase 2.5–2.7** | `phases.phase25_graph_store` | Materializes sharded Delta tables, training blocks, and verifies halo overlaps. |
-| **Phase 3** | `phases.phase3_training` | Distributed PyTorch GNN training per executor (GraphSAGE, GAT, GATv2, Transformer). |
-| **Phase 3b** | `phases.phase3b_caan` | Compiles CAAN super-node auxiliary graph to recover global context. |
-| **Phase 3.7** | `phases.phase37_feature_propagation` | Distributed multi-hop feature propagation on Spark SQL for massive graphs. |
-| **Phase 3.8** | `phases.phase38_edge_free_classifier` | Edge-free Spark ML classification probe on propagated features. |
-| **Phase 4** | `phases.phase4_baselines` | Standalone full-graph PyG and DistDGL distributed baseline evaluations. |
-| **Phase 5** | `phases.phase5_reporting` | Automated LaTeX table generation and multi-sheet master Excel reports. |
-
----
-
-## 📁 Repository Structure
-
-```text
-emo-pipeline/
-├── experiment_config.py     # Central experiment configuration (phases, datasets, models)
-├── upload_to_s3.py          # Synchronizes code and configs to Amazon S3
-├── diagnose_workers.py      # EMR worker and executor diagnostics
-│
-├── phases/                  # Core pipeline phase implementations
-│   ├── phase0_ingestion.py
-│   ├── phase1_community.py
-│   ├── phase2_subgraph.py
-│   ├── phase25_graph_store.py
-│   ├── phase26_training_blocks.py
-│   ├── phase27_block_audit.py
-│   ├── phase3_training.py
-│   ├── phase3b_caan.py
-│   ├── phase35_direct_block_training.py
-│   ├── phase36_sync_training.py
-│   ├── phase37_feature_propagation.py
-│   ├── phase38_edge_free_classifier.py
-│   ├── phase4_baselines.py
-│   ├── phase5_reporting.py
-│   └── metis_runner.py
-│
-├── runners/                 # Execution drivers and figure visualizers
-│   ├── run_emr.py           # AWS EMR cluster driver
-│   ├── run_local.py         # Local / single-machine driver
-│   ├── run_emr_step.py      # EMR step execution runner
-│   ├── create_emo_architecture_figure.py
-│   ├── create_infrastructure_figure.py
-│   ├── create_cpu_scaling_figure.py
-│   ├── collect_propagation_benchmark_results.py
-│   └── generate_emr_excel_report.py
-│
-├── scripts/                 # Shell execution & orchestrator scripts
-│   ├── run_all.sh                        # Master unified benchmark execution
-│   ├── run_single_fast_run.sh            # 1-minute fast sanity execution on WikiCS
-│   ├── run_emr_experiments.sh            # Main runner for AWS EMR clusters
-│   ├── run_all_experiments_master.sh     # Comprehensive multi-dataset benchmark
-│   ├── run_all_experiments_2worker.sh    # 2-worker scaling sweep script
-│   ├── run_all_experiments.sh            # Step-by-step suite execution
-│   ├── run_full_paper_benchmark.sh       # Full academic benchmark suite
-│   ├── run_missing_results.sh            # Ablation & missing experiment runner
-│   ├── emr_setup.sh                      # EMR bootstrap & environment installer
-│   └── fetch_s3_results_last_24h.py      # Pulls latest results from S3
-│
-├── utils/                   # Shared utility modules
-│   ├── common.py            # Spark session builder & logging helpers
-│   ├── models.py            # PyTorch Geometric model definitions
-│   ├── paths.py             # Delta table path resolvers
-│   ├── graph_validator.py   # Dataset & partition validation
-│   └── emr_bootstrap.py     # Dynamic storage & disk redirection
-│
-└── results/                 # Output logs, Excel summaries, and benchmarks
-```
-
----
-
-## 🚀 Getting Started
-
-### 1. Prerequisites
-
-- Python 3.9+ (tested on Python 3.9, 3.11, 3.14)
-- Java 8 or Java 11 / 17 (for Apache Spark)
-- Apache Spark 3.4+ / 3.5+ with Delta Lake support
-- PyTorch 2.0+ & PyTorch Geometric
-
-Install the required Python packages:
+LakeGRL on one dataset (`ogbn-arxiv`, `reddit` or `ogbn-products`), as in Table B row 5:
 
 ```bash
-pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cpu
-pip install torch_geometric ogb delta-spark pyspark pandas numpy openpyxl matplotlib igraph networkx boto3
+bash scripts/wsl_run.sh python scripts/run_local_pipeline.py --dataset ogbn-arxiv --alg leiden \
+  --unit-split leiden --tiny-comm drop --c-max 10000 \
+  --p2-layout hive_merged --p2-rg-floor-mb 2 --p2-one-file --device cuda --seed 0
 ```
 
----
+## Experiments in the paper
 
-### 2. Fast Sanity Run (Local Execution)
+| Section | Driver | Notes |
+|---|---|---|
+| 4.1 Storage layouts (Table A) | `RS=rleiden_c10000 bash experiments/tableA/run.sh <dataset>` | `write_layouts.py` writes the 8 layouts, `read_layouts.py` reads them cold through an S3 cost model (20 ms + 80 MB/s per GET), `summary.py` builds the table. Row-group floor sweep: `bash experiments/tableA/rg_floor.sh ogbn-products 0 2 4 8 16`. Units vs C_max: `probe_units.py`. |
+| 4.2 Node classification (Table B) | `bash experiments/tableB/run.sh <dataset>` | Rows 1-2 (full-graph GraphSAGE, Cluster-GCN), the 500-epoch check and the community-ID ablation: `experiments/baselines/node_baselines.py`. Rows 3-5: `scripts/run_local_pipeline.py`. Cold reads: `read_units.py`, `read_full.py`. GPU peak: `peak.sh`. |
+| 4.3 Halo and one-time cost | `experiments/tableA/halo_table.py` | Halo storage and read; link prediction AUC with `experiments/trackA/harness.py`. Phase 1-2 timing: `run_local_pipeline.py --p2-time-split`. |
+| 4.4 Amazon EMR | `experiments/aws/README.md` | `scripts/emr_cluster.sh` creates, resizes and terminates the cluster; `experiments/aws/run.sh smoke\|expA\|expB-read\|expB-train\|nodes N` runs the steps on it. |
 
-Run a fast, 1-minute end-to-end execution across all phases on the **WikiCS** dataset:
-
-```bash
-./scripts/run_single_fast_run.sh
-```
-
-Or run directly with the Python local runner:
-
-```bash
-python3 -m runners.run_local --dataset WikiCS --model sage --fast
-```
-
----
-
-### 3. Configuring Experiments
-
-Modify `experiment_config.py` to select target datasets, models, and phases:
-
-```python
-# experiment_config.py
-EXPERIMENT_NAME = 'scaling_sweep'
-
-# Supported: 'WikiCS', 'Coauthor-Physics', 'Coauthor-CS', 'DeezerEurope', 
-#            'reddit', 'ogbn-products', 'ogbn-mag', 'LiveJournal', 'Orkut', 'ogbn-papers100M'
-DATASETS_TO_RUN = ['WikiCS', 'reddit', 'ogbn-products']
-
-# Supported: 'sage', 'gat', 'gatv2', 'transformer', 'clusterscl', 'arma', 'asap'
-GNN_MODELS = ['sage', 'gatv2']
-
-# Enable / Disable Pipeline Phases
-RUN_PHASE0  = True    # Ingestion into Delta Lake
-RUN_PHASE1  = True    # Community Partitioning (Louvain / LPA)
-RUN_PHASE2  = True    # Subgraph & Boundary Extraction
-RUN_PHASE3  = True    # Decoupled PyG Training
-RUN_PHASE4  = True    # Baseline Evaluations
-```
-
----
-
-### 4. Running on AWS EMR
-
-1. **Bootstrap / Setup Driver**:
-   Connect to your EMR Driver node and run:
-   ```bash
-   bash scripts/emr_setup.sh
-   ```
-
-2. **Upload Code to S3**:
-   From your local environment or driver:
-   ```bash
-   python3 upload_to_s3.py --code-only
-   ```
-
-3. **Execute Cluster Suite**:
-   ```bash
-   # Run standard 2-worker scaling sweep (4 -> 8 -> 16 Executors)
-   ./scripts/run_emr_experiments.sh 2worker
-
-   # Run on a single dataset (e.g. reddit or ogbn-products)
-   ./scripts/run_emr_experiments.sh reddit
-   ./scripts/run_emr_experiments.sh products
-
-   # Run full 9-dataset master benchmark
-   ./scripts/run_all_experiments_master.sh
-   ```
-
----
-
-## 📊 Supported Datasets & Benchmarks
-
-| Dataset | Nodes | Edges | Classes | Task Type |
-| :--- | :--- | :--- | :--- | :--- |
-| **WikiCS** | 11,701 | 431,726 | 10 | Node Classification / Link Prediction |
-| **Coauthor-CS** | 18,333 | 163,788 | 15 | Node Classification / Link Prediction |
-| **Coauthor-Physics** | 34,493 | 495,924 | 5 | Node Classification / Link Prediction |
-| **DeezerEurope** | 28,281 | 185,504 | 2 | Node Classification / Link Prediction |
-| **Reddit** | 232,965 | 11,606,919 | 41 | Node Classification / Link Prediction |
-| **ogbn-products** | 2,449,029 | 61,859,140 | 47 | Node Classification / Link Prediction |
-| **ogbn-mag** | 1,939,743 | 5,422,810 | 349 | Node Classification |
-| **LiveJournal** | 4,847,571 | 34,681,189 | - | Link Prediction / Scaling |
-| **Orkut** | 3,072,441 | 117,185,083 | - | Link Prediction / Scaling |
-| **ogbn-papers100M** | 111,059,956 | 1,615,685,872 | 172 | Distributed SIGN Feature Propagation |
-
----
-
-## 📈 Performance & Results
-
-- **Zero-Network Training**: Achieves **0.0 GB** inter-worker network communication during PyTorch training epochs via the CAAN super-node compression mechanism.
-- **High Accuracy Retention**: Recovers up to **97.7%** of global graph accuracy while delivering up to **+22.6% higher link prediction AUC** compared to unaugmented community partitioning.
-- **Linear Scaling on Cloud Storage**: Delta Lake columnar Parquet layouts with dynamic EBS redirection ensure resilient, crash-free execution on large-scale commodity instances.
-
-Results and logs are automatically synced to `results/` and Amazon S3 in Excel format (`.xlsx`) and LaTeX format (`.tex`).
-
----
-
-## 📜 Citation & License
-
-This project is licensed under the Apache License 2.0. See [LICENSE](LICENSE) for details.
+Earlier versions of the project left more code in this repository (for example `runners/` and most of `scripts/`),
+and `results/` holds records of those earlier experiments, not the paper's.
