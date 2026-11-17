@@ -42,5 +42,5 @@ bash scripts/wsl_run.sh python scripts/run_local_pipeline.py --dataset ogbn-arxi
 | 4.3 Halo and one-time cost | `experiments/tableA/halo_table.py` | Halo storage and read; link prediction AUC with `experiments/trackA/harness.py`. Phase 1-2 timing: `run_local_pipeline.py --p2-time-split`. |
 | 4.4 Amazon EMR | `experiments/aws/README.md` | `scripts/emr_cluster.sh` creates, resizes and terminates the cluster; `experiments/aws/run.sh smoke\|expA\|expB-read\|expB-train\|nodes N` runs the steps on it. |
 
-Earlier versions of the project left more code in this repository (for example `runners/` and most of `scripts/`),
-and `results/` holds records of those earlier experiments, not the paper's.
+Earlier versions of the project left more code in this repository (for example `runners/` and most of `scripts/`);
+the files above are the ones the paper uses.
