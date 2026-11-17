@@ -1,0 +1,94 @@
+== 2026-11-12T03:42:43Z expB-read (code b1fc10a)
+== results/tableB/work/ogbn-products_row5.json: 610 bins, 610 work items, 16 readers (Spark tasks), GET = count
+Setting default log level to "WARN".
+To adjust logging level use sc.setLogLevel(newLevel). For SparkR, use setLogLevel(newLevel).
+26/11/12 03:42:51 WARN Client: Neither spark.yarn.jars nor spark.yarn.archive is set, falling back to uploading libraries under SPARK_HOME.
+  run 0:     17.3 s     2,472 GETs     2.24 GB | 4,748,650 node rows, 113,249,076 edges | 5ae3e959
+26/11/12 03:43:32 WARN Client: Neither spark.yarn.jars nor spark.yarn.archive is set, falling back to uploading libraries under SPARK_HOME.
+  run 1:     13.3 s     2,472 GETs     2.24 GB | 4,748,650 node rows, 113,249,076 edges | 5ae3e959
+26/11/12 03:44:08 WARN Client: Neither spark.yarn.jars nor spark.yarn.archive is set, falling back to uploading libraries under SPARK_HOME.
+  run 2:     17.1 s     2,472 GETs     2.24 GB | 4,748,650 node rows, 113,249,076 edges | 5ae3e959
+== results/tableB/work/ogbn-products_row4.json: 817 bins, 817 work items, 16 readers (Spark tasks), GET = count
+Setting default log level to "WARN".
+To adjust logging level use sc.setLogLevel(newLevel). For SparkR, use setLogLevel(newLevel).
+26/11/12 03:44:53 WARN Client: Neither spark.yarn.jars nor spark.yarn.archive is set, falling back to uploading libraries under SPARK_HOME.
+  run 0:     21.8 s     2,788 GETs     5.93 GB | 5,472,625 node rows, 123,673,474 edges | 26a8be43
+26/11/12 03:45:38 WARN Client: Neither spark.yarn.jars nor spark.yarn.archive is set, falling back to uploading libraries under SPARK_HOME.
+  run 1:     17.1 s     2,788 GETs     5.93 GB | 5,472,625 node rows, 123,673,474 edges | 26a8be43
+26/11/12 03:46:17 WARN Client: Neither spark.yarn.jars nor spark.yarn.archive is set, falling back to uploading libraries under SPARK_HOME.
+  run 2:     17.0 s     2,788 GETs     5.93 GB | 5,472,625 node rows, 123,673,474 edges | 26a8be43
+== results/tableB/work/ogbn-products_row5.json: 610 bins, 610 work items, 8 readers (Spark tasks), GET = count
+Setting default log level to "WARN".
+To adjust logging level use sc.setLogLevel(newLevel). For SparkR, use setLogLevel(newLevel).
+26/11/12 03:47:05 WARN Client: Neither spark.yarn.jars nor spark.yarn.archive is set, falling back to uploading libraries under SPARK_HOME.
+  run 0:     26.7 s     2,456 GETs     2.24 GB | 4,748,650 node rows, 113,249,076 edges | 5ae3e959
+26/11/12 03:47:51 WARN Client: Neither spark.yarn.jars nor spark.yarn.archive is set, falling back to uploading libraries under SPARK_HOME.
+  run 1:     28.0 s     2,456 GETs     2.24 GB | 4,748,650 node rows, 113,249,076 edges | 5ae3e959
+26/11/12 03:48:38 WARN Client: Neither spark.yarn.jars nor spark.yarn.archive is set, falling back to uploading libraries under SPARK_HOME.
+  run 2:     24.9 s     2,456 GETs     2.24 GB | 4,748,650 node rows, 113,249,076 edges | 5ae3e959
+== results/tableB/work/ogbn-products_row4.json: 817 bins, 817 work items, 8 readers (Spark tasks), GET = count
+Setting default log level to "WARN".
+To adjust logging level use sc.setLogLevel(newLevel). For SparkR, use setLogLevel(newLevel).
+26/11/12 03:49:27 WARN Client: Neither spark.yarn.jars nor spark.yarn.archive is set, falling back to uploading libraries under SPARK_HOME.
+  run 0:     30.1 s     2,372 GETs     5.90 GB | 5,472,625 node rows, 123,673,474 edges | 26a8be43
+26/11/12 03:50:17 WARN Client: Neither spark.yarn.jars nor spark.yarn.archive is set, falling back to uploading libraries under SPARK_HOME.
+  run 1:     30.0 s     2,372 GETs     5.90 GB | 5,472,625 node rows, 123,673,474 edges | 26a8be43
+26/11/12 03:51:06 WARN Client: Neither spark.yarn.jars nor spark.yarn.archive is set, falling back to uploading libraries under SPARK_HOME.
+26/11/12 03:51:53 WARN Dispatcher: Message RemoteProcessDisconnected(172.31.79.201:41374) dropped. Could not find MapOutputTracker.
+  run 2:     29.5 s     2,372 GETs     5.90 GB | 5,472,625 node rows, 123,673,474 edges | 26a8be43
+== results/tableB/work/ogbn-products_row5.json: 610 bins, 610 work items, 4 readers (Spark tasks), GET = count
+Setting default log level to "WARN".
+To adjust logging level use sc.setLogLevel(newLevel). For SparkR, use setLogLevel(newLevel).
+26/11/12 03:52:02 WARN Client: Neither spark.yarn.jars nor spark.yarn.archive is set, falling back to uploading libraries under SPARK_HOME.
+  run 0:     52.8 s     2,448 GETs     2.24 GB | 4,748,650 node rows, 113,249,076 edges | 5ae3e959
+26/11/12 03:53:14 WARN Client: Neither spark.yarn.jars nor spark.yarn.archive is set, falling back to uploading libraries under SPARK_HOME.
+  run 1:     49.8 s     2,448 GETs     2.24 GB | 4,748,650 node rows, 113,249,076 edges | 5ae3e959
+26/11/12 03:54:23 WARN Client: Neither spark.yarn.jars nor spark.yarn.archive is set, falling back to uploading libraries under SPARK_HOME.
+  run 2:     50.5 s     2,448 GETs     2.24 GB | 4,748,650 node rows, 113,249,076 edges | 5ae3e959
+== results/tableB/work/ogbn-products_row4.json: 817 bins, 817 work items, 4 readers (Spark tasks), GET = count
+Setting default log level to "WARN".
+To adjust logging level use sc.setLogLevel(newLevel). For SparkR, use setLogLevel(newLevel).
+26/11/12 03:55:37 WARN Client: Neither spark.yarn.jars nor spark.yarn.archive is set, falling back to uploading libraries under SPARK_HOME.
+  run 0:     54.4 s     2,060 GETs     5.88 GB | 5,472,625 node rows, 123,673,474 edges | 26a8be43
+26/11/12 03:56:51 WARN Client: Neither spark.yarn.jars nor spark.yarn.archive is set, falling back to uploading libraries under SPARK_HOME.
+  run 1:     53.6 s     2,060 GETs     5.88 GB | 5,472,625 node rows, 123,673,474 edges | 26a8be43
+26/11/12 03:58:03 WARN Client: Neither spark.yarn.jars nor spark.yarn.archive is set, falling back to uploading libraries under SPARK_HOME.
+  run 2:     53.7 s     2,060 GETs     5.88 GB | 5,472,625 node rows, 123,673,474 edges | 26a8be43
+== results/tableB/work/ogbn-products_row5.json: 610 bins, 610 work items, 2 readers (Spark tasks), GET = count
+Setting default log level to "WARN".
+To adjust logging level use sc.setLogLevel(newLevel). For SparkR, use setLogLevel(newLevel).
+26/11/12 03:59:23 WARN Client: Neither spark.yarn.jars nor spark.yarn.archive is set, falling back to uploading libraries under SPARK_HOME.
+  run 0:    108.5 s     2,444 GETs     2.23 GB | 4,748,650 node rows, 113,249,076 edges | 5ae3e959
+26/11/12 04:01:29 WARN Client: Neither spark.yarn.jars nor spark.yarn.archive is set, falling back to uploading libraries under SPARK_HOME.
+  run 1:    109.2 s     2,444 GETs     2.23 GB | 4,748,650 node rows, 113,249,076 edges | 5ae3e959
+26/11/12 04:03:38 WARN Client: Neither spark.yarn.jars nor spark.yarn.archive is set, falling back to uploading libraries under SPARK_HOME.
+  run 2:    106.2 s     2,444 GETs     2.23 GB | 4,748,650 node rows, 113,249,076 edges | 5ae3e959
+== results/tableB/work/ogbn-products_row4.json: 817 bins, 817 work items, 2 readers (Spark tasks), GET = count
+Setting default log level to "WARN".
+To adjust logging level use sc.setLogLevel(newLevel). For SparkR, use setLogLevel(newLevel).
+26/11/12 04:05:48 WARN Client: Neither spark.yarn.jars nor spark.yarn.archive is set, falling back to uploading libraries under SPARK_HOME.
+  run 0:    107.9 s     1,872 GETs     5.87 GB | 5,472,625 node rows, 123,673,474 edges | 26a8be43
+26/11/12 04:07:55 WARN Client: Neither spark.yarn.jars nor spark.yarn.archive is set, falling back to uploading libraries under SPARK_HOME.
+  run 1:    108.8 s     1,872 GETs     5.87 GB | 5,472,625 node rows, 123,673,474 edges | 26a8be43
+26/11/12 04:10:01 WARN Client: Neither spark.yarn.jars nor spark.yarn.archive is set, falling back to uploading libraries under SPARK_HOME.
+26/11/12 04:12:03 WARN Dispatcher: Message RemoteProcessDisconnected(172.31.79.201:37550) dropped. Could not find MapOutputTracker.
+  run 2:    105.7 s     1,872 GETs     5.87 GB | 5,472,625 node rows, 123,673,474 edges | 26a8be43
+== results/tableB/work/ogbn-products_row5.json: 610 bins, 610 work items, 1 readers (Spark tasks), GET = count
+Setting default log level to "WARN".
+To adjust logging level use sc.setLogLevel(newLevel). For SparkR, use setLogLevel(newLevel).
+26/11/12 04:12:11 WARN Client: Neither spark.yarn.jars nor spark.yarn.archive is set, falling back to uploading libraries under SPARK_HOME.
+  run 0:    216.5 s     2,442 GETs     2.23 GB | 4,748,650 node rows, 113,249,076 edges | 5ae3e959
+26/11/12 04:16:08 WARN Client: Neither spark.yarn.jars nor spark.yarn.archive is set, falling back to uploading libraries under SPARK_HOME.
+  run 1:    207.2 s     2,442 GETs     2.23 GB | 4,748,650 node rows, 113,249,076 edges | 5ae3e959
+26/11/12 04:19:53 WARN Client: Neither spark.yarn.jars nor spark.yarn.archive is set, falling back to uploading libraries under SPARK_HOME.
+  run 2:    208.1 s     2,442 GETs     2.23 GB | 4,748,650 node rows, 113,249,076 edges | 5ae3e959
+== results/tableB/work/ogbn-products_row4.json: 817 bins, 817 work items, 1 readers (Spark tasks), GET = count
+Setting default log level to "WARN".
+To adjust logging level use sc.setLogLevel(newLevel). For SparkR, use setLogLevel(newLevel).
+26/11/12 04:23:44 WARN Client: Neither spark.yarn.jars nor spark.yarn.archive is set, falling back to uploading libraries under SPARK_HOME.
+  run 0:    212.6 s     1,772 GETs     5.86 GB | 5,472,625 node rows, 123,673,474 edges | 26a8be43
+26/11/12 04:27:35 WARN Client: Neither spark.yarn.jars nor spark.yarn.archive is set, falling back to uploading libraries under SPARK_HOME.
+  run 1:    201.4 s     1,772 GETs     5.86 GB | 5,472,625 node rows, 123,673,474 edges | 26a8be43
+26/11/12 04:31:14 WARN Client: Neither spark.yarn.jars nor spark.yarn.archive is set, falling back to uploading libraries under SPARK_HOME.
+  run 2:    200.3 s     1,772 GETs     5.86 GB | 5,472,625 node rows, 123,673,474 edges | 26a8be43
+== 2026-11-12T04:34:50Z expB-read done

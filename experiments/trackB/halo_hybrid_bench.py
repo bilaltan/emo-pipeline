@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-P3, step 2 (docs/trackB_storage_layout.md §6): measure the reuse-aware halo layout against Phase 2's full materialized
+Measure the reuse-aware halo layout against Phase 2's full materialized
 halo, with identical node rows per unit. Built from a Track A cache (x, comm, halo); pyarrow only, as Phase 3b's loader.
 
   full        one table of (id, unit, features), members + every halo row, sorted by (unit, id) (Phase 2 as written)

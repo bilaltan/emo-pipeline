@@ -1,0 +1,33 @@
+{"time": "2026-11-03 00:10:13", "label": "ogbn-arxiv full", "rc": 0, "wall_s": 89, "gpu_idle_mb": 505, "peak_gpu_mb": 1715, "peak_host_mb": 1546}
+{"time": "2026-11-03 00:13:36", "label": "ogbn-arxiv cluster", "rc": 0, "wall_s": 202, "gpu_idle_mb": 505, "peak_gpu_mb": 1257, "peak_host_mb": 1565}
+{"time": "2026-11-03 00:41:23", "label": "reddit full", "rc": 0, "wall_s": 376, "gpu_idle_mb": 505, "peak_gpu_mb": 11421, "peak_host_mb": 10348}
+{"time": "2026-11-03 00:59:17", "label": "reddit cluster", "rc": 0, "wall_s": 1074, "gpu_idle_mb": 505, "peak_gpu_mb": 3313, "peak_host_mb": 10337}
+{"time": "2026-11-03 03:26:49", "label": "reddit row5 seed0", "rc": 0, "wall_s": 1420, "gpu_idle_mb": 347, "peak_gpu_mb": 5710, "peak_host_mb": 28037}
+{"time": "2026-11-03 03:35:14", "label": "reddit row5 seed1", "rc": 0, "wall_s": 440, "gpu_idle_mb": 347, "peak_gpu_mb": 5868, "peak_host_mb": 25622}
+{"time": "2026-11-03 03:42:33", "label": "reddit row5 seed2", "rc": 0, "wall_s": 439, "gpu_idle_mb": 347, "peak_gpu_mb": 5866, "peak_host_mb": 25846}
+{"time": "2026-11-03 03:59:36", "label": "reddit row4 seed0", "rc": 0, "wall_s": 1022, "gpu_idle_mb": 347, "peak_gpu_mb": 4324, "peak_host_mb": 22783}
+{"time": "2026-11-03 04:08:08", "label": "reddit row4 seed1", "rc": 0, "wall_s": 425, "gpu_idle_mb": 347, "peak_gpu_mb": 4250, "peak_host_mb": 21283}
+{"time": "2026-11-03 04:15:03", "label": "reddit row4 seed2", "rc": 0, "wall_s": 415, "gpu_idle_mb": 347, "peak_gpu_mb": 4252, "peak_host_mb": 20272}
+{"time": "2026-11-03 04:36:13", "label": "reddit row3 seed0", "rc": 0, "wall_s": 1269, "gpu_idle_mb": 347, "peak_gpu_mb": 5247, "peak_host_mb": 25252}
+{"time": "2026-11-03 04:42:08", "label": "reddit row3 seed1", "rc": 0, "wall_s": 309, "gpu_idle_mb": 347, "peak_gpu_mb": 5091, "peak_host_mb": 23026}
+{"time": "2026-11-03 04:47:10", "label": "reddit row3 seed2", "rc": 0, "wall_s": 302, "gpu_idle_mb": 347, "peak_gpu_mb": 5089, "peak_host_mb": 23515}
+{"time": "2026-11-03 04:51:08", "label": "ogbn-arxiv row5 seed0", "rc": 0, "wall_s": 147, "gpu_idle_mb": 347, "peak_gpu_mb": 3354, "peak_host_mb": 18185}
+{"time": "2026-11-03 04:53:47", "label": "ogbn-arxiv row5 seed1", "rc": 0, "wall_s": 119, "gpu_idle_mb": 347, "peak_gpu_mb": 3354, "peak_host_mb": 19048}
+{"time": "2026-11-03 04:55:31", "label": "ogbn-arxiv row5 seed2", "rc": 0, "wall_s": 104, "gpu_idle_mb": 347, "peak_gpu_mb": 3370, "peak_host_mb": 19056}
+{"time": "2026-11-03 04:57:35", "label": "ogbn-arxiv row4 seed0", "rc": 0, "wall_s": 124, "gpu_idle_mb": 347, "peak_gpu_mb": 3312, "peak_host_mb": 18843}
+{"time": "2026-11-03 05:00:08", "label": "ogbn-arxiv row4 seed1", "rc": 0, "wall_s": 114, "gpu_idle_mb": 347, "peak_gpu_mb": 3320, "peak_host_mb": 18679}
+{"time": "2026-11-03 05:01:50", "label": "ogbn-arxiv row4 seed2", "rc": 0, "wall_s": 102, "gpu_idle_mb": 347, "peak_gpu_mb": 3324, "peak_host_mb": 18631}
+{"time": "2026-11-03 05:03:52", "label": "ogbn-arxiv row3 seed0", "rc": 0, "wall_s": 121, "gpu_idle_mb": 347, "peak_gpu_mb": 3075, "peak_host_mb": 17835}
+{"time": "2026-11-03 05:05:59", "label": "ogbn-arxiv row3 seed1", "rc": 0, "wall_s": 100, "gpu_idle_mb": 347, "peak_gpu_mb": 3077, "peak_host_mb": 17148}
+{"time": "2026-11-03 05:07:31", "label": "ogbn-arxiv row3 seed2", "rc": 0, "wall_s": 92, "gpu_idle_mb": 347, "peak_gpu_mb": 3033, "peak_host_mb": 17562}
+{"time": "2026-11-03 05:16:29", "label": "ogbn-products full", "rc": 0, "wall_s": 383, "gpu_idle_mb": 347, "peak_gpu_mb": 20857, "peak_host_mb": 11155}
+{"time": "2026-11-03 06:34:08", "label": "ogbn-products cluster", "rc": 0, "wall_s": 4659, "gpu_idle_mb": 347, "peak_gpu_mb": 14199, "peak_host_mb": 11127}
+{"time": "2026-11-03 07:21:18", "label": "ogbn-products row5 seed0", "rc": 0, "wall_s": 2829, "gpu_idle_mb": 347, "peak_gpu_mb": 4576, "peak_host_mb": 26027}
+{"time": "2026-11-03 07:39:47", "label": "ogbn-products row5 seed1", "rc": 0, "wall_s": 1022, "gpu_idle_mb": 347, "peak_gpu_mb": 4594, "peak_host_mb": 24910}
+{"time": "2026-11-03 07:56:48", "label": "ogbn-products row5 seed2", "rc": 0, "wall_s": 1021, "gpu_idle_mb": 347, "peak_gpu_mb": 4598, "peak_host_mb": 24626}
+{"time": "2026-11-03 08:33:01", "label": "ogbn-products row4 seed0", "rc": 0, "wall_s": 2172, "gpu_idle_mb": 347, "peak_gpu_mb": 3892, "peak_host_mb": 26225}
+{"time": "2026-11-03 08:49:50", "label": "ogbn-products row4 seed1", "rc": 0, "wall_s": 920, "gpu_idle_mb": 347, "peak_gpu_mb": 3900, "peak_host_mb": 23552}
+{"time": "2026-11-03 09:05:09", "label": "ogbn-products row4 seed2", "rc": 0, "wall_s": 918, "gpu_idle_mb": 347, "peak_gpu_mb": 3912, "peak_host_mb": 23276}
+{"time": "2026-11-03 09:49:33", "label": "ogbn-products row3 seed0", "rc": 0, "wall_s": 2664, "gpu_idle_mb": 347, "peak_gpu_mb": 3113, "peak_host_mb": 22475}
+{"time": "2026-11-03 10:04:44", "label": "ogbn-products row3 seed1", "rc": 0, "wall_s": 834, "gpu_idle_mb": 347, "peak_gpu_mb": 3095, "peak_host_mb": 18551}
+{"time": "2026-11-03 10:18:38", "label": "ogbn-products row3 seed2", "rc": 0, "wall_s": 834, "gpu_idle_mb": 347, "peak_gpu_mb": 3111, "peak_host_mb": 18693}

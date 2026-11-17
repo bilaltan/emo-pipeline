@@ -8,7 +8,7 @@ The work items are read in run_phase3b's bins (one task each) by Stage 3b's own 
 (phase3b_caan._load_communities_data_batch: the same columns, community / block predicates, statistics pruning and
 _blk ranges): a bin without a split community is one batched read, any other bin one read per (community, block).
 With --coalesce-minor the minor units of each shared directory are first packed into work items of up to the cap's
-rows (utils.partition_layout.stage3b_bins, as run_phase3b; advisor 2026-11-01) instead of being dealt round-robin,
+rows (utils.partition_layout.stage3b_bins, as run_phase3b) instead of being dealt round-robin,
 which made every bin re-read the shared file.
 Row 1 (join) reads its p2_map rows the same way, then fetches those ids' features and split from the raw node and mask
 tables (row groups pruned by id statistics).
@@ -124,7 +124,7 @@ def _read(rows):
         nodes, edges = _load_communities_data_batch(None, None, cs, layout=_W["lay"])
         _use(nodes)
         # one groupby, not a filter per community: a coalesced bin holds thousands of them (products Table B row 3:
-        # ~7,500 a bin), and filtering each one cost seconds of reader CPU outside the storage read (11-03)
+        # ~7,500 a bin), and filtering each one cost seconds of reader CPU outside the storage read
         nn, ne = nodes.groupby("community_id")["id"].agg(["size", "sum"]), edges.groupby("community_id").size()
         out = [((c, 0), (int(nn["size"].get(c, 0)), int(nn["sum"].get(c, 0)), int(ne.get(c, 0)))) for c in cs]
     return out, store_io.STATS["gets"] - g0, store_io.STATS["bytes"] - b0
@@ -158,11 +158,11 @@ def _warm(bc, _):
 
 
 def run_spark(lay, join_src, items, n, master):
-    """run() with n Spark tasks as the readers (AWS validation, advisor 2026-11-11): on YARN n executors x 1 core spread
+    """run() with n Spark tasks as the readers (AWS validation): on YARN n executors x 1 core spread
     over the core nodes (utils.common.yarn_workers). A new application per run: fresh executors and reader processes,
     nothing cached (S3 reads have no page cache to drop). One task per reader with the bins dealt round-robin (they come
     largest first): a task per bin costs ~20 ms of Spark scheduling each, 12 s on products' ~610 bins (measured
-    locally 11-11), which a pool process does not pay. -> (wall, GETs, bytes, check, spark_resources)"""
+    locally), which a pool process does not pay. -> (wall, GETs, bytes, check, spark_resources)"""
     import functools
     from pyspark.sql import SparkSession
     from pipeline.utils.common import spark_resources, yarn_workers
@@ -190,7 +190,7 @@ def read_json(path):
 
 
 def remap(url, maps):
-    """--map FROM=TO: table paths recorded on the local machine, as uploaded (e.g. /home/btan4/lakegrl=s3://b/lakegrl)."""
+    """--map FROM=TO: table paths recorded on the local machine, as uploaded (e.g. /home/user/lakegrl=s3://bucket/lakegrl)."""
     for m in maps:
         old, new = m.split("=", 1)
         if url.startswith(old):

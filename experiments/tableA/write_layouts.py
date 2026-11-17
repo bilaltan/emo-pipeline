@@ -18,7 +18,7 @@ every layout is written from those rows, so Stage 3b's work items read identical
   merged_blk  row 8  merged_rg sorted by unit (community_id), then _blk (add_blk, bit-reversed block key; 0 for
                      every row when no unit is above --cap): every unit, and every --cap block, is a contiguous run
   blk_128     diagnostic: row 8's order with Spark's 128 MB row groups (unit order without row 7)
-Rows 6-8 and the diagnostic write one file per storage_part directory (advisor 2026-10-31), so they hold the same rows
+Rows 6-8 and the diagnostic write one file per storage_part directory, so they hold the same rows
 in the same files: 6 -> 7 changes only the row-group size, 7 -> 8 only the order inside a file; the diagnostic is
 6 -> 8 without 7.
 
@@ -212,7 +212,7 @@ def main():
         if layout == "mv":
             rg_mb = sqrt_rg_mb(sum(s["bytes"] for s in st.values()), written_units, args.rg_beta_mb, args.rg_floor_mb)
         meta.update(layout=layout, rg_mb=rg_mb if layout in ("merged_rg", "merged_blk") else None)
-        with open(os.path.join(d, "meta.json"), "w") as fh:   # closed: an unflushed meta.json was lost on 10-27
+        with open(os.path.join(d, "meta.json"), "w") as fh:   # closed, so meta.json is flushed
             json.dump(meta, fh)
         emit({"kind": "layout", "layout": layout, "write_s": walls, "storage": st,
               "rg_mb": meta["rg_mb"], "table_dir": d})

@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Runs a command and appends its peak memory to OUT: GPU = nvidia-smi memory.used every second minus the reading
-# before the start (the GPU is this job's under gpu_lock); host = summed RSS of the command's session (every process
+# before the start (the GPU must be this job's alone); host = summed RSS of the command's session (every process
 # it starts: Spark's JVM, its Python workers), and apart: Spark's JVM (RSS) and the rest, the Python driver and
 # workers, as RSS and as PSS (pages shared by the forked workers and their libraries counted once, not per process).
 # Each field is its own peak over the run. OUT_trace/LABEL.tsv keeps every sample (epoch s, GPU, total, JVM, rest RSS,
@@ -24,7 +24,7 @@ setsid "$@" &   # no job control here, so setsid needs no fork: the session id i
 pid=$!
 while kill -0 $pid 2>/dev/null; do
   g=$(smi); [ "${g:-0}" -gt "$pg" ] && pg=$g
-  # a full card spills into Windows memory (sysmem fallback): slow training, and it ran the commit charge out on 11-03
+  # a full card spills into host memory (sysmem fallback): slow training, and it can run the host out of memory
   if [ "${g:-0}" -ge $(( gmax - 1024 )) ]; then echo "peak.sh: GPU full (${g} of ${gmax} MB), stopping $label"; pkill -9 -s $pid; fi
   read -r h j p s <<< "$(host $pid)"
   [ "${h:-0}" -gt "$ph" ] && ph=$h; [ "${j:-0}" -gt "$pj" ] && pj=$j

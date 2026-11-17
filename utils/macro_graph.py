@@ -1,4 +1,4 @@
-"""CaaN's macro-graph (Eq. 1), stored by Phase 2 next to p2_nodes / p2_edges (advisor 2026-11-04).
+"""CaaN's macro-graph (Eq. 1), stored by Phase 2 next to p2_nodes / p2_edges.
 
 The macro-graph is part of the Phase 2 materialized view: one super-node per major community (>= min_size members;
 features = the mean of its members' features) and, with tiny 'drop', every node of a minor community as itself;
@@ -63,7 +63,7 @@ def write_macro(spark, p_alg, nodes, edges, stats):
     import os
     from pyspark.sql import functions as F
     from pipeline.utils.partition_join import delta_version
-    if os.environ.get('LAKEGRL_MACRO_F16'):   # trial (11-05): features as float16 bytes (Spark has no float16 type)
+    if os.environ.get('LAKEGRL_MACRO_F16'):   # trial: features as float16 bytes (Spark has no float16 type)
         import numpy as np
         nodes = nodes.withColumn('features', F.udf(lambda f: np.asarray(f, np.float16).tobytes(), 'binary')('features'))
     v = delta_version(spark, p_alg['p2_nodes'])
@@ -81,7 +81,7 @@ def stored(spark, p_alg):
     from pipeline.utils.store_io import properties, snapshot
     if not all(k in p_alg for k in TABLES):
         return False
-    try:   # read from the Delta logs: DeltaTable.detail() took ~3 s of each run's macro-graph load (11-04)
+    try:   # read from the Delta logs: DeltaTable.detail() took ~3 s of each run's macro-graph load
         v = str(snapshot(p_alg['p2_nodes'])[2])
         return all(properties(p_alg[k]).get(MACRO_PROP) == v for k in TABLES)
     except Exception:   # no such table: Phase 2 ran without macro_graph
@@ -90,7 +90,7 @@ def stored(spark, p_alg):
 
 def read_small(uri):
     """A small Delta table as pandas, read with pyarrow from its current files (store_io.snapshot), no Spark job:
-    a Spark read + toPandas cost 0.5-1.3 s per table of each products run's macro-graph load (11-05)."""
+    a Spark read + toPandas cost 0.5-1.3 s per table of each products run's macro-graph load."""
     import pyarrow.parquet as pq
     from pipeline.utils.store_io import snapshot
     fs, files, _ = snapshot(uri)

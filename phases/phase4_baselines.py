@@ -22,7 +22,7 @@ def run_phase4(spark, sc, datasets, dataset_cfg, baseline_cfg, get_paths_fn,
                timing, results, **kwargs):
     """
     Train one GraphSAGE on the full graph per dataset (not per algorithm).
-    Uses the SAME masks as Phase 3 — ensuring fair comparison (Pipelines.txt §5).
+    Uses the SAME masks as Phase 3 — ensuring fair comparison.
     """
     _patch_torch_load()
     from torch_geometric.nn import SAGEConv
@@ -78,7 +78,7 @@ def run_phase4(spark, sc, datasets, dataset_cfg, baseline_cfg, get_paths_fn,
         # Phase 3 trains under per-community caps (max nodes, max edges, hash
         # sampling); an unconstrained full-graph baseline sees everything. Comparing
         # them directly conflates two losses: information lost by partitioning (the
-        # thesis) and information lost by the sampling budget (an implementation
+        # method's cost) and information lost by the sampling budget (an implementation
         # limit). Setting edge_budget/node_budget to the totals Phase 3 actually
         # consumed — reported as n_nodes/n_edges on its summary row — gives a third
         # condition that separates the two.

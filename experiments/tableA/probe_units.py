@@ -3,11 +3,10 @@
 Units and the rows Phase 2 would store (members + 1-hop halo) from a dataset's Leiden communities, without Spark:
 
     idmod  communities uncut, full halo (what the id mod n set stores; Stage 3b cuts at read time)
-    core   Phase 1's rule (advisor, 2026-10-30): recursive Leiden to <= C_max / 2 core members per unit
+    core   Phase 1's rule: recursive Leiden to <= C_max / 2 core members per unit
            (phase1_community.split_units), Phase 2's halo cap min(members, C_max - members), so <= C_max rows
 
-C_max = 20,000 is the advisor's other reading (<= 10,000 core members, halo <= core). One record per (C_max, mode)
-to --out.
+One record per (C_max, mode) to --out.
 
     bash scripts/wsl_run.sh python experiments/tableA/probe_units.py reddit --c-max 10000 20000
 """

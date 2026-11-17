@@ -79,7 +79,7 @@ def main():
         rg_rows = max(1, int(sqrt_rg_mb(len(ids) * row_b, len(lay), floor_mb=args.rg_floor_mb) * (1 << 20) / row_b))
         path = os.path.join(wd, f"{name}.parquet")
         t0 = time.perf_counter()
-        # advisor 2026-11-05: no dictionary encoding, so stored GB compare with Table A (Spark's p2_nodes, ~1.0x raw)
+        # no dictionary encoding, so stored GB compare with Table A (Spark's p2_nodes, ~1.0x raw)
         stored = write_rows(path, x, ids, units, rg_rows, dictionary=False)
         write_s = time.perf_counter() - t0
         order = [c for c, _ in sorted(lay.items(), key=lambda kv: -(len(kv[1]["members"]) + len(kv[1]["halo"])))]

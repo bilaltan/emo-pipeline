@@ -97,7 +97,7 @@ def run_phase2(spark, sc, datasets, algorithms, use_global_mapping, min_size,
             t0    = time.time()
             print(f"\n  ── [{alg.upper()}]  tag={p_alg['tag']} ──")
 
-            # advisor 2026-11-04: no diagnostic counts in Phase 2's time; only the counts the layout needs run
+            # no diagnostic counts in Phase 2's time; only the counts the layout needs run
             comms_df = spark.read.format('delta').load(p_alg['communities']).cache()
 
             # Filter by minimum size
@@ -158,7 +158,7 @@ def run_phase2(spark, sc, datasets, algorithms, use_global_mapping, min_size,
                 halo_nodes = e_full.filter(F.col('src_comm') != F.col('dst_comm')).select(F.col('dst').alias('id'), F.col('src_comm').alias('community_id')).distinct()
                 halo_cap = int(kwargs.get('halo_cap') or 0)
                 if halo_cap:
-                    # The 1:1 capped halo (advisor, 2026-10-30): a unit keeps at most min(members, C_max - members)
+                    # The 1:1 capped halo: a unit keeps at most min(members, C_max - members)
                     # halo vertices, those with the most edges into it (ties: lower id; the halo sub-table's capped
                     # rule, R = 1), and loses its edges to the others. Phase 1 keeps members <= C_max / 2, so a unit
                     # stores <= C_max rows.
@@ -220,7 +220,7 @@ def run_phase2(spark, sc, datasets, algorithms, use_global_mapping, min_size,
                            .withColumn('is_boundary', F.coalesce('is_boundary', F.lit(False)))
                            .select(*node_cols, 'community_id', 'is_boundary', 'is_member'))
 
-            p2_times = {'build_s': time.time() - t0}   # advisor 11-03: Phase 2 runtime breakdown
+            p2_times = {'build_s': time.time() - t0}   # Phase 2 runtime breakdown
             print(f"  Edges kept: {n_intra:,} ({pct_kept:.1f}%)")
 
             # Write — isolated per tag
@@ -247,7 +247,7 @@ def run_phase2(spark, sc, datasets, algorithms, use_global_mapping, min_size,
                 from pipeline.utils.partition_join import partition_write_metadata
                 meta = partition_write_metadata(spark, p, alg)
             nodes_out, edges_out = nodes_final, edges_part
-            # Track B storage layout (docs/trackB_storage_layout.md): physical only, every unit reads the same rows.
+            # Storage layout: physical only, every unit reads the same rows.
             # block_cap: rows grouped by Phase 3b block (_blk) for that cap, so a block read skips the rest of its
             # community. rg_mb: row-group size; 'auto' = the √ rule from the table size and the unit count.
             blk_cap = int(kwargs.get('block_cap') or 0)
@@ -301,7 +301,7 @@ def run_phase2(spark, sc, datasets, algorithms, use_global_mapping, min_size,
             if kwargs.get('time_split'):
                 nodes_out.unpersist(), edges_out.unpersist()
             if kwargs.get('macro_graph'):
-                # CaaN's macro-graph, stored with the view (advisor 2026-11-04); Phase 3b reads it (utils.macro_graph)
+                # CaaN's macro-graph, stored with the view; Phase 3b reads it (utils.macro_graph)
                 from pipeline.utils.macro_graph import macro_tables, write_macro
                 write_macro(spark, p_alg, *macro_tables(comms_df, valid_comms, nodes_df, masks_df, edges_df,
                                                         with_minor=tiny_comm_handling == 'drop'),

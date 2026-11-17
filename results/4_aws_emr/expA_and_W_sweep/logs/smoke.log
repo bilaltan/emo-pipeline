@@ -1,0 +1,115 @@
+== 2026-11-12T02:10:39Z smoke (code fc5d191)
+Total Nodes:4
+         Node-Id	     Node-State	Node-Http-Address	Number-of-Running-Containers
+ip-172-31-67-152.ec2.internal:8041	        RUNNING	ip-172-31-67-152.ec2.internal:8042	                           0
+Detailed Node Information :
+	Configured Resources : <memory:24576, vCores:8>
+	Allocated Resources : <memory:0, vCores:0>
+	Resource Utilization by Node : PMem:3057 MB, VMem:3057 MB, VCores:0.029990003
+	Resource Utilization by Containers : PMem:0 MB, VMem:0 MB, VCores:0.0
+	Node-Labels : 
+ip-172-31-76-129.ec2.internal:8041	        RUNNING	ip-172-31-76-129.ec2.internal:8042	                           0
+Detailed Node Information :
+	Configured Resources : <memory:24576, vCores:8>
+	Allocated Resources : <memory:0, vCores:0>
+	Resource Utilization by Node : PMem:3002 MB, VMem:3002 MB, VCores:0.029990003
+	Resource Utilization by Containers : PMem:0 MB, VMem:0 MB, VCores:0.0
+	Node-Labels : 
+ip-172-31-79-201.ec2.internal:8041	        RUNNING	ip-172-31-79-201.ec2.internal:8042	                           0
+Detailed Node Information :
+	Configured Resources : <memory:24576, vCores:8>
+	Allocated Resources : <memory:0, vCores:0>
+	Resource Utilization by Node : PMem:3045 MB, VMem:3045 MB, VCores:0.07
+	Resource Utilization by Containers : PMem:0 MB, VMem:0 MB, VCores:0.0
+	Node-Labels : 
+ip-172-31-71-234.ec2.internal:8041	        RUNNING	ip-172-31-71-234.ec2.internal:8042	                           0
+Detailed Node Information :
+	Configured Resources : <memory:24576, vCores:8>
+	Allocated Resources : <memory:0, vCores:0>
+	Resource Utilization by Node : PMem:3011 MB, VMem:3011 MB, VCores:0.053315565
+	Resource Utilization by Containers : PMem:0 MB, VMem:0 MB, VCores:0.0
+	Node-Labels : 
+Traceback (most recent call last):
+  File "/opt/lakegrl/lakegrl-code/experiments/aws/check_upload.py", line 95, in <module>
+    sys.exit(main())
+             ^^^^^^
+  File "/opt/lakegrl/lakegrl-code/experiments/aws/check_upload.py", line 89, in main
+    bad += counts(args.root, args.spark, args.expect)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/lakegrl/lakegrl-code/experiments/aws/check_upload.py", line 60, in counts
+    from pyspark.sql import SparkSession
+  File "/usr/lib/spark/python/pyspark/__init__.py", line 58, in <module>
+    from pyspark.conf import SparkConf
+  File "/usr/lib/spark/python/pyspark/conf.py", line 23, in <module>
+    from py4j.java_gateway import JVMView, JavaObject
+ModuleNotFoundError: No module named 'py4j'
+== 2026-11-12T02:14:01Z smoke (code b1fc10a)
+Total Nodes:4
+         Node-Id	     Node-State	Node-Http-Address	Number-of-Running-Containers
+ip-172-31-67-152.ec2.internal:8041	        RUNNING	ip-172-31-67-152.ec2.internal:8042	                           0
+Detailed Node Information :
+	Configured Resources : <memory:24576, vCores:8>
+	Allocated Resources : <memory:0, vCores:0>
+	Resource Utilization by Node : PMem:3070 MB, VMem:3070 MB, VCores:0.016661113
+	Resource Utilization by Containers : PMem:0 MB, VMem:0 MB, VCores:0.0
+	Node-Labels : 
+ip-172-31-76-129.ec2.internal:8041	        RUNNING	ip-172-31-76-129.ec2.internal:8042	                           0
+Detailed Node Information :
+	Configured Resources : <memory:24576, vCores:8>
+	Allocated Resources : <memory:0, vCores:0>
+	Resource Utilization by Node : PMem:3054 MB, VMem:3054 MB, VCores:0.006666667
+	Resource Utilization by Containers : PMem:0 MB, VMem:0 MB, VCores:0.0
+	Node-Labels : 
+ip-172-31-79-201.ec2.internal:8041	        RUNNING	ip-172-31-79-201.ec2.internal:8042	                           0
+Detailed Node Information :
+	Configured Resources : <memory:24576, vCores:8>
+	Allocated Resources : <memory:0, vCores:0>
+	Resource Utilization by Node : PMem:3076 MB, VMem:3076 MB, VCores:0.0099966675
+	Resource Utilization by Containers : PMem:0 MB, VMem:0 MB, VCores:0.0
+	Node-Labels : 
+ip-172-31-71-234.ec2.internal:8041	        RUNNING	ip-172-31-71-234.ec2.internal:8042	                           0
+Detailed Node Information :
+	Configured Resources : <memory:24576, vCores:8>
+	Allocated Resources : <memory:0, vCores:0>
+	Resource Utilization by Node : PMem:3017 MB, VMem:3017 MB, VCores:0.013328891
+	Resource Utilization by Containers : PMem:0 MB, VMem:0 MB, VCores:0.0
+	Node-Labels : 
+Setting default log level to "WARN".
+To adjust logging level use sc.setLogLevel(newLevel). For SparkR, use setLogLevel(newLevel).
+26/11/12 02:14:08 WARN Client: Neither spark.yarn.jars nor spark.yarn.archive is set, falling back to uploading libraries under SPARK_HOME.
+26/11/12 02:14:25 WARN YarnSchedulerBackend$YarnSchedulerEndpoint: Attempted to request executors before the AM has registered!
+[Stage 0:>                                                          (0 + 1) / 1]                                                                                26/11/12 02:14:37 WARN SparkStringUtils: Truncated the string representation of a plan since it was too large. This behavior can be adjusted by setting 'spark.sql.debug.maxToStringFields'.
+[Stage 1:>                                                          (0 + 1) / 1][Stage 3:>                                                        (0 + 24) / 50][Stage 3:=========>                                               (8 + 24) / 50][Stage 3:=================>                                      (16 + 24) / 50][Stage 3:==========================>                             (24 + 24) / 50][Stage 3:==============================================>          (41 + 9) / 50][Stage 3:===============================================>         (42 + 8) / 50]                                                                                {"table": "tableA/rleiden_c10000_v2/ogbn-products/join/p2_map", "rows": 4811823, "expected": 4811823, "ok": true}
+[Stage 10:===============================================>        (42 + 8) / 50][Stage 10:======================================================> (49 + 1) / 50]                                                                                {"table": "tableA/rleiden_c10000_v2/ogbn-products/join/p2_edges", "rows": 113293626, "expected": 113293626, "ok": true}
+{"table": "tableA/rleiden_c10000_v2/ogbn-products/mv/p2_nodes", "rows": 4811823, "expected": 4811823, "ok": true}
+{"table": "tableA/rleiden_c10000_v2/ogbn-products/mv/p2_edges", "rows": 113293626, "expected": 113293626, "ok": true}
+[Stage 28:=============================>                            (3 + 3) / 6][Stage 28:======================================>                   (4 + 2) / 6]                                                                                [Stage 29:===================>                                      (2 + 4) / 6][Stage 29:======================================>                   (4 + 2) / 6][Stage 29:================================================>         (5 + 1) / 6][Stage 31:=============================>                         (27 + 23) / 50][Stage 31:======================================================> (49 + 1) / 50]                                                                                {"table": "tableA/rleiden_c10000_v2/ogbn-products/hive/p2_nodes", "rows": 4811823, "expected": 4811823, "ok": true}
+{"table": "tableA/rleiden_c10000_v2/ogbn-products/hive/p2_edges", "rows": 113293626, "expected": 113293626, "ok": true}
+{"table": "tableA/rleiden_c10000_v2/ogbn-products/liquid/p2_nodes", "rows": 4811823, "expected": 4811823, "ok": true}
+{"table": "tableA/rleiden_c10000_v2/ogbn-products/liquid/p2_edges", "rows": 113293626, "expected": 113293626, "ok": true}
+{"table": "tableA/rleiden_c10000_v2/ogbn-products/zorder/p2_nodes", "rows": 4811823, "expected": 4811823, "ok": true}
+{"table": "tableA/rleiden_c10000_v2/ogbn-products/zorder/p2_edges", "rows": 113293626, "expected": 113293626, "ok": true}
+{"table": "tableA/rleiden_c10000_v2/ogbn-products/merged_blk/p2_nodes", "rows": 4811823, "expected": 4811823, "ok": true}
+{"table": "tableA/rleiden_c10000_v2/ogbn-products/merged_blk/p2_edges", "rows": 113293626, "expected": 113293626, "ok": true}
+{"table": "store/ogbn-products/nodes", "rows": 2449029, "expected": 2449029, "ok": true}
+{"table": "store/ogbn-products/edges", "rows": 123718024, "expected": 123718024, "ok": true}
+{"table": "store/ogbn-products/masks", "rows": 2449029, "expected": 2449029, "ok": true}
+{"table": "store/ogbn-products/p2_nodes/leiden_c10000", "rows": 4748650, "expected": 4748650, "ok": true}
+{"table": "store/ogbn-products/p2_nodes/leiden", "rows": 5472625, "expected": 5472625, "ok": true}
+{"table": "store/ogbn-products/p2_edges/leiden_c10000", "rows": 113249076, "expected": 113249076, "ok": true}
+{"table": "store/ogbn-products/p2_edges/leiden", "rows": 123673474, "expected": 123673474, "ok": true}
+{"table": "store/ogbn-products/p2_macro_nodes/leiden_c10000", "rows": 63457, "expected": 63457, "ok": true}
+{"table": "store/ogbn-products/p2_macro_nodes/leiden", "rows": 62915, "expected": 62915, "ok": true}
+{"table": "store/ogbn-products/p2_macro_edges/leiden_c10000", "rows": 264668, "expected": 264668, "ok": true}
+{"table": "store/ogbn-products/p2_macro_edges/leiden", "rows": 47986, "expected": 47986, "ok": true}
+{"table": "store/ogbn-products/communities/leiden_c10000", "rows": 2449029, "expected": 2449029, "ok": true}
+{"table": "store/ogbn-products/communities/leiden", "rows": 2449029, "expected": 2449029, "ok": true}
+{"table": "store/ogbn-products/p2_unit_plan/leiden_c10000", "rows": 610, "expected": 610, "ok": true}
+{"table": "store/ogbn-products/p2_unit_plan/leiden", "rows": 68, "expected": 68, "ok": true}
+== 27 tables, 0 with problems
+== ogbn-products: 53,397 communities, 53,397 work items in 1,000 Stage 3b bins, 16 readers (Spark tasks), GET = count
+Setting default log level to "WARN".
+To adjust logging level use sc.setLogLevel(newLevel). For SparkR, use setLogLevel(newLevel).
+26/11/12 02:15:45 WARN Client: Neither spark.yarn.jars nor spark.yarn.archive is set, falling back to uploading libraries under SPARK_HOME.
+  merged_blk run 0:     19.2 s     2,495 GETs     2.28 GB | 4,811,823 node rows, 113,293,626 edges | 7c6cd7d4
+== 2026-11-12T02:16:28Z smoke done

@@ -7,7 +7,7 @@ come from the method, not from data loading. Reads the current Delta snapshot's 
 directly with pyarrow from the store (local disk or S3, utils/store_io.py), without Spark.
 
     bash scripts/wsl_run.sh python experiments/trackA/export_cache.py --dataset reddit-lp --alg louvain
-    # AWS: the EMR runner's tables on S3 (node baselines and DistDGL need no Phase 2 or link tables)
+    # tables on S3 (the node baselines need only the Phase 0 tables)
     python experiments/trackA/export_cache.py --dataset ogbn-products --root s3://us-east-1-s3-gnn/delta-data/ogbn-products --out /mnt/cache/ogbn-products
 
 Writes $LAKEGRL_STORE/<dataset>/trackA_<alg>/ (or --out):

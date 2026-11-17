@@ -15,8 +15,8 @@ def _dgl_metis_worker(src, dst, num_nodes, k, conn):
 
 def refine_communities(G, membership, max_members, resolution=1.0):
     """Splits every community above max_members with Louvain on its own subgraph, recursively, and packs the
-    pieces first-fit-decreasing into communities of at most max_members (experiments/block_split_study.py's
-    rule). Without it Stage 3b cuts such a community by id & (n - 1), which keeps ~11% of products' intra-unit
+    pieces first-fit-decreasing into communities of at most max_members.
+    Without it Stage 3b cuts such a community by id & (n - 1), which keeps ~11% of products' intra-unit
     edges at 20,000 rows; as communities of their own, sibling pieces also reach each other as super-nodes.
     Returns the new membership (pieces keep the old id or get new ones above the old maximum)."""
     import numpy as np
@@ -89,7 +89,7 @@ def _split_leaves(c, p, max_core, resolution, seed):
 
 
 def split_units(G, membership, max_core, resolution=1.0, seed=0, processes=1):
-    """Recursive Leiden, Phase 1's unit rule (advisor, 2026-10-30): no unit may hold more than max_core core members.
+    """Recursive Leiden, Phase 1's unit rule: no unit may hold more than max_core core members.
     Phase 1 passes max_core = C_max / 2 and Phase 2 caps each unit's halo at its core size (halo_cap), so a unit
     stores <= C_max rows. A cap on members + uncapped halo instead gave Reddit (mean degree ~490) 4,035 units of
     ~33 members and ~9,300 halo rows each.
@@ -100,8 +100,8 @@ def split_units(G, membership, max_core, resolution=1.0, seed=0, processes=1):
     next-fit up to max_core members: every unit is a contiguous run of the tree and pieces of different communities
     never share a unit. The first unit keeps the community's id, the others get new ids above the old maximum.
 
-    The oversized communities are disjoint subgraphs, so their recursions run in `processes` forked workers (advisor
-    2026-11-04); ids are still given in community order, so the result is the sequential one.
+    The oversized communities are disjoint subgraphs, so their recursions run in `processes` forked workers;
+    ids are still given in community order, so the result is the sequential one.
     Returns (membership, stats)."""
     import numpy as np
     global _SPLIT_G
@@ -194,7 +194,7 @@ def run_phase1(spark, sc, datasets, algorithms, lpa_max_iter, resolution,
 
             print(f"\n  ── [{alg.upper()}] ──────────────────────────────")
             t_alg = time.time()
-            p1_times = {}   # step times, advisor 11-03: the runtime breakdown of Phase 1
+            p1_times = {}   # step times: the runtime breakdown of Phase 1
 
             # ── LPA ─────────────────────────────────────────────────────────
             if alg == 'lpa':

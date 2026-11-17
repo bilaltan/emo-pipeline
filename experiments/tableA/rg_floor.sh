@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Row-group floor test (advisor 2026-10-31): rows 6-8 of one dataset with the bounded √ rule max(√ rule, F MB) for
+# Row-group floor test: rows 6-8 of one dataset with the bounded √ rule max(√ rule, F MB) for
 # each floor F, 3 writes + 3 cold reads each, as run.sh. Then the floor where row 8 reads fewer bytes AND is faster
 # than row 7 (the fastest row 8 among them) goes to results/tableA/rgfloor/floor_mb.txt for the Table A rerun; rc 3
 # when no floor does. F = 0 is the pure √ rule.

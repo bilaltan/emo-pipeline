@@ -1,128 +1,25 @@
-# Byte-compiled / optimized / DLL files
+# Python
 __pycache__/
 *.py[cod]
-*$py.class
-
-# C extensions
-*.so
-
-# Distribution / packaging / archives
-.Python
-build/
-develop-eggs/
-dist/
-downloads/
-eggs/
-.eggs/
-lib/
-lib64/
-parts/
-sdist/
-var/
-wheels/
-share/python-wheels/
-*.egg-info/
-.installed.cfg
-*.egg
-MANIFEST
-*.zip
-*.tar
-*.tar.gz
-*.tgz
-
-
-# Virtual environments
-.env
-.venv
+.venv/
 .venv-*/
-env/
-venv/
-ENV/
-env.bak/
-venv.bak/
 
-# IDE and OS files
-.DS_Store
-.DS_Store?
-._*
-.Spotlight-V100
-.Trashes
-ehthumbs.db
-Thumbs.db
+# Editors and OS
 .vscode/
 .idea/
-
-# LaTeX build artifacts and documents
-*.aux
-*.bbl
-*.blg
-*.fdb_latexmk
-*.fls
-*.log
-*.out
-*.synctex.gz
-*.toc
-*.nav
-*.snm
-*.vrb
-*.tex
-*.bib
-*.cls
-*.sty
-
-# Paper Writing, Overleaf, and Manuscripts
-overleaf/
-overleaf*.zip
-bare_conf_compsoc*
-
-# Reference Papers, Literature, and PDFs
-papers/
-*.pdf
-*Quillbot*
-
-# Paper Writing Notes, Analysis, Briefs, and Drafts
-advisor_recovery_plan.md
-conference_fit_analysis.md
-emo_paper_analysis.md
-paper_results_reference.md
-paper_results_reference.json
-papers100m_professor_brief.md
-papers100m_spark_research_plan.md
-extracted_tables_raw.txt
-scratch_extracted_pages.txt
-results/**/professor_slides.md
-results/**/copy_ready_slides.md
-
-# Keep experimental results logs
-!results/**/*.log
-
-# Raw dataset downloads and local caches
-data/
-deezer_europe_extracted/
-ogb_data/
-.dgl/
-
-# Scratch / logs / temporary dumps
-*.tmp
-asd.txt
-/run_pipeline.log
-logs/
-
-
-
-
-
-# Local scratchpad — exploratory scripts and extracted paper images, not project code
-scratch/
-
-# Local validation venv and cached Louvain partitions
-.venv-local/
-data/.partition_cache/
-
-# Office temp/lock files
-~$*
 .DS_Store
+Thumbs.db
 
-*.md
-!README.md
-local_data/
+# Datasets, Spark and Delta scratch
+data/
+spark-warehouse/
+metastore_db/
+derby.log
+*.tmp
+
+# Outputs of new runs (the records behind the paper are committed under results/1_* to results/4_*)
+results/tableA/
+results/tableB/
+results/aws/
+results/trackA/
+results/*.jsonl

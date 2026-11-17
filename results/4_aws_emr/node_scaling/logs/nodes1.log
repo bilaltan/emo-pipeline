@@ -1,0 +1,272 @@
+== 2026-11-14T04:22:23Z nodes (code 7aee18f)
+Total Nodes:1
+         Node-Id	     Node-State	Node-Http-Address	Number-of-Running-Containers
+ip-172-31-73-158.ec2.internal:8041	        RUNNING	ip-172-31-73-158.ec2.internal:8042	                           0
+== results/tableB/work/ogbn-products_row5.json: 610 bins, 610 work items, 4 readers (Spark tasks), GET = count
+Setting default log level to "WARN".
+To adjust logging level use sc.setLogLevel(newLevel). For SparkR, use setLogLevel(newLevel).
+26/11/14 04:22:33 WARN Client: Neither spark.yarn.jars nor spark.yarn.archive is set, falling back to uploading libraries under SPARK_HOME.
+  run 0:     66.1 s     2,448 GETs     2.24 GB | 4,748,650 node rows, 113,249,076 edges | 5ae3e959
+26/11/14 04:24:05 WARN Client: Neither spark.yarn.jars nor spark.yarn.archive is set, falling back to uploading libraries under SPARK_HOME.
+  run 1:     57.0 s     2,448 GETs     2.24 GB | 4,748,650 node rows, 113,249,076 edges | 5ae3e959
+26/11/14 04:25:25 WARN Client: Neither spark.yarn.jars nor spark.yarn.archive is set, falling back to uploading libraries under SPARK_HOME.
+  run 2:     53.3 s     2,448 GETs     2.24 GB | 4,748,650 node rows, 113,249,076 edges | 5ae3e959
+== results/tableB/work/ogbn-products_row4.json: 817 bins, 817 work items, 4 readers (Spark tasks), GET = count
+Setting default log level to "WARN".
+To adjust logging level use sc.setLogLevel(newLevel). For SparkR, use setLogLevel(newLevel).
+26/11/14 04:26:46 WARN Client: Neither spark.yarn.jars nor spark.yarn.archive is set, falling back to uploading libraries under SPARK_HOME.
+  run 0:     65.1 s     2,060 GETs     5.88 GB | 5,472,625 node rows, 123,673,474 edges | 26a8be43
+26/11/14 04:28:14 WARN Client: Neither spark.yarn.jars nor spark.yarn.archive is set, falling back to uploading libraries under SPARK_HOME.
+  run 1:     60.6 s     2,060 GETs     5.88 GB | 5,472,625 node rows, 123,673,474 edges | 26a8be43
+26/11/14 04:29:37 WARN Client: Neither spark.yarn.jars nor spark.yarn.archive is set, falling back to uploading libraries under SPARK_HOME.
+  run 2:     58.9 s     2,060 GETs     5.88 GB | 5,472,625 node rows, 123,673,474 edges | 26a8be43
+== 2026-11-14T04:30:58Z train row 5 N=1 W=4 seed 0
+Setting default log level to "WARN".
+To adjust logging level use sc.setLogLevel(newLevel). For SparkR, use setLogLevel(newLevel).
+26/11/14 04:31:04 WARN Client: Neither spark.yarn.jars nor spark.yarn.archive is set, falling back to uploading libraries under SPARK_HOME.
+
+======================================================================
+  LakeGRL full pipeline — ogbn-products / leiden / sage
+======================================================================
+  Phase 0: reusing existing Delta tables (2,449,029 nodes, 123,718,024 edges)  [0.0s]
+  [Phase 3b] p2_nodes is materialized; node loading: direct
+  Dataset: ogbn-products | Algorithm: leiden
+    - Major communities (>= 100): 610
+    - Minor communities (< 100): 52787
+    - CaaN macro-graph read from Phase 2 in 5.6s (610 super-nodes, 62,847 minor nodes, 264,668 edges)
+
+============================================================
+  PHASE 3b — GNN Training (CaaN): ogbn-products / leiden / sage
+  tag=local_ogbn-products_leiden_c10000
+============================================================
+  Warning: Skipped warm-start driver pre-training: warm start disabled
+  ✓ Minor-community nodes scored by the global model / by units: test 0.7414 / 0.7414, val 0.8939 / 0.8939 (0.0% of minor test nodes held by a trained unit; reported: global)
+  ✓ Unit reads: 245.0 s over all tasks, 2,448 GETs, 2.08 GiB (s3_emu=(0.0, 0.0))
+  ✓ Mean CaaN comm acc = 0.7577
+  ✓ Weighted CaaN comm acc = 0.7414
+  ✓ Wall time: 697.4s
+    ✓ Saved checkpoint locally: /opt/lakegrl/lakegrl-code/data/.emr_work/gnn-bench-checkpoint/phase3b/run-all/ogbn-products_leiden_sage_macro.parquet
+
+----------------------------------------------------------------------
+  PIPELINE RESULT
+----------------------------------------------------------------------
+  Phase 1 communities      —
+  Phase 3 units            —
+  Stage 3a node acc        —
+  Stage 3a link AUC        —
+  Stage 3b node acc        0.7414
+  Stage 3b link AUC        0.5000
+  Baseline node acc        —
+  Baseline link AUC        —
+  total wall clock         750.1s
+
+  appended to results/aws/nodes/nodes_train.jsonl
+== 2026-11-14T04:43:51Z train row 4 N=1 W=4 seed 0
+Setting default log level to "WARN".
+To adjust logging level use sc.setLogLevel(newLevel). For SparkR, use setLogLevel(newLevel).
+26/11/14 04:43:57 WARN Client: Neither spark.yarn.jars nor spark.yarn.archive is set, falling back to uploading libraries under SPARK_HOME.
+
+======================================================================
+  LakeGRL full pipeline — ogbn-products / leiden / sage
+======================================================================
+  Phase 0: reusing existing Delta tables (2,449,029 nodes, 123,718,024 edges)  [0.0s]
+  [Phase 3b] p2_nodes is materialized; node loading: direct
+  Dataset: ogbn-products | Algorithm: leiden
+    - Major communities (>= 100): 68
+    - Minor communities (< 100): 52787
+    - CaaN macro-graph read from Phase 2 in 5.4s (68 super-nodes, 62,847 minor nodes, 47,986 edges)
+
+============================================================
+  PHASE 3b — GNN Training (CaaN): ogbn-products / leiden / sage
+  tag=local_ogbn-products_leiden
+============================================================
+  Warning: Skipped warm-start driver pre-training: warm start disabled
+    - Bounded blocks: 68 communities -> 817 training units (cap 10,000 rows/unit); 49 oversized split (largest community 342,157 rows incl. halo).
+  ✓ Minor-community nodes scored by the global model / by units: test 0.6755 / 0.6756, val 0.8421 / 0.8421 (0.4% of minor test nodes held by a trained unit; reported: global)
+  ✓ Unit reads: 319.5 s over all tasks, 2,024 GETs, 5.47 GiB (s3_emu=(0.0, 0.0))
+  ✓ Mean CaaN comm acc = 0.6786
+  ✓ Weighted CaaN comm acc = 0.6755
+  ✓ Wall time: 561.3s
+    ✓ Saved checkpoint locally: /opt/lakegrl/lakegrl-code/data/.emr_work/gnn-bench-checkpoint/phase3b/run-all/ogbn-products_leiden_sage_macro.parquet
+
+----------------------------------------------------------------------
+  PIPELINE RESULT
+----------------------------------------------------------------------
+  Phase 1 communities      —
+  Phase 3 units            —
+  Stage 3a node acc        —
+  Stage 3a link AUC        —
+  Stage 3b node acc        0.6755
+  Stage 3b link AUC        0.5000
+  Baseline node acc        —
+  Baseline link AUC        —
+  total wall clock         610.9s
+
+  appended to results/aws/nodes/nodes_train.jsonl
+== 2026-11-14T04:54:24Z train row 5 N=1 W=4 seed 1
+Setting default log level to "WARN".
+To adjust logging level use sc.setLogLevel(newLevel). For SparkR, use setLogLevel(newLevel).
+26/11/14 04:54:30 WARN Client: Neither spark.yarn.jars nor spark.yarn.archive is set, falling back to uploading libraries under SPARK_HOME.
+
+======================================================================
+  LakeGRL full pipeline — ogbn-products / leiden / sage
+======================================================================
+  Phase 0: reusing existing Delta tables (2,449,029 nodes, 123,718,024 edges)  [0.0s]
+  [Phase 3b] p2_nodes is materialized; node loading: direct
+  Dataset: ogbn-products | Algorithm: leiden
+    - Major communities (>= 100): 610
+    - Minor communities (< 100): 52787
+    - CaaN macro-graph read from Phase 2 in 5.4s (610 super-nodes, 62,847 minor nodes, 264,668 edges)
+
+============================================================
+  PHASE 3b — GNN Training (CaaN): ogbn-products / leiden / sage
+  tag=local_ogbn-products_leiden_c10000
+============================================================
+  Warning: Skipped warm-start driver pre-training: warm start disabled
+  ✓ Minor-community nodes scored by the global model / by units: test 0.7453 / 0.7453, val 0.8930 / 0.8930 (0.0% of minor test nodes held by a trained unit; reported: global)
+  ✓ Unit reads: 250.6 s over all tasks, 2,448 GETs, 2.08 GiB (s3_emu=(0.0, 0.0))
+  ✓ Mean CaaN comm acc = 0.7601
+  ✓ Weighted CaaN comm acc = 0.7453
+  ✓ Wall time: 695.2s
+    ✓ Saved checkpoint locally: /opt/lakegrl/lakegrl-code/data/.emr_work/gnn-bench-checkpoint/phase3b/run-all/ogbn-products_leiden_sage_macro.parquet
+
+----------------------------------------------------------------------
+  PIPELINE RESULT
+----------------------------------------------------------------------
+  Phase 1 communities      —
+  Phase 3 units            —
+  Stage 3a node acc        —
+  Stage 3a link AUC        —
+  Stage 3b node acc        0.7453
+  Stage 3b link AUC        0.5000
+  Baseline node acc        —
+  Baseline link AUC        —
+  total wall clock         747.2s
+
+  appended to results/aws/nodes/nodes_train.jsonl
+== 2026-11-14T05:07:12Z train row 4 N=1 W=4 seed 1
+Setting default log level to "WARN".
+To adjust logging level use sc.setLogLevel(newLevel). For SparkR, use setLogLevel(newLevel).
+26/11/14 05:07:18 WARN Client: Neither spark.yarn.jars nor spark.yarn.archive is set, falling back to uploading libraries under SPARK_HOME.
+
+======================================================================
+  LakeGRL full pipeline — ogbn-products / leiden / sage
+======================================================================
+  Phase 0: reusing existing Delta tables (2,449,029 nodes, 123,718,024 edges)  [0.0s]
+  [Phase 3b] p2_nodes is materialized; node loading: direct
+  Dataset: ogbn-products | Algorithm: leiden
+    - Major communities (>= 100): 68
+    - Minor communities (< 100): 52787
+    - CaaN macro-graph read from Phase 2 in 4.4s (68 super-nodes, 62,847 minor nodes, 47,986 edges)
+
+============================================================
+  PHASE 3b — GNN Training (CaaN): ogbn-products / leiden / sage
+  tag=local_ogbn-products_leiden
+============================================================
+  Warning: Skipped warm-start driver pre-training: warm start disabled
+    - Bounded blocks: 68 communities -> 817 training units (cap 10,000 rows/unit); 49 oversized split (largest community 342,157 rows incl. halo).
+  ✓ Minor-community nodes scored by the global model / by units: test 0.6776 / 0.6777, val 0.8421 / 0.8421 (0.4% of minor test nodes held by a trained unit; reported: global)
+  ✓ Unit reads: 332.9 s over all tasks, 2,032 GETs, 5.47 GiB (s3_emu=(0.0, 0.0))
+  ✓ Mean CaaN comm acc = 0.6809
+  ✓ Weighted CaaN comm acc = 0.6776
+  ✓ Wall time: 561.9s
+    ✓ Saved checkpoint locally: /opt/lakegrl/lakegrl-code/data/.emr_work/gnn-bench-checkpoint/phase3b/run-all/ogbn-products_leiden_sage_macro.parquet
+
+----------------------------------------------------------------------
+  PIPELINE RESULT
+----------------------------------------------------------------------
+  Phase 1 communities      —
+  Phase 3 units            —
+  Stage 3a node acc        —
+  Stage 3a link AUC        —
+  Stage 3b node acc        0.6776
+  Stage 3b link AUC        0.5000
+  Baseline node acc        —
+  Baseline link AUC        —
+  total wall clock         610.5s
+
+  appended to results/aws/nodes/nodes_train.jsonl
+== 2026-11-14T05:17:45Z train row 5 N=1 W=4 seed 2
+Setting default log level to "WARN".
+To adjust logging level use sc.setLogLevel(newLevel). For SparkR, use setLogLevel(newLevel).
+26/11/14 05:17:51 WARN Client: Neither spark.yarn.jars nor spark.yarn.archive is set, falling back to uploading libraries under SPARK_HOME.
+
+======================================================================
+  LakeGRL full pipeline — ogbn-products / leiden / sage
+======================================================================
+  Phase 0: reusing existing Delta tables (2,449,029 nodes, 123,718,024 edges)  [0.0s]
+  [Phase 3b] p2_nodes is materialized; node loading: direct
+  Dataset: ogbn-products | Algorithm: leiden
+    - Major communities (>= 100): 610
+    - Minor communities (< 100): 52787
+    - CaaN macro-graph read from Phase 2 in 5.5s (610 super-nodes, 62,847 minor nodes, 264,668 edges)
+
+============================================================
+  PHASE 3b — GNN Training (CaaN): ogbn-products / leiden / sage
+  tag=local_ogbn-products_leiden_c10000
+============================================================
+  Warning: Skipped warm-start driver pre-training: warm start disabled
+  ✓ Minor-community nodes scored by the global model / by units: test 0.7407 / 0.7407, val 0.8926 / 0.8926 (0.0% of minor test nodes held by a trained unit; reported: global)
+  ✓ Unit reads: 252.1 s over all tasks, 2,448 GETs, 2.08 GiB (s3_emu=(0.0, 0.0))
+  ✓ Mean CaaN comm acc = 0.7581
+  ✓ Weighted CaaN comm acc = 0.7407
+  ✓ Wall time: 697.2s
+    ✓ Saved checkpoint locally: /opt/lakegrl/lakegrl-code/data/.emr_work/gnn-bench-checkpoint/phase3b/run-all/ogbn-products_leiden_sage_macro.parquet
+
+----------------------------------------------------------------------
+  PIPELINE RESULT
+----------------------------------------------------------------------
+  Phase 1 communities      —
+  Phase 3 units            —
+  Stage 3a node acc        —
+  Stage 3a link AUC        —
+  Stage 3b node acc        0.7407
+  Stage 3b link AUC        0.5000
+  Baseline node acc        —
+  Baseline link AUC        —
+  total wall clock         749.6s
+
+  appended to results/aws/nodes/nodes_train.jsonl
+== 2026-11-14T05:30:36Z train row 4 N=1 W=4 seed 2
+Setting default log level to "WARN".
+To adjust logging level use sc.setLogLevel(newLevel). For SparkR, use setLogLevel(newLevel).
+26/11/14 05:30:42 WARN Client: Neither spark.yarn.jars nor spark.yarn.archive is set, falling back to uploading libraries under SPARK_HOME.
+
+======================================================================
+  LakeGRL full pipeline — ogbn-products / leiden / sage
+======================================================================
+  Phase 0: reusing existing Delta tables (2,449,029 nodes, 123,718,024 edges)  [0.0s]
+  [Phase 3b] p2_nodes is materialized; node loading: direct
+  Dataset: ogbn-products | Algorithm: leiden
+    - Major communities (>= 100): 68
+    - Minor communities (< 100): 52787
+    - CaaN macro-graph read from Phase 2 in 4.6s (68 super-nodes, 62,847 minor nodes, 47,986 edges)
+
+============================================================
+  PHASE 3b — GNN Training (CaaN): ogbn-products / leiden / sage
+  tag=local_ogbn-products_leiden
+============================================================
+  Warning: Skipped warm-start driver pre-training: warm start disabled
+    - Bounded blocks: 68 communities -> 817 training units (cap 10,000 rows/unit); 49 oversized split (largest community 342,157 rows incl. halo).
+  ✓ Minor-community nodes scored by the global model / by units: test 0.6754 / 0.6755, val 0.8404 / 0.8404 (0.4% of minor test nodes held by a trained unit; reported: global)
+  ✓ Unit reads: 326.1 s over all tasks, 2,024 GETs, 5.47 GiB (s3_emu=(0.0, 0.0))
+  ✓ Mean CaaN comm acc = 0.6787
+  ✓ Weighted CaaN comm acc = 0.6754
+  ✓ Wall time: 564.4s
+    ✓ Saved checkpoint locally: /opt/lakegrl/lakegrl-code/data/.emr_work/gnn-bench-checkpoint/phase3b/run-all/ogbn-products_leiden_sage_macro.parquet
+
+----------------------------------------------------------------------
+  PIPELINE RESULT
+----------------------------------------------------------------------
+  Phase 1 communities      —
+  Phase 3 units            —
+  Stage 3a node acc        —
+  Stage 3a link AUC        —
+  Stage 3b node acc        0.6754
+  Stage 3b link AUC        0.5000
+  Baseline node acc        —
+  Baseline link AUC        —
+  total wall clock         613.4s
+
+  appended to results/aws/nodes/nodes_train.jsonl
+== 2026-11-14T05:41:11Z nodes done

@@ -994,8 +994,8 @@ def make_caan_udf(super_nodes_dict_bc, minor_node_to_idx_bc, minor_feats_arr_bc,
             ], dim=0)
             if model_type == 'sage':
                 # the same mean SAGE by sparse matmul, as the baselines: the edge list makes PyG build an
-                # edges x features message tensor, ~20 GB on Reddit's densest units (11-03). mp is symmetric, deduplicated.
-                # CPU units too since 11-11 (AWS validation): 5.9x faster on one thread, same loss to 4 decimals
+                # edges x features message tensor, ~20 GB on Reddit's densest units. mp is symmetric, deduplicated.
+                # CPU units too (AWS validation): 5.9x faster on one thread, same loss to 4 decimals
                 pyg_edge_index = torch_geometric.utils.to_torch_csr_tensor(pyg_edge_index, size=(n_nodes, n_nodes))
             feat_t = torch.tensor(feat_arr, dtype=torch.float32)
             lbl_t = torch.tensor(label_arr, dtype=torch.long)
@@ -1859,7 +1859,7 @@ def make_caan_udf(super_nodes_dict_bc, minor_node_to_idx_bc, minor_feats_arr_bc,
             comm_ids = manifest_pdf['community_id'].unique().tolist()
             (nodes_pdf_all, edges_pdf_all), io = _read(load_batch, comm_ids)   # the bin's read, on its first row
 
-        # pack_train (Table B row 3, advisor 2026-11-02): the bin's coalesced work item of shared-directory units
+        # pack_train (Table B row 3): the bin's coalesced work item of shared-directory units
         # trains one model on their union, on the row of its first unit
         _pk = set()
         if '_pack' in manifest_pdf.columns and not _has_blocks and manifest_pdf['_pack'].astype(bool).any():
@@ -1992,7 +1992,7 @@ def make_caan_udf(super_nodes_dict_bc, minor_node_to_idx_bc, minor_feats_arr_bc,
 def _build_macro(spark, nodes_w_comm, comms_df, raw_edges_df, p_alg, major_comms, node_to_comm_bc, major_comms_bc,
                  tiny_comm_handling):
     """CaaN's macro-graph built from p2_nodes and the raw tables, as every run did before Phase 2 stored it
-    (utils.macro_graph). Kept for stores without it and for experiments/tableB/check_macro.py."""
+    (utils.macro_graph). Kept for stores without it."""
     from pyspark.sql import functions as F
     from pipeline.utils.partition_join import join_features
     from pipeline.utils.macro_graph import mean_features
@@ -2171,7 +2171,7 @@ def run_phase3b(spark, sc, datasets, algorithms, use_global_mapping,
             if context == "macro":   # part of caan_macro_load: the units' map, needed with a stored macro-graph too
                 timing[('caan_comm_map', dataset, alg)] = time.time() - t_macro
 
-            # advisor 2026-11-04: the macro-graph is part of Phase 2's materialized view (utils.macro_graph); read it
+            # the macro-graph is part of Phase 2's materialized view (utils.macro_graph); read it
             # when Phase 2 stored it with this p2_nodes, instead of rebuilding it from the raw edge table every run
             from pipeline.utils import macro_graph as _macro
             macro_stored = context == "macro" and _macro.stored(spark, p_alg)

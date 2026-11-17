@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Table B, rows 3-5: the storage read of a pipeline run, cold, through the S3 emulator (advisor 2026-11-02). Reads the
+Table B, rows 3-5: the storage read of a pipeline run, cold, through the S3 emulator. Reads the
 exact bins the run's Stage 3a/3b trained (run_local_pipeline.py --work-out) from its Phase 2 tables with Table A's
 reader (experiments/tableA/read_layouts.py: Stage 3b's loader, --procs reader processes, page cache dropped, one
 batched read per bin, or one read per (community, block) in a bin with a split community). Reads only.

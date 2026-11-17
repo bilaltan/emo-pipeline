@@ -6,7 +6,7 @@ Local disk plus the page cache hides bytes and requests (P3: 0.35x the bytes, sa
 on a data file is one GET: it is counted and pays --latency-ms plus its bytes at --mbps, like a range GET to S3
 from the same region. pyarrow issues the same calls it would issue to S3 (footer, then column-chunk ranges), so the
 request counts are pyarrow's own; latency and bandwidth are parameters, not measurements of S3. No outside service
-is used. A real S3 / MinIO check needs Bilal's OK.
+is used.
 
 Input: Phase 2 tables kept by the layout bench (--keep-tables): <table-dir>/p2_nodes, <table-dir>/p2_edges. Units and
 Phase 3b bins are derived from the table. Per mode (unit, p3b_bins, and *_pruned = utils.partition_layout.unit_dataset)

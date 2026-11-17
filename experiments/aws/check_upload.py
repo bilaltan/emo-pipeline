@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-AWS validation (advisor 2026-11-11): are the uploaded Delta tables the local ones, and does Delta read them on S3?
+AWS validation: are the uploaded Delta tables the local ones, and does Delta read them on S3?
 
 --local DIR (WSL, after the upload, no cluster): for every table, the files of its current snapshot (replayed from the
   local _delta_log) exist on S3 under --root with the same sizes, and _delta_log has the same commit files. S3 LIST

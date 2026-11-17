@@ -41,7 +41,7 @@ STORE = os.path.abspath(os.environ.get("LAKEGRL_STORE", "data/.local_pipeline"))
 DATA_ROOT = os.environ.get("DATA_ROOT", "/mnt/c/data")
 # Set by --link-split: edges held out before Phase 0 writes the training graph.
 LINK_HOLDOUT = {"n_val": 0, "n_test": 0, "seed": 0}
-# Set by --node-split random: the stratified 60/20/20 split this driver used for every dataset before 2026-10-12.
+# Set by --node-split random: a stratified 60/20/20 split instead of the official one.
 NODE_SPLIT = {"random": False}
 # Set by --unit-split leiden: Phase 1-2 tables of the recursive Leiden units at C_max sit next to the unsplit ones
 # (communities/leiden_c10000/ beside communities/leiden/); Phase 0's tables are shared.
@@ -67,7 +67,7 @@ def paths(dataset, alg=None):
 def _hold_out_links(src, dst, n_val, n_test, seed):
     """Sample val/test positives from the undirected edges (src < dst) and remove them.
 
-    Every method in Track A (docs/trackA_link_prediction.md) is scored on these pairs, and
+    Every link-prediction method (experiments/trackA/harness.py) is scored on these pairs, and
     Phases 1-4 only ever see the remaining training graph.
     """
     rng = np.random.default_rng(seed)
@@ -326,7 +326,7 @@ def main():
     # Local mode has no executors: local[N] is N worker threads in the driver
     # JVM. Units train one-per-core, so N sets how many run concurrently.
     ap.add_argument("--cores", type=int, default=4)
-    ap.add_argument("--device", default="cpu", help="Stage 3a/3b unit and global training (cuda: Table B, advisor 11-02)")
+    ap.add_argument("--device", default="cpu", help="Stage 3a/3b unit and global training (cuda: Table B)")
     ap.add_argument("--driver-mem", default="8g")
     ap.add_argument("--skip-baseline", action="store_true")
     ap.add_argument("--force-ingest", action="store_true",
@@ -347,7 +347,7 @@ def main():
     # Track B storage layout of the Phase 2 tables (physical only: every unit reads the same rows).
     # Row group in MB, or auto = the sqrt rule from table size and unit count (0: Spark's 128 MB default).
     ap.add_argument("--p2-rg-mb", default="auto")
-    # Table A row 8b (Table B rows 3-5, advisor 2026-11-02): --p2-layout hive_merged --p2-rg-floor-mb 2 --p2-one-file
+    # Table A row 8b (Table B rows 3-5): --p2-layout hive_merged --p2-rg-floor-mb 2 --p2-one-file
     ap.add_argument("--p2-rg-floor-mb", type=float, default=0.0, help="auto row group: at least this (bounded sqrt rule)")
     ap.add_argument("--p2-one-file", action="store_true", help="one file per Phase 2 directory (Table A rows 6-8)")
     ap.add_argument("--p2-time-split", action="store_true",
@@ -361,7 +361,7 @@ def main():
     ap.add_argument("--s3-emu", default=None, metavar="LAT_MS,MBPS|count",
                     help="Stage 3b reads the Phase 2 tables through an emulated S3 (e.g. 20,80: 20 ms + 80 MB/s "
                          "per GET), or 'count' to count GETs and bytes only (utils/store_io.py)")
-    # AWS validation (advisor 2026-11-11): no Phase 1-2 on EMR; Stage 3b reads the uploaded tables with W workers
+    # AWS validation: no Phase 1-2 on EMR; Stage 3b reads the uploaded tables with W workers
     ap.add_argument("--store", default=None, help="table root instead of LAKEGRL_STORE, e.g. s3://bucket/lakegrl/store")
     ap.add_argument("--stage3-only", action="store_true",
                     help="Stage 3b on the stored Phase 0-2 tables: no ingest, no Phase 1-2 (they must exist)")
@@ -476,7 +476,7 @@ def main():
                    rg_mb=args.p2_rg_mb if args.p2_rg_mb == "auto" else float(args.p2_rg_mb) or None,
                    block_cap=None if args.p2_plain else args.max_nodes, halo_cap=c_split,
                    rg_floor_mb=args.p2_rg_floor_mb, one_file_per_dir=args.p2_one_file, time_split=args.p2_time_split,
-                   macro_graph=args.stop_after in ("3b", "4"))   # CaaN's macro-graph, for Stage 3b (advisor 2026-11-04)
+                   macro_graph=args.stop_after in ("3b", "4"))   # CaaN's macro-graph, for Stage 3b
 
     if args.stop_after != "4":
         args.skip_baseline = True

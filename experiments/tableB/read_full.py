@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
 """
 Table B, rows 1-2 (full-graph GraphSAGE, Cluster-GCN): their storage read, one cold read of the whole raw node, edge
-and mask tables through the S3 emulator (advisor 2026-11-02). They have no units, so every data file of the current
+and mask tables through the S3 emulator. They have no units, so every data file of the current
 snapshots is one task, read whole by pyarrow (utils.store_io: one GET of --emu latency + bytes / bandwidth per read
 call) with the features decoded, by --procs reader processes as Table A reads Stage 3b's bins. Reads only.
-Rows 4-5 (--row, --tables): what Stage 3b reads outside the unit bins, read the same way. Since 2026-11-04 (advisor)
-that is the macro-graph Phase 2 stores, the communities table (the units map cut edges to super-nodes by it) and
-p2_nodes' community_id column (the unit plan); a table given as TABLE:COL,COL is read with those columns only.
+Rows 4-5 (--row, --tables): what Stage 3b reads outside the unit bins, read the same way: the macro-graph
+Phase 2 stores, the communities table (the units map cut edges to super-nodes by it) and the unit plan; a table
+given as TABLE:COL,COL is read with those columns only.
 
     bash scripts/wsl_run.sh python experiments/tableB/read_full.py --dataset ogbn-products
 """

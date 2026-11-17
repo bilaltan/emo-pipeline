@@ -16,7 +16,7 @@ def run_phase0(spark, sc, datasets, run_phase0_flag, use_ogb_splits,
     _patch_torch_load()
     if not run_phase0_flag:
         print("[Phase 0 SKIPPED]  RUN_PHASE0 = False")
-        print("  → Set RUN_PHASE0 = True in experiment_config.py when using a new dataset.")
+        print("  → Run Phase 0 when using a dataset for the first time.")
         return
 
     import builtins

@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """
-Delete old Delta versions (Bilal 2026-11-05): VACUUM RETAIN 0 HOURS on every Delta table under the given roots, so
+Delete old Delta versions: VACUUM RETAIN 0 HOURS on every Delta table under the given roots, so
 only each table's current version stays on disk. An overwrite keeps the old files until VACUUM, and every Table B
-run's Phase 2 rewrites p2_nodes / p2_edges: on 11-05 ~/lakegrl held 566 GB of Delta files for 200 GB of current data.
+run's Phase 2 rewrites p2_nodes / p2_edges: the store once held 566 GB of Delta files for 200 GB of current data.
 Afterwards a read of an older version (versionAsOf) fails; the current version of every table is unchanged.
 
 Per table: Delta's DRY RUN first; a table where it would delete anything but Spark data files (part-*) is skipped and

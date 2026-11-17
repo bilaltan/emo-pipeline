@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
-# Table B for one dataset (advisor 2026-11-02, Section 4.2): node classification on the official split, 2-layer SAGE
+# Table B for one dataset (Section 4.2): node classification on the official split, 2-layer SAGE
 # with experiment_config.TRAIN (100 epochs, lr 0.01), seeds 0-2, trained on the GPU. Storage reads are timed apart from
 # training, cold, through the S3 emulator (20 ms + 80 MB/s per GET) with 20 readers, as Table A; training runs count
-# GETs only. Run it alone (gpu_lock): the reads need the machine.
+# GETs only. Run it alone: the reads need the whole machine.
 #   row 1 full-graph SAGE, row 2 Cluster-GCN: experiments/baselines/node_baselines.py on a cache of the full graph;
 #         read = read_full.py (the whole raw node, edge and mask tables); METIS time = partition_seconds
 #   row 3 local units only: Stage 3a (no context), tiny 'keep', one model per coalesced work item (--pack-train)
@@ -10,9 +10,8 @@
 #   row 5 LakeGRL: recursive Leiden C_max 10k + CaaN macro-GNN; minor and isolated nodes scored by its global model
 #   rows 3-5 store Phase 2 as Table A row 8b (hive_merged, bounded sqrt row group with a 2 MB floor, one file per
 #   directory); read = read_units.py on the run's own bins, right after its seed 0; rows 4-5 add read_full.py on
-#   what Stage 3b reads besides the bins: the macro-graph Phase 2 stores (advisor 2026-11-04; until then the raw
-#   nodes, masks and edges and the whole p2_nodes, to rebuild it), the communities table, the unit plan (rows per
-#   community; Phase 2 stores it with the macro-graph since 11-04 evening, before that p2_nodes' community_id column)
+#   what Stage 3b reads besides the bins: the macro-graph Phase 2 stores, the communities table and the unit plan
+#   (rows per community, stored with the macro-graph)
 # Peak GPU / host memory: peak.sh around every training run (also the records' peak_rss_tree_mb / peak_gpu_mb).
 #   bash experiments/tableB/run.sh ogbn-arxiv
 set -eo pipefail
@@ -23,8 +22,8 @@ PY="bash scripts/wsl_run.sh python"
 PEAK="bash experiments/tableB/peak.sh $O/peak.jsonl"
 store=${LAKEGRL_STORE:-$HOME/lakegrl/store}; cache=$store/$ds/tableB_full
 # TB_CORES: Spark task slots = unit models trained at once on the GPU. Reddit's dense units overflow the 24 GB card
-# at 8 and the driver spills into Windows memory (11-03). TB_PIPELINE_ONLY=1: rows 3-5 only (rows 1-2 already in).
-# The 11-03 memory reruns (advisor: 1- vs 8-worker GPU peak, host without the JVM) run seed 0 only into their own
+# at 8 and the driver spills into host memory. TB_PIPELINE_ONLY=1: rows 3-5 only (rows 1-2 already in).
+# The memory runs (1- vs 8-worker GPU peak, host without the JVM) run seed 0 only into their own
 # TB_OUT: TB_SEEDS (default 0 1 2), TB_REUSE_P1=1 keeps Phase 1 for seed 0 too, TB_READS=0 skips the cold reads.
 # TB_ROWS (default 5 4 3) and TB_ARGS (more run_local_pipeline.py arguments): the runtime breakdown run (row 5,
 # --p2-time-split).
@@ -57,6 +56,6 @@ for r in ${TB_ROWS:-5 4 3}; do
     fi
   done
 done
-# Bilal 2026-11-05: every run's Phase 2 overwrite keeps the old files until VACUUM (the store had grown to 566 GB for
-# 200 GB of current data); after all timed work, keep only the current version of this dataset's tables
+# Every run's Phase 2 overwrite keeps the old files until VACUUM (the store grew to 566 GB for 200 GB of current
+# data); after all timed work, keep only the current version of this dataset's tables
 $PY scripts/vacuum_store.py "$store/$ds" --out $O/vacuum.jsonl || echo "vacuum_store failed: $store/$ds keeps its old versions"

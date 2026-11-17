@@ -1,22 +1,21 @@
 #!/usr/bin/env bash
 # ══════════════════════════════════════════════════════════════════════════════
-#  Create, resize or terminate the ICDE EMR cluster from a machine with the AWS CLI. Creating starts billing:
-#  only with Bilal's OK on the estimate (plan doc, "AWS batch").
+#  Create, resize or terminate the EMR cluster from a machine with the AWS CLI. Creating the cluster starts billing.
 #
 #    KEY=<ec2 key pair> SUBNET=<subnet id> scripts/emr_cluster.sh create [workers]   -> prints the cluster id
 #    scripts/emr_cluster.sh step <cluster id> <smoke|expA|expB-read|expB-train|nodes> [N]
 #    scripts/emr_cluster.sh resize <cluster id> <workers>
 #    scripts/emr_cluster.sh terminate <cluster id>
 #
-#  AWS validation (advisor 2026-11-11): 1 m5.xlarge primary + 4 m5.2xlarge core nodes, the code and Python 3.11 from
+#  AWS validation (Section 4.4): 1 m5.xlarge primary + 4 m5.2xlarge core nodes, the code and Python 3.11 from
 #  a bootstrap action (experiments/aws/README.md):
 #    MASTER_TYPE=m5.xlarge TYPE=m5.2xlarge IDLE=1800 CONFIGS=file://experiments/aws/emr_configs.json \
-#    BOOTSTRAP=s3://us-east-1-s3-gnn/LakeGRL/code/bootstrap.sh CODE=s3://us-east-1-s3-gnn/LakeGRL/code/emo-pipeline.tar.gz \
+#    BOOTSTRAP=s3://us-east-1-s3-gnn/LakeGRL/code/bootstrap.sh CODE=s3://us-east-1-s3-gnn/LakeGRL/code/lakegrl-code.tar.gz \
 #    KEY=... SUBNET=... scripts/emr_cluster.sh create 4
 #
 #  Primary and workers are the same type, so baselines or Phase 1 on the primary run on worker-class hardware.
 #  The cluster terminates itself after an hour idle, so a forgotten cluster costs at most an hour.
-#  Then on the primary: git clone, bash scripts/emr_setup.sh, bash scripts/emr_icde.sh dryrun.
+#  Then run the steps of experiments/aws/run.sh with `step` (experiments/aws/README.md).
 # ══════════════════════════════════════════════════════════════════════════════
 set -euo pipefail
 TYPE=${TYPE:-r6i.2xlarge}            # 8 vCPUs (4 physical cores), 64 GiB
@@ -35,7 +34,7 @@ create)
     # KEY (SSH) and SUBNET are optional: without them the default VPC, and the work runs as steps (below)
     EA=$(echo "${KEY:+KeyName=$KEY,}${SUBNET:+SubnetId=$SUBNET}" | sed 's/,$//')
     EC2=(); [ -z "$EA" ] || EC2=(--ec2-attributes "$EA")
-    aws emr create-cluster --region "$REGION" --name "lakegrl-icde-$(date +%m%d-%H%M)" --release-label "$RELEASE" \
+    aws emr create-cluster --region "$REGION" --name "lakegrl-$(date +%m%d-%H%M)" --release-label "$RELEASE" \
         --applications Name=Hadoop Name=Spark \
         --instance-groups "InstanceGroupType=MASTER,InstanceCount=1,InstanceType=$MASTER_TYPE" \
                           "InstanceGroupType=CORE,InstanceCount=$W,InstanceType=$TYPE" \
@@ -47,7 +46,7 @@ step)
     # runs experiments/aws/run.sh <what> [arg] on the primary as an EMR step (no SSH); prints the step id
     C=${2:?cluster id}; WHAT=${3:?smoke|expA|expB-read|expB-train|nodes}; ARG=${4:+,$4}
     aws emr add-steps --region "$REGION" --cluster-id "$C" --query 'StepIds[0]' --output text --steps \
-        "Type=CUSTOM_JAR,Name=lakegrl-$WHAT${4:-},ActionOnFailure=CONTINUE,Jar=command-runner.jar,Args=[bash,/opt/lakegrl/emo-pipeline/experiments/aws/run.sh,$WHAT$ARG]"
+        "Type=CUSTOM_JAR,Name=lakegrl-$WHAT${4:-},ActionOnFailure=CONTINUE,Jar=command-runner.jar,Args=[bash,/opt/lakegrl/lakegrl-code/experiments/aws/run.sh,$WHAT$ARG]"
     ;;
 status)
     C=${2:?cluster id}

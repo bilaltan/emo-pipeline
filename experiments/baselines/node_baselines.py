@@ -7,7 +7,7 @@ Single-GPU baselines for node classification, both on the same model and setting
            vertices; each step trains on the subgraph induced by --parts-per-batch random parts, and an epoch
            visits every part once (defaults 150 / 20: the paper's Reddit setting, 1,500 parts of 233K vertices)
 
---communities (full only; advisor 2026-11-13, the community-ID ablation for reviewer 3): a learned --comm-dim
+--communities (full only; the community-ID ablation of Section 4.2): a learned --comm-dim
 embedding of each vertex's Phase 1 community is concatenated to its features, x~ = [x || E[c(v)]]: major
 communities (>= --min-size members) get rows 0..K-1, every other vertex (minor, isolated) row K.
 
@@ -192,8 +192,8 @@ def main(argv=None):
                     help="full only: Phase 1 communities Delta table whose ids feed a learned embedding")
     ap.add_argument("--min-size", type=int, default=100, help="--communities: members of a major community")
     ap.add_argument("--comm-dim", type=int, default=16, help="--communities: embedding size")
-    ap.add_argument("--device", default="cpu")   # ICDE rule (Bilal, 2026-10-22): every model runs on CPU
-    ap.add_argument("--out", default=os.path.join(REPO, "results", "icde", "baselines.jsonl"))
+    ap.add_argument("--device", default="cpu")   # Table B passes --device cuda
+    ap.add_argument("--out", default=os.path.join(REPO, "results", "baselines.jsonl"))
     args = ap.parse_args(argv)
     if args.communities and args.method != "full":
         ap.error("--communities needs --method full")

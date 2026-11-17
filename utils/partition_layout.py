@@ -57,7 +57,7 @@ def stage3b_bins(items, comm_to_part=None, minor_rows=None, cap=0, slots=20):
     """Phase 3b's bins (one Spark task each): the work rows (community, block, n_blocks, n_wblocks), communities by
     rows desc, dealt round-robin into one bin per row up to 2,000 rows, else max(4 x slots, 1000) bins.
 
-    Coalesced unit reading (comm_to_part, minor_rows {community: rows}, cap; advisor 2026-11-01): the unsplit
+    Coalesced unit reading (comm_to_part, minor_rows {community: rows}, cap): the unsplit
     communities of each shared directory (storage_part m<k>) are packed in community_id order into work items of up
     to cap rows, each dealt as one row, so a bin reads one contiguous run of the shared file instead of every bin
     re-reading all of it. Without a plan (or cap 0) the bins are the plain round-robin ones."""
@@ -135,7 +135,7 @@ def bit_reverse(x, bits):
 def add_blk(spark, nodes_df, edges_df, cap):
     """Phase 2's tables with _blk: a row's Phase 3b block (id for nodes, src for edges, & (n - 1), n from
     utils.common.unit_blocks on the community's rows and `cap`), its k = log2 n bits reversed. A block of any split
-    n_r <= n is then one contiguous _blk range (blk_range). Track B P4b (docs/trackB_storage_layout.md); a bit-reversed
+    n_r <= n is then one contiguous _blk range (blk_range). A bit-reversed
     key is enough here because Phase 3b filters edges on src only. Returns (nodes, edges, units at this cap)."""
     from pyspark.sql import functions as F
     from pipeline.utils.common import unit_blocks
@@ -162,7 +162,7 @@ def blk_range(b, n_r, n_w):
 def sqrt_rg_mb(table_bytes, units, beta_mb=0.6, floor_mb=0.0):
     """Row-group size (MB, a power of two >= 1/4) from the √ rule s* = √(β T / (2 U)) (Track B P2: regret <= 1.46 on
     8 stores at every emulated latency). β = per-row-group overhead in bytes, about 0.6 MB locally. floor_mb > 0 is
-    the bounded √ rule max(s*, floor): small row groups cost one GET each at ~20 ms on S3 (advisor 2026-10-31)."""
+    the bounded √ rule max(s*, floor): small row groups cost one GET each at ~20 ms on S3."""
     import math
     s = math.sqrt(beta_mb * (table_bytes / (1 << 20)) / (2 * max(1, units)))
     return max(floor_mb, max(0.25, 2.0 ** round(math.log2(s))) if s > 0 else 0.25)

@@ -101,7 +101,7 @@ def spark_resources(sc):
 
 
 def yarn_workers(builder, n, memory="4g", overhead="1536m"):
-    """A SparkSession builder for n workers on YARN (AWS validation, advisor 2026-11-11): n executors x 1 core x 4 GB,
+    """A SparkSession builder for n workers on YARN (AWS validation): n executors x 1 core x 4 GB,
     one torch / BLAS thread each. EMR turns dynamic allocation on by default, so the count is pinned, and the first
     job waits until all n executors are up. The 1.5 GB overhead makes a container 5.5 GB, so YARN fits at most 4 on
     an m5.2xlarge (24 GB of YARN memory, 4 physical cores). Executors import the repo from the driver's PYTHONPATH."""
