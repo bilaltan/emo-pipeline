@@ -25,6 +25,11 @@ The code imports the repository as the package `pipeline`, a symlink to the repo
 runs a command in the micromamba environment `lakegrl` (`~/mamba/envs/lakegrl`) with this symlink, Java and Spark set
 up, and writes the Delta tables under `$LAKEGRL_STORE` (default `~/lakegrl/store`). On Windows, run it in WSL.
 
+Phase 0 reads the raw datasets from `$DATA_ROOT/raw` (default `/mnt/c/data/raw`): the OGB graphs in `ogb/` (the
+`ogb` package downloads them there on first use) and Reddit as the DGL-format `reddit/reddit_data.npz` and
+`reddit/reddit_graph.npz`. Phase 1's optional METIS mode (`phases/metis_runner.py`) also needs DGL; the paper does
+not use it.
+
 LakeGRL on one dataset (`ogbn-arxiv`, `reddit` or `ogbn-products`), as in Table B row 5:
 
 ```bash
