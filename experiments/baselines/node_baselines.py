@@ -13,7 +13,7 @@ communities (>= --min-size members) get rows 0..K-1, every other vertex (minor, 
 
 Model, training and selection match Phase 3b: 2-layer mean SAGE (PyG SAGEConv parametrisation) + linear head,
 L2-normalised features, Adam, the settings in experiment_config.TRAIN, and the best-validation checkpoint
-(checked on the full graph every max(1, epochs // 40) epochs, no early stop). Reads the Track A cache
+(checked on the full graph every max(1, epochs // 40) epochs, no early stop). Reads the experiments/trackA cache
 (experiments/trackA/export_cache.py), so graph, features and split are the ones the pipeline used.
 
     bash scripts/wsl_run.sh python experiments/baselines/node_baselines.py --dataset ogbn-arxiv-lp --method full
@@ -181,7 +181,7 @@ def main(argv=None):
     ap = argparse.ArgumentParser()
     ap.add_argument("--dataset", required=True, help="store name, e.g. ogbn-arxiv-lp")
     ap.add_argument("--method", default="full", choices=["full", "cluster"])
-    ap.add_argument("--alg", default="louvain", help="only names the Track A cache directory")
+    ap.add_argument("--alg", default="louvain", help="only names the experiments/trackA cache directory")
     ap.add_argument("--cache", default=None, help="cache directory (default $LAKEGRL_STORE/<dataset>/trackA_<alg>)")
     ap.add_argument("--seeds", default=",".join(map(str, TRAIN["seeds"])))
     ap.add_argument("--epochs", type=int, default=TRAIN["epochs"])
@@ -204,7 +204,7 @@ def main(argv=None):
     device = torch.device(args.device)
     # Cluster-GCN takes thousands of Adam steps; the moments of zero-gradient weights then decay into denormals and
     # CPU math on them is several times slower (arxiv, 30 epochs: 128.5 s vs 71.2 s, identical accuracy). Every CPU
-    # trainer flushes them: these baselines, Phase 3b and DistDGL.
+    # trainer flushes them: these baselines and Phase 3b.
     torch.set_flush_denormal(True)
     code = git_hash()
     t0 = time.time()

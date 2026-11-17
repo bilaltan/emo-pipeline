@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Track A harness: score link prediction for every method on one shared held-out split.
+Score link prediction for every method on one shared held-out split.
 
 Reads the cache from export_cache.py.
 

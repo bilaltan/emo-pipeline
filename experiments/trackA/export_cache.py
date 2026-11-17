@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """
-Track A: export one dataset's Delta tables (Phases 0-2 output) to a numpy cache.
+Export one dataset's Delta tables (Phases 0-2 output) to a numpy cache for link prediction.
 
-Every Track A method then trains and scores from the same arrays, so differences between methods
+Every link-prediction method then trains and scores from the same arrays, so differences between methods
 come from the method, not from data loading. Reads the current Delta snapshot's Parquet files
 directly with pyarrow from the store (local disk or S3, utils/store_io.py), without Spark.
 

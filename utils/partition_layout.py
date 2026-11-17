@@ -160,7 +160,7 @@ def blk_range(b, n_r, n_w):
 
 
 def sqrt_rg_mb(table_bytes, units, beta_mb=0.6, floor_mb=0.0):
-    """Row-group size (MB, a power of two >= 1/4) from the √ rule s* = √(β T / (2 U)) (Track B P2: regret <= 1.46 on
+    """Row-group size (MB, a power of two >= 1/4) from the √ rule s* = √(β T / (2 U)) (regret <= 1.46 on
     8 stores at every emulated latency). β = per-row-group overhead in bytes, about 0.6 MB locally. floor_mb > 0 is
     the bounded √ rule max(s*, floor): small row groups cost one GET each at ~20 ms on S3."""
     import math
@@ -276,7 +276,7 @@ def _hits(want, lo, hi):
 def unit_dataset(dataset, comm_ids, predicate=None, col="community_id"):
     """The dataset restricted to the files and row groups whose `col` statistics can hold one of comm_ids.
 
-    pyarrow's isin scan does not skip files or row groups by their statistics (Track B, arxiv/LPA: the units read
+    pyarrow's isin scan does not skip files or row groups by their statistics (ogbn-arxiv with LPA communities: the units read
     87 GB of a 0.24 GB range table, 52 GB with hive_merged), so the reader skips them itself. predicate (the scan
     filter) first prunes partition directories; without it a partitioned dataset is returned as it is, since every
     footer would have to be read. Each file's footer is read once per process and cached; row groups without

@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 Measure the reuse-aware halo layout against Phase 2's full materialized
-halo, with identical node rows per unit. Built from a Track A cache (x, comm, halo); pyarrow only, as Phase 3b's loader.
+halo, with identical node rows per unit. Built from an experiments/trackA cache (x, comm, halo); pyarrow only, as Phase 3b's loader.
 
   full        one table of (id, unit, features), members + every halo row, sorted by (unit, id) (Phase 2 as written)
   hybrid(B)   the same table without the halo vertices of reuse > B; those go once into a hot table (id, features)

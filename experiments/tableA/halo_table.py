@@ -2,7 +2,7 @@
 """
 Table A's halo sub-table (plan: "LakeGRL Table A plan"): 1-hop uncapped vs capped halo on a link-prediction store.
 
-The units and halos are Track A's own (harness.unit_layout: members + every 1-hop neighbour, or at most --budget x
+The units and halos are the link-prediction harness's own (harness.unit_layout: members + every 1-hop neighbour, or at most --budget x
 members of them, those with the most edges into the unit), so the AUC runs (harness M2 with and without
 --halo-budget) train on exactly these rows. Each variant is written as one (id, unit, features) table sorted by
 (unit, id) with the sqrt-rule row group (bounded below by --rg-floor-mb), then every unit is read through the S3

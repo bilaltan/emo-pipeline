@@ -108,7 +108,7 @@ def table(ds, writes, reads, out_dir, runs, out=None):
 
 
 def halo_table(halo, auc):
-    """Halo sub-table: halo_table.py's storage and cold read (latest per dataset and variant) with Track A M2's
+    """Halo sub-table: halo_table.py's storage and cold read (latest per dataset and variant) with the link-prediction harness's M2
     cross-community link AUC over seeds (harness.py records, matched to the variant by halo_rows)."""
     lines = ["| Dataset | Halo | Units | Halo rows | Stored (GB) | Read (GB), GETs | AUC cross, global negatives | "
              "AUC cross, matched negatives | Seeds |", "| --- | --- | --- | --- | --- | --- | --- | --- | --- |"]

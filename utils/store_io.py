@@ -6,7 +6,7 @@ Nothing else changes between the two.
 Metering (emu, run_phase3b's s3_emu, from parse_emu) wraps that store so every read call on a data file is counted as
 one GET with its bytes. pyarrow issues the same calls against S3 (footer, then column-chunk ranges, each one ranged
 GET), so the counts are pyarrow's own; HEAD and LIST requests are not counted. With a latency and bandwidth each GET
-also waits latency + bytes / bandwidth, which emulates S3 on a local store (Track B's s3_emu_bench model: the latency
+also waits latency + bytes / bandwidth, which emulates S3 on a local store (the model of experiments/trackB/s3_emu_bench.py: the latency
 and bandwidth are assumptions, not measurements of S3). On a real S3 store only counting is allowed, since its GETs
 already pay real latency. Metered reads pass through Python, one read at a time per file, so a timing run on S3
 reads without metering and a separate run counts.

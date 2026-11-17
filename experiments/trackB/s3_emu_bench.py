@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """
-Phase 3b's per-unit reads against an emulated object store (Track B P7: what the read savings are worth off local disk).
+Phase 3b's per-unit reads against an emulated object store (what the read savings are worth off local disk).
 
-Local disk plus the page cache hides bytes and requests (P3: 0.35x the bytes, same wall time). Here every read call
+Local disk plus the page cache hides bytes and requests (locally, 0.35x the bytes took the same wall time). Here every read call
 on a data file is one GET: it is counted and pays --latency-ms plus its bytes at --mbps, like a range GET to S3
 from the same region. pyarrow issues the same calls it would issue to S3 (footer, then column-chunk ranges), so the
 request counts are pyarrow's own; latency and bandwidth are parameters, not measurements of S3. No outside service
@@ -13,7 +13,7 @@ Phase 3b bins are derived from the table. Per mode (unit, p3b_bins, and *_pruned
 it records the cold pass (every process starts without footers) and the warm passes (footers cached in each worker,
 as Spark's reused Python workers keep them), GETs, bytes, and per-unit checksums against a plain local read.
 Mode blocks reads Phase 3b's work items with the --cap block split (community, block of id & (n-1)), one read per
-item as the direct loader does. If the table has a _blk column (P4b block-ordered write, rg_resize --block-cap), the
+item as the direct loader does. If the table has a _blk column (Phase 2's block-ordered write), the
 scan also gets the implied conjunct _blk == block, which row-group statistics can decide; the checksums are compared
 against a plain read without it. --write-cap reads a table blocked for another cap (the plan changed after the
 write): the conjunct becomes the _blk values that can hold the block's rows (n_w, the cross-block edge bucket, when

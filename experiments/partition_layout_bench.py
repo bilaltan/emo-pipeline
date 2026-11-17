@@ -13,7 +13,7 @@ Physical layout of the materialized partition table (Phase 2's p2_nodes / p2_edg
                several communities
   hive_merged_size  (optional) as hive_merged, but also packs communities whose
                data is below --merge-min-mb, not only minor ones
-  hive_bin     (optional, Track B P4) .partitionBy("storage_part") with one directory
+  hive_bin     (optional) .partitionBy("storage_part") with one directory
                per Phase 3b bin (phase3b_bins): a bin's task reads one directory.
                Same as hive while communities <= 2000 (one community per bin). hive_bin_rg: with
                --rg-mb row groups (hive_bin keeps the 128 MB default)

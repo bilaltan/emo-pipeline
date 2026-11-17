@@ -278,7 +278,7 @@ def main():
     ap.add_argument("--dataset", default="DeezerEurope",
                     choices=["DeezerEurope", "WikiCS", "Coauthor-CS",
                              "Coauthor-Physics", "ogbn-arxiv", "reddit", "ogbn-products", "ogbn-mag"])
-    # Track A: hold out N val and N test undirected edges before Phase 0; tables are stored
+    # Link prediction: hold out N val and N test undirected edges before Phase 0; tables are stored
     # as <dataset>-lp so they never mix with the full graph's tables.
     ap.add_argument("--link-split", type=int, default=0, metavar="N")
     ap.add_argument("--link-seed", type=int, default=0)
@@ -286,7 +286,7 @@ def main():
                     help="random: stratified 60/20/20 per class instead of the dataset's split (store <dataset>-rand)")
     # Phase 4's link baseline uses its own split, so it is opt-in; baselines have their own scripts.
     ap.add_argument("--stop-after", default="3b", choices=["2", "3", "3b", "4"],
-                    help="last phase to run (Track A runs Phases 0-2 once, then its own harness)")
+                    help="last phase to run (link prediction runs Phases 0-2 once, then experiments/trackA/harness.py)")
     # drop (CaaN, default): communities below --min-size leave the units and Stage 3b scores their nodes with
     # CaaN's global model (super-nodes + minor nodes); misc packs them into shared bins; keep makes each a unit.
     ap.add_argument("--tiny-comm", default="drop", choices=["drop", "misc", "keep"])
@@ -344,7 +344,7 @@ def main():
     # community_id) or hive_merged (small communities packed into shared partitions).
     ap.add_argument("--p2-layout", default="range", choices=["range", "hive", "hive_merged"])
     ap.add_argument("--merge-target-rows", type=int, default=250_000)
-    # Track B storage layout of the Phase 2 tables (physical only: every unit reads the same rows).
+    # Storage layout of the Phase 2 tables (physical only: every unit reads the same rows).
     # Row group in MB, or auto = the sqrt rule from table size and unit count (0: Spark's 128 MB default).
     ap.add_argument("--p2-rg-mb", default="auto")
     # Table A row 8b (Table B rows 3-5): --p2-layout hive_merged --p2-rg-floor-mb 2 --p2-one-file

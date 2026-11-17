@@ -145,7 +145,7 @@ def _load_communities_data_batch(nodes_url, edges_url, comm_ids, block=None, n_b
             _base = unit_filter(layout["nodes"], comm_ids, layout.get("comm_to_part"))
         else:
             nodes_ds = _get_dataset(nodes_url)
-        # range layout: only the files whose community_id stats can hold the units (Track B, 13-20x on arxiv/LPA)
+        # range layout: only the files whose community_id stats can hold the units (13-20x on ogbn-arxiv with LPA communities)
         nodes_ds = unit_dataset(nodes_ds, comm_ids, _base)
         _f = _base if _mask is None else (
             _base & (pc.bit_wise_and(ds.field("id"), _mask) == int(block)))
@@ -735,7 +735,7 @@ def make_caan_udf(super_nodes_dict_bc, minor_node_to_idx_bc, minor_feats_arr_bc,
             torch.set_num_threads(omp_threads)
         except Exception:
             pass
-        torch.set_flush_denormal(True)   # every CPU trainer does (Cluster-GCN, DistDGL): denormals cost ~10x
+        torch.set_flush_denormal(True)   # every CPU trainer does (also Cluster-GCN): denormals cost ~10x
         
         t_start = time.time()
         comm_id = int(pdf['community_id'].iloc[0])
