@@ -27,8 +27,9 @@ store=${LAKEGRL_STORE:-$HOME/lakegrl/store}; cache=$store/$ds/tableB_full
 # The 11-03 memory reruns (advisor: 1- vs 8-worker GPU peak, host without the JVM) run seed 0 only into their own
 # TB_OUT: TB_SEEDS (default 0 1 2), TB_REUSE_P1=1 keeps Phase 1 for seed 0 too, TB_READS=0 skips the cold reads.
 # TB_ROWS (default 5 4 3) and TB_ARGS (more run_local_pipeline.py arguments): the runtime breakdown run (row 5,
-# --p2-time-split).
+# --p2-time-split). TB_CMAX (default 10000): --c-max (the C_max sweep, advisor 2026-11-19: row 5, 5,000-40,000).
 cores=${TB_CORES:-8}
+cmax=${TB_CMAX:-10000}
 
 if [ -z "$TB_PIPELINE_ONLY" ]; then
   $PY experiments/tableB/read_full.py --dataset "$ds" --store "$store" --out $O/read_full.jsonl
@@ -44,13 +45,13 @@ declare -A ROW=([5]="--unit-split leiden --tiny-comm drop" [4]="--unit-split idm
 for r in ${TB_ROWS:-5 4 3}; do
   for s in ${TB_SEEDS:-0 1 2}; do
     reuse=""; [ $s -gt 0 ] || [ -n "$TB_REUSE_P1" ] && reuse=--reuse-phase1   # Phase 1 is seeded (42): the same units for every seed
-    $PEAK "$ds row$r seed$s" $PY scripts/run_local_pipeline.py --dataset "$ds" --alg leiden ${ROW[$r]} --c-max 10000 \
+    $PEAK "$ds row$r seed$s" $PY scripts/run_local_pipeline.py --dataset "$ds" --alg leiden ${ROW[$r]} --c-max $cmax \
       --p2-layout hive_merged --p2-rg-floor-mb 2 --p2-one-file --s3-emu count --device cuda --cores $cores \
       --driver-mem 16g --seed $s $reuse $TB_ARGS --work-out $O/work/${ds}_row$r.json --json-out $O/pipeline.jsonl
     if [ $s = 0 ] && [ "${TB_READS:-1}" = 1 ]; then
       $PY experiments/tableB/read_units.py --work $O/work/${ds}_row$r.json --row $r --dataset "$ds" \
         --out $O/read_units.jsonl
-      tag=leiden_c10000; [ $r = 4 ] && tag=leiden   # idmod units: Phase 1 without the recursive split
+      tag=leiden_c$cmax; [ $r = 4 ] && tag=leiden   # idmod units: Phase 1 without the recursive split
       [ $r = 3 ] || $PY experiments/tableB/read_full.py --dataset "$ds" --store "$store" --row "$r global" \
         --tables p2_macro_nodes/$tag p2_macro_edges/$tag communities/$tag p2_unit_plan/$tag \
         --out $O/read_full.jsonl

@@ -307,7 +307,7 @@ def main():
     ap.add_argument("--stage3a", action="store_true", help="also run Stage 3a (units without context)")
     ap.add_argument("--stage3a-halo", action="store_true", help="run Stage 3a with messages from the 1-hop halo")
     ap.add_argument("--model", default="sage",
-                    choices=["sage", "gatv2", "gat", "transformer", "arma", "asap"])
+                    choices=["sage", "gcn", "gatv2", "gat", "transformer", "arma", "asap"])
     ap.add_argument("--min-size", type=int, default=100)
     ap.add_argument("--c-max", "--max-nodes", dest="max_nodes", type=int, default=C_MAX,
                     help="Maximum Unit Capacity: rows per unit, members + 1-hop halo")

@@ -19,13 +19,14 @@ host() {
 }
 gmax=$(nvidia-smi --query-gpu=memory.total --format=csv,noheader,nounits | head -1)
 trace=${out%.jsonl}_trace/${label// /_}.tsv; mkdir -p "$(dirname "$trace")"; : > "$trace"
-g0=$(smi); pg=$g0; ph=0; pj=0; pp=0; ps_=0; t0=$(date +%s)
+g0=$(smi); pg=$g0; full=0; ph=0; pj=0; pp=0; ps_=0; t0=$(date +%s)
 setsid "$@" &   # no job control here, so setsid needs no fork: the session id is $!
 pid=$!
 while kill -0 $pid 2>/dev/null; do
   g=$(smi); [ "${g:-0}" -gt "$pg" ] && pg=$g
-  # a full card spills into Windows memory (sysmem fallback): slow training, and it ran the commit charge out on 11-03
-  if [ "${g:-0}" -ge $(( gmax - 1024 )) ]; then echo "peak.sh: GPU full (${g} of ${gmax} MB), stopping $label"; pkill -9 -s $pid; fi
+  # a full card spills into Windows memory (sysmem fallback): slow training, and it ran the commit charge out on 11-03.
+  # So CUDA never reports out of memory here; gpu_full = 1 in the record is this job's OOM on the 24 GB card
+  if [ "${g:-0}" -ge $(( gmax - 1024 )) ]; then echo "peak.sh: GPU full (${g} of ${gmax} MB), stopping $label"; full=1; pkill -9 -s $pid; fi
   read -r h j p s <<< "$(host $pid)"
   [ "${h:-0}" -gt "$ph" ] && ph=$h; [ "${j:-0}" -gt "$pj" ] && pj=$j
   [ "${p:-0}" -gt "$pp" ] && pp=$p; [ "${s:-0}" -gt "$ps_" ] && ps_=$s
@@ -33,6 +34,6 @@ while kill -0 $pid 2>/dev/null; do
   sleep 1
 done
 wait $pid; rc=$?
-printf '{"time": "%s", "label": "%s", "rc": %d, "wall_s": %d, "gpu_idle_mb": %d, "peak_gpu_mb": %d, "peak_host_mb": %d, "peak_host_jvm_mb": %d, "peak_host_py_mb": %d, "peak_host_py_pss_mb": %d}\n' \
-  "$(date '+%F %T')" "$label" $rc $(( $(date +%s) - t0 )) "$g0" $(( pg - g0 )) "$ph" "$pj" "$pp" "$ps_" >> "$out"
+printf '{"time": "%s", "label": "%s", "rc": %d, "wall_s": %d, "gpu_idle_mb": %d, "peak_gpu_mb": %d, "peak_host_mb": %d, "peak_host_jvm_mb": %d, "peak_host_py_mb": %d, "peak_host_py_pss_mb": %d, "gpu_full": %d}\n' \
+  "$(date '+%F %T')" "$label" $rc $(( $(date +%s) - t0 )) "$g0" $(( pg - g0 )) "$ph" "$pj" "$pp" "$ps_" $full >> "$out"
 exit $rc

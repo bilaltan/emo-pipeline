@@ -7,6 +7,10 @@ Single-GPU baselines for node classification, both on the same model and setting
            vertices; each step trains on the subgraph induced by --parts-per-batch random parts, and an epoch
            visits every part once (defaults 150 / 20: the paper's Reddit setting, 1,500 parts of 233K vertices)
 
+--model gcn / gatv2 (full only; advisor 2026-11-19, model agnosticism): utils/backbones.py, the same layers the Stage 3b
+units and their global model train (run_local_pipeline.py --model), on the same graph input (both directions,
+deduplicated, no self-loops). GraphSAGE (default) is unchanged.
+
 --communities (full only; advisor 2026-11-13, the community-ID ablation for reviewer 3): a learned --comm-dim
 embedding of each vertex's Phase 1 community is concatenated to its features, x~ = [x || E[c(v)]]: major
 communities (>= --min-size members) get rows 0..K-1, every other vertex (minor, isolated) row K.
@@ -37,6 +41,7 @@ sys.path.insert(0, REPO)
 sys.path.insert(0, os.path.join(REPO, "experiments", "trackA"))
 from experiment_config import TRAIN  # noqa: E402
 from harness import SAGE, git_hash, mean_adj  # noqa: E402
+from pipeline.utils.backbones import Backbone, backbone_adj  # noqa: E402
 
 
 class Net(nn.Module):
@@ -131,12 +136,15 @@ def cluster_batches(edges, n, n_parts, per_batch, device):
     return epoch, part_s
 
 
-def train_eval(x, y, split, A, seed, cfg, device, batches=None, comm=None, comm_dim=16):
+def train_eval(x, y, split, A, seed, cfg, device, batches=None, comm=None, comm_dim=16, kind="sage"):
     """Returns (best val acc, test acc at that checkpoint, train seconds). batches: None = full-batch,
-    else cluster_batches' epoch function. comm: Net's community embedding rows (full-batch only)."""
+    else cluster_batches' epoch function. comm: Net's community embedding rows (full-batch only). kind: sage, or a
+    utils/backbones.py model (gcn, gatv2) on backbone_adj's A."""
     torch.manual_seed(seed)
     rng = np.random.default_rng(seed)
-    model = Net(x.shape[1], cfg["hidden_dim"], int(y.max()) + 1, cfg["dropout"], comm, comm_dim).to(device)
+    nc = int(y.max()) + 1
+    model = (Net(x.shape[1], cfg["hidden_dim"], nc, cfg["dropout"], comm, comm_dim) if kind == "sage"
+             else Backbone(kind, x.shape[1], cfg["hidden_dim"], nc, cfg["dropout"])).to(device)
     opt = torch.optim.Adam(model.parameters(), lr=cfg["lr"], weight_decay=cfg["weight_decay"])
     tr, va, te = (torch.from_numpy(split == k).to(device) for k in (0, 1, 2))
 
@@ -181,6 +189,7 @@ def main(argv=None):
     ap = argparse.ArgumentParser()
     ap.add_argument("--dataset", required=True, help="store name, e.g. ogbn-arxiv-lp")
     ap.add_argument("--method", default="full", choices=["full", "cluster"])
+    ap.add_argument("--model", default="sage", choices=["sage", "gcn", "gatv2"], help="full only: gcn, gatv2")
     ap.add_argument("--alg", default="louvain", help="only names the Track A cache directory")
     ap.add_argument("--cache", default=None, help="cache directory (default $LAKEGRL_STORE/<dataset>/trackA_<alg>)")
     ap.add_argument("--seeds", default=",".join(map(str, TRAIN["seeds"])))
@@ -197,6 +206,8 @@ def main(argv=None):
     args = ap.parse_args(argv)
     if args.communities and args.method != "full":
         ap.error("--communities needs --method full")
+    if args.model != "sage" and (args.method != "full" or args.communities):
+        ap.error("--model gcn / gatv2 needs --method full without --communities")
 
     cache = args.cache or os.path.join(os.environ.get("LAKEGRL_STORE", "data/.local_pipeline"),
                                        args.dataset, f"trackA_{args.alg}")
@@ -213,7 +224,8 @@ def main(argv=None):
         meta = json.load(fh)
     n = len(split)
     x, y = x.to(device), y.to(device)
-    A = mean_adj(n, edges[0], edges[1], device)
+    A = (mean_adj(n, edges[0], edges[1], device) if args.model == "sage"
+         else backbone_adj(args.model, edges[0], edges[1], n).to(device))
     load_s = time.time() - t0
     extra, batches = {}, None
     if args.method == "cluster":
@@ -232,9 +244,9 @@ def main(argv=None):
     for seed in [int(s) for s in args.seeds.split(",")]:
         if device.type == "cuda":
             torch.cuda.reset_peak_memory_stats()
-        val, test, train_s = train_eval(x, y, split, A, seed, cfg, device, batches, comm, args.comm_dim)
-        name = {"full": "full_graph_sage", "cluster": "cluster_gcn"}[args.method] + ("_commid" if comm else "")
-        rec = {"dataset": args.dataset, "baseline": name,
+        val, test, train_s = train_eval(x, y, split, A, seed, cfg, device, batches, comm, args.comm_dim, args.model)
+        name = {"full": f"full_graph_{args.model}", "cluster": "cluster_gcn"}[args.method] + ("_commid" if comm else "")
+        rec = {"dataset": args.dataset, "baseline": name, "model": args.model,
                "task": "node_classification", "seed": seed, "train": dict(cfg, seed=seed), **extra,
                "git": code, "cache": cache, "n_nodes": n, "n_edges_undirected": int(edges.shape[1]),
                "n_test": int((split == 2).sum()), "val_acc": val, "test_acc": test,

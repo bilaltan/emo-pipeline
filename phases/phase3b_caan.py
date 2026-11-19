@@ -316,7 +316,7 @@ def _train_minor_global_caan(dataset, gcn_cfg, dataset_cfg, caan_components, mod
         import dgl  # noqa: F401
     except ImportError:
         dgl = None  # no DGL wheel here: SAGE runs on PyG, as in the units
-    is_pyg = (model_type in ('gat', 'gatv2', 'transformer', 'clusterscl', 'arma', 'asap')) or dgl is None
+    is_pyg = (model_type in ('gat', 'gatv2', 'gcn', 'transformer', 'clusterscl', 'arma', 'asap')) or dgl is None
     if is_pyg:
         import torch_geometric
         pyg_edge_index = torch.stack([
@@ -353,20 +353,9 @@ def _train_minor_global_caan(dataset, gcn_cfg, dataset_cfg, caan_components, mod
         opt = torch.optim.Adam(model.parameters(), lr=lr, weight_decay=weight_decay)
         crit = nn.CrossEntropyLoss()
 
-    elif model_type == 'gatv2':
-        from torch_geometric.nn import GATv2Conv
-        class GATv2Net(nn.Module):
-            def __init__(self, in_f, h, nc, num_heads=8):
-                super().__init__()
-                self.c1 = GATv2Conv(in_f, h // num_heads, heads=num_heads, dropout=dropout)
-                self.c2 = GATv2Conv(h, nc, heads=1, concat=False, dropout=dropout)
-                self.dr = nn.Dropout(dropout)
-            def forward(self, x, edge_index):
-                x = F.elu(self.c1(x, edge_index))
-                x = self.dr(x)
-                x = self.c2(x, edge_index)
-                return x
-        model = GATv2Net(feat_arr.shape[1], hidden_dim, num_classes)
+    elif model_type in ('gcn', 'gatv2'):   # the units' and the full-graph baseline's layers (graph as SAGE's here)
+        from pipeline.utils.backbones import Backbone
+        model = Backbone(model_type, feat_arr.shape[1], hidden_dim, num_classes, dropout)
         opt = torch.optim.Adam(model.parameters(), lr=lr, weight_decay=weight_decay)
         crit = nn.CrossEntropyLoss()
 
@@ -984,7 +973,7 @@ def make_caan_udf(super_nodes_dict_bc, minor_node_to_idx_bc, minor_feats_arr_bc,
 
         # GPU units run PyG, the baselines' SAGE: the worker shim above puts /tmp/.local first on sys.path, where
         # Phase 3's runtime pip install leaves DGL 1.1.3
-        is_pyg = (model_type in ('gat', 'gatv2', 'transformer', 'clusterscl', 'arma', 'asap') or dgl is None
+        is_pyg = (model_type in ('gat', 'gatv2', 'gcn', 'transformer', 'clusterscl', 'arma', 'asap') or dgl is None
                   or device != 'cpu')
         if is_pyg:
             import torch_geometric
@@ -997,6 +986,9 @@ def make_caan_udf(super_nodes_dict_bc, minor_node_to_idx_bc, minor_feats_arr_bc,
                 # edges x features message tensor, ~20 GB on Reddit's densest units (11-03). mp is symmetric, deduplicated.
                 # CPU units too since 11-11 (AWS validation): 5.9x faster on one thread, same loss to 4 decimals
                 pyg_edge_index = torch_geometric.utils.to_torch_csr_tensor(pyg_edge_index, size=(n_nodes, n_nodes))
+            elif model_type in ('gcn', 'gatv2'):   # the full-graph baseline's graph input
+                from pipeline.utils.backbones import backbone_adj
+                pyg_edge_index = backbone_adj(model_type, mp_src, mp_dst, n_nodes)
             feat_t = torch.tensor(feat_arr, dtype=torch.float32)
             lbl_t = torch.tensor(label_arr, dtype=torch.long)
         else:
@@ -1045,27 +1037,9 @@ def make_caan_udf(super_nodes_dict_bc, minor_node_to_idx_bc, minor_feats_arr_bc,
                 opt = torch.optim.Adam(model.parameters(), lr=lr, weight_decay=weight_decay)
                 crit = nn.CrossEntropyLoss()
                 
-            elif model_type == 'gatv2':
-                from torch_geometric.nn import GATv2Conv
-                class GATv2Encoder(nn.Module):
-                    def __init__(self, in_f, h, num_heads=8):
-                        super().__init__()
-                        self.c1 = GATv2Conv(in_f, h // num_heads, heads=num_heads, dropout=dropout)
-                        self.c2 = GATv2Conv(h, h, heads=1, concat=False, dropout=dropout)
-                        self.dr = nn.Dropout(dropout)
-                    def forward(self, x, edge_index):
-                        x = F.elu(self.c1(x, edge_index))
-                        x = self.dr(x)
-                        return self.c2(x, edge_index)
-                class GATv2Net(nn.Module):
-                    def __init__(self, in_f, h, nc):
-                        super().__init__()
-                        self.enc = GATv2Encoder(in_f, h)
-                        self.fc = nn.Linear(h, nc)
-                    def forward(self, x, edge_index):
-                        z = self.enc(x, edge_index)
-                        return self.fc(z)
-                model = GATv2Net(feat_arr.shape[1], hidden_dim, num_classes)
+            elif model_type in ('gcn', 'gatv2'):   # the global model's and the full-graph baseline's layers
+                from pipeline.utils.backbones import Backbone
+                model = Backbone(model_type, feat_arr.shape[1], hidden_dim, num_classes, dropout)
                 opt = torch.optim.Adam(model.parameters(), lr=lr, weight_decay=weight_decay)
                 crit = nn.CrossEntropyLoss()
 
