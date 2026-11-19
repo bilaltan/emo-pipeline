@@ -12,8 +12,8 @@ class Backbone(nn.Module):
     def __init__(self, kind, f, h, c, dropout, heads=8):
         super().__init__()
         from torch_geometric.nn import GATv2Conv, GCNConv
-        if kind == "gcn":
-            self.c1, self.c2, self.act = GCNConv(f, h), GCNConv(h, h), F.relu
+        if kind == "gcn":   # on backbone_adj's normalized matrix (PyG's default renormalizes A in every forward)
+            self.c1, self.c2, self.act = GCNConv(f, h, normalize=False), GCNConv(h, h, normalize=False), F.relu
         elif kind == "gatv2":   # the units' GATv2 since the first code: 8 heads of h / 8, then one head of h
             self.c1 = GATv2Conv(f, h // heads, heads=heads, dropout=dropout)
             self.c2 = GATv2Conv(h, h, heads=1, concat=False, dropout=dropout)
@@ -30,13 +30,18 @@ class Backbone(nn.Module):
 
 
 def backbone_adj(kind, src, dst, n):
-    """Backbone's graph input from an edge list over vertices < n: both directions, deduplicated, no self-loops (both
-    layers add one per vertex; GCNConv on a sparse matrix would add a second). GCN gets a sparse CSR matrix (sparse
-    matmul, as the SAGE units and baseline: no edges x channels message tensor), GATv2 the edge list (its attention is
-    computed per edge)."""
-    from torch_geometric.utils import to_torch_csr_tensor
+    """Backbone's graph input from an edge list over vertices < n: both directions, deduplicated, no self-loops. GATv2
+    gets the edge list (its attention is per edge; the layer adds the self-loops). GCN gets GCN's propagation matrix
+    D^-1/2 (A + I) D^-1/2 as a sparse CSR matrix, computed once here: sparse matmul as the SAGE units and baseline
+    (no edges x channels message tensor); PyG's in-layer normalization of ogbn-products' 126M entries in every
+    forward filled the 24 GB card on 2026-11-19, the same math."""
     from pipeline.utils.common import undirected
     s, d = undirected(src, dst, n)
     keep = s != d
-    ei = torch.from_numpy(np.stack([s[keep], d[keep]]))
-    return to_torch_csr_tensor(ei, size=(n, n)) if kind == "gcn" else ei
+    s, d = s[keep], d[keep]
+    if kind != "gcn":
+        return torch.from_numpy(np.stack([s, d]))
+    s, d = np.concatenate([s, np.arange(n)]), np.concatenate([d, np.arange(n)])
+    deg = np.bincount(s, minlength=n).astype(np.float32)   # symmetric: row = column degree, >= 1 with the self-loop
+    w = (deg[s] ** -0.5 * deg[d] ** -0.5).astype(np.float32)
+    return torch.sparse_coo_tensor(torch.from_numpy(np.stack([s, d])), torch.from_numpy(w), (n, n)).coalesce().to_sparse_csr()

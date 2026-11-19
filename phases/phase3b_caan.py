@@ -323,6 +323,9 @@ def _train_minor_global_caan(dataset, gcn_cfg, dataset_cfg, caan_components, mod
             torch.tensor(src_l_g, dtype=torch.long),
             torch.tensor(dst_l_g, dtype=torch.long)
         ], dim=0)
+        if model_type == 'gcn':   # GCN's normalized matrix, as the units and the full-graph baseline
+            from pipeline.utils.backbones import backbone_adj
+            pyg_edge_index = backbone_adj('gcn', src_l_g, dst_l_g, n_nodes)
         feat_t = torch.tensor(feat_arr, dtype=torch.float32)
         lbl_t = torch.tensor(label_arr, dtype=torch.long)
     else:
