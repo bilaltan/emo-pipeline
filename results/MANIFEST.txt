@@ -40,3 +40,11 @@
 4_aws_emr/node_scaling/logs/nodes1.log  <-  results/aws/nodes/logs/nodes1.log  (all 272 lines)
 4_aws_emr/node_scaling/logs/nodes2.log  <-  results/aws/nodes/logs/nodes2.log  (all 273 lines)
 4_aws_emr/node_scaling/logs/nodes4.log  <-  results/aws/nodes/logs/nodes4.log  (all 275 lines)
+layout_checks/write.jsonl  <-  results/layout_checks/write.jsonl  (all 4 lines)
+layout_checks/read.jsonl  <-  results/layout_checks/read.jsonl  (all 9 lines)
+layout_checks/read_full20.jsonl  <-  results/layout_checks/read_full20.jsonl  (all 6 lines)
+layout_checks/rg_sizes.jsonl  <-  results/layout_checks/rg_sizes.jsonl  (all 16 lines)
+layout_checks/tableA_ogbn-products.md  <-  results/layout_checks/tableA_ogbn-products.md  (all 7 lines)
+layout_checks/tableA_ogbn-products_full20.md  <-  results/layout_checks/tableA_ogbn-products_full20.md  (all 7 lines)
+lp_m0/m0.jsonl  <-  results/lp_m0/m0.jsonl  (all 6 lines)
+layout_checks/README.md, lp_m0/README.md: written for this copy

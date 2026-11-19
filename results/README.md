@@ -1,6 +1,7 @@
 # Result records behind the paper
 
-Only the records that produce the numbers of Section 4 (Tables 2-6 and their text), in one folder per subsection.
+Only the records that produce the numbers of Section 4 (Tables 2-7 and their text), in one folder per subsection;
+`layout_checks/` and `lp_m0/` hold rows that were added to Tables 3 and 5 later.
 `MANIFEST.txt` lists where each file was written by the scripts and which superseded records were left out.
 Every number is the mean ± sample standard deviation (n - 1) over seeds 0-2 or over 3 cold runs, and every record
 states its Spark executors x cores (`spark_executors`, `spark_executor_cores`) or its reader count (`procs`).
@@ -14,7 +15,12 @@ python results/verify_numbers.py      # prints OK / DIFF per number; ends with "
 Table paths inside the records were written on the experiment machines; the user's home folder is shown as
 `/home/user` and the code folder on EMR as `/opt/lakegrl/lakegrl-code`. Nothing else in the records was changed.
 
-## 1_tableA_storage: Section 4.1, the storage layout ablation
+Table 2 (datasets and Phase 1 units, Section 4 setup) comes from these records too: |V| and |E| from
+`2_tableB_grl/baselines.jsonl` (`n_nodes`, `n_edges_undirected`; `pipeline.jsonl` `n_edges` = 2|E|, the rows of the
+edge table), classes from `pipeline.jsonl`, features from `3_halo_and_preproc/halo_auc.jsonl` (ogbn-arxiv: 128, the
+dataset's own), units from the Phase 2 records of `1_tableA_storage/write.jsonl` and `unit_probe.jsonl`.
+
+## 1_tableA_storage: Section 4.1, the storage layout ablation (Table 3)
 
 | File | Contents |
 |---|---|
@@ -29,7 +35,7 @@ Table paths inside the records were written on the experiment machines; the user
 Rows 4-5 (Z-order, Liquid clustering) use 3 readers: a single reader of these layouts needs up to 7.2 GB. On
 ogbn-products they read every tenth work item (`bin_sample` = 10), and their time and bytes are scaled by 10.
 
-## 2_tableB_grl: Section 4.2, node classification (Table 3, its footnote, the community-ID paragraph)
+## 2_tableB_grl: Section 4.2, node classification (Table 4, its footnote, the community-ID paragraph)
 
 | File | Contents |
 |---|---|
@@ -46,7 +52,7 @@ ogbn-products they read every tenth work item (`bin_sample` = 10), and their tim
 
 | File | Contents |
 |---|---|
-| `halo_storage_read.jsonl` | Halo sub-table (Table 4): rows, stored GB, cold read; also the leakage check (0 of the 100,000 held-out link pairs in any stored edge table) |
+| `halo_storage_read.jsonl` | Halo sub-table (Table 5): rows, stored GB, cold read; also the leakage check (0 of the 100,000 held-out link pairs in any stored edge table) |
 | `halo_auc.jsonl` | Link prediction cross AUC, 3 seeds x {Reddit, ogbn-products} x {uncapped, capped} |
 | `phase12_timing_parallel_split.jsonl` | Phases 1-2 with the 8-process recursive split (ogbn-products: Phase 1 1,354.7 s, Phase 2 427.5 s) |
 | `phase12_timing_sequential_split.jsonl` | The same with the sequential split |
@@ -55,8 +61,19 @@ ogbn-products they read every tenth work item (`bin_sample` = 10), and their tim
 
 | File | Contents |
 |---|---|
-| `expA_and_W_sweep/expA_read.jsonl` | Cold reads on real S3 (Table 5) |
+| `expA_and_W_sweep/expA_read.jsonl` | Cold reads on real S3 (Table 6) |
 | `expA_and_W_sweep/expB_read.jsonl`, `expB_train.jsonl` | W = 1 to 16 workers on 4 nodes (text: 11.79x training, 13.23x read) |
 | `expA_and_W_sweep/counts_local.jsonl`, `logs/smoke.log` | Spark on EMR counts the same rows as locally for all 27 tables |
-| `node_scaling/nodes_read.jsonl`, `nodes_train.jsonl` | 1, 2 and 4 core nodes x 4 workers (Table 6): cold reads (3 runs) and Stage 3, 10 epochs, seeds 0-2 |
+| `node_scaling/nodes_read.jsonl`, `nodes_train.jsonl` | 1, 2 and 4 core nodes x 4 workers (Table 7): cold reads (3 runs) and Stage 3, 10 epochs, seeds 0-2 |
 | `*/logs/`, `*/SUMMARY.md` | Step logs, and the tables as first summarized |
+
+## layout_checks: Table 3 rows 3b-5b (ogbn-products)
+
+Coarse-key Hive (unit id mod 611) and Z-order / Liquid clustering with 2 MB row groups, written from the same Phase 2
+rows and read with the same work items as rows 1-8, all three read in full with 20 readers. Also the row-group sizes
+of rows 4-5 (1 file per table, ~128 MB row groups). `layout_checks/README.md` lists the files.
+
+## lp_m0: the "full graph (M0)" rows of Table 5
+
+Full-graph GraphSAGE link prediction, 3 seeds x {Reddit, ogbn-products}, with the same test links and settings as the
+halo rows. `lp_m0/README.md` has the details.

@@ -40,8 +40,8 @@ bash scripts/wsl_run.sh python scripts/run_local_pipeline.py --dataset ogbn-arxi
 
 ## Experiments in the paper
 
-In the code, the storage layout ablation is "Table A" (`experiments/tableA/`, Table 2 of the paper) and node
-classification is "Table B" (`experiments/tableB/`, Table 3). Every timed read goes through an S3 cost model
+In the code, the storage layout ablation is "Table A" (`experiments/tableA/`, Table 3 of the paper) and node
+classification is "Table B" (`experiments/tableB/`, Table 4). Every timed read goes through an S3 cost model
 (20 ms + 80 MB/s per GET) with the page cache dropped first. `<ds>` is `ogbn-arxiv`, `reddit` or `ogbn-products`.
 
 **Section 4.1, storage layouts.** The row-group floor sweep comes first; it picked the 2 MB floor.
@@ -58,6 +58,22 @@ bash scripts/wsl_run.sh python experiments/tableA/probe_units.py <ds> --c-max 50
 ```
 
 `write_layouts.py` writes the eight layouts, `read_layouts.py` reads them, and `summary.py` builds the table.
+
+Rows 3b-5b (ogbn-products) are written from the same Phase 2 rows and read with the same work items as rows 1-8;
+`rg_sizes.py` reports the row groups of every layout:
+
+```bash
+F=~/lakegrl/tableA/rleiden_c10000_v2/ogbn-products; N=~/lakegrl/tableA/layout_checks_1118; R=results/layout_checks
+bash scripts/wsl_run.sh python experiments/tableA/write_layouts.py --dataset ogbn-products --alg leiden --cap 10000 \
+  --unit-split leiden --repeats 3 --layouts zorder_2mb liquid_2mb hive_coarse --coarse-buckets 611 --zl-rg-mb 2 \
+  --phase2-from $F/phase2 --out-dir $N --out $R/write.jsonl
+bash scripts/wsl_run.sh python experiments/tableA/rg_sizes.py --dirs $F $N/ogbn-products \
+  --layouts zorder liquid mv hive merged_blk zorder_2mb liquid_2mb hive_coarse --out $R/rg_sizes.jsonl
+bash scripts/wsl_run.sh python experiments/tableA/read_layouts.py --dataset ogbn-products --runs 3 --coalesce-minor \
+  --plan-from $F/merged --out-dir $N --out $R/read.jsonl --layouts hive_coarse                    # row 3b
+bash scripts/wsl_run.sh python experiments/tableA/read_layouts.py --dataset ogbn-products --runs 3 --coalesce-minor \
+  --plan-from $F/merged --out-dir $N --out $R/read_full20.jsonl --layouts zorder_2mb liquid_2mb   # rows 4b-5b
+```
 
 **Section 4.2, node classification.** One command per dataset runs rows 1-5 for seeds 0-2, with their cold reads
 and GPU peaks:
@@ -86,6 +102,8 @@ validation and 50,000 test edges held out before Phase 1 (`run_local_pipeline.py
 bash scripts/wsl_run.sh python experiments/tableA/halo_table.py --dataset <lp> --alg leiden_c10000 --rg-floor-mb 2
 bash scripts/wsl_run.sh python experiments/trackA/harness.py --dataset <lp> --alg leiden_c10000 --methods M2 \
   --seeds 0,1,2 --device cpu [--halo-budget 1]                              # uncapped / capped halo
+bash scripts/wsl_run.sh python experiments/trackA/harness.py --dataset <lp> --alg leiden_c10000 --methods M0 \
+  --seeds 0,1,2 --device cuda --out results/lp_m0/m0.jsonl                  # full graph (M0)
 TB_OUT=results/tableB/breakdown2 TB_ROWS=5 TB_SEEDS=0 TB_READS=0 TB_ARGS=--p2-time-split TB_PIPELINE_ONLY=1 \
   bash experiments/tableB/run.sh <ds>                                       # one-time cost of Phases 1-2
 ```

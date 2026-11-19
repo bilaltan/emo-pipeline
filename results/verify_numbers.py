@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Recompute every number of Sections 4.1-4.4 from the files in results/ and compare it with the paper's text.
+"""Recompute every number of Section 4 (setup and 4.1-4.4) from the files in results/ and compare it with the paper.
 
     python verify_numbers.py        (Python 3.8+, standard library only)
 
@@ -13,6 +13,7 @@ import statistics as st
 
 R = os.path.dirname(os.path.abspath(__file__))  # results/
 A, B, H, W = (os.path.join(R, d) for d in ("1_tableA_storage", "2_tableB_grl", "3_halo_and_preproc", "4_aws_emr"))
+L, M0 = os.path.join(R, "layout_checks"), os.path.join(R, "lp_m0")
 fails = []
 
 
@@ -34,6 +35,28 @@ def check(what, paper, got):
 def section(t):
     print(f"\n== {t}")
 
+
+# ---------------------------------------------------------------- 4 setup, Table 2
+section("4 setup, Table 2 (datasets and their Phase 1 units at C_max = 10,000)")
+g = {r["dataset"]: r for r in load(B, "baselines.jsonl") if r["baseline"] == "full_graph_sage"}
+gp = {r["dataset"]: r for r in load(B, "pipeline.jsonl")}
+fd = {r["dataset"].replace("-lp", ""): r["feat_dim"] for r in load(H, "halo_auc.jsonl")}
+p2s = {r["dataset"]: r for r in load(A, "write.jsonl") if r["kind"] == "phase2"}
+u10 = {r["dataset"]: r["units"] for r in load(A, "unit_probe.jsonl") if r["mode"] == "core" and r["c_max"] == 10000}
+paper_stats = {"ogbn-arxiv": ("169,343", "1.16M", "--", "40", "58", "99", "0"),  # 128 features: not in these records
+               "reddit": ("232,965", "57.3M", "602", "41", "61", "2", "0"),
+               "ogbn-products": ("2,449,029", "61.9M", "100", "47", "610", "4,366", "48,421")}
+for ds, (pv, pe, pf, pc, pmaj, pmin, piso) in paper_stats.items():
+    iso = p2s[ds]["communities"] - u10[ds]          # every isolated vertex is its own Phase 2 community
+    check(f"{ds} |V|", pv, f"{g[ds]['n_nodes']:,}")
+    check(f"{ds} |E| (undirected)", pe, f"{g[ds]['n_edges_undirected'] / 1e6:.3g}M")
+    check(f"{ds} T_E rows = 2|E|", True, gp[ds]["n_edges"] == 2 * g[ds]["n_edges_undirected"])
+    if pf != "--":
+        check(f"{ds} features", pf, f"{fd[ds]}")
+    check(f"{ds} classes", pc, f"{gp[ds]['n_classes']}")
+    check(f"{ds} major units", pmaj, f"{p2s[ds]['communities'] - p2s[ds]['minor']:,}")
+    check(f"{ds} minor communities (without isolated vertices)", pmin, f"{p2s[ds]['minor'] - iso:,}")
+    check(f"{ds} isolated vertices", piso, f"{iso:,}")
 
 # ---------------------------------------------------------------- 4.1 Table A
 section("4.1 Table A (ogbn-products in full; ogbn-arxiv and Reddit read time)")
@@ -131,6 +154,50 @@ check("isolated vertices (Phase 2 communities - probe units at 10,000)", "48,421
       f"{p2['ogbn-products']['communities'] - up[10000]['units']:,}")
 check("products communities / minor in Phase 2", "53,397 / 52,787",
       f"{p2['ogbn-products']['communities']:,} / {p2['ogbn-products']['minor']:,}")
+
+section("4.1 Table A rows 3b-5b (ogbn-products, results/layout_checks)")
+lw = {r["layout"]: r for r in load(L, "write.jsonl") if r["kind"] == "layout"}
+lr = {}
+for f, lays in (("read.jsonl", ("hive_coarse",)), ("read_full20.jsonl", ("zorder_2mb", "liquid_2mb"))):
+    for r in load(L, f):
+        if r["layout"] in lays:
+            lr.setdefault(r["layout"], []).append(r)
+c8b = csvs[("ogbn-products", "merged_blk")]
+need = float(c8b["bytes_gb"]) / float(c8b["amplification"])   # GB the work items need, the same rows in every layout
+paper_new = {"hive_coarse": ("33.4 ± 6.4", "1,222 (676)", "17.29 (7.9x)", "49.7 ± 0.1"),
+             "zorder_2mb": ("205.8 ± 14.5", "2 (0)", "151.7 (69x)", "164.9 ± 0.2"),
+             "liquid_2mb": ("211.6 ± 2.7", "2 (0)", "152.5 (69x)", "164.9 ± 0.1")}
+for lay, (pw, pf, pg, pr) in paper_new.items():
+    rr, sto = lr[lay], lw[lay]["storage"]
+    assert len(rr) == 3 and len(lw[lay]["write_s"]) == 3
+    gb = st.mean(r["bytes"] for r in rr) / 1e9
+    check(f"products {lay} write (s)", pw, ms(lw[lay]["write_s"]))
+    check(f"products {lay} files (<1 MB)", pf,
+          f"{sum(s['files'] for s in sto.values()):,} ({sum(s['files_lt_1mb'] for s in sto.values()):,})")
+    check(f"products {lay} read GB (ampl.)", pg,
+          f"{gb:.1f} ({gb / need:.0f}x)" if gb > 100 else f"{gb:.2f} ({gb / need:.1f}x)")
+    check(f"products {lay} read (s)", pr, ms([r["wall_s"] for r in rr]))
+    check(f"products {lay}: 20 readers, every work item", "20, 1",
+          f"{','.join(sorted({str(r['procs']) for r in rr}))}, {','.join(sorted({str(r.get('bin_sample', 1)) for r in rr}))}")
+    check(f"products {lay}: same rows as rows 1-8", c8b["check_md5"], ",".join(sorted({r["check_md5"] for r in rr})))
+rg = {(r["dir"].rstrip("/").split("/")[-2], r["layout"], r["table"]): r for r in load(L, "rg_sizes.jsonl")}
+med = lambda lays: [r["compressed_mb_per_rg"]["median"] for (_, l, _), r in rg.items() if l in lays]  # noqa: E731
+print("     (median MiB per row group: rows 4-5 " + ", ".join(f"{v:.1f}" for v in med(("zorder", "liquid")))
+      + "; rows 4b-5b " + ", ".join(f"{v:.2f}" for v in med(("zorder_2mb", "liquid_2mb"))) + ")")
+check("rows 4-5 have the default 128 MB row groups (1 file per table)", True,
+      all(127 <= v <= 130 for v in med(("zorder", "liquid")))
+      and all(r["files"] == 1 for (_, l, _), r in rg.items() if l in ("zorder", "liquid")))
+check("rows 4b-5b have ~2 MB row groups", True, all(1.5 <= v <= 2.5 for v in med(("zorder_2mb", "liquid_2mb"))))
+check("row 3b: one row group per file", True,
+      all(r["files"] == r["row_groups"] == 611 for (_, l, _), r in rg.items() if l == "hive_coarse"))
+lm = lambda lay: st.mean(r["wall_s"] for r in lr[lay])  # noqa: E731
+check("rows 4b-5b read (s), slower than 8b", "165, 13x",
+      f"{st.mean([lm('zorder_2mb'), lm('liquid_2mb')]):.0f}, "
+      f"{max(lm('zorder_2mb'), lm('liquid_2mb')) / m('ogbn-products', 'merged_blk'):.0f}x")
+check("rows 4-5 amplification, about", "580x",
+      f"{round(st.mean(float(csvs[('ogbn-products', l)]['amplification']) for l in ('zorder', 'liquid')), -1):.0f}x")
+check("row 3b: communities per directory, about", "87", f"{p2['ogbn-products']['communities'] / 611:.0f}")
+check("row 3b slower than 8b", "3.9x", f"{lm('hive_coarse') / m('ogbn-products', 'merged_blk'):.1f}x")
 
 # ---------------------------------------------------------------- 4.2 Table B
 section("4.2 Table B accuracy (%)")
@@ -253,6 +320,23 @@ for d, p in (("reddit-lp", "0.07-0.12"), ("ogbn-products-lp", "0.05-0.05")):
     u, c = ha[(d, "uncapped")], ha[(d, "capped")]
     loss = [st.mean(r[m] for r in u) - st.mean(r[m] for r in c) for m in ("auc_global_cross", "auc_matched_cross")]
     check(f"{d} cross AUC loss from the cap", p, f"{min(loss):.2f}-{max(loss):.2f}")
+m0 = {}
+for r in load(M0, "m0.jsonl"):
+    m0.setdefault(r["dataset"], []).append(r)
+for d, (pa, pm) in (("reddit-lp", ("0.927", "0.725")), ("ogbn-products-lp", ("0.976", "0.761"))):
+    a, ref = m0[d], ha[(d, "uncapped")][0]
+    assert sorted(r["seed"] for r in a) == [0, 1, 2] and all(r["method"] == "M0" for r in a)
+    check(f"{d} full graph (M0) cross AUC random", pa, f"{st.mean(r['auc_global_cross'] for r in a):.3f}")
+    check(f"{d} full graph (M0) cross AUC same-unit", pm, f"{st.mean(r['auc_matched_cross'] for r in a):.3f}")
+    check(f"{d} M0: same test links and settings as the halo rows", True,
+          all(r["n_pos"] == ref["n_pos"] and r["n_cross"] == ref["n_cross"] and r["cfg"] == ref["cfg"] for r in a))
+    check(f"{d} M0 same-unit AUC below both halo rows", True,
+          all(st.mean(r["auc_matched_cross"] for r in a) < st.mean(r["auc_matched_cross"] for r in ha[(d, h)])
+              for h in ("uncapped", "capped")))
+check("M0 AUC std <= 0.01", True,
+      max(st.stdev(r[k] for r in a) for a in m0.values() for k in ("auc_global_cross", "auc_matched_cross")) <= 0.01)
+check("M0 ogbn-products peak GPU (GB, PyTorch allocation)", "22.1",
+      f"{max(r['peak_gpu_mb'] for r in m0['ogbn-products-lp']) / 1000:.1f}")
 lk = [v for r in load(H, "halo_storage_read.jsonl") for k, v in r["leakage"].items() if k != "held_out_pairs"]
 check("held-out pairs found in any stored table", "0 of 100,000",
       f"{sum(lk)} of {load(H, 'halo_storage_read.jsonl')[0]['leakage']['held_out_pairs']:,}")

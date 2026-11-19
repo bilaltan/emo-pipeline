@@ -18,6 +18,10 @@ every layout is written from those rows, so Stage 3b's work items read identical
   merged_blk  row 8  merged_rg sorted by unit (community_id), then _blk (add_blk, bit-reversed block key; 0 for
                      every row when no unit is above --cap): every unit, and every --cap block, is a contiguous run
   blk_128     diagnostic: row 8's order with Spark's 128 MB row groups (unit order without row 7)
+  zorder_2mb  zorder written and OPTIMIZEd with parquet.block.size = --zl-rg-mb
+  liquid_2mb  liquid, the same
+  hive_coarse .partitionBy(storage_part = community_id mod --coarse-buckets), one file per directory, sorted by
+              community_id, Spark's 128 MB row groups (B = 611, the directory count of rows 6-8)
 Rows 6-8 and the diagnostic write one file per storage_part directory, so they hold the same rows
 in the same files: 6 -> 7 changes only the row-group size, 7 -> 8 only the order inside a file; the diagnostic is
 6 -> 8 without 7.
@@ -41,7 +45,8 @@ ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)
 sys.path.insert(0, ROOT)
 from experiments.partition_layout_bench import build_spark, storage_stats  # noqa: E402
 
-LAYOUTS = ("mv", "join", "hive", "zorder", "liquid", "merged", "merged_rg", "merged_blk", "blk_128")   # mv first: rows 7-8 size from it
+LAYOUTS = ("mv", "join", "hive", "zorder", "liquid", "merged", "merged_rg", "merged_blk", "blk_128",   # mv first: rows 7-8 size from it
+           "zorder_2mb", "liquid_2mb", "hive_coarse")
 
 
 def manifest(spark, nodes, stats, cap):
@@ -80,6 +85,11 @@ def main():
     ap.add_argument("--merge-target-mb", type=float, default=64.0, help="size of a shared directory (merge_plan)")
     ap.add_argument("--rg-beta-mb", type=float, default=0.6)
     ap.add_argument("--rg-floor-mb", type=float, default=0.0, help="rows 7-8: row groups at least this (MB); 0 = pure √ rule")
+    ap.add_argument("--zl-rg-mb", type=float, default=2.0, help="zorder_2mb / liquid_2mb: parquet.block.size (MB)")
+    ap.add_argument("--coarse-buckets", type=int, default=611, help="hive_coarse: B, directories = community_id mod B")
+    ap.add_argument("--phase2-from", default=None,
+                    help="read the Phase 2 rows (p2_nodes, p2_edges) from this directory instead of rerunning Phase 2; "
+                         "the directory is only read (e.g. a frozen run set's <dataset>/phase2)")
     ap.add_argument("--cores", type=int, default=os.cpu_count())
     ap.add_argument("--mem", default="16g")
     ap.add_argument("--spark-tmp", default=None)
@@ -120,14 +130,17 @@ def main():
                       "p2_edges": f"{wd}/{alg}/p2_edges", "tag": f"tableA_{dataset}_{alg}"})
         return p
 
-    src = get_paths(args.dataset, "phase2")
-    for k in ("p2_nodes", "p2_edges"):
-        shutil.rmtree(src[k], ignore_errors=True)
     timing = {}
-    run_phase2(spark, sc, [args.dataset], ["phase2"], use_global_mapping=True, min_size=args.min_size,
-               get_paths_fn=get_paths, timing=timing, results={}, expand_boundary_nodes=True,
-               tiny_comm_handling="keep", force_rerun=True, p2_layout="range",
-               halo_cap=args.cap if args.unit_split == "leiden" else 0)
+    if args.phase2_from:   # the same rows as an earlier run set, read only: never cleared or rewritten here
+        src = {k: os.path.join(args.phase2_from, k) for k in ("p2_nodes", "p2_edges")}
+    else:
+        src = get_paths(args.dataset, "phase2")
+        for k in ("p2_nodes", "p2_edges"):
+            shutil.rmtree(src[k], ignore_errors=True)
+        run_phase2(spark, sc, [args.dataset], ["phase2"], use_global_mapping=True, min_size=args.min_size,
+                   get_paths_fn=get_paths, timing=timing, results={}, expand_boundary_nodes=True,
+                   tiny_comm_handling="keep", force_rerun=True, p2_layout="range",
+                   halo_cap=args.cap if args.unit_split == "leiden" else 0)
     nodes = spark.read.format("delta").load(src["p2_nodes"]).persist(StorageLevel.MEMORY_AND_DISK)
     edges = spark.read.format("delta").load(src["p2_edges"]).persist(StorageLevel.MEMORY_AND_DISK)
     n_rows, n_edges = nodes.count(), edges.count()
@@ -142,7 +155,7 @@ def main():
     emit({"kind": "phase2", "phase2_s": timing.get(("phase2", args.dataset, "phase2")), "communities": len(stats),
           "minor": int((stats["members"] < args.min_size).sum()), "node_rows": n_rows, "edge_rows": n_edges,
           "work_items": sum(n for _, n, _ in items), "written_blocks": written_units,
-          "split_communities": sum(w > 1 for _, _, w in items), "raw": raw})
+          "split_communities": sum(w > 1 for _, _, w in items), "raw": raw, "phase2_from": args.phase2_from})
     print(f"== {args.dataset}/{args.alg}: {len(stats):,} communities ({int((stats['members'] < args.min_size).sum()):,}"
           f" minor), {n_rows:,} node rows, {n_edges:,} edge rows, {sum(n for _, n, _ in items):,} work items at cap "
           f"{args.cap:,}; Phase 2 {timing.get(('phase2', args.dataset, 'phase2'), 0):.0f} s; local[{args.cores}]",
@@ -160,19 +173,34 @@ def main():
             write_layout(nodes.select("community_id", "id", "is_member", "is_boundary"), f"{d}/p2_map", "range", bins)
             write_layout(edges, f"{d}/p2_edges", "range", bins)
             meta["features"] = {"nodes": f"{raw}/nodes", "masks": f"{raw}/masks"}
-        elif layout in ("mv", "hive", "zorder"):
-            for name, df in frames.items():
-                write_layout(df, f"{d}/p2_{name}", "hive" if layout == "hive" else "range", bins)
-                if layout == "zorder":
-                    DeltaTable.forPath(spark, f"{d}/p2_{name}").optimize().executeZOrderBy("community_id", *keys[name])
+        elif layout in ("mv", "hive", "zorder", "zorder_2mb", "liquid", "liquid_2mb"):
+            if layout.endswith("_2mb"):   # the initial write and OPTIMIZE's rewrite both take it
+                hconf.set("parquet.block.size", str(int(args.zl_rg_mb * (1 << 20))))
+            try:
+                for name, df in frames.items():
+                    out = f"{d}/p2_{name}"
+                    if layout.startswith("liquid"):
+                        (DeltaTable.create(spark).location(out).addColumns(df.schema)
+                         .clusterBy("community_id", *keys[name]).execute())
+                        (df.repartitionByRange(bins, "community_id").sortWithinPartitions("community_id")
+                         .write.format("delta").mode("append").save(out))
+                        spark.sql(f"OPTIMIZE delta.`{out}`")
+                        continue
+                    write_layout(df, out, "hive" if layout == "hive" else "range", bins)
+                    if layout.startswith("zorder"):
+                        DeltaTable.forPath(spark, out).optimize().executeZOrderBy("community_id", *keys[name])
+            finally:
+                hconf.unset("parquet.block.size")
             meta["part_col"] = "community_id" if layout == "hive" else None
-        elif layout == "liquid":
+        elif layout == "hive_coarse":
+            coarse = plan[["community_id"]].assign(
+                storage_part=["h%d" % (c % args.coarse_buckets) for c in plan["community_id"].astype(int)])
             for name, df in frames.items():
-                out = f"{d}/p2_{name}"
-                DeltaTable.create(spark).location(out).addColumns(df.schema).clusterBy("community_id", *keys[name]).execute()
-                (df.repartitionByRange(bins, "community_id").sortWithinPartitions("community_id")
-                 .write.format("delta").mode("append").save(out))
-                spark.sql(f"OPTIMIZE delta.`{out}`")
+                write_layout(with_storage_part(spark, df, coarse), f"{d}/p2_{name}", "hive_merged",
+                             min(200, args.coarse_buckets), one_file_per_dir=True)
+            meta["part_col"] = "storage_part"
+            meta["comm_to_part"] = {int(c): p for c, p in zip(coarse["community_id"], coarse["storage_part"])}
+            meta["coalesce_plan"] = False   # read with the merged plan's work items, as rows 1-5
         else:   # merged, merged_rg, merged_blk, blk_128
             fr = frames
             if layout in ("merged_blk", "blk_128"):
@@ -211,7 +239,8 @@ def main():
         st = {t: storage_stats(spark, f"{d}/{t}") for t in tables}
         if layout == "mv":
             rg_mb = sqrt_rg_mb(sum(s["bytes"] for s in st.values()), written_units, args.rg_beta_mb, args.rg_floor_mb)
-        meta.update(layout=layout, rg_mb=rg_mb if layout in ("merged_rg", "merged_blk") else None)
+        meta.update(layout=layout, rg_mb=rg_mb if layout in ("merged_rg", "merged_blk")
+                    else args.zl_rg_mb if layout.endswith("_2mb") else None)
         with open(os.path.join(d, "meta.json"), "w") as fh:   # closed, so meta.json is flushed
             json.dump(meta, fh)
         emit({"kind": "layout", "layout": layout, "write_s": walls, "storage": st,
@@ -220,7 +249,7 @@ def main():
         print(f"  {layout:10s} write {np.mean(walls):7.1f} +/- {np.std(walls, ddof=1) if len(walls) > 1 else 0:5.1f} s"
               f" | {tot['bytes'] / 1e9:6.2f} GB, {tot['files']:,} files ({tot['files_lt_1mb']:,} < 1 MB)"
               + (f" | rg {meta['rg_mb']:g} MB" if meta["rg_mb"] else ""), flush=True)
-        if meta["part_col"] == "storage_part":
+        if meta["part_col"] == "storage_part" and layout != "hive_coarse":
             split_files[layout] = {t: s["files"] for t, s in st.items()}
             assert len({json.dumps(v) for v in split_files.values()}) == 1, f"rows 6-8 differ in files: {split_files}"
     nodes.unpersist()
