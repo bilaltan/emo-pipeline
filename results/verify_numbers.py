@@ -6,6 +6,7 @@
 Each line prints OK or DIFF, the paper's value and the value recomputed from the records. Means are over the
 runs or seeds of a cell, +- is the sample standard deviation (n - 1).
 """
+import collections
 import csv
 import json
 import os
@@ -155,23 +156,24 @@ check("isolated vertices (Phase 2 communities - probe units at 10,000)", "48,421
 check("products communities / minor in Phase 2", "53,397 / 52,787",
       f"{p2['ogbn-products']['communities']:,} / {p2['ogbn-products']['minor']:,}")
 
-section("4.1 Table A rows 3b-5b (ogbn-products, results/layout_checks)")
-lw = {r["layout"]: r for r in load(L, "write.jsonl") if r["kind"] == "layout"}
+section("4.1 Table A rows 3b-5b (results/layout_checks)")
+lw = {(r["dataset"], r["layout"]): r for r in load(L, "write.jsonl") if r["kind"] == "layout"}
 lr = {}
-for f, lays in (("read.jsonl", ("hive_coarse",)), ("read_full20.jsonl", ("zorder_2mb", "liquid_2mb"))):
-    for r in load(L, f):
+for f, lays in (("read.jsonl", ("hive_coarse",)), ("read_full20.jsonl", ("hive_coarse", "zorder_2mb", "liquid_2mb"))):
+    for r in load(L, f):   # read.jsonl: ogbn-products only; its 3-reader Z-order / Liquid samples are not in the paper
         if r["layout"] in lays:
-            lr.setdefault(r["layout"], []).append(r)
+            lr.setdefault((r["dataset"], r["layout"]), []).append(r)
 c8b = csvs[("ogbn-products", "merged_blk")]
 need = float(c8b["bytes_gb"]) / float(c8b["amplification"])   # GB the work items need, the same rows in every layout
 paper_new = {"hive_coarse": ("33.4 ± 6.4", "1,222 (676)", "17.29 (7.9x)", "49.7 ± 0.1"),
              "zorder_2mb": ("205.8 ± 14.5", "2 (0)", "151.7 (69x)", "164.9 ± 0.2"),
              "liquid_2mb": ("211.6 ± 2.7", "2 (0)", "152.5 (69x)", "164.9 ± 0.1")}
 for lay, (pw, pf, pg, pr) in paper_new.items():
-    rr, sto = lr[lay], lw[lay]["storage"]
-    assert len(rr) == 3 and len(lw[lay]["write_s"]) == 3
+    rr, lwr = lr[("ogbn-products", lay)], lw[("ogbn-products", lay)]
+    sto = lwr["storage"]
+    assert len(rr) == 3 and len(lwr["write_s"]) == 3
     gb = st.mean(r["bytes"] for r in rr) / 1e9
-    check(f"products {lay} write (s)", pw, ms(lw[lay]["write_s"]))
+    check(f"products {lay} write (s)", pw, ms(lwr["write_s"]))
     check(f"products {lay} files (<1 MB)", pf,
           f"{sum(s['files'] for s in sto.values()):,} ({sum(s['files_lt_1mb'] for s in sto.values()):,})")
     check(f"products {lay} read GB (ampl.)", pg,
@@ -180,24 +182,52 @@ for lay, (pw, pf, pg, pr) in paper_new.items():
     check(f"products {lay}: 20 readers, every work item", "20, 1",
           f"{','.join(sorted({str(r['procs']) for r in rr}))}, {','.join(sorted({str(r.get('bin_sample', 1)) for r in rr}))}")
     check(f"products {lay}: same rows as rows 1-8", c8b["check_md5"], ",".join(sorted({r["check_md5"] for r in rr})))
-rg = {(r["dir"].rstrip("/").split("/")[-2], r["layout"], r["table"]): r for r in load(L, "rg_sizes.jsonl")}
-med = lambda lays: [r["compressed_mb_per_rg"]["median"] for (_, l, _), r in rg.items() if l in lays]  # noqa: E731
-print("     (median MiB per row group: rows 4-5 " + ", ".join(f"{v:.1f}" for v in med(("zorder", "liquid")))
+paper_small = {"ogbn-arxiv": ("4.8 ± 0.1", "3.2 ± 0.0", "3.2 ± 0.1"), "reddit": ("7.3 ± 0.5", "12.2 ± 0.4", "11.2 ± 0.1")}
+for ds, vals in paper_small.items():
+    for lay, p in zip(paper_new, vals):
+        rr = lr[(ds, lay)]
+        assert len(rr) == 3 and len(lw[(ds, lay)]["write_s"]) == 3
+        check(f"{ds} {lay} read (s)", p, ms([r["wall_s"] for r in rr]))
+        check(f"{ds} {lay}: 20 readers, every work item", "20, 1",
+              f"{','.join(sorted({str(r['procs']) for r in rr}))}, {','.join(sorted({str(r.get('bin_sample', 1)) for r in rr}))}")
+        check(f"{ds} {lay}: same rows as rows 1-8", csvs[(ds, "merged_blk")]["check_md5"],
+              ",".join(sorted({r["check_md5"] for r in rr})))
+rg = {(r["dir"].rstrip("/").split("/")[-1], r["layout"], r["table"]): r for r in load(L, "rg_sizes.jsonl")}
+med = lambda lays, dss=("ogbn-products", "ogbn-arxiv", "reddit"): [  # noqa: E731
+    r["compressed_mb_per_rg"]["median"] for (d, l, _), r in rg.items() if l in lays and d in dss]
+print("     (median MiB per row group: rows 4-5 on ogbn-products "
+      + ", ".join(f"{v:.1f}" for v in med(("zorder", "liquid"), ("ogbn-products",)))
       + "; rows 4b-5b " + ", ".join(f"{v:.2f}" for v in med(("zorder_2mb", "liquid_2mb"))) + ")")
-check("rows 4-5 have the default 128 MB row groups (1 file per table)", True,
-      all(127 <= v <= 130 for v in med(("zorder", "liquid")))
+check("rows 4-5 have the default 128 MB row groups on ogbn-products (1 file per table)", True,
+      all(127 <= v <= 130 for v in med(("zorder", "liquid"), ("ogbn-products",)))
       and all(r["files"] == 1 for (_, l, _), r in rg.items() if l in ("zorder", "liquid")))
-check("rows 4b-5b have ~2 MB row groups", True, all(1.5 <= v <= 2.5 for v in med(("zorder_2mb", "liquid_2mb"))))
-check("row 3b: one row group per file", True,
-      all(r["files"] == r["row_groups"] == 611 for (_, l, _), r in rg.items() if l == "hive_coarse"))
-lm = lambda lay: st.mean(r["wall_s"] for r in lr[lay])  # noqa: E731
+check("rows 4b-5b have ~2 MB row groups (all graphs)", True, all(1.5 <= v <= 2.5 for v in med(("zorder_2mb", "liquid_2mb"))))
+for ds, b in (("ogbn-products", 611), ("ogbn-arxiv", 59), ("reddit", 62)):
+    check(f"row 3b {ds}: B = directories of row 8b", b, sum(s["files"] for s in w[(ds, "merged_blk")]["storage"].values()) // 2)
+    check(f"row 3b {ds}: one row group per file, B files per table", True,
+          all(r["files"] == r["row_groups"] == b for (d, l, _), r in rg.items() if l == "hive_coarse" and d == ds))
+lm = lambda ds, lay: st.mean(r["wall_s"] for r in lr[(ds, lay)])  # noqa: E731
+x8b = lambda ds, lay: lm(ds, lay) / m(ds, "merged_blk")  # noqa: E731
 check("rows 4b-5b read (s), slower than 8b", "165, 13x",
-      f"{st.mean([lm('zorder_2mb'), lm('liquid_2mb')]):.0f}, "
-      f"{max(lm('zorder_2mb'), lm('liquid_2mb')) / m('ogbn-products', 'merged_blk'):.0f}x")
+      f"{st.mean([lm('ogbn-products', 'zorder_2mb'), lm('ogbn-products', 'liquid_2mb')]):.0f}, "
+      f"{max(x8b('ogbn-products', 'zorder_2mb'), x8b('ogbn-products', 'liquid_2mb')):.0f}x")
 check("rows 4-5 amplification, about", "580x",
       f"{round(st.mean(float(csvs[('ogbn-products', l)]['amplification']) for l in ('zorder', 'liquid')), -1):.0f}x")
 check("row 3b: communities per directory, about", "87", f"{p2['ogbn-products']['communities'] / 611:.0f}")
-check("row 3b slower than 8b", "3.9x", f"{lm('hive_coarse') / m('ogbn-products', 'merged_blk'):.1f}x")
+check("row 3b slower than 8b", "3.9x", f"{x8b('ogbn-products', 'hive_coarse'):.1f}x")
+span = lambda v: f"{min(v):.1f}" if f"{min(v):.1f}" == f"{max(v):.1f}" else f"{min(v):.1f}-{max(v):.1f}"  # noqa: E731
+zl = ("zorder_2mb", "liquid_2mb")
+check("arxiv rows 4b-5b read (s), x 8b", "3.2, 3.7-3.8x",
+      f"{span([lm('ogbn-arxiv', l) for l in zl])}, {span([x8b('ogbn-arxiv', l) for l in zl])}x")
+check("Reddit rows 4b-5b read (s), x 8b", "11.2-12.2, 1.7-1.8x",
+      f"{span([lm('reddit', l) for l in zl])}, {span([x8b('reddit', l) for l in zl])}x")
+check("arxiv row 3b read (s), x 8b", "4.8, 5.6x", f"{lm('ogbn-arxiv', 'hive_coarse'):.1f}, {x8b('ogbn-arxiv', 'hive_coarse'):.1f}x")
+c2p = {r["dataset"]: r["comm_to_part"] for r in load(L, "hive_coarse_dirs.jsonl")}["reddit"]
+per_dir = collections.Counter(c2p.values())
+check("Reddit row 3b: communities alone in a directory / all", "61 / 63",
+      f"{sum(per_dir[p] == 1 for p in c2p.values())} / {len(c2p)}")
+check("Reddit row 3b: its communities = the Phase 2 communities", True, len(c2p) == p2["reddit"]["communities"])
+check("Reddit row 3b vs ours (s)", "7.3 vs 6.8", f"{lm('reddit', 'hive_coarse'):.1f} vs {m('reddit', 'merged_blk'):.1f}")
 
 # ---------------------------------------------------------------- 4.2 Table B
 section("4.2 Table B accuracy (%)")
@@ -383,7 +413,7 @@ check("8b vs MV / join / partitionBy", "2.3x / 15x / 41x",
 cl = load(W, "expA_and_W_sweep", "counts_local.jsonl")
 check("tables counted locally (EMR counts in logs/smoke.log)", "27", f"{len(cl)}")
 
-section("4.4 node scaling (LakeGRL, rows = N = 1, 2, 4 core nodes)")
+section("4.4 node scaling (LakeGRL, rows = N = 1, 2, 4, 8 core nodes)")
 nr, nt = {}, {}
 for r in load(W, "node_scaling", "nodes_read.jsonl"):
     nr.setdefault((r["row"], r["spark_executors"]), []).append(r)
@@ -393,7 +423,8 @@ for r in load(W, "node_scaling", "nodes_train.jsonl"):
 tkey = "t3"   # Stage 3 wall time (phase3b; Spark start-up is outside it)
 paper_n = {4: ("58.8 ± 6.6", "1.00", "696.6 ± 1.2", "1.00", "74.25 ± 0.25"),
            8: ("28.6 ± 3.2", "2.06", "368.3 ± 1.2", "1.89", "74.25 ± 0.25"),
-           16: ("15.0 ± 1.6", "3.93", "209.2 ± 1.9", "3.33", "74.25 ± 0.25")}
+           16: ("15.0 ± 1.6", "3.93", "209.2 ± 1.9", "3.33", "74.25 ± 0.25"),
+           32: ("8.7 ± 1.3", "6.75", "134.2 ± 1.7", "5.19", "74.25 ± 0.25")}
 r1 = st.mean(r["wall_s"] for r in nr[("5", 4)])
 t1_ = st.mean(r[tkey] for r in nt[("5", 4)])
 for wk, (prd, prs, ptr, pts, pac) in paper_n.items():
@@ -407,6 +438,7 @@ for wk, (prd, prs, ptr, pts, pac) in paper_n.items():
     check(f"W={wk} train speedup", pts, f"{t1_ / st.mean(tr):.2f}")
     check(f"W={wk} accuracy (%)", pac, ms(ac, 2))
 check("speedup 1 -> 4 nodes, share of linear", "83%", f"{t1_ / st.mean(r[tkey] for r in nt[('5', 16)]) / 4 * 100:.0f}%")
+check("speedup 1 -> 8 nodes, share of linear", "65%", f"{t1_ / st.mean(r[tkey] for r in nt[('5', 32)]) / 8 * 100:.0f}%")
 ebt = {}
 for r in load(W, "expA_and_W_sweep", "expB_train.jsonl"):
     r["t3"] = next(v for k, v in r["phase_seconds"].items() if k.startswith("('phase3b'"))

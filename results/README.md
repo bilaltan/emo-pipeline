@@ -64,14 +64,15 @@ ogbn-products they read every tenth work item (`bin_sample` = 10), and their tim
 | `expA_and_W_sweep/expA_read.jsonl` | Cold reads on real S3 (Table 6) |
 | `expA_and_W_sweep/expB_read.jsonl`, `expB_train.jsonl` | W = 1 to 16 workers on 4 nodes (text: 11.79x training, 13.23x read) |
 | `expA_and_W_sweep/counts_local.jsonl`, `logs/smoke.log` | Spark on EMR counts the same rows as locally for all 27 tables |
-| `node_scaling/nodes_read.jsonl`, `nodes_train.jsonl` | 1, 2 and 4 core nodes x 4 workers (Table 7): cold reads (3 runs) and Stage 3, 10 epochs, seeds 0-2 |
+| `node_scaling/nodes_read.jsonl`, `nodes_train.jsonl` | 1, 2, 4 and 8 core nodes x 4 workers (Table 7; N = 8 on a second cluster): cold reads (3 runs) and Stage 3, 10 epochs, seeds 0-2 |
 | `*/logs/`, `*/SUMMARY.md` | Step logs, and the tables as first summarized |
 
-## layout_checks: Table 3 rows 3b-5b (ogbn-products)
+## layout_checks: Table 3 rows 3b-5b
 
-Coarse-key Hive (unit id mod 611) and Z-order / Liquid clustering with 2 MB row groups, written from the same Phase 2
-rows and read with the same work items as rows 1-8, all three read in full with 20 readers. Also the row-group sizes
-of rows 4-5 (1 file per table, ~128 MB row groups). `layout_checks/README.md` lists the files.
+Coarse-key Hive (unit id mod B, B = the directory count of rows 6-8: 611, 59, 62) and Z-order / Liquid clustering
+with 2 MB row groups on all three graphs, written from the same Phase 2 rows and read with the same work items as
+rows 1-8, all read in full with 20 readers. Also the row-group sizes of rows 4-5 (1 file per table, default row
+groups). `layout_checks/README.md` lists the files.
 
 ## lp_m0: the "full graph (M0)" rows of Table 5
 

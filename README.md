@@ -59,20 +59,20 @@ bash scripts/wsl_run.sh python experiments/tableA/probe_units.py <ds> --c-max 50
 
 `write_layouts.py` writes the eight layouts, `read_layouts.py` reads them, and `summary.py` builds the table.
 
-Rows 3b-5b (ogbn-products) are written from the same Phase 2 rows and read with the same work items as rows 1-8;
-`rg_sizes.py` reports the row groups of every layout:
+Rows 3b-5b are written from the same Phase 2 rows and read with the same work items as rows 1-8; `<B>` is the
+directory count of rows 6-8 (611 on ogbn-products, 59 on ogbn-arxiv, 62 on Reddit). `rg_sizes.py` reports the row
+groups of every layout:
 
 ```bash
-F=~/lakegrl/tableA/rleiden_c10000_v2/ogbn-products; N=~/lakegrl/tableA/layout_checks_1118; R=results/layout_checks
-bash scripts/wsl_run.sh python experiments/tableA/write_layouts.py --dataset ogbn-products --alg leiden --cap 10000 \
-  --unit-split leiden --repeats 3 --layouts zorder_2mb liquid_2mb hive_coarse --coarse-buckets 611 --zl-rg-mb 2 \
+F=~/lakegrl/tableA/rleiden_c10000_v2/<ds>; N=~/lakegrl/tableA/layout_checks_1118; R=results/layout_checks
+bash scripts/wsl_run.sh python experiments/tableA/write_layouts.py --dataset <ds> --alg leiden --cap 10000 \
+  --unit-split leiden --repeats 3 --layouts zorder_2mb liquid_2mb hive_coarse --coarse-buckets <B> --zl-rg-mb 2 \
   --phase2-from $F/phase2 --out-dir $N --out $R/write.jsonl
-bash scripts/wsl_run.sh python experiments/tableA/rg_sizes.py --dirs $F $N/ogbn-products \
+bash scripts/wsl_run.sh python experiments/tableA/rg_sizes.py --dirs $F $N/<ds> \
   --layouts zorder liquid mv hive merged_blk zorder_2mb liquid_2mb hive_coarse --out $R/rg_sizes.jsonl
-bash scripts/wsl_run.sh python experiments/tableA/read_layouts.py --dataset ogbn-products --runs 3 --coalesce-minor \
-  --plan-from $F/merged --out-dir $N --out $R/read.jsonl --layouts hive_coarse                    # row 3b
-bash scripts/wsl_run.sh python experiments/tableA/read_layouts.py --dataset ogbn-products --runs 3 --coalesce-minor \
-  --plan-from $F/merged --out-dir $N --out $R/read_full20.jsonl --layouts zorder_2mb liquid_2mb   # rows 4b-5b
+bash scripts/wsl_run.sh python experiments/tableA/read_layouts.py --dataset <ds> --runs 3 --coalesce-minor \
+  --plan-from $F/merged --out-dir $N --out $R/read_full20.jsonl --layouts hive_coarse zorder_2mb liquid_2mb
+#   (ogbn-products: row 3b went to $R/read.jsonl, rows 4b-5b to $R/read_full20.jsonl)
 ```
 
 **Section 4.2, node classification.** One command per dataset runs rows 1-5 for seeds 0-2, with their cold reads
