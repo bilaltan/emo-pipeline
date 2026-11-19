@@ -54,16 +54,22 @@ def backbones():
             pk = peaks(d)
             base = [r for r in load(*d, "baselines.jsonl") if r["dataset"] == ds and r["baseline"] == f"full_graph_{m}"]
             full = pk.get(f"{ds} full", {})
-            oom = full.get("gpu_full") == 1
+            # OOM: the card filled and peak.sh stopped the run (gpu_full), or CUDA refused one allocation (oom record)
+            oom = full.get("gpu_full") == 1 or any(r.get("oom") for r in base)
+            base = [r for r in base if not r.get("oom")]
             # Table 4 = the fe671e8 runs (results/MANIFEST: the earlier ogbn-arxiv runs at 4e86451 are not in it)
             pipe = [r for r in row5(load(*d, "pipeline.jsonl"), ds) if r["model"] == m and (m != "sage" or r["git"] == "fe671e8")]
             if m != "sage" and not (base or full or pipe):
                 continue
-            killed = any(pk.get(f"{ds} row5 seed{s}", {}).get("gpu_full") == 1 for s in range(3))
+            runs = [pk.get(f"{ds} row5 seed{s}", {}) for s in range(3)]
+            killed = any(r.get("gpu_full") == 1 for r in runs)
+            failed = [r["rc"] for r in runs if r.get("rc") and r.get("gpu_full") != 1]   # see the job log
             name = {"sage": "GraphSAGE (Table 4)", "gcn": "GCN", "gatv2": "GATv2"}[m]
-            full_gpu = "OOM (> 23.5)" if oom else f"{full['peak_gpu_mb'] / 1000:.1f}" if full else "--"
+            full_gpu = "OOM" if oom else f"{full['peak_gpu_mb'] / 1000:.1f}" if full else "--"
+            acc = "OOM" if killed else f"failed (rc {failed[0]})" if failed and not pipe else \
+                ms([r["stage3b_node_acc"] for r in pipe], 2, 100)
             L.append(f"| {ds} | {name} | {'OOM' if oom else ms([r['test_acc'] for r in base], 2, 100)} | {full_gpu} | "
-                     f"{'OOM' if killed else ms([r['stage3b_node_acc'] for r in pipe], 2, 100)} | "
+                     f"{acc} | "
                      f"{'--' if killed else ms([s3_wall(r) for r in pipe])} | "
                      f"{'OOM (> 23.5)' if killed else gpu_gb(pk, ds)} | {len(base)} / {len(pipe)} |")
     return L

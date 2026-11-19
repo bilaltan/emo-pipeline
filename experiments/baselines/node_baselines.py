@@ -244,13 +244,17 @@ def main(argv=None):
     for seed in [int(s) for s in args.seeds.split(",")]:
         if device.type == "cuda":
             torch.cuda.reset_peak_memory_stats()
-        val, test, train_s = train_eval(x, y, split, A, seed, cfg, device, batches, comm, args.comm_dim, args.model)
+        oom = None
+        try:
+            val, test, train_s = train_eval(x, y, split, A, seed, cfg, device, batches, comm, args.comm_dim, args.model)
+        except torch.OutOfMemoryError as e:   # one allocation above the card; a slower overflow spills into Windows
+            oom, val, test, train_s = str(e).split(". ")[0], None, None, None   # memory and peak.sh stops it (gpu_full)
         name = {"full": f"full_graph_{args.model}", "cluster": "cluster_gcn"}[args.method] + ("_commid" if comm else "")
         rec = {"dataset": args.dataset, "baseline": name, "model": args.model,
                "task": "node_classification", "seed": seed, "train": dict(cfg, seed=seed), **extra,
                "git": code, "cache": cache, "n_nodes": n, "n_edges_undirected": int(edges.shape[1]),
                "n_test": int((split == 2).sum()), "val_acc": val, "test_acc": test,
-               "load_seconds": round(load_s, 1), "train_seconds": round(train_s, 1),
+               "load_seconds": round(load_s, 1), "train_seconds": None if oom else round(train_s, 1), "oom": oom,
                "peak_gpu_mb": round(torch.cuda.max_memory_allocated() / 2**20) if device.type == "cuda" else None,
                # whole process so far (Linux reports KiB): the memory one machine needs for this baseline
                "peak_rss_mb": round(resource.getrusage(resource.RUSAGE_SELF).ru_maxrss / 1024),
@@ -266,6 +270,8 @@ def main(argv=None):
         print(json.dumps(rec))
         with open(args.out, "a") as fh:
             fh.write(json.dumps(rec) + "\n")
+        if oom:
+            break   # every seed trains the same model on the same graph
 
 
 if __name__ == "__main__":
