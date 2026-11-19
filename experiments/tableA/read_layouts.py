@@ -35,7 +35,8 @@ sys.path.insert(0, ROOT)
 
 from pipeline.utils.partition_layout import stage3b_bins as bins  # noqa: E402  (run_phase3b's own bins, 20 slots)
 
-LAYOUTS = ("join", "mv", "hive", "zorder", "liquid", "merged", "merged_rg", "merged_blk", "blk_128")
+LAYOUTS = ("join", "mv", "hive", "zorder", "liquid", "merged", "merged_rg", "merged_blk", "blk_128",
+           "zorder_2mb", "liquid_2mb", "hive_coarse")
 
 
 def drop_caches():
@@ -243,7 +244,9 @@ def main():
                     else None)
         plan = {}
         if args.coalesce_minor:   # planning, outside the timed reads: run_phase3b has the rows from Phase 2's stats
-            src = d if meta.get("comm_to_part") else os.path.join(wd, args.plan_from)
+            # hive_coarse has a comm_to_part for its directories but reads the merged plan's work items (coalesce_plan)
+            own = meta.get("comm_to_part") and meta.get("coalesce_plan", True)
+            src = d if own else os.path.join(wd, args.plan_from)   # an absolute --plan-from is used as is
             plan = {"comm_to_part": {int(k): v for k, v in read_json(f"{src}/meta.json")["comm_to_part"].items()},
                     "minor_rows": shared_rows(src), "cap": man["cap"]}
         its = bins([(c, n, w if meta["written_blocks"] else 0) for c, n, w in items], **plan)[::args.bin_sample]
