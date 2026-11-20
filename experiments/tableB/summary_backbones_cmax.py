@@ -47,7 +47,9 @@ def gpu_gb(pk, ds):
 
 def backbones():
     L = ["| Dataset | Backbone | Full-graph Test Acc (%) | Full-graph Peak GPU (GB) | LakeGRL Test Acc (%) | "
-         "LakeGRL Stage 3 Train (s) | LakeGRL Peak GPU (GB) | Seeds (full / LakeGRL) |", "|---" * 8 + "|"]
+         "LakeGRL Stage 3 Train (s) | LakeGRL Peak GPU (GB) | Seeds (full / LakeGRL) | Code (full / LakeGRL) |",
+         "|---" * 9 + "|"]
+    code = lambda rs: ", ".join(sorted({r["git"][:7] for r in rs})) or "--"  # noqa: E731
     for ds in DS:
         for m in ("sage", "gcn", "gatv2"):
             d = ("tableB",) if m == "sage" else ("backbones", m)
@@ -56,7 +58,7 @@ def backbones():
             full = pk.get(f"{ds} full", {})
             # OOM: the card filled and peak.sh stopped the run (gpu_full), or CUDA refused one allocation (oom record)
             oom = full.get("gpu_full") == 1 or any(r.get("oom") for r in base)
-            base = [r for r in base if not r.get("oom")]
+            base_code, base = code(base), [r for r in base if not r.get("oom")]
             # Table 4 = the fe671e8 runs (results/MANIFEST: the earlier ogbn-arxiv runs at 4e86451 are not in it)
             pipe = [r for r in row5(load(*d, "pipeline.jsonl"), ds) if r["model"] == m and (m != "sage" or r["git"] == "fe671e8")]
             if m != "sage" and not (base or full or pipe):
@@ -71,7 +73,7 @@ def backbones():
             L.append(f"| {ds} | {name} | {'OOM' if oom else ms([r['test_acc'] for r in base], 2, 100)} | {full_gpu} | "
                      f"{acc} | "
                      f"{'--' if killed else ms([s3_wall(r) for r in pipe])} | "
-                     f"{'OOM (> 23.5)' if killed else gpu_gb(pk, ds)} | {len(base)} / {len(pipe)} |")
+                     f"{'OOM (> 23.5)' if killed else gpu_gb(pk, ds)} | {len(base)} / {len(pipe)} | {base_code} / {code(pipe)} |")
     return L
 
 
@@ -98,7 +100,11 @@ if __name__ == "__main__":
     for name, rows, note in (
             ("backbones", backbones(), "LakeGRL = Stage 3b alone on the stored leiden_c10000 view (no Phase 1-2), 8 "
              "workers; full graph = experiments/baselines/node_baselines.py --model, same layers (utils/backbones.py). "
-             "OOM = peak.sh stopped the run when the 24 GB card was full (gpu_full)."),
+             "OOM = the 24 GB card was full (peak.sh stopped the run, gpu_full) or CUDA refused an allocation (oom "
+             "record). GCN, two code versions (Bilal 2026-11-19: the first code where it fits, the advisor decides): "
+             "2cbc57e / d0cff08 = PyG's GCNConv normalizing the matrix in every forward; 8a6e1e7 = the same "
+             "D^-1/2 (A + I) D^-1/2 computed once (GCNConv(normalize=False)), only for the ogbn-products full graph, "
+             "which filled the card with the first code. Same math (6e-8); the first code is slower."),
             ("cmax_sweep", cmax(), "ogbn-products, row 5 (GraphSAGE, 8 workers, row 8b layout, 2 MB floor). Read = "
              "the run's units + the global tables (macro-graph, communities, unit plan), S3 cost model, 20 readers, "
              "3 cold runs. C_max = 10,000 = Table 4 row 5.")):
