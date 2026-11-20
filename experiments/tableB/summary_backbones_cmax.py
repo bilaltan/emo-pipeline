@@ -3,8 +3,8 @@
 Tables of the two 2026-11-19 runs (advisor), from their records; mean ± sample std over seeds 0-2 (or 3 cold runs),
 peak GPU = peak.sh (nvidia-smi minus idle), the largest over the seeds, as Table B (Table 4).
 
-  backbones   results/backbones/<gcn|gatv2>/: baselines.jsonl, pipeline.jsonl, peak.jsonl (experiments/tableB/backbones.sh)
-              + the GraphSAGE rows of Table 4 (results/tableB) for reference
+  backbones   results/backbones/<gcn_pre|gatv2|sage>/: baselines.jsonl, pipeline.jsonl, peak.jsonl (backbones.sh,
+              results/backbones/rerun_1120.sh) + the full-graph GraphSAGE of Table 4 (results/tableB)
   cmax        results/cmax_sweep/c<C>/ (run.sh TB_CMAX=C, row 5) + storage.jsonl (store_size.py); C_max = 10,000 is
               Table 4 row 5 on ogbn-products: results/tableB pipeline / peak / read_units, global read results/tableB/v4
 
@@ -45,6 +45,12 @@ def gpu_gb(pk, ds):
     return f"{max(v) / 1000:.1f}" if v else "--"
 
 
+# Folders of the full graph / LakeGRL cells (advisor 11-20): GCN all again on the precomputed matrix (gcn_pre; gcn/ is
+# the first code, superseded), LakeGRL GraphSAGE again by Stage 3b alone (sage); its full graph stays Table 4 (tableB)
+FULL = {"sage": ("tableB",), "gcn": ("backbones", "gcn_pre"), "gatv2": ("backbones", "gatv2")}
+LAKE = {"sage": ("backbones", "sage"), "gcn": ("backbones", "gcn_pre"), "gatv2": ("backbones", "gatv2")}
+
+
 def backbones():
     L = ["| Dataset | Backbone | Full-graph Test Acc (%) | Full-graph Peak GPU (GB) | LakeGRL Test Acc (%) | "
          "LakeGRL Stage 3 Train (s) | LakeGRL Peak GPU (GB) | Seeds (full / LakeGRL) | Code (full / LakeGRL) |",
@@ -52,28 +58,27 @@ def backbones():
     code = lambda rs: ", ".join(sorted({r["git"][:7] for r in rs})) or "--"  # noqa: E731
     for ds in DS:
         for m in ("sage", "gcn", "gatv2"):
-            d = ("tableB",) if m == "sage" else ("backbones", m)
-            pk = peaks(d)
+            d = FULL[m]
+            pk, lk = peaks(d), peaks(LAKE[m])
             base = [r for r in load(*d, "baselines.jsonl") if r["dataset"] == ds and r["baseline"] == f"full_graph_{m}"]
             full = pk.get(f"{ds} full", {})
             # OOM: the card filled and peak.sh stopped the run (gpu_full), or CUDA refused one allocation (oom record)
             oom = full.get("gpu_full") == 1 or any(r.get("oom") for r in base)
             base_code, base = code(base), [r for r in base if not r.get("oom")]
-            # Table 4 = the fe671e8 runs (results/MANIFEST: the earlier ogbn-arxiv runs at 4e86451 are not in it)
-            pipe = [r for r in row5(load(*d, "pipeline.jsonl"), ds) if r["model"] == m and (m != "sage" or r["git"] == "fe671e8")]
-            if m != "sage" and not (base or full or pipe):
+            pipe = [r for r in row5(load(*LAKE[m], "pipeline.jsonl"), ds) if r["model"] == m]
+            if not (base or full or pipe):
                 continue
-            runs = [pk.get(f"{ds} row5 seed{s}", {}) for s in range(3)]
+            runs = [lk.get(f"{ds} row5 seed{s}", {}) for s in range(3)]
             killed = any(r.get("gpu_full") == 1 for r in runs)
             failed = [r["rc"] for r in runs if r.get("rc") and r.get("gpu_full") != 1]   # see the job log
-            name = {"sage": "GraphSAGE (Table 4)", "gcn": "GCN", "gatv2": "GATv2"}[m]
+            name = {"sage": "GraphSAGE", "gcn": "GCN", "gatv2": "GATv2"}[m]
             full_gpu = "OOM" if oom else f"{full['peak_gpu_mb'] / 1000:.1f}" if full else "--"
             acc = "OOM" if killed else f"failed (rc {failed[0]})" if failed and not pipe else \
                 ms([r["stage3b_node_acc"] for r in pipe], 2, 100)
             L.append(f"| {ds} | {name} | {'OOM' if oom else ms([r['test_acc'] for r in base], 2, 100)} | {full_gpu} | "
                      f"{acc} | "
                      f"{'--' if killed else ms([s3_wall(r) for r in pipe])} | "
-                     f"{'OOM (> 23.5)' if killed else gpu_gb(pk, ds)} | {len(base)} / {len(pipe)} | {base_code} / {code(pipe)} |")
+                     f"{'OOM (> 23.5)' if killed else gpu_gb(lk, ds)} | {len(base)} / {len(pipe)} | {base_code} / {code(pipe)} |")
     return L
 
 
@@ -99,12 +104,12 @@ def cmax():
 if __name__ == "__main__":
     for name, rows, note in (
             ("backbones", backbones(), "LakeGRL = Stage 3b alone on the stored leiden_c10000 view (no Phase 1-2), 8 "
-             "workers; full graph = experiments/baselines/node_baselines.py --model, same layers (utils/backbones.py). "
-             "OOM = the 24 GB card was full (peak.sh stopped the run, gpu_full) or CUDA refused an allocation (oom "
-             "record). GCN, two code versions (Bilal 2026-11-19: the first code where it fits, the advisor decides): "
-             "2cbc57e / d0cff08 = PyG's GCNConv normalizing the matrix in every forward; 8a6e1e7 = the same "
-             "D^-1/2 (A + I) D^-1/2 computed once (GCNConv(normalize=False)), only for the ogbn-products full graph, "
-             "which filled the card with the first code. Same math (6e-8); the first code is slower."),
+             "workers, every backbone (GraphSAGE included, advisor 2026-11-20); full graph = "
+             "experiments/baselines/node_baselines.py --model, same layers (utils/backbones.py); full-graph GraphSAGE = "
+             "Table 4 (its code path is unchanged since). OOM = the 24 GB card was full (peak.sh stopped the run, "
+             "gpu_full) or CUDA refused an allocation (oom record). GCN: every cell on D^-1/2 (A + I) D^-1/2 computed "
+             "once (8a6e1e7, GCNConv(normalize=False)); the first runs (PyG normalizing in every forward, "
+             "results/backbones/gcn) are superseded."),
             ("cmax_sweep", cmax(), "ogbn-products, row 5 (GraphSAGE, 8 workers, row 8b layout, 2 MB floor). Read = "
              "the run's units + the global tables (macro-graph, communities, unit plan), S3 cost model, 20 readers, "
              "3 cold runs. C_max = 10,000 = Table 4 row 5.")):
