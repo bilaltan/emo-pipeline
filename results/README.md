@@ -1,7 +1,8 @@
 # Result records behind the paper
 
 Only the records that produce the numbers of Section 4 (Tables 2-7 and their text), in one folder per subsection;
-`layout_checks/` and `lp_m0/` hold rows that were added to Tables 3 and 5 later.
+`layout_checks/` and `lp_m0/` hold rows that were added to Tables 3 and 5 later; `backbones/` and `cmax_sweep/`
+hold the backbone comparison (GraphSAGE, GCN, GATv2) and the C_max sweep.
 `MANIFEST.txt` lists where each file was written by the scripts and which superseded records were left out.
 Every number is the mean ± sample standard deviation (n - 1) over seeds 0-2 or over 3 cold runs, and every record
 states its Spark executors x cores (`spark_executors`, `spark_executor_cores`) or its reader count (`procs`).
@@ -78,3 +79,14 @@ groups). `layout_checks/README.md` lists the files.
 
 Full-graph GraphSAGE link prediction, 3 seeds x {Reddit, ogbn-products}, with the same test links and settings as the
 halo rows. `lp_m0/README.md` has the details.
+
+## backbones: GraphSAGE, GCN and GATv2 on one stored view
+
+Each backbone trained by Stage 3b alone on the stored Phase 2 view of Table 4 row 5 (C_max = 10,000), against the
+same layers on the full graph, 3 graphs x 3 seeds on one 24 GB GPU; OOM where the card fills. `backbones/README.md`
+has the setup and the table.
+
+## cmax_sweep: C_max = 5,000 to 40,000 on ogbn-products
+
+Table 4 row 5 at C_max = 5,000, 20,000 and 40,000 (Phases 1-2 rerun): units, stored MV_unit, cold read, Stage 3,
+peak GPU and accuracy; the 10,000 row is Table 4's view. `cmax_sweep/README.md` has the setup and the table.

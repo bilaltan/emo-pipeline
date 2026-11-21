@@ -1,0 +1,3 @@
+{"time": "2026-11-19 18:32:13", "label": "ogbn-products row5 seed0", "rc": 0, "wall_s": 2429, "gpu_idle_mb": 702, "peak_gpu_mb": 4666, "peak_host_mb": 89325, "peak_host_jvm_mb": 18141, "peak_host_py_mb": 81278, "peak_host_py_pss_mb": 17561, "gpu_full": 0}
+{"time": "2026-11-19 18:51:40", "label": "ogbn-products row5 seed1", "rc": 0, "wall_s": 1083, "gpu_idle_mb": 598, "peak_gpu_mb": 4738, "peak_host_mb": 22623, "peak_host_jvm_mb": 18296, "peak_host_py_mb": 18089, "peak_host_py_pss_mb": 14787, "gpu_full": 0}
+{"time": "2026-11-19 19:09:25", "label": "ogbn-products row5 seed2", "rc": 0, "wall_s": 1064, "gpu_idle_mb": 554, "peak_gpu_mb": 4782, "peak_host_mb": 22279, "peak_host_jvm_mb": 18008, "peak_host_py_mb": 17968, "peak_host_py_pss_mb": 14816, "gpu_full": 0}
