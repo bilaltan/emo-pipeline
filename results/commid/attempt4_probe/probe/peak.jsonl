@@ -1,0 +1,1 @@
+{"time": "2026-11-13 22:40:03", "label": "ogbn-products commid probe", "rc": 137, "wall_s": 90, "gpu_idle_mb": 537, "peak_gpu_mb": 23103, "peak_host_mb": 11101, "peak_host_jvm_mb": 0, "peak_host_py_mb": 11101, "peak_host_py_pss_mb": 11101}

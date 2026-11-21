@@ -1,0 +1,1 @@
+{"time": "2026-11-05 10:52:56", "dataset": "ogbn-arxiv", "tag": "leiden_c10000", "ok": true, "super_nodes": 58, "minor_nodes": 1271, "edges": 7722, "super_feat_max_abs_diff": 0.0, "super_feat_exact": true, "f16": false, "plan_communities": 58, "load_s": 0.06096053123474121, "build_s": 28.81337594985962}

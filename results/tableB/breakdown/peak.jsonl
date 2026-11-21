@@ -1,0 +1,3 @@
+{"time": "2026-11-03 20:53:23", "label": "ogbn-arxiv row5 seed0", "rc": 0, "wall_s": 151, "gpu_idle_mb": 347, "peak_gpu_mb": 3336, "peak_host_mb": 18580, "peak_host_jvm_mb": 6978, "peak_host_py_mb": 14812, "peak_host_py_pss_mb": 11269}
+{"time": "2026-11-03 21:17:45", "label": "reddit row5 seed0", "rc": 0, "wall_s": 1462, "gpu_idle_mb": 347, "peak_gpu_mb": 5768, "peak_host_mb": 27151, "peak_host_jvm_mb": 13637, "peak_host_py_mb": 22306, "peak_host_py_pss_mb": 20015}
+{"time": "2026-11-03 22:06:00", "label": "ogbn-products row5 seed0", "rc": 0, "wall_s": 2894, "gpu_idle_mb": 347, "peak_gpu_mb": 4598, "peak_host_mb": 26487, "peak_host_jvm_mb": 18227, "peak_host_py_mb": 22306, "peak_host_py_pss_mb": 18985}

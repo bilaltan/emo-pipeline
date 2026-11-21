@@ -1,0 +1,1013 @@
+{
+ "cap": 20000,
+ "split_communities": 43,
+ "summary": {
+  "id_pow2": {
+   "units": 394,
+   "max_rows": 20103,
+   "mean_rows": 13635.3,
+   "edges_kept_frac": 0.1081,
+   "memberless_units": 0,
+   "split_cpu_s": 0
+  },
+  "louvain": {
+   "units": 291,
+   "max_rows": 20000,
+   "mean_rows": 18461.5,
+   "edges_kept_frac": 0.8067,
+   "memberless_units": 0,
+   "split_cpu_s": 483.6
+  }
+ },
+ "communities": [
+  {
+   "community_id": 0,
+   "rows": 160473,
+   "members": 54758,
+   "edge_rows": 2287309,
+   "split_s": {
+    "louvain": 9.34
+   },
+   "id_pow2": {
+    "blocks": 16,
+    "max_rows": 10260,
+    "mean_rows": 10029.5625,
+    "memberless_blocks": 0,
+    "edges_kept": 142544
+   },
+   "louvain": {
+    "blocks": 9,
+    "max_rows": 20000,
+    "mean_rows": 17830.333333333332,
+    "memberless_blocks": 0,
+    "edges_kept": 2040872
+   }
+  },
+  {
+   "community_id": 1,
+   "rows": 261291,
+   "members": 108833,
+   "edge_rows": 6869919,
+   "split_s": {
+    "louvain": 35.33
+   },
+   "id_pow2": {
+    "blocks": 16,
+    "max_rows": 16530,
+    "mean_rows": 16330.6875,
+    "memberless_blocks": 0,
+    "edges_kept": 429573
+   },
+   "louvain": {
+    "blocks": 14,
+    "max_rows": 20000,
+    "mean_rows": 18663.64285714286,
+    "memberless_blocks": 0,
+    "edges_kept": 4816348
+   }
+  },
+  {
+   "community_id": 2,
+   "rows": 20664,
+   "members": 11250,
+   "edge_rows": 325657,
+   "split_s": {
+    "louvain": 1.17
+   },
+   "id_pow2": {
+    "blocks": 2,
+    "max_rows": 10334,
+    "mean_rows": 10332.0,
+    "memberless_blocks": 0,
+    "edges_kept": 162346
+   },
+   "louvain": {
+    "blocks": 2,
+    "max_rows": 19998,
+    "mean_rows": 10332.0,
+    "memberless_blocks": 0,
+    "edges_kept": 324365
+   }
+  },
+  {
+   "community_id": 3,
+   "rows": 221318,
+   "members": 69196,
+   "edge_rows": 5814188,
+   "split_s": {
+    "louvain": 39.95
+   },
+   "id_pow2": {
+    "blocks": 16,
+    "max_rows": 13958,
+    "mean_rows": 13832.375,
+    "memberless_blocks": 0,
+    "edges_kept": 364141
+   },
+   "louvain": {
+    "blocks": 12,
+    "max_rows": 20000,
+    "mean_rows": 18443.166666666668,
+    "memberless_blocks": 0,
+    "edges_kept": 3741780
+   }
+  },
+  {
+   "community_id": 4,
+   "rows": 357409,
+   "members": 219932,
+   "edge_rows": 7571964,
+   "split_s": {
+    "louvain": 62.64
+   },
+   "id_pow2": {
+    "blocks": 32,
+    "max_rows": 11430,
+    "mean_rows": 11169.03125,
+    "memberless_blocks": 0,
+    "edges_kept": 236326
+   },
+   "louvain": {
+    "blocks": 18,
+    "max_rows": 20000,
+    "mean_rows": 19856.055555555555,
+    "memberless_blocks": 0,
+    "edges_kept": 5257157
+   }
+  },
+  {
+   "community_id": 5,
+   "rows": 22488,
+   "members": 5865,
+   "edge_rows": 457355,
+   "split_s": {
+    "louvain": 1.23
+   },
+   "id_pow2": {
+    "blocks": 2,
+    "max_rows": 11258,
+    "mean_rows": 11244.0,
+    "memberless_blocks": 0,
+    "edges_kept": 229070
+   },
+   "louvain": {
+    "blocks": 2,
+    "max_rows": 19933,
+    "mean_rows": 11244.0,
+    "memberless_blocks": 0,
+    "edges_kept": 415386
+   }
+  },
+  {
+   "community_id": 6,
+   "rows": 279203,
+   "members": 116727,
+   "edge_rows": 6367130,
+   "split_s": {
+    "louvain": 26.96
+   },
+   "id_pow2": {
+    "blocks": 16,
+    "max_rows": 17646,
+    "mean_rows": 17450.1875,
+    "memberless_blocks": 0,
+    "edges_kept": 398201
+   },
+   "louvain": {
+    "blocks": 14,
+    "max_rows": 20000,
+    "mean_rows": 19943.071428571428,
+    "memberless_blocks": 0,
+    "edges_kept": 5005380
+   }
+  },
+  {
+   "community_id": 7,
+   "rows": 56331,
+   "members": 15472,
+   "edge_rows": 729730,
+   "split_s": {
+    "louvain": 1.86
+   },
+   "id_pow2": {
+    "blocks": 4,
+    "max_rows": 14284,
+    "mean_rows": 14082.75,
+    "memberless_blocks": 0,
+    "edges_kept": 182040
+   },
+   "louvain": {
+    "blocks": 3,
+    "max_rows": 19997,
+    "mean_rows": 18777.0,
+    "memberless_blocks": 0,
+    "edges_kept": 662272
+   }
+  },
+  {
+   "community_id": 9,
+   "rows": 218213,
+   "members": 169559,
+   "edge_rows": 7359234,
+   "split_s": {
+    "louvain": 38.46
+   },
+   "id_pow2": {
+    "blocks": 16,
+    "max_rows": 13821,
+    "mean_rows": 13638.3125,
+    "memberless_blocks": 0,
+    "edges_kept": 460380
+   },
+   "louvain": {
+    "blocks": 11,
+    "max_rows": 20000,
+    "mean_rows": 19837.545454545456,
+    "memberless_blocks": 0,
+    "edges_kept": 5579524
+   }
+  },
+  {
+   "community_id": 10,
+   "rows": 102282,
+   "members": 43387,
+   "edge_rows": 2012323,
+   "split_s": {
+    "louvain": 5.86
+   },
+   "id_pow2": {
+    "blocks": 8,
+    "max_rows": 12916,
+    "mean_rows": 12785.25,
+    "memberless_blocks": 0,
+    "edges_kept": 250994
+   },
+   "louvain": {
+    "blocks": 6,
+    "max_rows": 19981,
+    "mean_rows": 17047.0,
+    "memberless_blocks": 0,
+    "edges_kept": 1659029
+   }
+  },
+  {
+   "community_id": 11,
+   "rows": 194823,
+   "members": 135496,
+   "edge_rows": 4598460,
+   "split_s": {
+    "louvain": 11.54
+   },
+   "id_pow2": {
+    "blocks": 16,
+    "max_rows": 12381,
+    "mean_rows": 12176.4375,
+    "memberless_blocks": 0,
+    "edges_kept": 287352
+   },
+   "louvain": {
+    "blocks": 10,
+    "max_rows": 20000,
+    "mean_rows": 19482.3,
+    "memberless_blocks": 0,
+    "edges_kept": 4096027
+   }
+  },
+  {
+   "community_id": 13,
+   "rows": 135368,
+   "members": 54343,
+   "edge_rows": 2245248,
+   "split_s": {
+    "louvain": 5.93
+   },
+   "id_pow2": {
+    "blocks": 8,
+    "max_rows": 17121,
+    "mean_rows": 16921.0,
+    "memberless_blocks": 0,
+    "edges_kept": 280282
+   },
+   "louvain": {
+    "blocks": 7,
+    "max_rows": 20000,
+    "mean_rows": 19338.285714285714,
+    "memberless_blocks": 0,
+    "edges_kept": 2007926
+   }
+  },
+  {
+   "community_id": 14,
+   "rows": 203406,
+   "members": 76069,
+   "edge_rows": 5056878,
+   "split_s": {
+    "louvain": 25.04
+   },
+   "id_pow2": {
+    "blocks": 16,
+    "max_rows": 12906,
+    "mean_rows": 12712.875,
+    "memberless_blocks": 0,
+    "edges_kept": 315373
+   },
+   "louvain": {
+    "blocks": 11,
+    "max_rows": 20000,
+    "mean_rows": 18491.454545454544,
+    "memberless_blocks": 0,
+    "edges_kept": 4159061
+   }
+  },
+  {
+   "community_id": 15,
+   "rows": 229882,
+   "members": 74453,
+   "edge_rows": 4623130,
+   "split_s": {
+    "louvain": 19.93
+   },
+   "id_pow2": {
+    "blocks": 16,
+    "max_rows": 14557,
+    "mean_rows": 14367.625,
+    "memberless_blocks": 0,
+    "edges_kept": 290969
+   },
+   "louvain": {
+    "blocks": 12,
+    "max_rows": 20000,
+    "mean_rows": 19156.833333333332,
+    "memberless_blocks": 0,
+    "edges_kept": 3550910
+   }
+  },
+  {
+   "community_id": 16,
+   "rows": 80079,
+   "members": 36200,
+   "edge_rows": 1546248,
+   "split_s": {
+    "louvain": 4.65
+   },
+   "id_pow2": {
+    "blocks": 8,
+    "max_rows": 10076,
+    "mean_rows": 10009.875,
+    "memberless_blocks": 0,
+    "edges_kept": 193923
+   },
+   "louvain": {
+    "blocks": 5,
+    "max_rows": 19999,
+    "mean_rows": 16015.8,
+    "memberless_blocks": 0,
+    "edges_kept": 1266742
+   }
+  },
+  {
+   "community_id": 17,
+   "rows": 51630,
+   "members": 16360,
+   "edge_rows": 1135716,
+   "split_s": {
+    "louvain": 1.34
+   },
+   "id_pow2": {
+    "blocks": 4,
+    "max_rows": 13032,
+    "mean_rows": 12907.5,
+    "memberless_blocks": 0,
+    "edges_kept": 284196
+   },
+   "louvain": {
+    "blocks": 3,
+    "max_rows": 19999,
+    "mean_rows": 17210.0,
+    "memberless_blocks": 0,
+    "edges_kept": 1073335
+   }
+  },
+  {
+   "community_id": 18,
+   "rows": 106115,
+   "members": 33884,
+   "edge_rows": 2644443,
+   "split_s": {
+    "louvain": 9.9
+   },
+   "id_pow2": {
+    "blocks": 8,
+    "max_rows": 13447,
+    "mean_rows": 13264.375,
+    "memberless_blocks": 0,
+    "edges_kept": 330578
+   },
+   "louvain": {
+    "blocks": 6,
+    "max_rows": 19921,
+    "mean_rows": 17685.833333333332,
+    "memberless_blocks": 0,
+    "edges_kept": 2382986
+   }
+  },
+  {
+   "community_id": 19,
+   "rows": 85523,
+   "members": 27939,
+   "edge_rows": 861156,
+   "split_s": {
+    "louvain": 2.28
+   },
+   "id_pow2": {
+    "blocks": 8,
+    "max_rows": 10816,
+    "mean_rows": 10690.375,
+    "memberless_blocks": 0,
+    "edges_kept": 107418
+   },
+   "louvain": {
+    "blocks": 5,
+    "max_rows": 20000,
+    "mean_rows": 17104.6,
+    "memberless_blocks": 0,
+    "edges_kept": 754496
+   }
+  },
+  {
+   "community_id": 20,
+   "rows": 152622,
+   "members": 55437,
+   "edge_rows": 2586846,
+   "split_s": {
+    "louvain": 12.49
+   },
+   "id_pow2": {
+    "blocks": 8,
+    "max_rows": 19251,
+    "mean_rows": 19077.75,
+    "memberless_blocks": 0,
+    "edges_kept": 323855
+   },
+   "louvain": {
+    "blocks": 8,
+    "max_rows": 20000,
+    "mean_rows": 19077.75,
+    "memberless_blocks": 0,
+    "edges_kept": 1988747
+   }
+  },
+  {
+   "community_id": 21,
+   "rows": 125595,
+   "members": 29930,
+   "edge_rows": 2003823,
+   "split_s": {
+    "louvain": 6.05
+   },
+   "id_pow2": {
+    "blocks": 8,
+    "max_rows": 15845,
+    "mean_rows": 15699.375,
+    "memberless_blocks": 0,
+    "edges_kept": 249557
+   },
+   "louvain": {
+    "blocks": 7,
+    "max_rows": 19998,
+    "mean_rows": 17942.14285714286,
+    "memberless_blocks": 0,
+    "edges_kept": 1745868
+   }
+  },
+  {
+   "community_id": 22,
+   "rows": 145122,
+   "members": 62081,
+   "edge_rows": 2545374,
+   "split_s": {
+    "louvain": 9.66
+   },
+   "id_pow2": {
+    "blocks": 8,
+    "max_rows": 18331,
+    "mean_rows": 18140.25,
+    "memberless_blocks": 0,
+    "edges_kept": 318981
+   },
+   "louvain": {
+    "blocks": 8,
+    "max_rows": 20000,
+    "mean_rows": 18140.25,
+    "memberless_blocks": 0,
+    "edges_kept": 1926411
+   }
+  },
+  {
+   "community_id": 23,
+   "rows": 97921,
+   "members": 50176,
+   "edge_rows": 1394659,
+   "split_s": {
+    "louvain": 4.3
+   },
+   "id_pow2": {
+    "blocks": 8,
+    "max_rows": 12385,
+    "mean_rows": 12240.125,
+    "memberless_blocks": 0,
+    "edges_kept": 175121
+   },
+   "louvain": {
+    "blocks": 5,
+    "max_rows": 20000,
+    "mean_rows": 19584.2,
+    "memberless_blocks": 0,
+    "edges_kept": 1275567
+   }
+  },
+  {
+   "community_id": 25,
+   "rows": 150982,
+   "members": 45464,
+   "edge_rows": 2578027,
+   "split_s": {
+    "louvain": 10.04
+   },
+   "id_pow2": {
+    "blocks": 8,
+    "max_rows": 19029,
+    "mean_rows": 18872.75,
+    "memberless_blocks": 0,
+    "edges_kept": 322499
+   },
+   "louvain": {
+    "blocks": 8,
+    "max_rows": 20000,
+    "mean_rows": 18872.75,
+    "memberless_blocks": 0,
+    "edges_kept": 2023949
+   }
+  },
+  {
+   "community_id": 26,
+   "rows": 35399,
+   "members": 9219,
+   "edge_rows": 584531,
+   "split_s": {
+    "louvain": 1.13
+   },
+   "id_pow2": {
+    "blocks": 2,
+    "max_rows": 17790,
+    "mean_rows": 17699.5,
+    "memberless_blocks": 0,
+    "edges_kept": 293550
+   },
+   "louvain": {
+    "blocks": 2,
+    "max_rows": 19998,
+    "mean_rows": 17699.5,
+    "memberless_blocks": 0,
+    "edges_kept": 543225
+   }
+  },
+  {
+   "community_id": 27,
+   "rows": 41897,
+   "members": 13648,
+   "edge_rows": 1143397,
+   "split_s": {
+    "louvain": 1.81
+   },
+   "id_pow2": {
+    "blocks": 4,
+    "max_rows": 10607,
+    "mean_rows": 10474.25,
+    "memberless_blocks": 0,
+    "edges_kept": 286345
+   },
+   "louvain": {
+    "blocks": 3,
+    "max_rows": 20000,
+    "mean_rows": 13965.666666666666,
+    "memberless_blocks": 0,
+    "edges_kept": 1096171
+   }
+  },
+  {
+   "community_id": 30,
+   "rows": 173732,
+   "members": 49545,
+   "edge_rows": 3072830,
+   "split_s": {
+    "louvain": 8.91
+   },
+   "id_pow2": {
+    "blocks": 16,
+    "max_rows": 11081,
+    "mean_rows": 10858.25,
+    "memberless_blocks": 0,
+    "edges_kept": 192321
+   },
+   "louvain": {
+    "blocks": 9,
+    "max_rows": 19995,
+    "mean_rows": 19303.555555555555,
+    "memberless_blocks": 0,
+    "edges_kept": 2699963
+   }
+  },
+  {
+   "community_id": 31,
+   "rows": 261996,
+   "members": 85898,
+   "edge_rows": 5554724,
+   "split_s": {
+    "louvain": 27.62
+   },
+   "id_pow2": {
+    "blocks": 16,
+    "max_rows": 16572,
+    "mean_rows": 16374.75,
+    "memberless_blocks": 0,
+    "edges_kept": 347185
+   },
+   "louvain": {
+    "blocks": 14,
+    "max_rows": 20000,
+    "mean_rows": 18714.0,
+    "memberless_blocks": 0,
+    "edges_kept": 4325753
+   }
+  },
+  {
+   "community_id": 32,
+   "rows": 166581,
+   "members": 83638,
+   "edge_rows": 3862617,
+   "split_s": {
+    "louvain": 16.55
+   },
+   "id_pow2": {
+    "blocks": 16,
+    "max_rows": 10580,
+    "mean_rows": 10411.3125,
+    "memberless_blocks": 0,
+    "edges_kept": 241888
+   },
+   "louvain": {
+    "blocks": 9,
+    "max_rows": 20000,
+    "mean_rows": 18509.0,
+    "memberless_blocks": 0,
+    "edges_kept": 3239012
+   }
+  },
+  {
+   "community_id": 33,
+   "rows": 54802,
+   "members": 21601,
+   "edge_rows": 1399616,
+   "split_s": {
+    "louvain": 3.16
+   },
+   "id_pow2": {
+    "blocks": 4,
+    "max_rows": 13766,
+    "mean_rows": 13700.5,
+    "memberless_blocks": 0,
+    "edges_kept": 351389
+   },
+   "louvain": {
+    "blocks": 3,
+    "max_rows": 20000,
+    "mean_rows": 18267.333333333332,
+    "memberless_blocks": 0,
+    "edges_kept": 1220014
+   }
+  },
+  {
+   "community_id": 34,
+   "rows": 98323,
+   "members": 33034,
+   "edge_rows": 2605840,
+   "split_s": {
+    "louvain": 5.82
+   },
+   "id_pow2": {
+    "blocks": 8,
+    "max_rows": 12451,
+    "mean_rows": 12290.375,
+    "memberless_blocks": 0,
+    "edges_kept": 327649
+   },
+   "louvain": {
+    "blocks": 5,
+    "max_rows": 19997,
+    "mean_rows": 19664.6,
+    "memberless_blocks": 0,
+    "edges_kept": 2388149
+   }
+  },
+  {
+   "community_id": 38,
+   "rows": 69376,
+   "members": 29121,
+   "edge_rows": 1895206,
+   "split_s": {
+    "louvain": 3.54
+   },
+   "id_pow2": {
+    "blocks": 4,
+    "max_rows": 17445,
+    "mean_rows": 17344.0,
+    "memberless_blocks": 0,
+    "edges_kept": 473688
+   },
+   "louvain": {
+    "blocks": 4,
+    "max_rows": 19992,
+    "mean_rows": 17344.0,
+    "memberless_blocks": 0,
+    "edges_kept": 1737353
+   }
+  },
+  {
+   "community_id": 39,
+   "rows": 33096,
+   "members": 13578,
+   "edge_rows": 1041053,
+   "split_s": {
+    "louvain": 2.27
+   },
+   "id_pow2": {
+    "blocks": 2,
+    "max_rows": 16576,
+    "mean_rows": 16548.0,
+    "memberless_blocks": 0,
+    "edges_kept": 520424
+   },
+   "louvain": {
+    "blocks": 2,
+    "max_rows": 19992,
+    "mean_rows": 16548.0,
+    "memberless_blocks": 0,
+    "edges_kept": 970592
+   }
+  },
+  {
+   "community_id": 40,
+   "rows": 161206,
+   "members": 74273,
+   "edge_rows": 3605967,
+   "split_s": {
+    "louvain": 11.95
+   },
+   "id_pow2": {
+    "blocks": 16,
+    "max_rows": 10303,
+    "mean_rows": 10075.375,
+    "memberless_blocks": 0,
+    "edges_kept": 226314
+   },
+   "louvain": {
+    "blocks": 9,
+    "max_rows": 20000,
+    "mean_rows": 17911.777777777777,
+    "memberless_blocks": 0,
+    "edges_kept": 3030102
+   }
+  },
+  {
+   "community_id": 42,
+   "rows": 71802,
+   "members": 32123,
+   "edge_rows": 1430263,
+   "split_s": {
+    "louvain": 2.45
+   },
+   "id_pow2": {
+    "blocks": 4,
+    "max_rows": 18049,
+    "mean_rows": 17950.5,
+    "memberless_blocks": 0,
+    "edges_kept": 358143
+   },
+   "louvain": {
+    "blocks": 4,
+    "max_rows": 19937,
+    "mean_rows": 17950.5,
+    "memberless_blocks": 0,
+    "edges_kept": 1250610
+   }
+  },
+  {
+   "community_id": 44,
+   "rows": 99012,
+   "members": 39829,
+   "edge_rows": 2500615,
+   "split_s": {
+    "louvain": 5.83
+   },
+   "id_pow2": {
+    "blocks": 8,
+    "max_rows": 12523,
+    "mean_rows": 12376.5,
+    "memberless_blocks": 0,
+    "edges_kept": 312495
+   },
+   "louvain": {
+    "blocks": 5,
+    "max_rows": 19890,
+    "mean_rows": 19802.4,
+    "memberless_blocks": 0,
+    "edges_kept": 2041434
+   }
+  },
+  {
+   "community_id": 45,
+   "rows": 159323,
+   "members": 64177,
+   "edge_rows": 3194009,
+   "split_s": {
+    "louvain": 12.66
+   },
+   "id_pow2": {
+    "blocks": 8,
+    "max_rows": 20103,
+    "mean_rows": 19915.375,
+    "memberless_blocks": 0,
+    "edges_kept": 399905
+   },
+   "louvain": {
+    "blocks": 8,
+    "max_rows": 20000,
+    "mean_rows": 19915.375,
+    "memberless_blocks": 0,
+    "edges_kept": 2404562
+   }
+  },
+  {
+   "community_id": 47,
+   "rows": 49693,
+   "members": 16027,
+   "edge_rows": 972730,
+   "split_s": {
+    "louvain": 2.39
+   },
+   "id_pow2": {
+    "blocks": 4,
+    "max_rows": 12490,
+    "mean_rows": 12423.25,
+    "memberless_blocks": 0,
+    "edges_kept": 242062
+   },
+   "louvain": {
+    "blocks": 3,
+    "max_rows": 20000,
+    "mean_rows": 16564.333333333332,
+    "memberless_blocks": 0,
+    "edges_kept": 867998
+   }
+  },
+  {
+   "community_id": 50,
+   "rows": 28914,
+   "members": 8848,
+   "edge_rows": 365841,
+   "split_s": {
+    "louvain": 0.48
+   },
+   "id_pow2": {
+    "blocks": 2,
+    "max_rows": 14464,
+    "mean_rows": 14457.0,
+    "memberless_blocks": 0,
+    "edges_kept": 182387
+   },
+   "louvain": {
+    "blocks": 2,
+    "max_rows": 20000,
+    "mean_rows": 14457.0,
+    "memberless_blocks": 0,
+    "edges_kept": 351636
+   }
+  },
+  {
+   "community_id": 51,
+   "rows": 254509,
+   "members": 127318,
+   "edge_rows": 7041695,
+   "split_s": {
+    "louvain": 24.35
+   },
+   "id_pow2": {
+    "blocks": 16,
+    "max_rows": 16130,
+    "mean_rows": 15906.8125,
+    "memberless_blocks": 0,
+    "edges_kept": 439589
+   },
+   "louvain": {
+    "blocks": 13,
+    "max_rows": 20000,
+    "mean_rows": 19577.615384615383,
+    "memberless_blocks": 0,
+    "edges_kept": 5570901
+   }
+  },
+  {
+   "community_id": 53,
+   "rows": 22941,
+   "members": 7929,
+   "edge_rows": 638109,
+   "split_s": {
+    "louvain": 0.84
+   },
+   "id_pow2": {
+    "blocks": 2,
+    "max_rows": 11475,
+    "mean_rows": 11470.5,
+    "memberless_blocks": 0,
+    "edges_kept": 318585
+   },
+   "louvain": {
+    "blocks": 2,
+    "max_rows": 19986,
+    "mean_rows": 11470.5,
+    "memberless_blocks": 0,
+    "edges_kept": 596519
+   }
+  },
+  {
+   "community_id": 54,
+   "rows": 52880,
+   "members": 22456,
+   "edge_rows": 1461661,
+   "split_s": {
+    "louvain": 2.38
+   },
+   "id_pow2": {
+    "blocks": 4,
+    "max_rows": 13345,
+    "mean_rows": 13220.0,
+    "memberless_blocks": 0,
+    "edges_kept": 365713
+   },
+   "louvain": {
+    "blocks": 3,
+    "max_rows": 20000,
+    "mean_rows": 17626.666666666668,
+    "memberless_blocks": 0,
+    "edges_kept": 1305665
+   }
+  },
+  {
+   "community_id": 57,
+   "rows": 26982,
+   "members": 6258,
+   "edge_rows": 442408,
+   "split_s": {
+    "louvain": 0.63
+   },
+   "id_pow2": {
+    "blocks": 2,
+    "max_rows": 13500,
+    "mean_rows": 13491.0,
+    "memberless_blocks": 0,
+    "edges_kept": 220659
+   },
+   "louvain": {
+    "blocks": 2,
+    "max_rows": 19996,
+    "mean_rows": 13491.0,
+    "memberless_blocks": 0,
+    "edges_kept": 423748
+   }
+  },
+  {
+   "community_id": 93,
+   "rows": 51104,
+   "members": 50738,
+   "edge_rows": 1048859,
+   "split_s": {
+    "louvain": 2.84
+   },
+   "id_pow2": {
+    "blocks": 4,
+    "max_rows": 12966,
+    "mean_rows": 12776.0,
+    "memberless_blocks": 0,
+    "edges_kept": 262360
+   },
+   "louvain": {
+    "blocks": 3,
+    "max_rows": 20000,
+    "mean_rows": 17034.666666666668,
+    "memberless_blocks": 0,
+    "edges_kept": 945882
+   }
+  }
+ ]
+}

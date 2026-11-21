@@ -5,8 +5,8 @@ peak GPU = peak.sh (nvidia-smi minus idle), the largest over the seeds, as Table
 
   backbones   results/backbones/<gcn_pre|gatv2|sage>/: baselines.jsonl, pipeline.jsonl, peak.jsonl (backbones.sh,
               results/backbones/rerun_1120.sh) + the full-graph GraphSAGE of Table 4 (results/tableB)
-  cmax        results/cmax_sweep/c<C>/ (run.sh TB_CMAX=C, row 5) + storage.jsonl (store_size.py); C_max = 10,000 is
-              Table 4 row 5 on ogbn-products: results/tableB pipeline / peak / read_units, global read results/tableB/v4
+  cmax        results/cmax_sweep/c<C>/ (run.sh TB_CMAX=C, row 5) + storage.jsonl (store_size.py); C_max = 10,000:
+              Stage 3 from results/backbones/sage, reads from Table 4 (results/tableB read_units, global read v4)
 
     python experiments/tableB/summary_backbones_cmax.py      # writes results/backbones/SUMMARY.md, results/cmax_sweep/SUMMARY.md
 """
@@ -89,14 +89,15 @@ def cmax():
     size = {r["tag"]: r for r in load("cmax_sweep", "storage.jsonl")}   # last record per tag
     for c in (5000, 10000, 20000, 40000):
         d = ("tableB",) if c == 10000 else ("cmax_sweep", f"c{c}")
-        pipe = [r for r in row5(load(*d, "pipeline.jsonl"), ds) if r["max_nodes"] == c and r["model"] == "sage"]
+        s3 = ("backbones", "sage") if c == 10000 else d   # 10,000: Stage 3b alone on the stored view (advisor 11-20)
+        pipe = [r for r in row5(load(*s3, "pipeline.jsonl"), ds) if r["max_nodes"] == c and r["model"] == "sage"]
         units = [r["wall_s"] for r in load(*d, "read_units.jsonl") if r["dataset"] == ds and r["row"] == "5"]
         glob = [r["wall_s"] for r in load(*(("tableB", "v4") if c == 10000 else d), "read_full.jsonl")
                 if r["dataset"] == ds and r["row"] == "5 global"]
         major = ", ".join(f"{u:,}" for u in sorted({r["n_units_stage3b"] - 1 for r in pipe})) or "--"  # + 1 global model
         sz = f"{size[f'leiden_c{c}']['mv_unit_bytes'] / 1e9:.2f}" if f"leiden_c{c}" in size else "--"
         read = f"{st.mean(units) + st.mean(glob):.1f} ({ms(units)} + {ms(glob, 2)})" if units and glob else "--"
-        L.append(f"| {c:,} | {major} | {sz} | {read} | {ms([s3_wall(r) for r in pipe])} | {gpu_gb(peaks(d), ds)} | "
+        L.append(f"| {c:,} | {major} | {sz} | {read} | {ms([s3_wall(r) for r in pipe])} | {gpu_gb(peaks(s3), ds)} | "
                  f"{ms([r['stage3b_node_acc'] for r in pipe], 2, 100)} |")
     return L
 
@@ -112,7 +113,8 @@ if __name__ == "__main__":
              "results/backbones/gcn) are superseded."),
             ("cmax_sweep", cmax(), "ogbn-products, row 5 (GraphSAGE, 8 workers, row 8b layout, 2 MB floor). Read = "
              "the run's units + the global tables (macro-graph, communities, unit plan), S3 cost model, 20 readers, "
-             "3 cold runs. C_max = 10,000 = Table 4 row 5.")):
+             "3 cold runs. C_max = 10,000: units, storage and reads = Table 4 row 5; Stage 3, GPU and accuracy = the "
+             "--stage3-only GraphSAGE run on the stored view (results/backbones/sage).")):
         text = "\n".join([f"# {name}", "", note, ""] + rows) + "\n"
         print(text)
         if os.path.isdir(os.path.join(R, name)):
